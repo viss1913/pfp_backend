@@ -4,7 +4,9 @@ info:
   version: 1.0.0
   description: API for managing Products & Portfolios
 servers:
-  - url: /api/pfp
+  - url: /api
+    description: Main API server
+
 components:
   securitySchemes:
     bearerAuth:
@@ -130,7 +132,114 @@ security:
   - apiKeyAuth: []
 
 paths:
-  /products:
+  /auth/login:
+    post:
+      summary: Login and get JWT token
+      tags:
+        - Authentication
+      security: []  # No auth required for login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      email:
+                        type: string
+                      name:
+                        type: string
+                      role:
+                        type: string
+                      agentId:
+                        type: integer
+        '401':
+          description: Invalid credentials
+
+  /auth/register:
+    post:
+      summary: Register new agent user
+      tags:
+        - Authentication
+      security: []  # No auth required for registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+                - agentId
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                name:
+                  type: string
+                agentId:
+                  type: integer
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: User already exists
+
+  /auth/me:
+    get:
+      summary: Get current user info
+      tags:
+        - Authentication
+      responses:
+        '200':
+          description: User info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  email:
+                    type: string
+                  role:
+                    type: string
+                  agentId:
+                    type: integer
+
+  /pfp/products:
+
     get:
       summary: List products
       parameters:

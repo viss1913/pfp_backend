@@ -1,15 +1,18 @@
 const express = require('express');
-const router = express.Router();
+const authMiddleware = require('../middlewares/authMiddleware');
+const authRoutes = require('./authRoutes');
 const productRoutes = require('./productRoutes');
 const portfolioRoutes = require('./portfolioRoutes');
 const settingsRoutes = require('./settingsRoutes');
-const authMiddleware = require('../middlewares/authMiddleware');
 
-// All PFP routes require auth
-router.use(authMiddleware);
+const router = express.Router();
 
-router.use('/products', productRoutes);
-router.use('/portfolios', portfolioRoutes);
-router.use('/settings', settingsRoutes);
+// Public auth routes (no middleware)
+router.use('/auth', authRoutes);
+
+// Protected PFP routes (require authentication)
+router.use('/pfp/products', authMiddleware, productRoutes);
+router.use('/pfp/portfolios', authMiddleware, portfolioRoutes);
+router.use('/pfp/settings', authMiddleware, settingsRoutes);
 
 module.exports = router;

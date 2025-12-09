@@ -1,25 +1,49 @@
-module.exports = (req, res, next) => {
-    // Try to get agent_id from header (simplified for this task as per instructions)
-    const agentIdHeader = req.headers['x-agent-id'];
+const authService = require('../services/authService');
 
-    // In a real app, we would parse the Bearer token here.
-    // For this task, we assume the gateway/auth service passes the ID or we read it from dev headers.
+/**
+ * Authentication middleware
+ * Supports both JWT tokens and legacy x-agent-id headers
+ */
+function authMiddleware(req, res, next) {
+    try {
+        // Check for Authorization header with Bearer token
+        const authHeader = req.headers.authorization;
 
-    if (agentIdHeader) {
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            // JWT authentication
+            const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+            const decoded = authService.verifyToken(token);
+
+            req.user = {
+                id: decoded.agentId || decoded.id,
+                email: decoded.email,
+                role: decoded.role,
+                isAdmin: decoded.role === 'admin'
+            };
+
+            return next();
+        }
+
+        // Legacy authentication (for backward compatibility)
+        const agentId = req.headers['x-agent-id'];
+        const role = req.headers['x-role'];
+
+        if (!agentId) {
+            return res.status(401).json({
+                error: 'Authentication required. Provide Bearer token or x-agent-id header.'
+            });
+        }
+
         req.user = {
-            id: parseInt(agentIdHeader, 10),
-            // Mock admin role if needed, e.g. x-role header
-            isAdmin: req.headers['x-role'] === 'admin'
+            id: parseInt(agentId),
+            isAdmin: role === 'admin',
+            role: role || 'agent'
         };
-    } else {
-        // If auth is strictly required for everything:
-        // return res.status(401).json({ error: 'Unauthorized: agent_id missing' });
 
-        // However, maybe some endpoints are public? 
-        // The prompt says "In all requests agent_id is needed".
-        // So we reject.
-        return res.status(401).json({ error: 'Unauthorized: agent_id missing' });
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: err.message || 'Invalid authentication' });
     }
+}
 
-    next();
-};
+module.exports = authMiddleware;
