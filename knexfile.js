@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 
 // Railway provides MYSQL_URL, parse it if available
 const parseMySQLUrl = (url) => {
@@ -53,20 +54,20 @@ module.exports = {
         client: 'mysql2',
         connection: getConnection(),
         migrations: {
-            directory: './database/migrations'
+            directory: path.join(__dirname, 'database', 'migrations')
         },
         seeds: {
-            directory: './database/seeds'
+            directory: path.join(__dirname, 'database', 'seeds')
         }
     },
     production: {
         client: 'mysql2',
         connection: getConnection(),
         migrations: {
-            directory: './database/migrations'
+            directory: path.join(__dirname, 'database', 'migrations')
         },
         seeds: {
-            directory: './database/seeds'
+            directory: path.join(__dirname, 'database', 'seeds')
         },
         pool: {
             min: 2,
