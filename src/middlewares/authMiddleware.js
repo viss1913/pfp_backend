@@ -15,7 +15,8 @@ function authMiddleware(req, res, next) {
             const decoded = authService.verifyToken(token);
 
             req.user = {
-                id: decoded.agentId || decoded.id,
+                id: decoded.id,
+                agentId: decoded.agentId,
                 email: decoded.email,
                 role: decoded.role,
                 isAdmin: decoded.role === 'admin'
@@ -36,6 +37,7 @@ function authMiddleware(req, res, next) {
 
         req.user = {
             id: parseInt(agentId),
+            agentId: parseInt(agentId),
             isAdmin: role === 'admin',
             role: role || 'agent'
         };

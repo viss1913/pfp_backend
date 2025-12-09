@@ -21,7 +21,7 @@ const productSchema = Joi.object({
 class ProductController {
     async getAll(req, res, next) {
         try {
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
             const products = await productService.getAllProducts(agentId, req.query);
             res.json(products);
         } catch (err) {
@@ -46,7 +46,7 @@ class ProductController {
                 return res.status(400).json({ error: result.error.details[0].message });
             }
 
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
             const newProduct = await productService.createProduct(agentId, req.body);
             res.status(201).json(newProduct);
         } catch (err) {
@@ -57,7 +57,7 @@ class ProductController {
     async update(req, res, next) {
         try {
             const { id } = req.params;
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
             const isAdmin = req.user.isAdmin; // Mocked in auth middleware
 
             const updatedProduct = await productService.updateProduct(id, agentId, isAdmin, req.body);
@@ -70,7 +70,7 @@ class ProductController {
     async delete(req, res, next) {
         try {
             const { id } = req.params;
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
             const isAdmin = req.user.isAdmin;
 
             await productService.deleteProduct(id, agentId, isAdmin);
@@ -83,7 +83,7 @@ class ProductController {
     async clone(req, res, next) {
         try {
             const { id } = req.params;
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
 
             const cloned = await productService.cloneProduct(id, agentId);
             res.status(201).json(cloned);

@@ -29,7 +29,7 @@ const portfolioSchema = Joi.object({
 class PortfolioController {
     async getAll(req, res, next) {
         try {
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
             const result = await portfolioService.getAllPortfolios(agentId, req.query);
             res.json(result);
         } catch (err) {
@@ -52,7 +52,7 @@ class PortfolioController {
             const validation = portfolioSchema.validate(req.body);
             if (validation.error) return res.status(400).json({ error: validation.error.details[0].message });
 
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
             const result = await portfolioService.createPortfolio(agentId, req.body);
             res.status(201).json(result);
         } catch (err) {
@@ -63,7 +63,7 @@ class PortfolioController {
     async update(req, res, next) {
         try {
             const { id } = req.params;
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
             const isAdmin = req.user.isAdmin;
 
             const result = await portfolioService.updatePortfolio(id, agentId, isAdmin, req.body);
@@ -76,7 +76,7 @@ class PortfolioController {
     async delete(req, res, next) {
         try {
             const { id } = req.params;
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
             const isAdmin = req.user.isAdmin;
 
             await portfolioService.deletePortfolio(id, agentId, isAdmin);
@@ -89,7 +89,7 @@ class PortfolioController {
     async clone(req, res, next) {
         try {
             const { id } = req.params;
-            const agentId = req.user.id;
+            const agentId = req.user.agentId;
 
             const result = await portfolioService.clonePortfolio(id, agentId);
             res.status(201).json(result);
