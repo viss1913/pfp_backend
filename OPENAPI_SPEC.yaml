@@ -1,0 +1,526 @@
+openapi: 3.0.0
+info:
+  title: PFP Service API
+  version: 1.0.0
+  description: API for managing Products & Portfolios
+servers:
+  - url: /api
+    description: Main API server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        product_type:
+          type: string
+        currency:
+          type: string
+        min_term_months:
+          type: integer
+        max_term_months:
+          type: integer
+        min_amount:
+          type: number
+        max_amount:
+          type: number
+        yields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductYield'
+    ProductYield:
+      type: object
+      properties:
+        term_from_months:
+          type: integer
+        term_to_months:
+          type: integer
+        amount_from:
+          type: number
+        amount_to:
+          type: number
+        yield_percent:
+          type: number
+    Portfolio:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        currency:
+          type: string
+        amount_from:
+          type: number
+        amount_to:
+          type: number
+        term_from_months:
+          type: integer
+        term_to_months:
+          type: integer
+        classes:
+          type: array
+          items:
+            type: object # simplified
+        riskProfiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioRiskProfile'
+    PortfolioRiskProfile:
+      type: object
+      properties:
+        profile_type:
+          type: string
+          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+        potential_yield_percent:
+          type: number
+        instruments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioInstrument'
+    PortfolioInstrument:
+      type: object
+      properties:
+        product_id:
+          type: integer
+        bucket_type:
+          type: string
+          enum: [INITIAL_CAPITAL, TOP_UP]
+        share_percent:
+          type: number
+        order_index:
+          type: integer
+    SystemSetting:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Unique setting key
+        value:
+          oneOf:
+            - type: string
+            - type: number
+            - type: object
+          description: Setting value (type depends on value_type)
+        description:
+          type: string
+          description: Human-readable description
+        category:
+          type: string
+          description: Category (calculation, pension, etc.)
+        updated_at:
+          type: string
+          format: date-time
+
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+paths:
+  /auth/login:
+    post:
+      summary: Login and get JWT token
+      tags:
+        - Authentication
+      security: []  # No auth required for login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      email:
+                        type: string
+                      name:
+                        type: string
+                      role:
+                        type: string
+                      agentId:
+                        type: integer
+        '401':
+          description: Invalid credentials
+
+  /auth/register:
+    post:
+      summary: Register new agent user
+      tags:
+        - Authentication
+      security: []  # No auth required for registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+                - name
+                - agentId
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                name:
+                  type: string
+                agentId:
+                  type: integer
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: User already exists
+
+  /auth/me:
+    get:
+      summary: Get current user info
+      tags:
+        - Authentication
+      responses:
+        '200':
+          description: User info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  email:
+                    type: string
+                  role:
+                    type: string
+                  agentId:
+                    type: integer
+
+  /pfp/products:
+    get:
+      summary: List products
+      parameters:
+        - in: query
+          name: includeDefaults
+          schema:
+            type: boolean
+        - in: query
+          name: product_type
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      summary: Create product
+      requestBody:
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/Product'
+      responses:
+        '201':
+          description: Created
+          
+  /pfp/products/{id}:
+    get:
+      summary: Get product by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: Update product
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete product
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+          
+  /pfp/products/{id}/clone:
+    post:
+      summary: Clone default product
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Cloned
+
+  /pfp/portfolios:
+    get:
+      summary: List portfolios
+      parameters:
+        - in: query
+          name: amount_from
+          schema:
+            type: number
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create portfolio
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Portfolio'
+      responses:
+        '201':
+          description: Created
+          
+  /pfp/portfolios/{id}:
+    get:
+      summary: Get portfolio
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+    put:
+      summary: Update portfolio
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Portfolio'
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: Delete portfolio
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+          
+  /pfp/portfolios/{id}/clone:
+    post:
+      summary: Clone default portfolio
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '201':
+          description: Cloned
+
+  /pfp/settings:
+    get:
+      summary: List all system settings
+      tags:
+        - Settings
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by category (calculation, pension, etc.)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SystemSetting'
+    post:
+      summary: Create new setting (admin only)
+      tags:
+        - Settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - key
+                - value
+              properties:
+                key:
+                  type: string
+                value:
+                  oneOf:
+                    - type: string
+                    - type: number
+                    - type: object
+                description:
+                  type: string
+                category:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSetting'
+        '403':
+          description: Forbidden (admin only)
+
+  /pfp/settings/{key}:
+    get:
+      summary: Get setting by key
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSetting'
+        '404':
+          description: Setting not found
+    put:
+      summary: Update setting value (admin only)
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - value
+              properties:
+                value:
+                  oneOf:
+                    - type: string
+                    - type: number
+                    - type: object
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemSetting'
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: Setting not found
+    delete:
+      summary: Delete setting (admin only)
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: Setting not found
