@@ -18,18 +18,40 @@ const parseMySQLUrl = (url) => {
     }
 };
 
+// Try MYSQL_URL first, then fall back to individual variables
 const railwayConnection = parseMySQLUrl(process.env.MYSQL_URL);
+
+// Railway also provides individual MYSQL* variables
+const getConnection = () => {
+    if (railwayConnection) {
+        return railwayConnection;
+    }
+
+    // Check for Railway's individual variables (MYSQLHOST, MYSQLUSER, etc.)
+    if (process.env.MYSQLHOST) {
+        return {
+            host: process.env.MYSQLHOST,
+            port: Number(process.env.MYSQLPORT) || 3306,
+            user: process.env.MYSQLUSER,
+            password: process.env.MYSQLPASSWORD,
+            database: process.env.MYSQLDATABASE
+        };
+    }
+
+    // Fall back to custom DB_* variables for local development
+    return {
+        host: process.env.DB_HOST || '127.0.0.1',
+        port: Number(process.env.DB_PORT) || 3306,
+        user: process.env.DB_USER || 'root',
+        password: process.env.DB_PASSWORD || '',
+        database: process.env.DB_NAME || 'pfp_service'
+    };
+};
 
 module.exports = {
     development: {
         client: 'mysql2',
-        connection: railwayConnection || {
-            host: process.env.DB_HOST || '127.0.0.1',
-            port: Number(process.env.DB_PORT) || 3306,
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            database: process.env.DB_NAME || 'pfp_service'
-        },
+        connection: getConnection(),
         migrations: {
             directory: './database/migrations'
         },
@@ -39,13 +61,7 @@ module.exports = {
     },
     production: {
         client: 'mysql2',
-        connection: railwayConnection || {
-            host: process.env.DB_HOST,
-            port: Number(process.env.DB_PORT) || 3306,
-            user: process.env.DB_USER,
-            password: process.env.DB_PASSWORD,
-            database: process.env.DB_NAME
-        },
+        connection: getConnection(),
         migrations: {
             directory: './database/migrations'
         },
