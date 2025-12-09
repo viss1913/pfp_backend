@@ -19,7 +19,7 @@ const swaggerDocument = YAML.load(path.join(__dirname, '../openapi/pfp-api.yaml'
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Routes
-app.use('/api/pfp', routes);
+app.use('/api', routes);
 
 // Error Handler
 app.use(errorHandler);
