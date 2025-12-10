@@ -68,10 +68,20 @@ components:
           type: array
           items:
             type: object # simplified
+            $ref: '#/components/schemas/PortfolioClass'
         riskProfiles:
           type: array
           items:
             $ref: '#/components/schemas/PortfolioRiskProfile'
+    PortfolioClass:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
     PortfolioRiskProfile:
       type: object
       properties:
@@ -337,6 +347,19 @@ paths:
         '201':
           description: Created
           
+  /pfp/portfolios/classes:
+    get:
+      summary: Get all portfolio classes (goal types)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PortfolioClass'
+
   /pfp/portfolios/{id}:
     get:
       summary: Get portfolio

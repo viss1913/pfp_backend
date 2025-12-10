@@ -36,7 +36,9 @@
 - Возраст инвестора: Age From / Age To
 - Тип инвестора: Select (QUALIFIED, etc)
 - Gender: Select (Male/Female/Any)
-- Asset Classes: Multi-select (IDs классов)
+- Asset Classes: Multi-select (IDs классов).
+  - *Для получения списка классов используйте новый эндпоинт*: `GET /pfp/portfolios/classes`.
+
 
 **Настройка Риск-профилей (Risk Profiles):**
 Это сложная часть формы. Портфель содержит массив `risk_profiles`.

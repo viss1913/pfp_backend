@@ -11,6 +11,10 @@ class PortfolioService {
         });
     }
 
+    async getPortfolioClasses() {
+        return portfolioRepository.getClasses();
+    }
+
     async getPortfolioById(id) {
         return portfolioRepository.findById(id);
     }

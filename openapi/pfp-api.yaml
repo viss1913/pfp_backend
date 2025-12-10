@@ -68,10 +68,20 @@ components:
           type: array
           items:
             type: object # simplified
+            $ref: '#/components/schemas/PortfolioClass'
         riskProfiles:
           type: array
           items:
             $ref: '#/components/schemas/PortfolioRiskProfile'
+    PortfolioClass:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
     PortfolioRiskProfile:
       type: object
       properties:
@@ -230,7 +240,6 @@ paths:
                     type: integer
 
   /pfp/products:
-
     get:
       summary: List products
       parameters:
@@ -262,7 +271,8 @@ paths:
       responses:
         '201':
           description: Created
-  /products/{id}:
+          
+  /pfp/products/{id}:
     get:
       summary: Get product by ID
       parameters:
@@ -301,7 +311,8 @@ paths:
       responses:
         '204':
           description: Deleted
-  /products/{id}/clone:
+          
+  /pfp/products/{id}/clone:
     post:
       summary: Clone default product
       parameters:
@@ -314,7 +325,7 @@ paths:
         '201':
           description: Cloned
 
-  /portfolios:
+  /pfp/portfolios:
     get:
       summary: List portfolios
       parameters:
@@ -335,7 +346,21 @@ paths:
       responses:
         '201':
           description: Created
-  /portfolios/{id}:
+          
+  /pfp/portfolios/classes:
+    get:
+      summary: Get all portfolio classes (goal types)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PortfolioClass'
+
+  /pfp/portfolios/{id}:
     get:
       summary: Get portfolio
       parameters:
@@ -374,7 +399,8 @@ paths:
       responses:
         '204':
           description: Deleted
-  /portfolios/{id}/clone:
+          
+  /pfp/portfolios/{id}/clone:
     post:
       summary: Clone default portfolio
       parameters:
@@ -387,7 +413,7 @@ paths:
         '201':
           description: Cloned
 
-  /settings:
+  /pfp/settings:
     get:
       summary: List all system settings
       tags:
@@ -441,7 +467,7 @@ paths:
         '403':
           description: Forbidden (admin only)
 
-  /settings/{key}:
+  /pfp/settings/{key}:
     get:
       summary: Get setting by key
       tags:

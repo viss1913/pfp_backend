@@ -41,6 +41,15 @@ class PortfolioController {
         }
     }
 
+    async getClasses(req, res, next) {
+        try {
+            const result = await portfolioService.getPortfolioClasses();
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
     async getById(req, res, next) {
         try {
             const result = await portfolioService.getPortfolioById(req.params.id);

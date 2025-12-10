@@ -15,7 +15,7 @@ class PortfolioRepository {
         // ... Implement other filters as needed
 
         const rows = await query;
-        
+
         // Parse JSON fields
         return rows.map(row => ({
             ...row,
@@ -41,7 +41,7 @@ class PortfolioRepository {
             classes: classIds && classIds.length > 0 ? JSON.stringify(classIds) : null,
             risk_profiles: riskProfilesData && riskProfilesData.length > 0 ? JSON.stringify(riskProfilesData) : null
         };
-        
+
         const [id] = await db('portfolios').insert(dataToInsert);
         return id;
     }
@@ -65,6 +65,10 @@ class PortfolioRepository {
 
     async softDelete(id) {
         return db('portfolios').where({ id }).update({ is_active: false });
+    }
+
+    async getClasses() {
+        return db('portfolio_classes').select('*');
     }
 }
 
