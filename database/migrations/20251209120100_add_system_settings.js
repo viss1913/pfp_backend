@@ -25,7 +25,7 @@ exports.up = function (knex) {
                 },
                 {
                     key: 'investment_expense_growth_monthly',
-                    value: '0.00', // 0% - без роста по умолчанию
+                    value: '0.33', // 0.33% в месяц - рост расходов на инвестиции
                     value_type: 'number',
                     description: 'Рост расходов на инвестиции (% в месяц)',
                     category: 'calculation'

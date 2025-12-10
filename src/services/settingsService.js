@@ -82,6 +82,20 @@ class SettingsService {
     async getValue(key) {
         return settingsRepository.getValue(key);
     }
+
+    // Алиас для getValue (для удобства использования в расчетах)
+    async get(key) {
+        const setting = await settingsRepository.findByKey(key);
+        if (!setting) return null;
+        
+        return {
+            key: setting.key,
+            value: this._parseValue(setting.value, setting.value_type),
+            description: setting.description,
+            category: setting.category,
+            updated_at: setting.updated_at
+        };
+    }
 }
 
 module.exports = new SettingsService();
