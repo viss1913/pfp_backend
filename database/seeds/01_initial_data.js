@@ -14,7 +14,7 @@ exports.seed = async function (knex) {
         { id: 2, code: 'PASSIVE_INCOME', name: 'Пассивный доход' },
         { id: 3, code: 'INVESTMENT', name: 'Инвестиции' },
         { id: 4, code: 'OTHER', name: 'Прочее' },
-        { id: 5, code: 'LIFE', name: 'Защита жизни' },
+        { id: 5, code: 'LIFE', name: 'Жизнь' },
         { id: 6, code: 'GOS_PENSION', name: 'Госпенсия' }
     ]);
 
@@ -41,7 +41,7 @@ exports.seed = async function (knex) {
         { code: 'PASSIVE_INCOME', name: 'Пассивный доход' },
         { code: 'INVESTMENT', name: 'Инвестиции' },
         { code: 'OTHER', name: 'Прочее' },
-        { code: 'LIFE', name: 'Защита жизни' },
+        { code: 'LIFE', name: 'Жизнь' },
         { code: 'GOS_PENSION', name: 'Госпенсия' }
     ];
 
