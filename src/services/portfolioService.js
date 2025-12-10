@@ -11,24 +11,18 @@ class PortfolioService {
         });
     }
 
-    async getPortfolioClasses() {
-        return portfolioRepository.getClasses();
-    }
-
     async getPortfolioById(id) {
         return portfolioRepository.findById(id);
     }
 
-    async createPortfolio(agentId, userId, data) {
-        const { classes, risk_profiles, ...fields } = data;
+    async createPortfolio(agentId, data) {
+        const { classes, riskProfiles, ...fields } = data;
         fields.agent_id = agentId;
-        fields.created_by = userId;
-        fields.updated_by = userId;
-        const newId = await portfolioRepository.create(fields, classes, risk_profiles);
+        const newId = await portfolioRepository.create(fields, classes, riskProfiles);
         return this.getPortfolioById(newId);
     }
 
-    async updatePortfolio(id, agentId, userId, isAdmin, data) {
+    async updatePortfolio(id, agentId, isAdmin, data) {
         const portfolio = await portfolioRepository.findById(id);
         if (!portfolio) throw { status: 404, message: 'Portfolio not found' };
 
@@ -39,9 +33,8 @@ class PortfolioService {
             throw { status: 403, message: 'Access denied' };
         }
 
-        const { classes, risk_profiles, ...fields } = data;
-        fields.updated_by = userId;
-        await portfolioRepository.update(id, fields, classes, risk_profiles);
+        const { classes, riskProfiles, ...fields } = data;
+        await portfolioRepository.update(id, fields, classes, riskProfiles);
         return this.getPortfolioById(id);
     }
 
@@ -60,7 +53,7 @@ class PortfolioService {
         return { success: true };
     }
 
-    async clonePortfolio(id, agentId, userId) {
+    async clonePortfolio(id, agentId) {
         const portfolio = await portfolioRepository.findById(id);
         if (!portfolio) throw { status: 404, message: 'Portfolio not found' };
 
@@ -68,15 +61,22 @@ class PortfolioService {
             throw { status: 400, message: 'Only default portfolios can be cloned' };
         }
 
-        const { id: _, created_at, updated_at, created_by, updated_by, classes, risk_profiles, ...data } = portfolio;
+        const { id: _, created_at, updated_at, classes, riskProfiles, ...data } = portfolio;
         data.agent_id = agentId;
         data.is_default = false;
-        data.created_by = userId;
-        data.updated_by = userId;
 
-        // classes уже массив ID, risk_profiles уже в нужном формате
-        const classIds = Array.isArray(classes) ? classes : [];
-        const riskProfilesData = Array.isArray(risk_profiles) ? risk_profiles : [];
+        // Map classes to IDs
+        const classIds = classes.map(c => c.id);
+
+        // Map risk profiles and instruments
+        const riskProfilesData = riskProfiles.map(rp => {
+            const { id: __, portfolio_id, instruments, ...rpData } = rp;
+            const instrumentsData = instruments.map(i => {
+                const { id: ___, portfolio_risk_profile_id, ...iData } = i;
+                return iData;
+            });
+            return { ...rpData, instruments: instrumentsData };
+        });
 
         const newId = await portfolioRepository.create(data, classIds, riskProfilesData);
         return this.getPortfolioById(newId);

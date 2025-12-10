@@ -30,13 +30,6 @@ components:
           type: string
         currency:
           type: string
-        lines:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductLine'
-    ProductLine:
-      type: object
-      properties:
         min_term_months:
           type: integer
         max_term_months:
@@ -44,6 +37,21 @@ components:
         min_amount:
           type: number
         max_amount:
+          type: number
+        yields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductYield'
+    ProductYield:
+      type: object
+      properties:
+        term_from_months:
+          type: integer
+        term_to_months:
+          type: integer
+        amount_from:
+          type: number
+        amount_to:
           type: number
         yield_percent:
           type: number
@@ -68,27 +76,18 @@ components:
           type: array
           items:
             type: object # simplified
-            $ref: '#/components/schemas/PortfolioClass'
         riskProfiles:
           type: array
           items:
             $ref: '#/components/schemas/PortfolioRiskProfile'
-    PortfolioClass:
-      type: object
-      properties:
-        id:
-          type: integer
-        code:
-          type: string
-        name:
-          type: string
     PortfolioRiskProfile:
       type: object
       properties:
         profile_type:
           type: string
           enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
-
+        potential_yield_percent:
+          type: number
         instruments:
           type: array
           items:
@@ -100,7 +99,7 @@ components:
           type: integer
         bucket_type:
           type: string
-          enum: [INITIAL_CAPITAL, INITIAL_REPLENISHMENT]
+          enum: [INITIAL_CAPITAL, TOP_UP]
         share_percent:
           type: number
         order_index:
@@ -125,66 +124,7 @@ components:
           description: Category (calculation, pension, etc.)
         updated_at:
           type: string
-          type: string
           format: date-time
-
-    ClientGoal:
-      type: object
-      required:
-        - goal_type_id
-        - name
-        - target_amount
-        - term_months
-        - risk_profile
-      properties:
-        goal_type_id:
-          type: integer
-          description: ID from /pfp/portfolios/classes
-        name:
-          type: string
-          description: User defined name for the goal
-        target_amount:
-          type: number
-          description: Cost of the goal
-        inflation_rate:
-          type: number
-          description: Expected inflation rate for this goal (percent)
-          default: 5.0
-        initial_capital:
-          type: number
-          description: Existing savings for this goal
-          default: 0
-        initial_replenishment:
-          type: number
-          description: Monthly replenishment amount
-          default: 0
-        term_months:
-          type: integer
-          description: Term to achieve the goal in months
-        risk_profile:
-          type: string
-          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
-
-    CalculationRequest:
-      type: object
-      required:
-        - gender
-        - age
-        - income_salary
-        - goals
-      properties:
-        gender:
-          type: string
-          enum: [MALE, FEMALE]
-        age:
-          type: integer
-        income_salary:
-          type: number
-          description: Official income (2-NDFL)
-        goals:
-          type: array
-          items:
-            $ref: '#/components/schemas/ClientGoal'
 
 
 security:
@@ -406,19 +346,6 @@ paths:
         '201':
           description: Created
           
-  /pfp/portfolios/classes:
-    get:
-      summary: Get all portfolio classes (goal types)
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PortfolioClass'
-
   /pfp/portfolios/{id}:
     get:
       summary: Get portfolio

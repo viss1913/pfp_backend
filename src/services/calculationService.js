@@ -1,6 +1,7 @@
 const portfolioRepository = require('../repositories/portfolioRepository');
 const productRepository = require('../repositories/productRepository');
 const settingsService = require('./settingsService');
+const nsjApiService = require('./nsjApiService');
 
 class CalculationService {
     /**
@@ -8,7 +9,7 @@ class CalculationService {
      * @param {Object} data - CalculationRequest data
      */
     async calculateFirstRun(data) {
-        const { goals } = data;
+        const { goals, client } = data; // client - опциональные данные клиента для НСЖ
 
         // 1. Fetch System Settings
 
@@ -39,7 +40,50 @@ class CalculationService {
         const results = [];
 
         for (const goal of goals) {
-            // --- Step 1: Find Portfolio ---
+            // Проверяем, является ли цель типом LIFE (goal_type_id: 5 или name: "Жизнь")
+            const isLifeGoal = goal.goal_type_id === 5 || goal.name === 'Жизнь';
+
+            // Если это цель типа LIFE, вызываем API НСЖ
+            if (isLifeGoal) {
+                try {
+                    const nsjResult = await nsjApiService.calculateLifeInsurance({
+                        target_amount: goal.target_amount,
+                        term_months: goal.term_months,
+                        client: client || {},
+                        payment_variant: goal.payment_variant || 0, // По умолчанию единовременно
+                        program: goal.program || 'base'
+                    });
+                    
+                    results.push({
+                        goal_id: goal.goal_type_id,
+                        goal_name: goal.name,
+                        goal_type: 'LIFE',
+                        nsj_calculation: {
+                            success: nsjResult.success,
+                            term_years: nsjResult.term,
+                            risks: nsjResult.risks || [],
+                            total_premium: nsjResult.total_premium,
+                            total_limit: nsjResult.total_limit,
+                            payments_list: nsjResult.payments_list || [],
+                            warnings: nsjResult.warnings || [],
+                            calculation_date: nsjResult.calculation_date
+                        }
+                    });
+                    continue; // Пропускаем обычный расчет для LIFE
+                } catch (nsjError) {
+                    console.error('NSJ API Error for goal:', goal.name, nsjError);
+                    results.push({
+                        goal_id: goal.goal_type_id,
+                        goal_name: goal.name,
+                        goal_type: 'LIFE',
+                        error: `NSJ calculation failed: ${nsjError.message || 'Unknown error'}`,
+                        nsj_error_details: nsjError.errors || nsjError.warnings || []
+                    });
+                    continue;
+                }
+            }
+
+            // --- Step 1: Find Portfolio (для обычных целей) ---
             const portfolio = await portfolioRepository.findByCriteria({
                 classId: goal.goal_type_id,
                 amount: goal.target_amount,

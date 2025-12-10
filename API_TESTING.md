@@ -80,13 +80,17 @@ Authorization: Bearer <token>
   "name": "НСЖ Альфа",
   "product_type": "NSJ",
   "currency": "RUB",
+  "min_term_months": 12,
+  "max_term_months": 120,
+  "min_amount": 50000,
+  "max_amount": 10000000,
   "is_default": false,
-  "lines": [
+  "yields": [
     {
-      "min_term_months": 12,
-      "max_term_months": 60,
-      "min_amount": 50000,
-      "max_amount": 10000000,
+      "term_from_months": 12,
+      "term_to_months": 60,
+      "amount_from": 50000,
+      "amount_to": 10000000,
       "yield_percent": 8.5
     }
   ]

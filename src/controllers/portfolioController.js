@@ -1,7 +1,7 @@
 const portfolioService = require('../services/portfolioService');
 const Joi = require('joi');
 
-// Schema для портфеля
+// Simplified Schema
 const portfolioSchema = Joi.object({
     name: Joi.string().required(),
     currency: Joi.string().default('RUB'),
@@ -13,17 +13,13 @@ const portfolioSchema = Joi.object({
     age_to: Joi.number().integer().allow(null),
     investor_type: Joi.string().allow(null),
     gender: Joi.string().allow(null),
-    classes: Joi.array().items(Joi.number().integer()).optional(), // Массив ID классов
-    risk_profiles: Joi.array().items(Joi.object({
+    classes: Joi.array().items(Joi.number().integer()).optional(), // Class IDs
+    riskProfiles: Joi.array().items(Joi.object({
         profile_type: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required(),
-
-        initial_capital: Joi.array().items(Joi.object({
+        potential_yield_percent: Joi.number().allow(null),
+        instruments: Joi.array().items(Joi.object({
             product_id: Joi.number().integer().required(),
-            share_percent: Joi.number().required(),
-            order_index: Joi.number().integer().allow(null)
-        })).optional(),
-        initial_replenishment: Joi.array().items(Joi.object({
-            product_id: Joi.number().integer().required(),
+            bucket_type: Joi.string().valid('INITIAL_CAPITAL', 'TOP_UP').allow(null),
             share_percent: Joi.number().required(),
             order_index: Joi.number().integer().allow(null)
         })).optional()
@@ -35,15 +31,6 @@ class PortfolioController {
         try {
             const agentId = req.user.agentId;
             const result = await portfolioService.getAllPortfolios(agentId, req.query);
-            res.json(result);
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    async getClasses(req, res, next) {
-        try {
-            const result = await portfolioService.getPortfolioClasses();
             res.json(result);
         } catch (err) {
             next(err);
@@ -66,8 +53,7 @@ class PortfolioController {
             if (validation.error) return res.status(400).json({ error: validation.error.details[0].message });
 
             const agentId = req.user.agentId;
-            const userId = req.user.id;
-            const result = await portfolioService.createPortfolio(agentId, userId, req.body);
+            const result = await portfolioService.createPortfolio(agentId, req.body);
             res.status(201).json(result);
         } catch (err) {
             next(err);
@@ -78,10 +64,9 @@ class PortfolioController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const userId = req.user.id;
             const isAdmin = req.user.isAdmin;
 
-            const result = await portfolioService.updatePortfolio(id, agentId, userId, isAdmin, req.body);
+            const result = await portfolioService.updatePortfolio(id, agentId, isAdmin, req.body);
             res.json(result);
         } catch (err) {
             next(err);
@@ -105,9 +90,8 @@ class PortfolioController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const userId = req.user.id;
 
-            const result = await portfolioService.clonePortfolio(id, agentId, userId);
+            const result = await portfolioService.clonePortfolio(id, agentId);
             res.status(201).json(result);
         } catch (err) {
             next(err);

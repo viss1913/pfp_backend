@@ -30,13 +30,6 @@ components:
           type: string
         currency:
           type: string
-        lines:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductLine'
-    ProductLine:
-      type: object
-      properties:
         min_term_months:
           type: integer
         max_term_months:
@@ -44,6 +37,21 @@ components:
         min_amount:
           type: number
         max_amount:
+          type: number
+        yields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductYield'
+    ProductYield:
+      type: object
+      properties:
+        term_from_months:
+          type: integer
+        term_to_months:
+          type: integer
+        amount_from:
+          type: number
+        amount_to:
           type: number
         yield_percent:
           type: number
@@ -68,27 +76,18 @@ components:
           type: array
           items:
             type: object # simplified
-            $ref: '#/components/schemas/PortfolioClass'
         riskProfiles:
           type: array
           items:
             $ref: '#/components/schemas/PortfolioRiskProfile'
-    PortfolioClass:
-      type: object
-      properties:
-        id:
-          type: integer
-        code:
-          type: string
-        name:
-          type: string
     PortfolioRiskProfile:
       type: object
       properties:
         profile_type:
           type: string
           enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
-
+        potential_yield_percent:
+          type: number
         instruments:
           type: array
           items:
@@ -100,7 +99,7 @@ components:
           type: integer
         bucket_type:
           type: string
-          enum: [INITIAL_CAPITAL, INITIAL_REPLENISHMENT]
+          enum: [INITIAL_CAPITAL, TOP_UP]
         share_percent:
           type: number
         order_index:
@@ -126,6 +125,318 @@ components:
         updated_at:
           type: string
           format: date-time
+    CalculationRequest:
+      type: object
+      required:
+        - goals
+      properties:
+        goals:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CalculationGoal'
+          description: Array of goals to calculate
+        client:
+          $ref: '#/components/schemas/ClientData'
+          description: Client data (optional, but recommended for LIFE goals)
+    CalculationGoal:
+      type: object
+      required:
+        - goal_type_id
+        - name
+        - target_amount
+        - term_months
+        - risk_profile
+      properties:
+        goal_type_id:
+          type: integer
+          description: Portfolio class ID (from portfolio_classes). Use 5 for LIFE goals
+          example: 5
+        name:
+          type: string
+          description: Goal name
+          example: "Жизнь"
+        target_amount:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+          description: Target amount in currency
+          example: 3000000
+        term_months:
+          type: integer
+          minimum: 1
+          description: Term in months
+          example: 60
+        risk_profile:
+          type: string
+          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+          description: Risk profile
+          example: "BALANCED"
+        initial_capital:
+          type: number
+          minimum: 0
+          default: 0
+          description: Initial capital (optional, default 0)
+          example: 0
+        inflation_rate:
+          type: number
+          minimum: 0
+          description: Annual inflation rate in % (optional, uses system default if not provided)
+          example: 4.0
+        payment_variant:
+          type: integer
+          enum: [0, 1, 2, 4, 12]
+          description: |
+            Payment variant for NSJ (LIFE goals only):
+            - 0: единовременно (one-time)
+            - 1: ежегодно (annually)
+            - 2: раз в полгода (semi-annually)
+            - 4: ежеквартально (quarterly)
+            - 12: ежемесячно (monthly)
+          example: 0
+        program:
+          type: string
+          description: NSJ product code (default: "base"). Used only for LIFE goals
+          example: "base"
+    ClientData:
+      type: object
+      description: Client personal data (optional, but recommended for LIFE goals)
+      properties:
+        birth_date:
+          type: string
+          format: date
+          description: Client birth date (YYYY-MM-DD or ISO 8601). Required for accurate NSJ calculations
+          example: "1980-01-01"
+        sex:
+          type: string
+          enum: [male, female, M, F, мужской, женский]
+          description: Client sex. Required for accurate NSJ calculations
+          example: "male"
+        fio:
+          type: string
+          description: Full name (ФИО)
+          example: "Иванов Иван Иванович"
+        name:
+          type: string
+          description: Name (alternative to fio)
+          example: "Иванов Иван Иванович"
+        phone:
+          type: string
+          description: Phone number (will be normalized to +79999999999 format)
+          example: "+79990000000"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "test@example.com"
+        insured_person:
+          type: object
+          description: Insured person data (if different from policy holder)
+          properties:
+            is_policy_holder:
+              type: boolean
+              description: Whether the insured person is the same as policy holder
+              example: false
+            birth_date:
+              type: string
+              format: date
+              description: Insured person birth date (if different from policy holder)
+              example: "1985-05-15"
+            sex:
+              type: string
+              enum: [male, female, M, F]
+              description: Insured person sex (if different from policy holder)
+              example: "female"
+    CalculationResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/PortfolioCalculationResult'
+              - $ref: '#/components/schemas/LifeCalculationResult'
+    PortfolioCalculationResult:
+      type: object
+      properties:
+        goal_id:
+          type: integer
+        goal_name:
+          type: string
+        portfolio:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            currency:
+              type: string
+        products:
+          type: array
+          items:
+            type: object
+        financials:
+          type: object
+          properties:
+            cost_initial:
+              type: number
+            cost_with_inflation:
+              type: number
+            inflation_annual_percent:
+              type: number
+            investment_expense_growth_monthly_percent:
+              type: number
+            investment_expense_growth_annual_percent:
+              type: number
+            initial_capital:
+              type: number
+            capital_gap:
+              type: number
+            recommended_replenishment:
+              type: number
+            portfolio_yield_annual_percent:
+              type: number
+        error:
+          type: string
+          description: Error message if calculation failed
+    LifeCalculationResult:
+      type: object
+      description: Result for LIFE goal type (NSJ calculation)
+      properties:
+        goal_id:
+          type: integer
+          description: Goal type ID (5 for LIFE)
+          example: 5
+        goal_name:
+          type: string
+          description: Goal name
+          example: "Жизнь"
+        goal_type:
+          type: string
+          enum: [LIFE]
+          description: Goal type identifier
+        nsj_calculation:
+          type: object
+          description: NSJ API calculation result
+          properties:
+            success:
+              type: boolean
+              description: Whether the calculation was successful
+              example: true
+            term_years:
+              type: integer
+              description: Insurance term in years
+              example: 5
+            risks:
+              type: array
+              description: Array of insurance risks
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    description: Risk code (e.g., "endowment", "death")
+                    example: "endowment"
+                  name:
+                    type: string
+                    description: Risk name
+                    example: "Накопительное страхование жизни"
+                  type:
+                    type: string
+                    description: Risk type
+                  participant:
+                    type: string
+                    description: Participant type (e.g., "insuredPerson")
+                    example: "insuredPerson"
+                  term:
+                    type: integer
+                    description: Risk term in years
+                  tariff:
+                    type: number
+                    description: Risk tariff
+                  limit:
+                    type: number
+                    description: Insurance sum for this risk in contract currency
+                  premium:
+                    type: number
+                    description: Premium for this risk in contract currency
+                  limitRUR:
+                    type: number
+                    description: Insurance sum for this risk in RUB
+                  premiumRUR:
+                    type: number
+                    description: Premium for this risk in RUB
+            total_premium:
+              type: number
+              description: Total premium in RUB
+              example: 500000
+            total_limit:
+              type: number
+              description: Total insurance sum
+              example: 3000000
+            payments_list:
+              type: array
+              description: Payment schedule
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    description: Payment date
+                  amount:
+                    type: number
+                    description: Payment amount
+            warnings:
+              type: array
+              description: Calculation warnings
+              items:
+                type: string
+            calculation_date:
+              type: integer
+              format: int64
+              description: Calculation timestamp (UNIX milliseconds)
+        error:
+          type: string
+          description: Error message if NSJ calculation failed
+        nsj_error_details:
+          type: array
+          description: Detailed error information from NSJ API
+          items:
+            type: object
+                    type: integer
+                  tariff:
+                    type: number
+                  limit:
+                    type: number
+                  premium:
+                    type: number
+                  limitRUR:
+                    type: number
+                  premiumRUR:
+                    type: number
+            total_premium:
+              type: number
+            total_premium_rur:
+              type: number
+            total_limit:
+              type: number
+            payments_list:
+              type: array
+              items:
+                type: object
+            warnings:
+              type: array
+              items:
+                type: string
+            calculation_date:
+              type: integer
+        error:
+          type: string
+          description: Error message if NSJ calculation failed
+        nsj_error_details:
+          type: object
+          description: Detailed error information from NSJ API
 
 
 security:
@@ -240,6 +551,7 @@ paths:
                     type: integer
 
   /pfp/products:
+
     get:
       summary: List products
       parameters:
@@ -271,8 +583,7 @@ paths:
       responses:
         '201':
           description: Created
-          
-  /pfp/products/{id}:
+  /products/{id}:
     get:
       summary: Get product by ID
       parameters:
@@ -311,8 +622,7 @@ paths:
       responses:
         '204':
           description: Deleted
-          
-  /pfp/products/{id}/clone:
+  /products/{id}/clone:
     post:
       summary: Clone default product
       parameters:
@@ -325,7 +635,7 @@ paths:
         '201':
           description: Cloned
 
-  /pfp/portfolios:
+  /portfolios:
     get:
       summary: List portfolios
       parameters:
@@ -346,21 +656,7 @@ paths:
       responses:
         '201':
           description: Created
-          
-  /pfp/portfolios/classes:
-    get:
-      summary: Get all portfolio classes (goal types)
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PortfolioClass'
-
-  /pfp/portfolios/{id}:
+  /portfolios/{id}:
     get:
       summary: Get portfolio
       parameters:
@@ -399,8 +695,7 @@ paths:
       responses:
         '204':
           description: Deleted
-          
-  /pfp/portfolios/{id}/clone:
+  /portfolios/{id}/clone:
     post:
       summary: Clone default portfolio
       parameters:
@@ -413,7 +708,7 @@ paths:
         '201':
           description: Cloned
 
-  /pfp/settings:
+  /settings:
     get:
       summary: List all system settings
       tags:
@@ -467,7 +762,7 @@ paths:
         '403':
           description: Forbidden (admin only)
 
-  /pfp/settings/{key}:
+  /settings/{key}:
     get:
       summary: Get setting by key
       tags:
@@ -538,3 +833,53 @@ paths:
           description: Forbidden (admin only)
         '404':
           description: Setting not found
+
+  # ============================================
+  # CLIENT API (Public, no authentication)
+  # ============================================
+  /client/calculate:
+    post:
+      summary: Calculate financial plan for goals (Client API - Public)
+      tags:
+        - Client API
+      security: []  # No authentication required
+      description: |
+        Calculate financial plan for one or more goals.
+        
+        **Special handling for LIFE goals (goal_type_id: 5):**
+        - If a goal has `goal_type_id: 5` or `name: "Жизнь"`, the system will call the external NSJ (Life Insurance) API
+        - For LIFE goals, client data (birth_date, sex) is recommended for accurate calculations
+        - LIFE goals return NSJ calculation results instead of portfolio-based calculations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculationRequest'
+      responses:
+        '200':
+          description: Calculation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        message:
+                          type: string
+        '500':
+          description: Internal server error

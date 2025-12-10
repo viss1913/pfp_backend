@@ -5,7 +5,7 @@ const Joi = require('joi');
 const calculationRequestSchema = Joi.object({
     goals: Joi.array().items(Joi.object({
         goal_type_id: Joi.number().integer().positive().required()
-            .description('ID класса портфеля (из portfolio_classes)'),
+            .description('ID класса портфеля (из portfolio_classes). Для LIFE используйте 5'),
         name: Joi.string().required()
             .description('Название цели'),
         target_amount: Joi.number().positive().required()
@@ -17,9 +17,38 @@ const calculationRequestSchema = Joi.object({
         initial_capital: Joi.number().min(0).optional().default(0)
             .description('Начальный капитал (опционально, по умолчанию 0)'),
         inflation_rate: Joi.number().min(0).optional()
-            .description('Годовая ставка инфляции в % (опционально, берется из настроек если не указано)')
+            .description('Годовая ставка инфляции в % (опционально, берется из настроек если не указано)'),
+        // Параметры для НСЖ (LIFE)
+        payment_variant: Joi.number().integer().valid(0, 1, 2, 4, 12).optional()
+            .description('Вариант оплаты для НСЖ: 0 - единовременно, 1 - ежегодно, 2 - раз в полгода, 4 - ежеквартально, 12 - ежемесячно'),
+        program: Joi.string().optional()
+            .description('Код продукта НСЖ (по умолчанию "base")')
     })).min(1).required()
-        .description('Массив целей для расчета')
+        .description('Массив целей для расчета'),
+    client: Joi.object({
+        birth_date: Joi.string().optional()
+            .description('Дата рождения клиента (формат: YYYY-MM-DD или ISO 8601). Требуется для расчета НСЖ'),
+        sex: Joi.string().valid('male', 'female', 'M', 'F', 'мужской', 'женский').optional()
+            .description('Пол клиента. Требуется для расчета НСЖ'),
+        fio: Joi.string().optional()
+            .description('ФИО клиента'),
+        name: Joi.string().optional()
+            .description('Имя клиента (альтернатива fio)'),
+        phone: Joi.string().optional()
+            .description('Телефон клиента'),
+        email: Joi.string().email().optional()
+            .description('Email клиента'),
+        insured_person: Joi.object({
+            is_policy_holder: Joi.boolean().optional()
+                .description('Является ли застрахованный страхователем'),
+            birth_date: Joi.string().optional()
+                .description('Дата рождения застрахованного (если отличается от страхователя)'),
+            sex: Joi.string().valid('male', 'female', 'M', 'F').optional()
+                .description('Пол застрахованного')
+        }).optional()
+            .description('Данные застрахованного лица (если отличается от страхователя)')
+    }).optional()
+        .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ)')
 });
 
 class ClientController {
