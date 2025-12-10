@@ -78,8 +78,7 @@ components:
         profile_type:
           type: string
           enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
-        potential_yield_percent:
-          type: number
+
         instruments:
           type: array
           items:
@@ -91,7 +90,7 @@ components:
           type: integer
         bucket_type:
           type: string
-          enum: [INITIAL_CAPITAL, TOP_UP]
+          enum: [INITIAL_CAPITAL, INITIAL_REPLENISHMENT]
         share_percent:
           type: number
         order_index:

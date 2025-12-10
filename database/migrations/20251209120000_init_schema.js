@@ -29,13 +29,22 @@ exports.up = function (knex) {
             table.index(['is_active']);
         })
 
-        // 3.4. Portfolios
+        // 3.4. Portfolio Classes (справочник)
+        .createTable('portfolio_classes', (table) => {
+            table.increments('id').primary(); // INT PK
+            table.string('code', 50).unique().notNullable();
+            table.string('name', 255).nullable();
+        })
+
+        // 3.5. Portfolios
         .createTable('portfolios', (table) => {
             table.bigIncrements('id').primary();
             table.bigInteger('agent_id').unsigned().nullable()
                 .references('id').inTable('agents').onDelete('CASCADE'); // NULL = standard portfolio
             table.string('name', 255).notNullable();
             table.string('currency', 10).notNullable().defaultTo('RUB');
+            
+            // Параметры портфеля
             table.decimal('amount_from', 18, 2).notNullable();
             table.decimal('amount_to', 18, 2).notNullable();
             table.integer('term_from_months').notNullable();
@@ -44,46 +53,20 @@ exports.up = function (knex) {
             table.integer('age_to').nullable();
             table.string('investor_type', 100).nullable();
             table.string('gender', 10).nullable();
+            
+            // JSON поля
+            table.json('classes').nullable(); // Массив ID классов портфеля
+            table.json('risk_profiles').nullable(); // Массив риск-профилей с инструментами
+            
+            // Метаданные (FK на users будет добавлен в миграции после создания таблицы users)
+            table.bigInteger('created_by').unsigned().nullable();
+            table.bigInteger('updated_by').unsigned().nullable();
             table.boolean('is_active').notNullable().defaultTo(true);
             table.boolean('is_default').notNullable().defaultTo(false);
             table.timestamps(true, true);
-        })
 
-        // 3.5. Portfolio Classes
-        .createTable('portfolio_classes', (table) => {
-            table.increments('id').primary(); // INT PK
-            table.string('code', 50).unique().notNullable();
-            table.string('name', 255).nullable();
-        })
-
-        // Link: Portfolio <-> Class
-        .createTable('portfolio_class_links', (table) => {
-            table.bigIncrements('id').primary();
-            table.bigInteger('portfolio_id').unsigned().notNullable()
-                .references('id').inTable('portfolios').onDelete('CASCADE');
-            table.integer('class_id').unsigned().notNullable()
-                .references('id').inTable('portfolio_classes').onDelete('CASCADE');
-        })
-
-        // 3.6. Portfolio Risk Profiles
-        .createTable('portfolio_risk_profiles', (table) => {
-            table.bigIncrements('id').primary();
-            table.bigInteger('portfolio_id').unsigned().notNullable()
-                .references('id').inTable('portfolios').onDelete('CASCADE');
-            table.enu('profile_type', ['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']).notNullable();
-            table.decimal('potential_yield_percent', 5, 2).nullable();
-        })
-
-        // 3.7. Portfolio Instruments
-        .createTable('portfolio_instruments', (table) => {
-            table.bigIncrements('id').primary();
-            table.bigInteger('portfolio_risk_profile_id').unsigned().notNullable()
-                .references('id').inTable('portfolio_risk_profiles').onDelete('CASCADE');
-            table.bigInteger('product_id').unsigned().notNullable()
-                .references('id').inTable('products').onDelete('RESTRICT'); // Don't delete product if used in instrument? Or CASCADE? Usually restrict or set null. Let's keep RESTRICT to be safe or CASCADE if we want clean wipe. Prompt doesn't specify. I'll use CASCADE for dev ease, but RESTRICT is safer. I'll use CASCADE to avoid manual cleanup issues during dev.
-            table.enu('bucket_type', ['INITIAL_CAPITAL', 'TOP_UP']).nullable();
-            table.decimal('share_percent', 5, 2).notNullable();
-            table.integer('order_index').nullable();
+            table.index(['agent_id']);
+            table.index(['is_active']);
         });
 };
 
@@ -93,11 +76,8 @@ exports.up = function (knex) {
  */
 exports.down = function (knex) {
     return knex.schema
-        .dropTableIfExists('portfolio_instruments')
-        .dropTableIfExists('portfolio_risk_profiles')
-        .dropTableIfExists('portfolio_class_links')
-        .dropTableIfExists('portfolio_classes')
         .dropTableIfExists('portfolios')
+        .dropTableIfExists('portfolio_classes')
         .dropTableIfExists('products')
         .dropTableIfExists('agents');
 };

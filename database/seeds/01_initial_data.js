@@ -4,9 +4,6 @@
  */
 exports.seed = async function (knex) {
     // Очистка существующих данных (в порядке зависимостей)
-    await knex('portfolio_instruments').del();
-    await knex('portfolio_risk_profiles').del();
-    await knex('portfolio_class_links').del();
     await knex('portfolios').del();
     await knex('products').del();
     await knex('portfolio_classes').del();
@@ -45,8 +42,59 @@ exports.seed = async function (knex) {
     ];
 
     for (const portfolioClass of portfolioClasses) {
-        // Создаём портфель
-        const [portfolioId] = await knex('portfolios').insert({
+        // Получаем ID класса
+        const classRecord = await knex('portfolio_classes')
+            .where('code', portfolioClass.code)
+            .first();
+
+        // Создаём риск-профили в JSON формате
+        const riskProfiles = [
+            {
+                profile_type: 'CONSERVATIVE',
+                potential_yield_percent: 12.00,
+                initial_capital: [{
+                    product_id: pdsProductId,
+                    share_percent: 100.00,
+                    order_index: 1
+                }],
+                top_up: [{
+                    product_id: pdsProductId,
+                    share_percent: 100.00,
+                    order_index: 1
+                }]
+            },
+            {
+                profile_type: 'BALANCED',
+                potential_yield_percent: 12.00,
+                initial_capital: [{
+                    product_id: pdsProductId,
+                    share_percent: 100.00,
+                    order_index: 1
+                }],
+                top_up: [{
+                    product_id: pdsProductId,
+                    share_percent: 100.00,
+                    order_index: 1
+                }]
+            },
+            {
+                profile_type: 'AGGRESSIVE',
+                potential_yield_percent: 12.00,
+                initial_capital: [{
+                    product_id: pdsProductId,
+                    share_percent: 100.00,
+                    order_index: 1
+                }],
+                top_up: [{
+                    product_id: pdsProductId,
+                    share_percent: 100.00,
+                    order_index: 1
+                }]
+            }
+        ];
+
+        // Создаём портфель с JSON полями
+        await knex('portfolios').insert({
             agent_id: null, // Дефолтный портфель
             name: portfolioClass.name,
             currency: 'RUB',
@@ -58,52 +106,13 @@ exports.seed = async function (knex) {
             age_to: null,
             investor_type: null,
             gender: null,
+            classes: JSON.stringify([classRecord.id]),
+            risk_profiles: JSON.stringify(riskProfiles),
+            created_by: null, // Система создала
+            updated_by: null,
             is_active: true,
             is_default: true
         });
-
-        // Привязываем класс к портфелю
-        const classRecord = await knex('portfolio_classes')
-            .where('code', portfolioClass.code)
-            .first();
-
-        await knex('portfolio_class_links').insert({
-            portfolio_id: portfolioId,
-            class_id: classRecord.id
-        });
-
-        // Создаём три риск-профиля (консервативный, сбалансированный, агрессивный)
-        const riskProfiles = [
-            { type: 'CONSERVATIVE', yield: 12.00 },
-            { type: 'BALANCED', yield: 12.00 },
-            { type: 'AGGRESSIVE', yield: 12.00 }
-        ];
-
-        for (const profile of riskProfiles) {
-            const [profileId] = await knex('portfolio_risk_profiles').insert({
-                portfolio_id: portfolioId,
-                profile_type: profile.type,
-                potential_yield_percent: profile.yield
-            });
-
-            // Добавляем инструменты (100% ПДС для обоих типов капитала)
-            await knex('portfolio_instruments').insert([
-                {
-                    portfolio_risk_profile_id: profileId,
-                    product_id: pdsProductId,
-                    bucket_type: 'INITIAL_CAPITAL',
-                    share_percent: 100.00,
-                    order_index: 1
-                },
-                {
-                    portfolio_risk_profile_id: profileId,
-                    product_id: pdsProductId,
-                    bucket_type: 'TOP_UP',
-                    share_percent: 100.00,
-                    order_index: 1
-                }
-            ]);
-        }
     }
 
     console.log('✅ Seed data inserted successfully!');
