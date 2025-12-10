@@ -121,6 +121,28 @@ class PortfolioRepository {
     async softDelete(id) {
         return db('portfolios').where({ id }).update({ is_active: false });
     }
+
+    async getClasses() {
+        return db('portfolio_classes').select('*');
+    }
+
+    async findByCriteria({ classId, amount, term }) {
+        const query = db('portfolios').where({ is_active: true });
+        if (amount !== undefined) {
+            query.where('amount_from', '<=', amount)
+                .where('amount_to', '>=', amount);
+        }
+        if (term !== undefined) {
+            query.where('term_from_months', '<=', term)
+                .where('term_to_months', '>=', term);
+        }
+        const candidates = await query;
+        return candidates.find(p => {
+            const classes = typeof p.classes === 'string' ? JSON.parse(p.classes) : p.classes;
+            if (!Array.isArray(classes)) return false;
+            return classes.includes(Number(classId));
+        }) || null;
+    }
 }
 
 module.exports = new PortfolioRepository();
