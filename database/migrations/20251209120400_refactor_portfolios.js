@@ -222,3 +222,4 @@ exports.down = function (knex) {
 };
 
 
+

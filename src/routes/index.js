@@ -4,11 +4,13 @@ const authRoutes = require('./authRoutes');
 const productRoutes = require('./productRoutes');
 const portfolioRoutes = require('./portfolioRoutes');
 const settingsRoutes = require('./settingsRoutes');
+const clientRoutes = require('./clientRoutes');
 
 const router = express.Router();
 
 // Public auth routes (no middleware)
 router.use('/auth', authRoutes);
+router.use('/client', clientRoutes);
 
 // Protected PFP routes (require authentication)
 router.use('/pfp/products', authMiddleware, productRoutes);

@@ -125,7 +125,66 @@ components:
           description: Category (calculation, pension, etc.)
         updated_at:
           type: string
+          type: string
           format: date-time
+
+    ClientGoal:
+      type: object
+      required:
+        - goal_type_id
+        - name
+        - target_amount
+        - term_months
+        - risk_profile
+      properties:
+        goal_type_id:
+          type: integer
+          description: ID from /pfp/portfolios/classes
+        name:
+          type: string
+          description: User defined name for the goal
+        target_amount:
+          type: number
+          description: Cost of the goal
+        inflation_rate:
+          type: number
+          description: Expected inflation rate for this goal (percent)
+          default: 5.0
+        initial_capital:
+          type: number
+          description: Existing savings for this goal
+          default: 0
+        initial_replenishment:
+          type: number
+          description: Monthly replenishment amount
+          default: 0
+        term_months:
+          type: integer
+          description: Term to achieve the goal in months
+        risk_profile:
+          type: string
+          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+
+    CalculationRequest:
+      type: object
+      required:
+        - gender
+        - age
+        - income_salary
+        - goals
+      properties:
+        gender:
+          type: string
+          enum: [MALE, FEMALE]
+        age:
+          type: integer
+        income_salary:
+          type: number
+          description: Official income (2-NDFL)
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientGoal'
 
 
 security:

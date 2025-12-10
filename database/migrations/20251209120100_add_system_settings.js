@@ -17,10 +17,10 @@ exports.up = function (knex) {
             // Вставляем дефолтные значения
             return knex('system_settings').insert([
                 {
-                    key: 'inflation_rate_monthly',
-                    value: '0.33', // 0.33% в месяц ≈ 4% годовых
+                    key: 'inflation_rate_year',
+                    value: '4.00', // 4% годовых
                     value_type: 'number',
-                    description: 'Инфляция по умолчанию (% в месяц)',
+                    description: 'Годовая инфляция по умолчанию (%)',
                     category: 'calculation'
                 },
                 {
