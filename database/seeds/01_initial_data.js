@@ -8,7 +8,6 @@ exports.seed = async function (knex) {
     await knex('portfolio_risk_profiles').del();
     await knex('portfolio_class_links').del();
     await knex('portfolios').del();
-    await knex('product_yields').del();
     await knex('products').del();
     await knex('portfolio_classes').del();
 
@@ -20,28 +19,21 @@ exports.seed = async function (knex) {
         { id: 4, code: 'OTHER', name: 'Прочее' }
     ]);
 
-    // 2. Создаём продукт ПДС НПФ (agent_id = NULL = дефолтный)
+    // 2. Создаём продукт ПДС НПФ (agent_id = NULL = дефолтный) с линией доходности
     const [pdsProductId] = await knex('products').insert({
         agent_id: null, // Дефолтный продукт
         name: 'ПДС НПФ',
         product_type: 'PDS',
         currency: 'RUB',
-        min_term_months: 0,
-        max_term_months: 100,
-        min_amount: 0,
-        max_amount: 100000000000000000, // 100 квадриллионов (как на скрине)
+        lines: JSON.stringify([{
+            min_term_months: 0,
+            max_term_months: 100,
+            min_amount: 0,
+            max_amount: 100000000000000000, // 100 квадриллионов (как на скрине)
+            yield_percent: 12.00
+        }]),
         is_active: true,
         is_default: true
-    });
-
-    // 3. Добавляем доходность для ПДС (12% годовых на весь диапазон)
-    await knex('product_yields').insert({
-        product_id: pdsProductId,
-        term_from_months: 0,
-        term_to_months: 100,
-        amount_from: 0,
-        amount_to: 100000000000000000,
-        yield_percent: 12.00
     });
 
     // 4. Создаём портфели для всех классов (все одинаковые, только ПДС)

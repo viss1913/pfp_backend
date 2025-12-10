@@ -19,12 +19,12 @@ class ProductService {
     }
 
     async createProduct(agentId, data) {
-        const { yields, ...productFields } = data;
+        const { lines, ...productFields } = data;
         // Ensure agent_id is set
         productFields.agent_id = agentId;
 
         // Create
-        const newId = await productRepository.create(productFields, yields);
+        const newId = await productRepository.create(productFields, lines);
         return this.getProductById(newId);
     }
 
@@ -42,8 +42,8 @@ class ProductService {
             throw { status: 403, message: 'Access denied to this product' };
         }
 
-        const { yields, ...productFields } = data;
-        await productRepository.update(id, productFields, yields);
+        const { lines, ...productFields } = data;
+        await productRepository.update(id, productFields, lines);
         return this.getProductById(id);
     }
 
@@ -73,15 +73,14 @@ class ProductService {
             throw { status: 400, message: 'Only default products can be cloned this way' };
         }
 
-        const { id: _, created_at, updated_at, yields, ...productData } = product;
+        const { id: _, created_at, updated_at, lines, ...productData } = product;
         productData.agent_id = agentId;
         productData.is_default = false; // Clones are not default usually
 
-        // Check handling of yields for clone
-        // yields is attached to product object from findById
-        const newYields = yields.map(({ id, product_id, ...y }) => y);
+        // lines is already an array from findById, just use it as is
+        const newLines = lines || [];
 
-        const newId = await productRepository.create(productData, newYields);
+        const newId = await productRepository.create(productData, newLines);
         return this.getProductById(newId);
     }
 }

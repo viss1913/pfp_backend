@@ -19,10 +19,7 @@ exports.up = function (knex) {
             table.string('name', 255).notNullable();
             table.string('product_type', 50).notNullable(); // IIS, ISZH, NSZH, etc.
             table.string('currency', 10).notNullable().defaultTo('RUB');
-            table.integer('min_term_months').nullable();
-            table.integer('max_term_months').nullable();
-            table.decimal('min_amount', 18, 2).nullable();
-            table.decimal('max_amount', 18, 2).nullable();
+            table.json('lines').nullable(); // Линии доходности: массив объектов с min_term_months, max_term_months, min_amount, max_amount, yield_percent
             table.boolean('is_active').notNullable().defaultTo(true);
             table.boolean('is_default').notNullable().defaultTo(false);
             table.timestamps(true, true);
@@ -30,18 +27,6 @@ exports.up = function (knex) {
             table.index(['agent_id']);
             table.index(['product_type']);
             table.index(['is_active']);
-        })
-
-        // 3.3. Product Yields
-        .createTable('product_yields', (table) => {
-            table.bigIncrements('id').primary();
-            table.bigInteger('product_id').unsigned().notNullable()
-                .references('id').inTable('products').onDelete('CASCADE');
-            table.integer('term_from_months').notNullable();
-            table.integer('term_to_months').notNullable();
-            table.decimal('amount_from', 18, 2).notNullable();
-            table.decimal('amount_to', 18, 2).notNullable();
-            table.decimal('yield_percent', 5, 2).notNullable();
         })
 
         // 3.4. Portfolios
@@ -113,7 +98,6 @@ exports.down = function (knex) {
         .dropTableIfExists('portfolio_class_links')
         .dropTableIfExists('portfolio_classes')
         .dropTableIfExists('portfolios')
-        .dropTableIfExists('product_yields')
         .dropTableIfExists('products')
         .dropTableIfExists('agents');
 };

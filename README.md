@@ -113,7 +113,7 @@ x-role: admin
 ### Основные таблицы:
 - `agents` - Агенты (справочник)
 - `products` - Финансовые продукты
-- `product_yields` - Доходность продуктов
+- `products.lines` - JSON поле с линиями доходности продукта (массив объектов с min_term_months, max_term_months, min_amount, max_amount, yield_percent)
 - `portfolios` - Инвестиционные портфели
 - `portfolio_classes` - Классы портфелей (Пенсия, Инвестиции и т.д.)
 - `portfolio_risk_profiles` - Риск-профили (Conservative, Balanced, Aggressive)

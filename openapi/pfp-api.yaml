@@ -30,6 +30,13 @@ components:
           type: string
         currency:
           type: string
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductLine'
+    ProductLine:
+      type: object
+      properties:
         min_term_months:
           type: integer
         max_term_months:
@@ -37,21 +44,6 @@ components:
         min_amount:
           type: number
         max_amount:
-          type: number
-        yields:
-          type: array
-          items:
-            $ref: '#/components/schemas/ProductYield'
-    ProductYield:
-      type: object
-      properties:
-        term_from_months:
-          type: integer
-        term_to_months:
-          type: integer
-        amount_from:
-          type: number
-        amount_to:
           type: number
         yield_percent:
           type: number

@@ -5,15 +5,11 @@ const productSchema = Joi.object({
     name: Joi.string().required(),
     product_type: Joi.string().required(),
     currency: Joi.string().default('RUB'),
-    min_term_months: Joi.number().integer().allow(null),
-    max_term_months: Joi.number().integer().allow(null),
-    min_amount: Joi.number().allow(null),
-    max_amount: Joi.number().allow(null),
-    yields: Joi.array().items(Joi.object({
-        term_from_months: Joi.number().integer().required(),
-        term_to_months: Joi.number().integer().required(),
-        amount_from: Joi.number().required(),
-        amount_to: Joi.number().required(),
+    lines: Joi.array().items(Joi.object({
+        min_term_months: Joi.number().integer().required(),
+        max_term_months: Joi.number().integer().required(),
+        min_amount: Joi.number().required(),
+        max_amount: Joi.number().required(),
         yield_percent: Joi.number().required()
     })).optional()
 });
