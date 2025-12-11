@@ -17,6 +17,11 @@ class NSJApiService {
      * @returns {Promise<Object>} Ответ от API
      */
     async callApi(operation, data) {
+        console.log('=== NSJ API CALL START ===');
+        console.log('API URL:', this.apiUrl);
+        console.log('API Key:', this.apiKey ? `${this.apiKey.substring(0, 10)}...` : 'NOT SET');
+        console.log('Operation:', operation);
+        
         return new Promise((resolve, reject) => {
             const requestData = JSON.stringify({
                 operation,
@@ -26,6 +31,12 @@ class NSJApiService {
             const url = new URL(this.apiUrl);
             const isHttps = url.protocol === 'https:';
             const client = isHttps ? https : http;
+
+            console.log('Request URL:', url.href);
+            console.log('Request hostname:', url.hostname);
+            console.log('Request path:', url.pathname);
+            console.log('Request method: POST');
+            console.log('Request body:', requestData);
 
             const options = {
                 hostname: url.hostname,
@@ -38,8 +49,24 @@ class NSJApiService {
                     'Content-Length': Buffer.byteLength(requestData)
                 }
             };
+            
+            console.log('Request options:', JSON.stringify({
+                hostname: options.hostname,
+                port: options.port,
+                path: options.path,
+                method: options.method,
+                headers: {
+                    'Content-Type': options.headers['Content-Type'],
+                    'Authorization': options.headers['Authorization'] ? 'Bearer ***' : 'NOT SET',
+                    'Content-Length': options.headers['Content-Length']
+                }
+            }, null, 2));
 
+            console.log('Sending HTTP request...');
             const req = client.request(options, (res) => {
+                console.log('Response received. Status:', res.statusCode, res.statusMessage);
+                console.log('Response headers:', JSON.stringify(res.headers, null, 2));
+                
                 let responseData = '';
 
                 res.on('data', (chunk) => {
@@ -47,6 +74,8 @@ class NSJApiService {
                 });
 
                 res.on('end', () => {
+                    console.log('Response body received, length:', responseData.length);
+                    console.log('Response body (first 500 chars):', responseData.substring(0, 500));
                     try {
                         // Извлекаем JSON из ответа (может содержать PHP warnings)
                         let jsonData = responseData;
@@ -76,9 +105,15 @@ class NSJApiService {
             });
 
             req.on('error', (e) => {
+                console.error('=== NSJ API REQUEST ERROR ===');
+                console.error('Error message:', e.message);
+                console.error('Error code:', e.code);
+                console.error('Error stack:', e.stack);
                 reject({
                     status: 500,
-                    message: `Request failed: ${e.message}`
+                    message: `Request failed: ${e.message}`,
+                    error_code: e.code,
+                    error_stack: e.stack
                 });
             });
 
@@ -98,6 +133,11 @@ class NSJApiService {
      * @returns {Promise<Object>} Результат расчета
      */
     async calculateLifeInsurance(params) {
+        console.log('=== calculateLifeInsurance called ===');
+        console.log('Params:', JSON.stringify(params, null, 2));
+        console.log('API URL from env:', process.env.NSJ_API_URL || 'NOT SET (using default)');
+        console.log('API Key from env:', process.env.NSJ_API_KEY ? `${process.env.NSJ_API_KEY.substring(0, 10)}...` : 'NOT SET (using default)');
+        
         const {
             target_amount,
             term_months,

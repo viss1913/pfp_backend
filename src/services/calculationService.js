@@ -45,14 +45,21 @@ class CalculationService {
 
             // Если это цель типа LIFE, вызываем API НСЖ
             if (isLifeGoal) {
+                console.log('=== NSJ CALCULATION START ===');
+                console.log('Goal:', goal.name, 'Goal ID:', goal.goal_type_id);
+                console.log('Target amount:', goal.target_amount, 'Term months:', goal.term_months);
+                console.log('Client data:', JSON.stringify(client || {}, null, 2));
                 try {
-                    const nsjResult = await nsjApiService.calculateLifeInsurance({
+                    const nsjParams = {
                         target_amount: goal.target_amount,
                         term_months: goal.term_months,
                         client: client || {},
                         payment_variant: goal.payment_variant || 0, // По умолчанию единовременно
                         program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
-                    });
+                    };
+                    console.log('Calling nsjApiService.calculateLifeInsurance with params:', JSON.stringify(nsjParams, null, 2));
+                    const nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
+                    console.log('NSJ Result received:', JSON.stringify(nsjResult, null, 2));
                     
                     results.push({
                         goal_id: goal.goal_type_id,
