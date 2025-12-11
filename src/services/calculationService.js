@@ -79,12 +79,15 @@ class CalculationService {
                     continue; // Пропускаем обычный расчет для LIFE
                 } catch (nsjError) {
                     console.error('NSJ API Error for goal:', goal.name, nsjError);
+                    const errorMessage = nsjError.message || nsjError.status || 'Unknown error';
+                    const errorDetails = nsjError.errors || nsjError.warnings || nsjError.details || [];
                     results.push({
                         goal_id: goal.goal_type_id,
                         goal_name: goal.name,
                         goal_type: 'LIFE',
-                        error: `NSJ calculation failed: ${nsjError.message || 'Unknown error'}`,
-                        nsj_error_details: nsjError.errors || nsjError.warnings || []
+                        error: `NSJ calculation failed: ${errorMessage}`,
+                        nsj_error_details: errorDetails,
+                        nsj_error_full: nsjError // Полная информация об ошибке для отладки
                     });
                     continue;
                 }
