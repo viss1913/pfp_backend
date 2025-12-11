@@ -404,33 +404,33 @@ components:
           description: Detailed error information from NSJ API
           items:
             type: object
-                    type: integer
-                  tariff:
-                    type: number
-                  limit:
-                    type: number
-                  premium:
-                    type: number
-                  limitRUR:
-                    type: number
-                  premiumRUR:
-                    type: number
-            total_premium:
-              type: number
-            total_premium_rur:
-              type: number
-            total_limit:
-              type: number
-            payments_list:
-              type: array
-              items:
-                type: object
-            warnings:
-              type: array
-              items:
-                type: string
-            calculation_date:
-              type: integer
+            properties:
+              tariff:
+                type: number
+              limit:
+                type: number
+              premium:
+                type: number
+              limitRUR:
+                type: number
+              premiumRUR:
+                type: number
+              total_premium:
+                type: number
+              total_premium_rur:
+                type: number
+              total_limit:
+                type: number
+              payments_list:
+                type: array
+                items:
+                  type: object
+              warnings:
+                type: array
+                items:
+                  type: string
+              calculation_date:
+                type: integer
         error:
           type: string
           description: Error message if NSJ calculation failed
