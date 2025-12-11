@@ -190,7 +190,13 @@ class NSJApiService {
         }
 
         try {
+            // Логируем запрос для отладки
+            console.log('NSJ API Request:', JSON.stringify(requestData, null, 2));
+            
             const response = await this.callApi('Contract.LifeEndowment.calculate', requestData);
+            
+            // Логируем ответ для отладки
+            console.log('NSJ API Response:', JSON.stringify(response, null, 2));
 
             if (!response.success) {
                 throw {
