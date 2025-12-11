@@ -219,7 +219,9 @@ class NSJApiService {
                 };
             }
 
-            if (!results.success) {
+            // Проверяем успешность: либо есть поле success=true, либо есть данные (risks или premium)
+            const hasData = results.risks && results.risks.length > 0 || results.premium !== undefined;
+            if (results.success === false || (!results.success && !hasData)) {
                 // Логируем детали ошибки
                 console.error('NSJ calculation failed. Results:', JSON.stringify(results, null, 2));
                 console.error('Response data:', JSON.stringify(response.data, null, 2));
@@ -231,6 +233,11 @@ class NSJApiService {
                     errors: response.data?.errors || [],
                     full_response: response.data // Полный ответ для отладки
                 };
+            }
+            
+            // Если success не указан, но есть данные - считаем успешным
+            if (!results.success && hasData) {
+                console.log('NSJ API returned data without success field, treating as successful');
             }
 
             // Форматируем ответ для нашего API со всеми данными из NSJ API
