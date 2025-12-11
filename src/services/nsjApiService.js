@@ -116,7 +116,7 @@ class NSJApiService {
         let dob = null;
         let age = null;
         if (client.birth_date) {
-            dob = this.formatDate(new Date(client.birth_date));
+            dob = this.formatDateOnly(new Date(client.birth_date)); // Для dob нужен формат без времени
             age = this.calculateAge(client.birth_date);
         } else if (client.age) {
             age = client.age;
@@ -172,7 +172,7 @@ class NSJApiService {
             if (client.insured_person.is_policy_holder === false) {
                 requestData.insuredPerson.isPolicyHolder = false;
                 if (client.insured_person.birth_date) {
-                    requestData.insuredPerson.dob = this.formatDate(new Date(client.insured_person.birth_date));
+                    requestData.insuredPerson.dob = this.formatDateOnly(new Date(client.insured_person.birth_date)); // Для dob нужен формат без времени
                     requestData.insuredPerson.age = this.calculateAge(client.insured_person.birth_date);
                 }
                 if (client.insured_person.sex) {
@@ -264,6 +264,18 @@ class NSJApiService {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
         return `${day}.${month}.${year} 00:00:00`;
+    }
+
+    /**
+     * Форматирует дату в формат DD.MM.YYYY (без времени, для dob)
+     * @param {Date} date
+     * @returns {string}
+     */
+    formatDateOnly(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}.${month}.${year}`;
     }
 
     /**
