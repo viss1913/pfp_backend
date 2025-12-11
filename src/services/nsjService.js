@@ -12,7 +12,7 @@ class NSJService {
     }
 
     /**
-     * Форматирует дату в формат DD-MM-YYYY hh:mm:ss
+     * Форматирует дату в формат DD.MM.YYYY hh:mm:ss
      * @param {Date|string} date - Дата для форматирования
      * @returns {string} Отформатированная дата
      */
@@ -29,7 +29,7 @@ class NSJService {
         const day = String(d.getDate()).padStart(2, '0');
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const year = d.getFullYear();
-        return `${day}-${month}-${year} 00:00:00`;
+        return `${day}.${month}.${year} 00:00:00`;
     }
 
     /**
@@ -120,7 +120,14 @@ class NSJService {
 
                 res.on('end', () => {
                     try {
-                        const parsed = JSON.parse(data);
+                        // Извлекаем JSON из ответа (может содержать PHP warnings)
+                        let jsonData = data;
+                        const jsonStart = data.indexOf('{');
+                        if (jsonStart > 0) {
+                            jsonData = data.substring(jsonStart);
+                        }
+                        
+                        const parsed = JSON.parse(jsonData);
                         if (res.statusCode >= 200 && res.statusCode < 300) {
                             resolve(parsed);
                         } else {
@@ -153,6 +160,27 @@ class NSJService {
     }
 
     /**
+     * Получает список доступных продуктов НСЖ
+     * @returns {Promise<Array>} Список продуктов
+     */
+    async getProducts() {
+        try {
+            const requestData = {
+                operation: 'Contract.LifeEndowment.getProducts',
+                data: {}
+            };
+            const response = await this.makeRequest(requestData);
+            if (response.success && response.data) {
+                return response.data;
+            }
+            throw new Error('Failed to get products list');
+        } catch (error) {
+            console.error('NSJ getProducts Error:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Выполняет расчет НСЖ для цели типа LIFE
      * @param {Object} goal - Данные цели из запроса расчета
      * @param {Object} client - Данные клиента (опционально)
@@ -172,9 +200,9 @@ class NSJService {
                 data: {
                     beginDate: beginDate,
                     insConditions: {
-                        program: 'base', // Можно сделать настраиваемым через переменные окружения
+                        program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test', // Используем 'test' как программу по умолчанию
                         currency: 'RUR',
-                        paymentVariant: 0, // 0 - единовременно, можно сделать настраиваемым
+                        paymentVariant: goal.payment_variant || 0, // 0 - единовременно, можно сделать настраиваемым
                         term: termYears
                     },
                     calcData: {
@@ -232,22 +260,26 @@ class NSJService {
             }
 
             // Проверяем успешность расчета
-            if (!response.data || !response.data.results || !response.data.results.success) {
+            // В новой версии API структура ответа может быть другой - data содержит результаты напрямую
+            let results = response.data;
+            if (response.data && response.data.results) {
+                results = response.data.results;
+            }
+            
+            if (!results || !results.success) {
                 throw new Error(`NSJ calculation failed. Warnings: ${JSON.stringify(response.data?.warnings || [])}`);
             }
-
-            // Формируем результат в удобном формате
-            const results = response.data.results;
             return {
                 success: true,
-                term_years: results.term,
+                term: results.term || termYears,
+                term_years: results.term || termYears,
                 risks: results.risks || [],
-                total_premium: results.premium || 0,
-                total_premium_rur: results.premiumRUR || 0,
+                total_premium: results.premium || results.premiumRUR || 0,
+                total_premium_rur: results.premiumRUR || results.premium || 0,
                 total_limit: results.limit || 0,
-                payments_list: results.paymentsList || [],
-                warnings: response.data.warnings || [],
-                calculation_date: response.data.date,
+                payments_list: results.paymentsList || results.payments_list || [],
+                warnings: response.data?.warnings || [],
+                calculation_date: response.data?.date || Date.now(),
                 raw_response: response.data // Полный ответ для отладки
             };
         } catch (error) {

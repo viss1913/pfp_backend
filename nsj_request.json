@@ -1,0 +1,30 @@
+{
+  "operation": "Contract.LifeEndowment.calculate",
+  "data": {
+    "beginDate": "10.11.2025 00:00:00",
+    "insConditions": {
+      "program": "test",
+      "currency": "RUR",
+      "paymentVariant": 0,
+      "term": 5
+    },
+    "policyHolder": {
+      "dob": "01.01.1980",
+      "age": 45,
+      "sex": "male"
+    },
+    "insuredPerson": {
+      "isPolicyHolder": true
+    },
+    "calcData": {
+      "valuationType": "byLimit",
+      "limit": 3000000
+    },
+    "client": {
+      "name": "Иванов Иван Иванович",
+      "phone": "+7(121)121-22-12",
+      "email": "vkrylov@avinfors.ru"
+    }
+  }
+}
+

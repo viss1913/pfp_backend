@@ -1,0 +1,66 @@
+{
+  "success": true,
+  "data": {
+    "term": 5,
+    "garantProfit": 0,
+    "risks": [
+      {
+        "code": "testdozhitie",
+        "name": "Накопительное",
+        "type": "endowment",
+        "participant": "insuredPerson",
+        "term": 5,
+        "tariff": 0.8,
+        "limit": 3000000,
+        "premium": 480000,
+        "limitRUR": 3000000,
+        "premiumRUR": 480000
+      },
+      {
+        "code": "deathAnyCase",
+        "name": "Смерть от любых причин",
+        "type": "death",
+        "participant": "insuredPerson",
+        "term": 5,
+        "tariff": 0.15,
+        "limit": 3000000,
+        "premium": 2250000,
+        "limitRUR": 3000000,
+        "premiumRUR": 2250000
+      },
+      {
+        "code": "invalid",
+        "name": "Инвалидность от",
+        "type": "other",
+        "participant": "insuredPerson",
+        "term": 5,
+        "tariff": 0.05,
+        "limit": 3000000,
+        "premium": 750000,
+        "limitRUR": 3000000,
+        "premiumRUR": 750000
+      }
+    ],
+    "premium": 3480000,
+    "limit": 3000000,
+    "payTerm": 5,
+    "payEndDate": 1920499199999,
+    "premiumRUR": 3480000,
+    "comission": {
+      "percent": 5,
+      "amount": 174000
+    },
+    "rvd": null,
+    "cashSurrenderValues": null,
+    "paymentsList": [
+      {
+        "i": 1,
+        "date": 1762732800000,
+        "endDate": 1794268799999,
+        "premium": 3480000,
+        "dueDate": 1762732800000
+      }
+    ]
+  }
+}
+

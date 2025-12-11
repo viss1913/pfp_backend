@@ -51,7 +51,7 @@ class CalculationService {
                         term_months: goal.term_months,
                         client: client || {},
                         payment_variant: goal.payment_variant || 0, // По умолчанию единовременно
-                        program: goal.program || 'base'
+                        program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
                     });
                     
                     results.push({
@@ -60,10 +60,17 @@ class CalculationService {
                         goal_type: 'LIFE',
                         nsj_calculation: {
                             success: nsjResult.success,
-                            term_years: nsjResult.term,
+                            term_years: nsjResult.term || nsjResult.term_years,
+                            garantProfit: nsjResult.garantProfit || 0,
                             risks: nsjResult.risks || [],
-                            total_premium: nsjResult.total_premium,
+                            total_premium: nsjResult.total_premium || nsjResult.total_premium_rur,
+                            total_premium_rur: nsjResult.total_premium_rur || nsjResult.total_premium,
                             total_limit: nsjResult.total_limit,
+                            payTerm: nsjResult.payTerm,
+                            payEndDate: nsjResult.payEndDate,
+                            comission: nsjResult.comission || null,
+                            rvd: nsjResult.rvd || null,
+                            cashSurrenderValues: nsjResult.cashSurrenderValues || null,
                             payments_list: nsjResult.payments_list || [],
                             warnings: nsjResult.warnings || [],
                             calculation_date: nsjResult.calculation_date
@@ -127,20 +134,32 @@ class CalculationService {
                 // Amount allocated to this product
                 const allocatedAmount = (goal.initial_capital || 0) * (item.share_percent / 100);
 
-                // Find matching line
+                // Find matching yield line
                 let nominalAmountToCheck = allocatedAmount;
                 if (nominalAmountToCheck === 0) nominalAmountToCheck = 1;
 
-                const line = product.lines.find(l =>
-                    nominalAmountToCheck >= l.min_amount &&
-                    nominalAmountToCheck <= l.max_amount &&
-                    goal.term_months >= l.min_term_months &&
-                    goal.term_months <= l.max_term_months
+                // product.yields содержит массив доходностей с полями:
+                // term_from_months, term_to_months, amount_from, amount_to, yield_percent
+                const yields = product.yields || [];
+                
+                if (yields.length === 0) {
+                    console.warn(`Product ${product.id} (${product.name}) has no yields configured`);
+                }
+                
+                const line = yields.find(l =>
+                    nominalAmountToCheck >= parseFloat(l.amount_from) &&
+                    nominalAmountToCheck <= parseFloat(l.amount_to) &&
+                    goal.term_months >= l.term_from_months &&
+                    goal.term_months <= l.term_to_months
                 );
 
-                const effectiveLine = line || product.lines[0]; // Simplification/Fallback
+                const effectiveLine = line || yields[0]; // Simplification/Fallback
 
-                const productYield = effectiveLine ? effectiveLine.yield_percent : 0;
+                const productYield = effectiveLine ? parseFloat(effectiveLine.yield_percent) : 0;
+
+                if (productYield === 0 && yields.length > 0) {
+                    console.warn(`Product ${product.id} (${product.name}) yield is 0 or not found for amount ${nominalAmountToCheck} and term ${goal.term_months} months`);
+                }
 
                 weightedYieldAnnual += (productYield * (item.share_percent / 100));
 
@@ -154,6 +173,11 @@ class CalculationService {
             }
 
             const d_annual = weightedYieldAnnual; // d in year percent
+
+            // Проверка: если доходность портфеля равна 0, это может быть проблемой
+            if (d_annual === 0 && capitalDistribution.length > 0) {
+                console.warn(`Portfolio ${portfolio.name} has zero yield. Products: ${productDetails.map(p => `${p.name} (${p.yield_percent}%)`).join(', ')}`);
+            }
 
             // --- Step 3: Math ---
 

@@ -24,3 +24,5 @@ exports.down = function (knex) {
         });
 };
 
+
+

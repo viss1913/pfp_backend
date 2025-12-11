@@ -274,8 +274,37 @@ components:
               type: string
         products:
           type: array
+          description: Array of products in the portfolio with their yields
           items:
             type: object
+            properties:
+              product_id:
+                type: integer
+                description: Product ID
+              name:
+                type: string
+                description: Product name
+              share_percent:
+                type: number
+                description: Share percentage in portfolio
+              yield_percent:
+                type: number
+                description: Yield percentage for this product (matched from product yields)
+              matched_line:
+                type: object
+                nullable: true
+                description: Matched yield line from product yields
+                properties:
+                  term_from_months:
+                    type: integer
+                  term_to_months:
+                    type: integer
+                  amount_from:
+                    type: number
+                  amount_to:
+                    type: number
+                  yield_percent:
+                    type: number
         financials:
           type: object
           properties:
@@ -371,22 +400,74 @@ components:
               type: number
               description: Total premium in RUB
               example: 500000
+            total_premium_rur:
+              type: number
+              description: Total premium in RUB (alternative field name)
+              example: 500000
             total_limit:
               type: number
               description: Total insurance sum
               example: 3000000
+            garantProfit:
+              type: number
+              description: Guaranteed profit
+              example: 0
+            payTerm:
+              type: integer
+              description: Payment term in years
+              example: 5
+            payEndDate:
+              type: integer
+              format: int64
+              description: Payment end date (UNIX timestamp ms)
+            comission:
+              type: object
+              description: Commission information
+              properties:
+                percent:
+                  type: number
+                  description: Commission percentage
+                  example: 5
+                amount:
+                  type: number
+                  description: Commission amount
+                  example: 174000
+            rvd:
+              type: number
+              nullable: true
+              description: RVD (reserve for payments)
+            cashSurrenderValues:
+              type: array
+              nullable: true
+              description: Cash surrender values
+              items:
+                type: object
             payments_list:
               type: array
               description: Payment schedule
               items:
                 type: object
                 properties:
+                  i:
+                    type: integer
+                    description: Payment number
+                    example: 1
                   date:
-                    type: string
-                    description: Payment date
-                  amount:
+                    type: integer
+                    format: int64
+                    description: Payment date (UNIX timestamp ms)
+                  endDate:
+                    type: integer
+                    format: int64
+                    description: End date of paid period (UNIX timestamp ms)
+                  premium:
                     type: number
                     description: Payment amount
+                    example: 3480000
+                  dueDate:
+                    type: integer
+                    format: int64
+                    description: Due date (UNIX timestamp ms)
             warnings:
               type: array
               description: Calculation warnings

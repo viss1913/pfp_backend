@@ -1,0 +1,414 @@
+Ниже — черновик OpenAPI 3.0 (YAML) под твоё описание, который можно сразу класть в репо и крутить через Swagger UI / ReDoc / codegen.[1]
+
+```yaml
+openapi: 3.0.3
+info:
+  title: Life Endowment API (НСЖ)
+  version: "1.2"
+  description: >
+    Описание API продукта НСЖ. Вызов всех методов POST-запросом на единый endpoint.
+    В теле передаётся поле operation и объект data. [file:1]
+
+servers:
+  - url: https://demo.avinfors.ru/api-life/api
+    description: Demo environment [file:1]
+
+paths:
+  /flow/:
+    post:
+      summary: Выполнение операций НСЖ
+      description: >
+        Все операции выполняются через единый endpoint. В поле operation указывается код метода. [file:1]
+      operationId: executeOperation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiRequest'
+      responses:
+        "200":
+          description: Успешный ответ или ответ с бизнес-ошибками [file:1]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        "400":
+          description: Ошибка валидации / формата данных [file:1]
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: >
+        Передавайте ключ API в заголовке Authorization: Bearer {ключ_api}. [file:1]
+
+  schemas:
+    ApiRequest:
+      type: object
+      required:
+        - operation
+        - data
+      properties:
+        operation:
+          type: string
+          description: >
+            Код метода. Например Contract.LifeEndowment.getProducts или Contract.LifeEndowment.calculate. [file:1]
+        data:
+          description: Полезная нагрузка запроса, зависит от operation. [file:1]
+          oneOf:
+            - $ref: '#/components/schemas/GetProductsRequestData'
+            - $ref: '#/components/schemas/CalculateRequestData'
+
+    ApiResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          description: Признак успешности выполнения операции. [file:1]
+        data:
+          description: Полезная нагрузка ответа (если success=true). [file:1]
+          oneOf:
+            - $ref: '#/components/schemas/GetProductsResponseData'
+            - $ref: '#/components/schemas/CalculateResponseData'
+        errors:
+          type: array
+          description: Список ошибок при выполнении операции. [file:1]
+          items:
+            $ref: '#/components/schemas/ErrorItem'
+
+    ErrorItem:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Код ошибки (dataNotFound, invalidDataType и т.п.). [file:1]
+        text:
+          type: string
+          description: Текст ошибки. [file:1]
+        path:
+          type: string
+          description: Путь к полю с некорректными данными. [file:1]
+
+    # ------- Contract.LifeEndowment.getProducts -------
+
+    GetProductsRequestData:
+      type: object
+      description: Полезная нагрузка для метода Contract.LifeEndowment.getProducts. [file:1]
+      properties: {}
+      additionalProperties: false
+
+    GetProductsResponseData:
+      type: object
+      description: Ответ для метода Contract.LifeEndowment.getProducts. [file:1]
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          description: Признак успешности операции. [file:1]
+        data:
+          type: array
+          description: Список продуктов НСЖ. [file:1]
+          items:
+            $ref: '#/components/schemas/LifeProduct'
+
+    LifeProduct:
+      type: object
+      required:
+        - code
+        - name
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 64
+          description: Буквенно-числовой уникальный код продукта. [file:1]
+        name:
+          type: string
+          minLength: 3
+          maxLength: 256
+          description: Наименование продукта. [file:1]
+
+    # ------- Contract.LifeEndowment.calculate -------
+
+    CalculateRequestData:
+      type: object
+      description: Полезная нагрузка для метода Contract.LifeEndowment.calculate. [file:1]
+      required:
+        - beginDate
+        - insConditions
+        - insuredPerson
+      properties:
+        beginDate:
+          type: string
+          format: date-time
+          description: Дата начала страхования в формате "DD.MM.YYYY hh:mm:ss". [file:1]
+          example: "10.11.2025 00:00:00"
+        insConditions:
+          $ref: '#/components/schemas/InsConditions'
+        policyHolder:
+          $ref: '#/components/schemas/PersonPolicyHolder'
+        insuredPerson:
+          $ref: '#/components/schemas/InsuredPerson'
+        calcData:
+          $ref: '#/components/schemas/CalcData'
+        client:
+          $ref: '#/components/schemas/Client'
+
+    InsConditions:
+      type: object
+      required:
+        - program
+        - currency
+        - term
+      properties:
+        program:
+          type: string
+          description: Уникальный код продукта НСЖ. [file:1]
+          example: "sample"
+        currency:
+          type: string
+          description: Код валюты договора (RUR, USD, EUR). [file:1]
+          enum: [RUR, USD, EUR]
+        paymentVariant:
+          type: integer
+          description: >
+            Вариант оплаты: 0 — единовременно, 1 — ежегодно, 2 — раз в полгода,
+            4 — ежеквартально, 12 — ежемесячно. [file:1]
+          enum: [0, 1, 2, 4, 12]
+        term:
+          type: integer
+          description: Срок страхования в годах. [file:1]
+          example: 5
+
+    PersonPolicyHolder:
+      type: object
+      description: Данные страхователя. [file:1]
+      properties:
+        dob:
+          type: string
+          format: date
+          description: Дата рождения страхователя в формате "DD.MM.YYYY". [file:1]
+          example: "01.01.1980"
+        age:
+          type: integer
+          description: Возраст страхователя, используется если не передана дата рождения. [file:1]
+        sex:
+          type: string
+          description: Пол страхователя. [file:1]
+          enum: [male, female]
+
+    InsuredPerson:
+      type: object
+      description: Данные застрахованного лица. [file:1]
+      required:
+        - isPolicyHolder
+      properties:
+        dob:
+          type: string
+          format: date
+          description: Дата рождения застрахованного. [file:1]
+          example: "01.01.1981"
+        age:
+          type: integer
+          description: Возраст застрахованного. [file:1]
+        sex:
+          type: string
+          description: Пол застрахованного. [file:1]
+          enum: [male, female]
+        isPolicyHolder:
+          type: boolean
+          description: >
+            Признак, что застрахованный является страхователем; если true,
+            поля dob, age и sex можно не передавать. [file:1]
+
+    CalcData:
+      type: object
+      description: Исходные данные для расчёта. [file:1]
+      required:
+        - valuationType
+      properties:
+        valuationType:
+          type: string
+          description: Тип расчёта. [file:1]
+          enum: [byPremium, byLimit]
+        premium:
+          type: number
+          format: float
+          description: Страховая премия по договору (для расчёта от премии). [file:1]
+          example: 250000
+        limit:
+          type: number
+          format: float
+          description: Страховая сумма по договору (для расчёта от страховой суммы). [file:1]
+
+    Client:
+      type: object
+      description: Контактная информация клиента. [file:1]
+      properties:
+        name:
+          type: string
+          description: ФИО клиента. [file:1]
+        phone:
+          type: string
+          description: Телефон клиента в формате "+7(999)999-99-99" или "+79999999999". [file:1]
+        email:
+          type: string
+          format: email
+          description: Email клиента. [file:1]
+
+    CalculateResponseData:
+      type: object
+      description: Ответ для метода Contract.LifeEndowment.calculate. [file:1]
+      required:
+        - results
+        - warnings
+        - date
+      properties:
+        results:
+          $ref: '#/components/schemas/CalculationResults'
+        warnings:
+          type: array
+          description: Список предупреждений или ошибок расчёта. [file:1]
+          items:
+            type: string
+        date:
+          type: integer
+          format: int64
+          description: Дата проведения расчёта (UNIX timestamp ms). [file:1]
+
+    CalculationResults:
+      type: object
+      description: Результаты расчёта премии и страховых сумм. [file:1]
+      required:
+        - success
+        - term
+        - premium
+        - limit
+        - premiumRUR
+      properties:
+        success:
+          type: boolean
+          description: Признак успешности расчёта. [file:1]
+        term:
+          type: integer
+          description: Срок страхования. [file:1]
+        risks:
+          type: array
+          description: Блок страховых рисков по договору. [file:1]
+          items:
+            $ref: '#/components/schemas/RiskItem'
+        premium:
+          type: number
+          format: float
+          description: Общая премия по договору в валюте договора. [file:1]
+        limit:
+          type: number
+          format: float
+          description: Общая страховая сумма в валюте договора. [file:1]
+        premiumRUR:
+          type: number
+          format: float
+          description: Общая премия по договору в рублях. [file:1]
+        paymentsList:
+          type: array
+          description: График оплаты договора. [file:1]
+          items:
+            $ref: '#/components/schemas/PaymentItem'
+
+    RiskItem:
+      type: object
+      required:
+        - code
+        - name
+        - type
+        - participant
+        - term
+        - tariff
+        - limit
+        - premium
+        - limitRUR
+        - premiumRUR
+      properties:
+        code:
+          type: string
+          description: Код риска. [file:1]
+        name:
+          type: string
+          description: Название риска. [file:1]
+        type:
+          type: string
+          description: Тип риска. [file:1]
+        participant:
+          type: string
+          description: Участник договора, к которому привязан риск (например insuredPerson). [file:1]
+        term:
+          type: integer
+          description: Срок действия риска. [file:1]
+        tariff:
+          type: number
+          format: float
+          description: Тариф по риску. [file:1]
+        limit:
+          type: number
+          format: float
+          description: Страховая сумма по риску в валюте договора. [file:1]
+        premium:
+          type: number
+          format: float
+          description: Страховая премия по риску в валюте договора. [file:1]
+        limitRUR:
+          type: number
+          format: float
+          description: Страховая сумма по риску в рублях. [file:1]
+        premiumRUR:
+          type: number
+          format: float
+          description: Страховая премия по риску в рублях. [file:1]
+
+    PaymentItem:
+      type: object
+      required:
+        - i
+        - date
+        - endDate
+        - premium
+        - dueDate
+      properties:
+        i:
+          type: integer
+          description: Порядковый номер платежа. [file:1]
+        date:
+          type: integer
+          format: int64
+          description: Дата платежа (UNIX timestamp ms). [file:1]
+        endDate:
+          type: integer
+          format: int64
+          description: Дата окончания оплаченного периода (UNIX timestamp ms). [file:1]
+        premium:
+          type: number
+          format: float
+          description: Сумма платежа. [file:1]
+        dueDate:
+          type: integer
+          format: int64
+          description: Дата «оплатить до» (UNIX timestamp ms). [file:1]
+```
+
+## Как использовать
+
+- Сохрани как `openapi.yaml` в корень проекта или в `docs/`.[1]
+- Подними Swagger UI (или подключи к Postman / Thunder Client, IntelliJ HTTP client) — большинство инструментов понимают OpenAPI 3 из коробки.[1]
+
+Если нужно, могу добавить в описание ещё отдельные `operationId` под конкретные методы (`getProducts`, `calculate`) и разнести их логически на виртуальные path-и.
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80048382/be69f7a5-fef3-4258-a13d-6ae23343dba2/API_produkta_NSZh_v1.2.pdf)

@@ -48,7 +48,14 @@ class NSJApiService {
 
                 res.on('end', () => {
                     try {
-                        const parsed = JSON.parse(responseData);
+                        // Извлекаем JSON из ответа (может содержать PHP warnings)
+                        let jsonData = responseData;
+                        const jsonStart = responseData.indexOf('{');
+                        if (jsonStart > 0) {
+                            jsonData = responseData.substring(jsonStart);
+                        }
+                        
+                        const parsed = JSON.parse(jsonData);
                         if (res.statusCode >= 200 && res.statusCode < 300) {
                             resolve(parsed);
                         } else {
@@ -96,7 +103,7 @@ class NSJApiService {
             term_months,
             client = {},
             payment_variant = 0, // 0 - единовременно, 12 - ежемесячно
-            program = 'base'
+            program = process.env.NSJ_DEFAULT_PROGRAM || 'test'
         } = params;
 
         // Преобразуем срок из месяцев в годы
@@ -193,14 +200,18 @@ class NSJApiService {
                 };
             }
 
-            if (!response.data || !response.data.results) {
+            // В новой версии API структура ответа может быть другой - data содержит результаты напрямую
+            let results = response.data;
+            if (response.data && response.data.results) {
+                results = response.data.results;
+            }
+            
+            if (!results) {
                 throw {
                     status: 500,
                     message: 'Invalid response format from NSJ API'
                 };
             }
-
-            const results = response.data.results;
 
             if (!results.success) {
                 throw {
@@ -210,16 +221,26 @@ class NSJApiService {
                 };
             }
 
-            // Форматируем ответ для нашего API
+            // Форматируем ответ для нашего API со всеми данными из NSJ API
             return {
                 success: true,
                 term: results.term,
+                term_years: results.term,
+                garantProfit: results.garantProfit || 0,
                 risks: results.risks || [],
                 total_premium: results.premiumRUR || results.premium,
+                total_premium_rur: results.premiumRUR || results.premium,
                 total_limit: results.limit,
-                payments_list: results.paymentsList || [],
-                warnings: response.data.warnings || [],
-                calculation_date: response.data.date
+                payTerm: results.payTerm,
+                payEndDate: results.payEndDate,
+                comission: results.comission || null,
+                rvd: results.rvd || null,
+                cashSurrenderValues: results.cashSurrenderValues || null,
+                payments_list: results.paymentsList || results.payments_list || [],
+                warnings: response.data?.warnings || [],
+                calculation_date: response.data?.date || Date.now(),
+                // Полный ответ для отладки
+                raw_response: response.data
             };
         } catch (error) {
             console.error('NSJ API error:', error);
@@ -228,7 +249,7 @@ class NSJApiService {
     }
 
     /**
-     * Форматирует дату в формат DD-MM-YYYY hh:mm:ss
+     * Форматирует дату в формат DD.MM.YYYY hh:mm:ss
      * @param {Date} date
      * @returns {string}
      */
@@ -236,7 +257,7 @@ class NSJApiService {
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
-        return `${day}-${month}-${year} 00:00:00`;
+        return `${day}.${month}.${year} 00:00:00`;
     }
 
     /**
