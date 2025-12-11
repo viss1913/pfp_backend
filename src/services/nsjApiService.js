@@ -220,10 +220,16 @@ class NSJApiService {
             }
 
             if (!results.success) {
+                // Логируем детали ошибки
+                console.error('NSJ calculation failed. Results:', JSON.stringify(results, null, 2));
+                console.error('Response data:', JSON.stringify(response.data, null, 2));
+                
                 throw {
                     status: 400,
                     message: 'NSJ calculation failed',
-                    warnings: results.warnings || []
+                    warnings: results.warnings || [],
+                    errors: response.data?.errors || [],
+                    full_response: response.data // Полный ответ для отладки
                 };
             }
 

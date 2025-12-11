@@ -81,13 +81,20 @@ class CalculationService {
                     console.error('NSJ API Error for goal:', goal.name, nsjError);
                     const errorMessage = nsjError.message || nsjError.status || 'Unknown error';
                     const errorDetails = nsjError.errors || nsjError.warnings || nsjError.details || [];
+                    const fullError = {
+                        message: errorMessage,
+                        status: nsjError.status,
+                        errors: nsjError.errors || [],
+                        warnings: nsjError.warnings || [],
+                        full_response: nsjError.full_response || null
+                    };
                     results.push({
                         goal_id: goal.goal_type_id,
                         goal_name: goal.name,
                         goal_type: 'LIFE',
                         error: `NSJ calculation failed: ${errorMessage}`,
                         nsj_error_details: errorDetails,
-                        nsj_error_full: nsjError // Полная информация об ошибке для отладки
+                        nsj_error_full: fullError // Полная информация об ошибке для отладки
                     });
                     continue;
                 }
