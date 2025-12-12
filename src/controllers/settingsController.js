@@ -17,16 +17,14 @@ const taxBracketSchema = Joi.object({
     income_from: Joi.number().min(0).required(),
     income_to: Joi.number().min(0).required(),
     rate: Joi.number().min(0).max(100).required(),
-    order_index: Joi.number().integer().min(0).optional(),
-    description: Joi.string().allow(null, '').optional()
+    order_index: Joi.number().integer().min(0).optional()
 });
 
 const taxBracketUpdateSchema = Joi.object({
     income_from: Joi.number().min(0).optional(),
     income_to: Joi.number().min(0).optional(),
     rate: Joi.number().min(0).max(100).optional(),
-    order_index: Joi.number().integer().min(0).optional(),
-    description: Joi.string().allow(null, '').optional()
+    order_index: Joi.number().integer().min(0).optional()
 });
 
 const taxBracketsBulkSchema = Joi.object({

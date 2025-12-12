@@ -125,6 +125,101 @@ components:
         updated_at:
           type: string
           format: date-time
+    Tax2ndflBracket:
+      type: object
+      description: Налоговая ставка 2НДФЛ (прогрессивная шкала налогообложения)
+      properties:
+        id:
+          type: integer
+          description: ID налоговой ставки
+        income_from:
+          type: number
+          format: double
+          description: Доход в год от (руб.)
+          example: 0
+        income_to:
+          type: number
+          format: double
+          description: Доход до, включая (руб.)
+          example: 5000000
+        rate:
+          type: number
+          format: double
+          description: Ставка налога (%)
+          example: 13.0
+        order_index:
+          type: integer
+          description: Порядок сортировки
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата обновления
+    Tax2ndflBracketCreate:
+      type: object
+      required:
+        - income_from
+        - income_to
+        - rate
+      properties:
+        income_from:
+          type: number
+          format: double
+          minimum: 0
+          description: Доход в год от (руб.)
+        income_to:
+          type: number
+          format: double
+          minimum: 0
+          description: Доход до, включая (руб.)
+        rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Ставка налога (%)
+        order_index:
+          type: integer
+          minimum: 0
+          description: Порядок сортировки
+    Tax2ndflBracketUpdate:
+      type: object
+      properties:
+        income_from:
+          type: number
+          format: double
+          minimum: 0
+          description: Доход в год от (руб.)
+        income_to:
+          type: number
+          format: double
+          minimum: 0
+          description: Доход до, включая (руб.)
+        rate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Ставка налога (%)
+        order_index:
+          type: integer
+          minimum: 0
+          description: Порядок сортировки
+    Tax2ndflBracketsBulkCreate:
+      type: object
+      required:
+        - brackets
+      properties:
+        brackets:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Tax2ndflBracketCreate'
+          description: Массив налоговых ставок для создания
 
 
 security:
@@ -524,3 +619,156 @@ paths:
           description: Forbidden (admin only)
         '404':
           description: Setting not found
+
+  /pfp/settings/tax-2ndfl/brackets:
+    get:
+      summary: Получить все налоговые ставки 2НДФЛ
+      tags:
+        - Settings
+      description: Возвращает все налоговые ставки, отсортированные по порядку
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tax2ndflBracket'
+    post:
+      summary: Создать новую налоговую ставку (admin only)
+      tags:
+        - Settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tax2ndflBracketCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tax2ndflBracket'
+        '400':
+          description: Validation error or overlapping brackets
+        '403':
+          description: Forbidden (admin only)
+
+  /pfp/settings/tax-2ndfl/brackets/bulk:
+    post:
+      summary: Создать несколько налоговых ставок за раз (admin only)
+      tags:
+        - Settings
+      description: Позволяет создать несколько налоговых ставок одновременно. Проверяет отсутствие пересечений между всеми ставками.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tax2ndflBracketsBulkCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tax2ndflBracket'
+        '400':
+          description: Validation error or overlapping brackets
+        '403':
+          description: Forbidden (admin only)
+
+  /pfp/settings/tax-2ndfl/brackets/by-income/{income}:
+    get:
+      summary: Найти налоговую ставку для конкретного дохода
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: income
+          required: true
+          schema:
+            type: number
+            format: double
+          description: Годовой доход (руб.)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tax2ndflBracket'
+        '404':
+          description: Tax bracket not found for this income
+
+  /pfp/settings/tax-2ndfl/brackets/{id}:
+    get:
+      summary: Получить налоговую ставку по ID
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tax2ndflBracket'
+        '404':
+          description: Tax bracket not found
+    put:
+      summary: Обновить налоговую ставку (admin only)
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tax2ndflBracketUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tax2ndflBracket'
+        '400':
+          description: Validation error or overlapping brackets
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: Tax bracket not found
+    delete:
+      summary: Удалить налоговую ставку (admin only)
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: Tax bracket not found

@@ -359,8 +359,7 @@ class SettingsService {
                 income_from: parseFloat(bracket.income_from),
                 income_to: parseFloat(bracket.income_to),
                 rate: parseFloat(bracket.rate),
-                order_index: bracket.order_index !== undefined && bracket.order_index !== null ? parseInt(bracket.order_index) : 0,
-                description: bracket.description || null
+                order_index: bracket.order_index !== undefined && bracket.order_index !== null ? parseInt(bracket.order_index) : 0
             }));
             await trx('tax_2ndfl_brackets').insert(data);
         });

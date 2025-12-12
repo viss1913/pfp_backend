@@ -34,14 +34,13 @@ class Tax2ndflRepository {
      * Создать новую налоговую ставку
      */
     async create(bracketData) {
-        const { income_from, income_to, rate, order_index, description } = bracketData;
+        const { income_from, income_to, rate, order_index } = bracketData;
         
         const [id] = await db('tax_2ndfl_brackets').insert({
             income_from: parseFloat(income_from),
             income_to: parseFloat(income_to),
             rate: parseFloat(rate),
-            order_index: order_index !== undefined && order_index !== null ? parseInt(order_index) : 0,
-            description: description || null
+            order_index: order_index !== undefined && order_index !== null ? parseInt(order_index) : 0
         });
 
         return id;
@@ -51,14 +50,13 @@ class Tax2ndflRepository {
      * Обновить налоговую ставку
      */
     async update(id, bracketData) {
-        const { income_from, income_to, rate, order_index, description } = bracketData;
+        const { income_from, income_to, rate, order_index } = bracketData;
         
         const updateData = {};
         if (income_from !== undefined) updateData.income_from = parseFloat(income_from);
         if (income_to !== undefined) updateData.income_to = parseFloat(income_to);
         if (rate !== undefined) updateData.rate = parseFloat(rate);
         if (order_index !== undefined) updateData.order_index = parseInt(order_index);
-        if (description !== undefined) updateData.description = description;
         
         updateData.updated_at = new Date();
 
@@ -89,8 +87,7 @@ class Tax2ndflRepository {
             income_from: parseFloat(bracket.income_from),
             income_to: parseFloat(bracket.income_to),
             rate: parseFloat(bracket.rate),
-            order_index: bracket.order_index !== undefined && bracket.order_index !== null ? parseInt(bracket.order_index) : 0,
-            description: bracket.description || null
+            order_index: bracket.order_index !== undefined && bracket.order_index !== null ? parseInt(bracket.order_index) : 0
         }));
 
         return db('tax_2ndfl_brackets').insert(data);
