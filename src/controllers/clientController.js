@@ -1,4 +1,5 @@
 const calculationService = require('../services/calculationService');
+const settingsService = require('../services/settingsService');
 const Joi = require('joi');
 
 // Схема валидации для запроса расчета
@@ -67,6 +68,42 @@ class ClientController {
             }
 
             const result = await calculationService.calculateFirstRun(req.body);
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /client/pds/calc-cofin
+     * Рассчитать размер софинансирования ПДС
+     */
+    async calculatePdsCofinancing(req, res, next) {
+        try {
+            // Схема валидации для запроса расчета софинансирования
+            const calcCofinSchema = Joi.object({
+                yearly_contribution: Joi.number().integer().min(0).required()
+                    .description('Годовой взнос (₽)'),
+                avg_monthly_income: Joi.number().integer().min(0).required()
+                    .description('Среднемесячный доход ДО НДФЛ (₽/мес)')
+            });
+
+            const validation = calcCofinSchema.validate(req.body, { abortEarly: false });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map(d => ({
+                        field: d.path.join('.'),
+                        message: d.message
+                    }))
+                });
+            }
+
+            const { yearly_contribution, avg_monthly_income } = req.body;
+            const result = await settingsService.calculatePdsCofinancing(
+                yearly_contribution,
+                avg_monthly_income
+            );
             res.json(result);
         } catch (err) {
             next(err);

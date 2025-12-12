@@ -1,5 +1,7 @@
 const settingsRepository = require('../repositories/settingsRepository');
 const tax2ndflRepository = require('../repositories/tax2ndflRepository');
+const pdsSettingsRepository = require('../repositories/pdsSettingsRepository');
+const pdsCofinIncomeBracketsRepository = require('../repositories/pdsCofinIncomeBracketsRepository');
 
 class SettingsService {
     async getAllSettings(category = null) {
@@ -365,6 +367,311 @@ class SettingsService {
         });
 
         return tax2ndflRepository.findAll();
+    }
+
+    // ========== Методы для работы с настройками ПДС софинансирования ==========
+
+    /**
+     * Получить настройки софинансирования ПДС
+     */
+    async getPdsCofinSettings() {
+        const settings = await pdsSettingsRepository.find();
+        if (!settings) {
+            throw { 
+                status: 404, 
+                message: 'PDS cofinancing settings not found',
+                error: 'Settings not found'
+            };
+        }
+        return settings;
+    }
+
+    /**
+     * Обновить настройки софинансирования ПДС
+     */
+    async updatePdsCofinSettings(data, isAdmin) {
+        if (!isAdmin) {
+            throw { 
+                status: 403, 
+                message: 'Only administrators can manage PDS cofinancing settings',
+                error: 'Forbidden'
+            };
+        }
+
+        // Валидация значений
+        if (data.max_state_cofin_amount_per_year !== undefined && data.max_state_cofin_amount_per_year < 0) {
+            throw {
+                status: 400,
+                message: 'max_state_cofin_amount_per_year must be non-negative',
+                error: 'Validation error'
+            };
+        }
+        if (data.min_contribution_for_support_per_year !== undefined && data.min_contribution_for_support_per_year < 0) {
+            throw {
+                status: 400,
+                message: 'min_contribution_for_support_per_year must be non-negative',
+                error: 'Validation error'
+            };
+        }
+        if (data.income_basis !== undefined && !['gross_before_ndfl', 'net_after_ndfl'].includes(data.income_basis)) {
+            throw {
+                status: 400,
+                message: 'income_basis must be either "gross_before_ndfl" or "net_after_ndfl"',
+                error: 'Validation error'
+            };
+        }
+
+        await pdsSettingsRepository.update(data);
+        return pdsSettingsRepository.find();
+    }
+
+    // ========== Методы для работы с шкалой доходов ПДС ==========
+
+    /**
+     * Получить все диапазоны доходов для софинансирования ПДС
+     */
+    async getAllPdsCofinIncomeBrackets() {
+        return pdsCofinIncomeBracketsRepository.findAll();
+    }
+
+    /**
+     * Получить диапазон по ID
+     */
+    async getPdsCofinIncomeBracketById(id) {
+        const bracket = await pdsCofinIncomeBracketsRepository.findById(id);
+        if (!bracket) {
+            throw { 
+                status: 404, 
+                message: `PDS cofinancing income bracket with id ${id} not found`,
+                error: 'Bracket not found'
+            };
+        }
+        return bracket;
+    }
+
+    /**
+     * Создать новый диапазон доходов
+     */
+    async createPdsCofinIncomeBracket(data, isAdmin) {
+        if (!isAdmin) {
+            throw { 
+                status: 403, 
+                message: 'Only administrators can manage PDS cofinancing income brackets',
+                error: 'Forbidden'
+            };
+        }
+
+        // Валидация: проверяем, что income_from >= 0
+        if (data.income_from < 0) {
+            throw {
+                status: 400,
+                message: 'income_from must be non-negative',
+                error: 'Validation error'
+            };
+        }
+
+        // Валидация: если income_to указан, он должен быть > income_from
+        if (data.income_to !== undefined && data.income_to !== null) {
+            if (data.income_to <= data.income_from) {
+                throw {
+                    status: 400,
+                    message: 'income_to must be greater than income_from (or null for unlimited)',
+                    error: 'Validation error'
+                };
+            }
+        }
+
+        // Валидация: проверяем, что диапазоны не пересекаются
+        const existing = await pdsCofinIncomeBracketsRepository.findAll();
+        const incomeTo = data.income_to !== undefined && data.income_to !== null ? data.income_to : Infinity;
+        
+        for (const bracket of existing) {
+            const bracketIncomeTo = bracket.income_to !== null ? bracket.income_to : Infinity;
+            
+            // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
+            if (
+                (data.income_from <= bracketIncomeTo) && 
+                (incomeTo >= bracket.income_from)
+            ) {
+                throw { 
+                    status: 400, 
+                    message: `Income range [${data.income_from}, ${data.income_to === null ? '∞' : data.income_to}] overlaps with existing bracket [${bracket.income_from}, ${bracket.income_to === null ? '∞' : bracket.income_to}] (id: ${bracket.id})`,
+                    error: 'Overlapping brackets'
+                };
+            }
+        }
+
+        // Валидация коэффициентов
+        if (data.ratio_numerator <= 0 || data.ratio_denominator <= 0) {
+            throw {
+                status: 400,
+                message: 'ratio_numerator and ratio_denominator must be positive',
+                error: 'Validation error'
+            };
+        }
+
+        const id = await pdsCofinIncomeBracketsRepository.create(data);
+        return pdsCofinIncomeBracketsRepository.findById(id);
+    }
+
+    /**
+     * Обновить диапазон доходов
+     */
+    async updatePdsCofinIncomeBracket(id, data, isAdmin) {
+        if (!isAdmin) {
+            throw { 
+                status: 403, 
+                message: 'Only administrators can manage PDS cofinancing income brackets',
+                error: 'Forbidden'
+            };
+        }
+
+        const existing = await pdsCofinIncomeBracketsRepository.findById(id);
+        if (!existing) {
+            throw { 
+                status: 404, 
+                message: `PDS cofinancing income bracket with id ${id} not found`,
+                error: 'Bracket not found'
+            };
+        }
+
+        // Валидация: если указаны оба поля, проверяем корректность диапазона
+        const incomeFrom = data.income_from !== undefined ? data.income_from : existing.income_from;
+        const incomeTo = data.income_to !== undefined ? (data.income_to === null ? null : data.income_to) : existing.income_to;
+        
+        if (incomeFrom < 0) {
+            throw {
+                status: 400,
+                message: 'income_from must be non-negative',
+                error: 'Validation error'
+            };
+        }
+
+        if (incomeTo !== null && incomeTo !== undefined && incomeTo <= incomeFrom) {
+            throw {
+                status: 400,
+                message: 'income_to must be greater than income_from (or null for unlimited)',
+                error: 'Validation error'
+            };
+        }
+
+        // Валидация пересечений (исключая текущую запись)
+        const allBrackets = await pdsCofinIncomeBracketsRepository.findAll();
+        const incomeToForCheck = incomeTo !== null && incomeTo !== undefined ? incomeTo : Infinity;
+
+        for (const bracket of allBrackets) {
+            if (bracket.id === id) continue; // Пропускаем текущую запись
+
+            const bracketIncomeTo = bracket.income_to !== null ? bracket.income_to : Infinity;
+
+            // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
+            if (
+                (incomeFrom <= bracketIncomeTo) && 
+                (incomeToForCheck >= bracket.income_from)
+            ) {
+                throw { 
+                    status: 400, 
+                    message: `Income range [${incomeFrom}, ${incomeTo === null ? '∞' : incomeTo}] overlaps with existing bracket [${bracket.income_from}, ${bracket.income_to === null ? '∞' : bracket.income_to}] (id: ${bracket.id})`,
+                    error: 'Overlapping brackets'
+                };
+            }
+        }
+
+        // Валидация коэффициентов
+        const ratioNumerator = data.ratio_numerator !== undefined ? data.ratio_numerator : existing.ratio_numerator;
+        const ratioDenominator = data.ratio_denominator !== undefined ? data.ratio_denominator : existing.ratio_denominator;
+        
+        if (ratioNumerator <= 0 || ratioDenominator <= 0) {
+            throw {
+                status: 400,
+                message: 'ratio_numerator and ratio_denominator must be positive',
+                error: 'Validation error'
+            };
+        }
+
+        await pdsCofinIncomeBracketsRepository.update(id, data);
+        return pdsCofinIncomeBracketsRepository.findById(id);
+    }
+
+    /**
+     * Удалить диапазон доходов
+     */
+    async deletePdsCofinIncomeBracket(id, isAdmin) {
+        if (!isAdmin) {
+            throw { 
+                status: 403, 
+                message: 'Only administrators can manage PDS cofinancing income brackets',
+                error: 'Forbidden'
+            };
+        }
+
+        const bracket = await pdsCofinIncomeBracketsRepository.findById(id);
+        if (!bracket) {
+            throw { 
+                status: 404, 
+                message: `PDS cofinancing income bracket with id ${id} not found`,
+                error: 'Bracket not found'
+            };
+        }
+
+        await pdsCofinIncomeBracketsRepository.delete(id);
+        return { success: true };
+    }
+
+    /**
+     * Рассчитать размер софинансирования ПДС
+     * @param {number} yearlyContribution - Годовой взнос (₽)
+     * @param {number} avgMonthlyIncome - Среднемесячный доход ДО НДФЛ (₽/мес)
+     * @returns {Promise<Object>} Результат расчета
+     */
+    async calculatePdsCofinancing(yearlyContribution, avgMonthlyIncome) {
+        // Получаем настройки
+        const settings = await pdsSettingsRepository.find();
+        if (!settings) {
+            throw { 
+                status: 500, 
+                message: 'PDS cofinancing settings not configured',
+                error: 'Configuration error'
+            };
+        }
+
+        // Проверяем минимальный взнос
+        if (yearlyContribution < settings.min_contribution_for_support_per_year) {
+            return {
+                bracket_id: null,
+                cofin_coef: 0,
+                state_cofin_amount: 0,
+                message: `Минимальный взнос для софинансирования: ${settings.min_contribution_for_support_per_year} ₽/год`
+            };
+        }
+
+        // Находим подходящий диапазон дохода
+        const bracket = await pdsCofinIncomeBracketsRepository.findByIncome(avgMonthlyIncome);
+        if (!bracket) {
+            throw { 
+                status: 404, 
+                message: `No income bracket found for monthly income ${avgMonthlyIncome} ₽`,
+                error: 'Bracket not found'
+            };
+        }
+
+        // Рассчитываем коэффициент
+        const cofinCoef = bracket.ratio_numerator / bracket.ratio_denominator;
+
+        // Рассчитываем сумму софинансирования с учетом лимита
+        const calculatedAmount = yearlyContribution * cofinCoef;
+        const stateCofinAmount = Math.min(
+            Math.floor(calculatedAmount), 
+            settings.max_state_cofin_amount_per_year
+        );
+
+        return {
+            bracket_id: bracket.id,
+            cofin_coef: cofinCoef,
+            state_cofin_amount: stateCofinAmount,
+            yearly_contribution: yearlyContribution,
+            avg_monthly_income: avgMonthlyIncome
+        };
     }
 }
 

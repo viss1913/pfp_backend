@@ -31,6 +31,28 @@ const taxBracketsBulkSchema = Joi.object({
     brackets: Joi.array().items(taxBracketSchema).min(1).required()
 });
 
+// Схемы валидации для настроек ПДС софинансирования
+const pdsCofinSettingsUpdateSchema = Joi.object({
+    max_state_cofin_amount_per_year: Joi.number().integer().min(0).optional(),
+    min_contribution_for_support_per_year: Joi.number().integer().min(0).optional(),
+    income_basis: Joi.string().valid('gross_before_ndfl', 'net_after_ndfl').optional()
+});
+
+// Схемы валидации для шкалы доходов ПДС
+const pdsCofinIncomeBracketSchema = Joi.object({
+    income_from: Joi.number().integer().min(0).required(),
+    income_to: Joi.number().integer().min(0).allow(null).optional(),
+    ratio_numerator: Joi.number().integer().positive().required(),
+    ratio_denominator: Joi.number().integer().positive().required()
+});
+
+const pdsCofinIncomeBracketUpdateSchema = Joi.object({
+    income_from: Joi.number().integer().min(0).optional(),
+    income_to: Joi.number().integer().min(0).allow(null).optional(),
+    ratio_numerator: Joi.number().integer().positive().optional(),
+    ratio_denominator: Joi.number().integer().positive().optional()
+});
+
 class SettingsController {
     async getAll(req, res, next) {
         try {
@@ -212,6 +234,127 @@ class SettingsController {
 
             const brackets = await settingsService.createTaxBracketsMany(req.body.brackets, isAdmin);
             res.status(201).json(brackets);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // ========== Методы для работы с настройками ПДС софинансирования ==========
+
+    /**
+     * GET /settings/pds/cofin-settings
+     * Получить настройки софинансирования ПДС
+     */
+    async getPdsCofinSettings(req, res, next) {
+        try {
+            const settings = await settingsService.getPdsCofinSettings();
+            res.json(settings);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * PATCH /settings/pds/cofin-settings
+     * Обновить настройки софинансирования ПДС
+     */
+    async updatePdsCofinSettings(req, res, next) {
+        try {
+            const isAdmin = req.user.isAdmin;
+
+            const validation = pdsCofinSettingsUpdateSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const updated = await settingsService.updatePdsCofinSettings(req.body, isAdmin);
+            res.json(updated);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // ========== Методы для работы с шкалой доходов ПДС ==========
+
+    /**
+     * GET /settings/pds/cofin-income-brackets
+     * Получить все диапазоны доходов для софинансирования ПДС
+     */
+    async getAllPdsCofinIncomeBrackets(req, res, next) {
+        try {
+            const brackets = await settingsService.getAllPdsCofinIncomeBrackets();
+            res.json(brackets);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /settings/pds/cofin-income-brackets/:id
+     * Получить диапазон по ID
+     */
+    async getPdsCofinIncomeBracketById(req, res, next) {
+        try {
+            const { id } = req.params;
+            const bracket = await settingsService.getPdsCofinIncomeBracketById(parseInt(id));
+            res.json(bracket);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /settings/pds/cofin-income-brackets
+     * Создать новый диапазон доходов
+     */
+    async createPdsCofinIncomeBracket(req, res, next) {
+        try {
+            const isAdmin = req.user.isAdmin;
+
+            const validation = pdsCofinIncomeBracketSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const created = await settingsService.createPdsCofinIncomeBracket(req.body, isAdmin);
+            res.status(201).json(created);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * PATCH /settings/pds/cofin-income-brackets/:id
+     * Обновить диапазон доходов
+     */
+    async updatePdsCofinIncomeBracket(req, res, next) {
+        try {
+            const { id } = req.params;
+            const isAdmin = req.user.isAdmin;
+
+            const validation = pdsCofinIncomeBracketUpdateSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const updated = await settingsService.updatePdsCofinIncomeBracket(parseInt(id), req.body, isAdmin);
+            res.json(updated);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * DELETE /settings/pds/cofin-income-brackets/:id
+     * Удалить диапазон доходов
+     */
+    async deletePdsCofinIncomeBracket(req, res, next) {
+        try {
+            const { id } = req.params;
+            const isAdmin = req.user.isAdmin;
+
+            await settingsService.deletePdsCofinIncomeBracket(parseInt(id), isAdmin);
+            res.status(204).send();
         } catch (err) {
             next(err);
         }

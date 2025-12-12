@@ -220,6 +220,167 @@ components:
           items:
             $ref: '#/components/schemas/Tax2ndflBracketCreate'
           description: Массив налоговых ставок для создания
+    PdsCofinSettings:
+      type: object
+      description: Настройки софинансирования ПДС
+      properties:
+        id:
+          type: integer
+          description: ID записи
+        max_state_cofin_amount_per_year:
+          type: integer
+          description: Максимальная сумма господдержки в год (₽)
+          example: 36000
+        min_contribution_for_support_per_year:
+          type: integer
+          description: Минимальный годовой взнос для участия в софинансировании (₽)
+          example: 2000
+        income_basis:
+          type: string
+          enum: [gross_before_ndfl, net_after_ndfl]
+          description: Основа для расчета дохода (gross_before_ndfl - до НДФЛ, net_after_ndfl - после НДФЛ)
+          example: gross_before_ndfl
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата обновления
+    PdsCofinSettingsUpdate:
+      type: object
+      description: Обновление настроек софинансирования ПДС
+      properties:
+        max_state_cofin_amount_per_year:
+          type: integer
+          minimum: 0
+          description: Максимальная сумма господдержки в год (₽)
+        min_contribution_for_support_per_year:
+          type: integer
+          minimum: 0
+          description: Минимальный годовой взнос для участия в софинансировании (₽)
+        income_basis:
+          type: string
+          enum: [gross_before_ndfl, net_after_ndfl]
+          description: Основа для расчета дохода
+    PdsCofinIncomeBracket:
+      type: object
+      description: Диапазон доходов для софинансирования ПДС
+      properties:
+        id:
+          type: integer
+          description: ID диапазона
+        income_from:
+          type: integer
+          description: Доход от (₽/мес), включительно
+          example: 0
+        income_to:
+          type: integer
+          nullable: true
+          description: Доход до (₽/мес), NULL = нет верхней границы
+          example: 80000
+        ratio_numerator:
+          type: integer
+          description: Числитель соотношения (обычно 1)
+          example: 1
+        ratio_denominator:
+          type: integer
+          description: Знаменатель соотношения (1, 2, 4)
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата обновления
+    PdsCofinIncomeBracketCreate:
+      type: object
+      required:
+        - income_from
+        - ratio_numerator
+        - ratio_denominator
+      properties:
+        income_from:
+          type: integer
+          minimum: 0
+          description: Доход от (₽/мес), включительно
+        income_to:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Доход до (₽/мес), NULL = нет верхней границы
+        ratio_numerator:
+          type: integer
+          minimum: 1
+          description: Числитель соотношения
+        ratio_denominator:
+          type: integer
+          minimum: 1
+          description: Знаменатель соотношения
+    PdsCofinIncomeBracketUpdate:
+      type: object
+      properties:
+        income_from:
+          type: integer
+          minimum: 0
+          description: Доход от (₽/мес), включительно
+        income_to:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Доход до (₽/мес), NULL = нет верхней границы
+        ratio_numerator:
+          type: integer
+          minimum: 1
+          description: Числитель соотношения
+        ratio_denominator:
+          type: integer
+          minimum: 1
+          description: Знаменатель соотношения
+    PdsCofinCalculationRequest:
+      type: object
+      required:
+        - yearly_contribution
+        - avg_monthly_income
+      properties:
+        yearly_contribution:
+          type: integer
+          minimum: 0
+          description: Годовой взнос (₽)
+          example: 50000
+        avg_monthly_income:
+          type: integer
+          minimum: 0
+          description: Среднемесячный доход ДО НДФЛ (₽/мес)
+          example: 100000
+    PdsCofinCalculationResponse:
+      type: object
+      properties:
+        bracket_id:
+          type: integer
+          nullable: true
+          description: ID найденного диапазона доходов
+        cofin_coef:
+          type: number
+          format: double
+          description: Коэффициент софинансирования (k = numerator/denominator)
+          example: 1.0
+        state_cofin_amount:
+          type: integer
+          description: Фактическая сумма господдержки с учетом лимита (₽)
+          example: 36000
+        yearly_contribution:
+          type: integer
+          description: Годовой взнос (₽)
+        avg_monthly_income:
+          type: integer
+          description: Среднемесячный доход ДО НДФЛ (₽/мес)
+        message:
+          type: string
+          description: Сообщение (если взнос меньше минимального)
 
 
 security:
@@ -639,6 +800,9 @@ paths:
       summary: Создать новую налоговую ставку (admin only)
       tags:
         - Settings
+      description: |
+        **Важно для фронтенда:** Поле `description` было удалено из API. 
+        Необходимо убрать поле "Описание" из формы создания налоговой ставки в админке.
       requestBody:
         required: true
         content:
@@ -730,6 +894,9 @@ paths:
       summary: Обновить налоговую ставку (admin only)
       tags:
         - Settings
+      description: |
+        **Важно для фронтенда:** Поле `description` было удалено из API. 
+        Необходимо убрать поле "Описание" из формы редактирования налоговой ставки в админке.
       parameters:
         - in: path
           name: id
@@ -772,3 +939,183 @@ paths:
           description: Forbidden (admin only)
         '404':
           description: Tax bracket not found
+
+  /pfp/settings/pds/cofin-settings:
+    get:
+      summary: Получить настройки софинансирования ПДС
+      tags:
+        - Settings
+      description: Возвращает глобальные параметры софинансирования ПДС
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdsCofinSettings'
+        '404':
+          description: PDS cofinancing settings not found
+    patch:
+      summary: Обновить настройки софинансирования ПДС (admin only)
+      tags:
+        - Settings
+      description: Обновляет глобальные параметры софинансирования ПДС
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdsCofinSettingsUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdsCofinSettings'
+        '400':
+          description: Validation error
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: PDS cofinancing settings not found
+
+  /pfp/settings/pds/cofin-income-brackets:
+    get:
+      summary: Получить все диапазоны доходов для софинансирования ПДС
+      tags:
+        - Settings
+      description: Возвращает все диапазоны доходов, отсортированные по income_from
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PdsCofinIncomeBracket'
+    post:
+      summary: Создать новый диапазон доходов (admin only)
+      tags:
+        - Settings
+      description: Создает новый диапазон доходов для софинансирования ПДС. Проверяет отсутствие пересечений с существующими диапазонами.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdsCofinIncomeBracketCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdsCofinIncomeBracket'
+        '400':
+          description: Validation error or overlapping brackets
+        '403':
+          description: Forbidden (admin only)
+
+  /pfp/settings/pds/cofin-income-brackets/{id}:
+    get:
+      summary: Получить диапазон доходов по ID
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdsCofinIncomeBracket'
+        '404':
+          description: PDS cofinancing income bracket not found
+    patch:
+      summary: Обновить диапазон доходов (admin only)
+      tags:
+        - Settings
+      description: Обновляет диапазон доходов для софинансирования ПДС. Проверяет отсутствие пересечений с другими диапазонами.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdsCofinIncomeBracketUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdsCofinIncomeBracket'
+        '400':
+          description: Validation error or overlapping brackets
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: PDS cofinancing income bracket not found
+    delete:
+      summary: Удалить диапазон доходов (admin only)
+      tags:
+        - Settings
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: PDS cofinancing income bracket not found
+
+  /client/pds/calc-cofin:
+    post:
+      summary: Рассчитать размер софинансирования ПДС
+      tags:
+        - Client
+      description: |
+        Рассчитывает размер государственного софинансирования для ПДС на основе годового взноса и среднемесячного дохода ДО НДФЛ.
+        
+        **Важно:** Доход должен быть указан ДО вычета НДФЛ (брутто-доход).
+        
+        Формула расчета:
+        - Находится подходящий диапазон доходов
+        - Вычисляется коэффициент k = ratio_numerator / ratio_denominator
+        - state_cofin_amount = min(yearly_contribution * k, max_state_cofin_amount_per_year)
+        - Если годовой взнос меньше минимального (2000 ₽), возвращается 0
+      security: []  # Публичный эндпоинт
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdsCofinCalculationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdsCofinCalculationResponse'
+        '400':
+          description: Validation error
+        '404':
+          description: PDS cofinancing settings or income bracket not found

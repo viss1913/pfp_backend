@@ -15,6 +15,15 @@ router.post('/tax-2ndfl/brackets/bulk', settingsController.createTaxBracketsBulk
 router.put('/tax-2ndfl/brackets/:id', settingsController.updateTaxBracket);
 router.delete('/tax-2ndfl/brackets/:id', settingsController.deleteTaxBracket);
 
+// Настройки ПДС софинансирования (должны быть ПЕРЕД /:key, чтобы не перехватывались)
+router.get('/pds/cofin-settings', settingsController.getPdsCofinSettings);
+router.patch('/pds/cofin-settings', settingsController.updatePdsCofinSettings);
+router.get('/pds/cofin-income-brackets', settingsController.getAllPdsCofinIncomeBrackets);
+router.get('/pds/cofin-income-brackets/:id', settingsController.getPdsCofinIncomeBracketById);
+router.post('/pds/cofin-income-brackets', settingsController.createPdsCofinIncomeBracket);
+router.patch('/pds/cofin-income-brackets/:id', settingsController.updatePdsCofinIncomeBracket);
+router.delete('/pds/cofin-income-brackets/:id', settingsController.deletePdsCofinIncomeBracket);
+
 // Роуты с параметрами должны быть в конце
 router.get('/:key', settingsController.getByKey);
 router.put('/:key', settingsController.update);
