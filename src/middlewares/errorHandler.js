@@ -1,13 +1,20 @@
 module.exports = (err, req, res, next) => {
-    console.error(err.stack);
+    // Логируем ошибку, если есть stack
+    if (err.stack) {
+        console.error(err.stack);
+    } else {
+        console.error('Error:', err);
+    }
 
     const status = err.status || 500;
     const message = err.message || 'Internal Server Error';
+    const errorType = err.error || 'Internal Server Error';
 
-    res.status(status).json({
-        error: {
-            message,
-            status
-        }
-    });
+    // Формат ошибки согласно спецификации API
+    const response = {
+        error: errorType,
+        message: message
+    };
+
+    res.status(status).json(response);
 };

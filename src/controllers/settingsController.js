@@ -12,6 +12,27 @@ const updateSettingSchema = Joi.object({
     value: Joi.alternatives().try(Joi.string(), Joi.number(), Joi.object()).required()
 });
 
+// Схемы валидации для налоговых ставок 2НДФЛ
+const taxBracketSchema = Joi.object({
+    income_from: Joi.number().min(0).required(),
+    income_to: Joi.number().min(0).required(),
+    rate: Joi.number().min(0).max(100).required(),
+    order_index: Joi.number().integer().min(0).optional(),
+    description: Joi.string().allow(null, '').optional()
+});
+
+const taxBracketUpdateSchema = Joi.object({
+    income_from: Joi.number().min(0).optional(),
+    income_to: Joi.number().min(0).optional(),
+    rate: Joi.number().min(0).max(100).optional(),
+    order_index: Joi.number().integer().min(0).optional(),
+    description: Joi.string().allow(null, '').optional()
+});
+
+const taxBracketsBulkSchema = Joi.object({
+    brackets: Joi.array().items(taxBracketSchema).min(1).required()
+});
+
 class SettingsController {
     async getAll(req, res, next) {
         try {
@@ -73,6 +94,126 @@ class SettingsController {
 
             await settingsService.deleteSetting(key, isAdmin);
             res.status(204).send();
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // ========== Методы для работы с налоговыми ставками 2НДФЛ ==========
+
+    /**
+     * GET /settings/tax-2ndfl/brackets
+     * Получить все налоговые ставки
+     */
+    async getAllTaxBrackets(req, res, next) {
+        try {
+            const brackets = await settingsService.getAllTaxBrackets();
+            res.json(brackets);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /settings/tax-2ndfl/brackets/:id
+     * Получить налоговую ставку по ID
+     */
+    async getTaxBracketById(req, res, next) {
+        try {
+            const { id } = req.params;
+            const bracket = await settingsService.getTaxBracketById(parseInt(id));
+            res.json(bracket);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /settings/tax-2ndfl/brackets/by-income/:income
+     * Найти налоговую ставку для конкретного дохода
+     */
+    async getTaxBracketByIncome(req, res, next) {
+        try {
+            const { income } = req.params;
+            const bracket = await settingsService.getTaxBracketByIncome(parseFloat(income));
+            res.json(bracket);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /settings/tax-2ndfl/brackets
+     * Создать новую налоговую ставку
+     */
+    async createTaxBracket(req, res, next) {
+        try {
+            const isAdmin = req.user.isAdmin;
+
+            const validation = taxBracketSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const created = await settingsService.createTaxBracket(req.body, isAdmin);
+            res.status(201).json(created);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * PUT /settings/tax-2ndfl/brackets/:id
+     * Обновить налоговую ставку
+     */
+    async updateTaxBracket(req, res, next) {
+        try {
+            const { id } = req.params;
+            const isAdmin = req.user.isAdmin;
+
+            const validation = taxBracketUpdateSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const updated = await settingsService.updateTaxBracket(parseInt(id), req.body, isAdmin);
+            res.json(updated);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * DELETE /settings/tax-2ndfl/brackets/:id
+     * Удалить налоговую ставку
+     */
+    async deleteTaxBracket(req, res, next) {
+        try {
+            const { id } = req.params;
+            const isAdmin = req.user.isAdmin;
+
+            await settingsService.deleteTaxBracket(parseInt(id), isAdmin);
+            res.status(204).send();
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /settings/tax-2ndfl/brackets/bulk
+     * Создать несколько налоговых ставок за раз
+     */
+    async createTaxBracketsBulk(req, res, next) {
+        try {
+            const isAdmin = req.user.isAdmin;
+
+            const validation = taxBracketsBulkSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const brackets = await settingsService.createTaxBracketsMany(req.body.brackets, isAdmin);
+            res.status(201).json(brackets);
         } catch (err) {
             next(err);
         }
