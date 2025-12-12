@@ -79,6 +79,25 @@ class ProductRepository {
                     yield_percent: y.yield_percent || 0
                 }));
                 productData.lines = JSON.stringify(lines);
+            } else if (productData.lines !== undefined) {
+                // If lines is provided directly in productData, serialize it to JSON string
+                if (productData.lines === null || productData.lines === '') {
+                    productData.lines = null;
+                } else if (Array.isArray(productData.lines)) {
+                    productData.lines = JSON.stringify(productData.lines);
+                } else if (typeof productData.lines === 'string') {
+                    // Already a string, but ensure it's valid JSON
+                    try {
+                        JSON.parse(productData.lines);
+                        // Valid JSON string, keep as is
+                    } catch (e) {
+                        // Invalid JSON, try to parse as if it's already an object
+                        throw new Error('Invalid JSON format for lines field');
+                    }
+                } else if (typeof productData.lines === 'object') {
+                    // Single object, wrap in array
+                    productData.lines = JSON.stringify([productData.lines]);
+                }
             }
 
             const [id] = await trx('products').insert(productData);
@@ -101,6 +120,25 @@ class ProductRepository {
                     productData.lines = JSON.stringify(lines);
                 } else {
                     productData.lines = null;
+                }
+            } else if (productData.lines !== undefined) {
+                // If lines is provided directly in productData, serialize it to JSON string
+                if (productData.lines === null || productData.lines === '') {
+                    productData.lines = null;
+                } else if (Array.isArray(productData.lines)) {
+                    productData.lines = JSON.stringify(productData.lines);
+                } else if (typeof productData.lines === 'string') {
+                    // Already a string, but ensure it's valid JSON
+                    try {
+                        JSON.parse(productData.lines);
+                        // Valid JSON string, keep as is
+                    } catch (e) {
+                        // Invalid JSON, try to parse as if it's already an object
+                        throw new Error('Invalid JSON format for lines field');
+                    }
+                } else if (typeof productData.lines === 'object') {
+                    // Single object, wrap in array
+                    productData.lines = JSON.stringify([productData.lines]);
                 }
             }
 
