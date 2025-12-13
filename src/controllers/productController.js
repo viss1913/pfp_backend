@@ -95,4 +95,3 @@ class ProductController {
 }
 
 module.exports = new ProductController();
-module.exports.PRODUCT_TYPES = PRODUCT_TYPES;
