@@ -81,6 +81,10 @@ class PdsCofinancingService {
         const start = startDate instanceof Date ? startDate : new Date(startDate);
         const startYear = start.getFullYear();
         const startMonth = start.getMonth() + 1; // JavaScript months are 0-based
+        
+        // Определяем год, когда начнутся взносы (со следующего месяца)
+        const firstContributionYear = startMonth === 12 ? startYear + 1 : startYear;
+        const firstContributionMonth = startMonth === 12 ? 1 : startMonth + 1;
 
         // Инициализация счетчиков
         let clientCapital = pdsInitialCapital; // Капитал клиента (начальный + взносы + проценты)
@@ -88,17 +92,52 @@ class PdsCofinancingService {
         let totalCofinNominal = 0; // Номинальное софинансирование (без процентов)
 
         // Трекинг взносов по годам для расчета софинансирования
-        const yearlyContributions = {}; // { year: сумма_взносов_за_год }
+        const yearlyContributions = {}; // { year: сумма_взносов_за_год + первоначальный капитал (если был внесен в этом году) }
+        
+        // Первоначальный капитал учитывается в том году, когда он был внесен
+        // Если капитал внесен в декабре, то он относится к текущему году
+        // Если капитал внесен в другие месяцы, то он относится к году внесения
+        if (pdsInitialCapital > 0) {
+            yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + pdsInitialCapital;
+        }
 
         // Массив данных по годам
         const yearlyData = [];
 
         // Моделирование по месяцам
-        let currentDate = new Date(start);
+        // Взносы начинаются со следующего месяца после startDate
+        // Если startDate = декабрь, то взносы начнутся в январе следующего года
+        let firstContributionDate = new Date(start);
+        if (startMonth === 12) {
+            firstContributionDate.setFullYear(startYear + 1, 0, 1); // Январь следующего года
+        } else {
+            firstContributionDate.setMonth(startMonth); // Следующий месяц
+        }
+        
+        // Начинаем моделирование с даты первого взноса
+        let currentDate = new Date(firstContributionDate);
         let monthIndex = 0;
-        let currentYear = startYear;
-        let currentMonth = startMonth;
-        let capitalAtYearStart = clientCapital + stateCapital;
+        let currentYear = currentDate.getFullYear();
+        let currentMonth = currentDate.getMonth() + 1;
+        
+        // Первоначальный капитал уже на счете с момента startDate
+        // Начисляем проценты на него за период от startDate до первого взноса (если есть период)
+        const daysUntilFirstContribution = Math.max(0, Math.floor((firstContributionDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+        if (daysUntilFirstContribution > 0) {
+            // Начисляем проценты пропорционально дням (приблизительно)
+            const monthsUntilFirstContribution = daysUntilFirstContribution / 30.44;
+            for (let i = 0; i < Math.floor(monthsUntilFirstContribution); i++) {
+                clientCapital = clientCapital * (1 + pdsYieldMonthly);
+            }
+            // Остаток дней (если есть)
+            const remainingDays = (monthsUntilFirstContribution - Math.floor(monthsUntilFirstContribution)) * 30.44;
+            if (remainingDays > 0) {
+                const dailyYield = Math.pow(1 + pdsYieldMonthly, 1 / 30.44) - 1;
+                clientCapital = clientCapital * (1 + dailyYield * remainingDays);
+            }
+        }
+        
+        let capitalAtYearStart = clientCapital + stateCapital; // Начальный капитал уже на счете
         let clientContribThisYear = 0;
         let cofinPaidThisYear = 0; // Софинансирование, реально зачисленное в этом году
 
@@ -144,11 +183,12 @@ class PdsCofinancingService {
                 currentYear = year;
             }
 
-            // 1. Начисление процентов
+            // 1. Начисление процентов (начисляются каждый месяц, включая когда есть только первоначальный капитал)
             clientCapital = clientCapital * (1 + pdsYieldMonthly);
             stateCapital = stateCapital * (1 + pdsYieldMonthly);
 
-            // 2. Взнос клиента (если не последний месяц)
+            // 2. Взнос клиента (начинается со следующего месяца после startDate)
+            // Взносы начинаются с первого месяца моделирования (firstContributionDate)
             if (!isLastMonth) {
                 const monthlyContribution = monthlyPdsReplenishment * Math.pow(1 + monthlyGrowthRate, monthIndex);
                 clientCapital += monthlyContribution;
@@ -162,8 +202,10 @@ class PdsCofinancingService {
             }
 
             // 3. Начисление софинансирования в августе за прошлый год
+            // Софинансирование начисляется в августе за предыдущий календарный год
             if (month === COFINANCING_MONTH && year > startYear) {
                 const prevYear = year - 1;
+                // Годы участия считаются от года внесения первоначального капитала
                 const yearsOfParticipation = year - startYear;
 
                 // Проверяем ограничение 10 лет
