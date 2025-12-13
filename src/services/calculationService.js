@@ -262,14 +262,25 @@ class CalculationService {
             let pdsShareTopUp = 0;
 
             // Ищем ПДС в initial_capital
+            console.log('=== PDS SEARCH DEBUG ===');
+            console.log('capitalDistribution:', JSON.stringify(capitalDistribution, null, 2));
             for (const item of capitalDistribution) {
                 const product = await productRepository.findById(item.product_id);
+                console.log(`Checking product ID ${item.product_id}:`, {
+                    found: !!product,
+                    name: product?.name,
+                    product_type: product?.product_type,
+                    product_type_raw: JSON.stringify(product?.product_type),
+                    isPDS: product?.product_type === 'PDS'
+                });
                 if (product && product.product_type === 'PDS') {
                     pdsProductId = product.id;
                     pdsShareInitial = item.share_percent;
+                    console.log('PDS FOUND! ID:', pdsProductId, 'Share:', pdsShareInitial);
                     break;
                 }
             }
+            console.log('PDS search result - pdsProductId:', pdsProductId, 'pdsShareInitial:', pdsShareInitial);
 
             // Ищем ПДС в top_up
             if (pdsProductId) {
