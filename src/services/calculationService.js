@@ -2,6 +2,7 @@ const portfolioRepository = require('../repositories/portfolioRepository');
 const productRepository = require('../repositories/productRepository');
 const settingsService = require('./settingsService');
 const nsjApiService = require('./nsjApiService');
+const pdsCofinancingService = require('./pdsCofinancingService');
 
 class CalculationService {
     /**
@@ -147,6 +148,14 @@ class CalculationService {
             for (const item of capitalDistribution) {
                 const product = await productRepository.findById(item.product_id);
                 if (!product) continue;
+                
+                // Логирование для отладки
+                console.log('=== PRODUCT DEBUG ===');
+                console.log('Product ID:', product.id);
+                console.log('Product name:', product.name);
+                console.log('Product type:', product.product_type);
+                console.log('Product type check (=== "PDS"):', product.product_type === 'PDS');
+                console.log('Full product object:', JSON.stringify(product, null, 2));
 
                 // Amount allocated to this product
                 const allocatedAmount = (goal.initial_capital || 0) * (item.share_percent / 100);
@@ -246,7 +255,72 @@ class CalculationService {
                 }
             }
 
-            results.push({
+            // 5. Расчет эффекта софинансирования ПДС (если есть ПДС в портфеле)
+            let pdsCofinancingResult = null;
+            let pdsProductId = null;
+            let pdsShareInitial = 0;
+            let pdsShareTopUp = 0;
+
+            // Ищем ПДС в initial_capital
+            for (const item of capitalDistribution) {
+                const product = await productRepository.findById(item.product_id);
+                if (product && product.product_type === 'PDS') {
+                    pdsProductId = product.id;
+                    pdsShareInitial = item.share_percent;
+                    break;
+                }
+            }
+
+            // Ищем ПДС в top_up
+            if (pdsProductId) {
+                const topUpDistribution = profile.top_up || [];
+                for (const item of topUpDistribution) {
+                    if (item.product_id === pdsProductId) {
+                        pdsShareTopUp = item.share_percent;
+                        break;
+                    }
+                }
+
+                // Если в top_up нет ПДС, используем долю из initial_capital
+                if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
+                    pdsShareTopUp = pdsShareInitial;
+                }
+            }
+
+            // Если нашли ПДС, рассчитываем эффект софинансирования
+            if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
+                try {
+                    // Получаем доход клиента (из goal, client или 0)
+                    const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
+                    
+                    // Получаем дату начала (из goal или текущая дата)
+                    const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
+
+                    pdsCofinancingResult = await pdsCofinancingService.calculateCofinancingEffect({
+                        capitalGap: CapitalGap,
+                        initialReplenishment: recommendedReplenishment,
+                        initialCapital: InitialCapital,
+                        pdsShareInitial: pdsShareInitial,
+                        pdsShareTopUp: pdsShareTopUp,
+                        pdsProductId: pdsProductId,
+                        termMonths: Month,
+                        avgMonthlyIncome: avgMonthlyIncome,
+                        startDate: startDate,
+                        monthlyGrowthRate: m_month_decimal,
+                        portfolioYieldMonthly: d_month_decimal
+                    });
+
+                    // Обновляем рекомендованное пополнение с учетом софинансирования
+                    if (pdsCofinancingResult.pds_applied) {
+                        recommendedReplenishment = pdsCofinancingResult.recommendedReplenishment;
+                    }
+                } catch (pdsError) {
+                    console.error('PDS cofinancing calculation error:', pdsError);
+                    // Продолжаем с исходным расчетом при ошибке
+                }
+            }
+
+            const resultItem = {
                 goal_id: goal.goal_type_id,
                 goal_name: goal.name,
                 portfolio: {
@@ -267,7 +341,21 @@ class CalculationService {
                     recommended_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                     portfolio_yield_annual_percent: Math.round(d_annual * 100) / 100
                 }
-            });
+            };
+
+            // Добавляем данные по софинансированию ПДС, если применимо
+            if (pdsCofinancingResult && pdsCofinancingResult.pds_applied) {
+                resultItem.pds_cofinancing = {
+                    cofinancing_next_year: pdsCofinancingResult.cofinancing_next_year,
+                    total_cofinancing_nominal: pdsCofinancingResult.total_cofinancing_nominal,
+                    total_cofinancing_with_investment: pdsCofinancingResult.total_cofinancing_with_investment,
+                    pds_yield_annual_percent: pdsCofinancingResult.pds_yield_annual_percent,
+                    new_capital_gap: pdsCofinancingResult.new_capital_gap,
+                    yearly_breakdown: pdsCofinancingResult.yearly_breakdown
+                };
+            }
+
+            results.push(resultItem);
         }
 
         return {
