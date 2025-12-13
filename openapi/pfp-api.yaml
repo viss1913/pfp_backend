@@ -183,6 +183,16 @@ components:
           minimum: 0
           description: Annual inflation rate in % (optional, uses system default if not provided)
           example: 4.0
+        avg_monthly_income:
+          type: number
+          minimum: 0
+          description: Среднемесячный доход ДО НДФЛ (₽/мес). Требуется для расчета софинансирования ПДС, если в портфеле есть продукт типа PDS
+          example: 100000
+        start_date:
+          type: string
+          format: date
+          description: Дата начала цели (YYYY-MM-DD или ISO 8601). По умолчанию текущая дата. Используется для расчета софинансирования ПДС
+          example: "2024-01-01"
         payment_variant:
           type: integer
           enum: [0, 1, 2, 4, 12]
@@ -326,6 +336,53 @@ components:
               type: number
             portfolio_yield_annual_percent:
               type: number
+        pds_cofinancing:
+          type: object
+          nullable: true
+          description: Данные по софинансированию ПДС (присутствует только если в портфеле есть продукт типа PDS и указан avg_monthly_income)
+          properties:
+            cofinancing_next_year:
+              type: number
+              description: Софинансирование в следующем году (за первый год участия, ₽)
+            total_cofinancing_nominal:
+              type: number
+              description: Номинальное софинансирование за весь период (без учета процентов, ₽)
+            total_cofinancing_with_investment:
+              type: number
+              description: Будущая стоимость софинансирования с учетом процентов (₽)
+            pds_yield_annual_percent:
+              type: number
+              description: Годовая доходность продукта ПДС (%)
+            new_capital_gap:
+              type: number
+              description: Скорректированная нехватка капитала с учетом софинансирования (₽)
+            yearly_breakdown:
+              type: array
+              description: Детализация по годам
+              items:
+                type: object
+                properties:
+                  year:
+                    type: integer
+                    description: Год
+                  capital_start_of_year:
+                    type: number
+                    description: Капитал на начало года (₽)
+                  client_contrib_year:
+                    type: number
+                    description: Взносы клиента за год (₽)
+                  cofinancing_for_year:
+                    type: number
+                    description: Софинансирование, рассчитанное по взносам этого года (будет начислено в августе следующего года, ₽)
+                  cofinancing_paid_in_year:
+                    type: number
+                    description: Софинансирование, реально зачисленное в этом году (за прошлый год, ₽)
+                  capital_end_of_year:
+                    type: number
+                    description: Капитал на конец года (₽)
+                  percentage_income:
+                    type: number
+                    description: Процентный доход за год (₽)
         error:
           type: string
           description: Error message if calculation failed
@@ -789,7 +846,7 @@ paths:
         '201':
           description: Cloned
 
-  /settings:
+  /pfp/settings:
     get:
       summary: List all system settings
       tags:
@@ -843,7 +900,7 @@ paths:
         '403':
           description: Forbidden (admin only)
 
-  /settings/{key}:
+  /pfp/settings/{key}:
     get:
       summary: Get setting by key
       tags:
@@ -931,6 +988,12 @@ paths:
         - If a goal has `goal_type_id: 5` or `name: "Жизнь"`, the system will call the external NSJ (Life Insurance) API
         - For LIFE goals, client data (birth_date, sex) is recommended for accurate calculations
         - LIFE goals return NSJ calculation results instead of portfolio-based calculations
+        
+        **PDS Cofinancing (automatic calculation):**
+        - If a portfolio contains a product with `product_type: "PDS"`, the system automatically calculates PDS cofinancing effect
+        - For PDS cofinancing calculation, provide `avg_monthly_income` in the goal (average monthly income BEFORE NDFL deduction)
+        - The cofinancing result is included in `pds_cofinancing` field of `PortfolioCalculationResult`
+        - Cofinancing reduces the capital gap and adjusts recommended monthly replenishment
       requestBody:
         required: true
         content:

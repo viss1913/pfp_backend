@@ -1,5 +1,4 @@
 const calculationService = require('../services/calculationService');
-const settingsService = require('../services/settingsService');
 const Joi = require('joi');
 
 // Схема валидации для запроса расчета
@@ -19,6 +18,10 @@ const calculationRequestSchema = Joi.object({
             .description('Начальный капитал (опционально, по умолчанию 0)'),
         inflation_rate: Joi.number().min(0).optional()
             .description('Годовая ставка инфляции в % (опционально, берется из настроек если не указано)'),
+        avg_monthly_income: Joi.number().min(0).optional()
+            .description('Среднемесячный доход до НДФЛ (₽/мес). Требуется для расчета софинансирования ПДС'),
+        start_date: Joi.string().optional()
+            .description('Дата начала цели (формат: YYYY-MM-DD или ISO 8601). По умолчанию текущая дата'),
         // Параметры для НСЖ (LIFE)
         payment_variant: Joi.number().integer().valid(0, 1, 2, 4, 12).optional()
             .description('Вариант оплаты для НСЖ: 0 - единовременно, 1 - ежегодно, 2 - раз в полгода, 4 - ежеквартально, 12 - ежемесячно'),
@@ -68,42 +71,6 @@ class ClientController {
             }
 
             const result = await calculationService.calculateFirstRun(req.body);
-            res.json(result);
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    /**
-     * POST /client/pds/calc-cofin
-     * Рассчитать размер софинансирования ПДС
-     */
-    async calculatePdsCofinancing(req, res, next) {
-        try {
-            // Схема валидации для запроса расчета софинансирования
-            const calcCofinSchema = Joi.object({
-                yearly_contribution: Joi.number().integer().min(0).required()
-                    .description('Годовой взнос (₽)'),
-                avg_monthly_income: Joi.number().integer().min(0).required()
-                    .description('Среднемесячный доход ДО НДФЛ (₽/мес)')
-            });
-
-            const validation = calcCofinSchema.validate(req.body, { abortEarly: false });
-            if (validation.error) {
-                return res.status(400).json({
-                    error: 'Validation error',
-                    details: validation.error.details.map(d => ({
-                        field: d.path.join('.'),
-                        message: d.message
-                    }))
-                });
-            }
-
-            const { yearly_contribution, avg_monthly_income } = req.body;
-            const result = await settingsService.calculatePdsCofinancing(
-                yearly_contribution,
-                avg_monthly_income
-            );
             res.json(result);
         } catch (err) {
             next(err);

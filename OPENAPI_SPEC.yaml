@@ -1085,37 +1085,3 @@ paths:
           description: Forbidden (admin only)
         '404':
           description: PDS cofinancing income bracket not found
-
-  /client/pds/calc-cofin:
-    post:
-      summary: Рассчитать размер софинансирования ПДС
-      tags:
-        - Client
-      description: |
-        Рассчитывает размер государственного софинансирования для ПДС на основе годового взноса и среднемесячного дохода ДО НДФЛ.
-        
-        **Важно:** Доход должен быть указан ДО вычета НДФЛ (брутто-доход).
-        
-        Формула расчета:
-        - Находится подходящий диапазон доходов
-        - Вычисляется коэффициент k = ratio_numerator / ratio_denominator
-        - state_cofin_amount = min(yearly_contribution * k, max_state_cofin_amount_per_year)
-        - Если годовой взнос меньше минимального (2000 ₽), возвращается 0
-      security: []  # Публичный эндпоинт
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PdsCofinCalculationRequest'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PdsCofinCalculationResponse'
-        '400':
-          description: Validation error
-        '404':
-          description: PDS cofinancing settings or income bracket not found
