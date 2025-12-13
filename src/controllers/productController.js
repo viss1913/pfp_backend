@@ -3,7 +3,8 @@ const Joi = require('joi');
 
 const productSchema = Joi.object({
     name: Joi.string().required(),
-    product_type: Joi.string().required(),
+    product_type: Joi.string().required()
+        .description('Тип продукта (текст). Например: PDS, IIS, ISZH, NSZH, DEPOSIT, BOND, STOCK, FUND, OTHER'),
     currency: Joi.string().default('RUB'),
     min_term_months: Joi.number().integer().allow(null),
     max_term_months: Joi.number().integer().allow(null),
@@ -94,3 +95,4 @@ class ProductController {
 }
 
 module.exports = new ProductController();
+module.exports.PRODUCT_TYPES = PRODUCT_TYPES;

@@ -28,6 +28,9 @@ components:
           type: string
         product_type:
           type: string
+          description: |
+            Тип продукта (текстовое поле). Примеры: PDS (Программа долгосрочных сбережений), IIS, ISZH, NSZH, DEPOSIT, BOND, STOCK, FUND, OTHER.
+            Для софинансирования ПДС используйте тип "PDS".
         currency:
           type: string
         min_term_months:
