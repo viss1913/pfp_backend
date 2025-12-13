@@ -286,6 +286,15 @@ class PdsCofinancingService {
 
         // Пересчет рекомендованного пополнения с новой нехваткой
         // Используем доходность портфеля (не только ПДС), так как пополнение идет во весь портфель
+        console.log('=== REPLENISHMENT RECALCULATION ===');
+        console.log('Initial capital gap:', capitalGap);
+        console.log('Total cofinancing with investment:', totalCofinancingWithInvestment);
+        console.log('New capital gap:', newCapitalGap);
+        console.log('Initial replenishment:', initialReplenishment);
+        console.log('Term months:', termMonths);
+        console.log('Monthly growth rate:', monthlyGrowthRate);
+        console.log('Portfolio yield monthly:', portfolioYieldMonthly);
+        
         let newRecommendedReplenishment = initialReplenishment;
         if (newCapitalGap > 0 && portfolioYieldMonthly !== undefined) {
             // Используем ту же формулу, что и в основном расчете
@@ -295,9 +304,13 @@ class PdsCofinancingService {
                 monthlyGrowthRate,
                 portfolioYieldMonthly
             );
+            console.log('Recalculated replenishment:', newRecommendedReplenishment);
         } else if (newCapitalGap <= 0) {
             // Если нехватка перекрыта, минимизируем пополнение
             newRecommendedReplenishment = 0; // TODO: можно добавить минимальный технический взнос
+            console.log('Capital gap covered, setting replenishment to 0');
+        } else {
+            console.log('No recalculation - using initial replenishment');
         }
 
         return {
