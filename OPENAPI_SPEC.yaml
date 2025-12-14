@@ -29,7 +29,8 @@ components:
         product_type:
           type: string
           description: |
-            Тип продукта (текстовое поле). Примеры: PDS (Программа долгосрочных сбережений), IIS, ISZH, NSZH, DEPOSIT, BOND, STOCK, FUND, OTHER.
+            Код типа продукта (должен существовать в справочнике типов продуктов).
+            Получить список доступных типов: GET /api/pfp/product-types
             Для софинансирования ПДС используйте тип "PDS".
         currency:
           type: string
@@ -58,6 +59,90 @@ components:
           type: number
         yield_percent:
           type: number
+    ProductType:
+      type: object
+      description: Тип продукта
+      properties:
+        id:
+          type: integer
+          description: ID типа продукта
+        code:
+          type: string
+          maxLength: 50
+          description: Код типа продукта (PDS, IIS, ISZH, etc.)
+          example: PDS
+        name:
+          type: string
+          maxLength: 255
+          description: Название типа продукта
+          example: Программа долгосрочных сбережений
+        description:
+          type: string
+          nullable: true
+          description: Описание типа продукта
+        is_active:
+          type: boolean
+          description: Активен ли тип
+          default: true
+        order_index:
+          type: integer
+          description: Порядок сортировки
+          default: 0
+        created_at:
+          type: string
+          format: date-time
+          description: Дата создания
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата обновления
+    ProductTypeCreate:
+      type: object
+      required:
+        - code
+        - name
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Код типа продукта (уникальный)
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Название типа продукта
+        description:
+          type: string
+          nullable: true
+          description: Описание типа продукта
+        is_active:
+          type: boolean
+          default: true
+        order_index:
+          type: integer
+          default: 0
+    ProductTypeUpdate:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Код типа продукта (уникальный)
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Название типа продукта
+        description:
+          type: string
+          nullable: true
+          description: Описание типа продукта
+        is_active:
+          type: boolean
+        order_index:
+          type: integer
     Portfolio:
       type: object
       properties:
@@ -647,6 +732,119 @@ paths:
       responses:
         '201':
           description: Cloned
+
+  /pfp/product-types:
+    get:
+      summary: Получить все типы продуктов
+      tags:
+        - Products
+      description: Возвращает список всех типов продуктов для выпадающего списка на фронтенде
+      parameters:
+        - in: query
+          name: is_active
+          schema:
+            type: boolean
+          description: Фильтр по активности (true - только активные, false - все)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductType'
+    post:
+      summary: Создать новый тип продукта (admin only)
+      tags:
+        - Products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductTypeCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductType'
+        '400':
+          description: Validation error or code already exists
+        '403':
+          description: Forbidden (admin only)
+
+  /pfp/product-types/{id}:
+    get:
+      summary: Получить тип продукта по ID
+      tags:
+        - Products
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductType'
+        '404':
+          description: Product type not found
+    put:
+      summary: Обновить тип продукта (admin only)
+      tags:
+        - Products
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductTypeUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductType'
+        '400':
+          description: Validation error or code already exists
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: Product type not found
+    delete:
+      summary: Удалить тип продукта (admin only)
+      tags:
+        - Products
+      description: Удаляет тип продукта. Нельзя удалить тип, который используется в продуктах.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          description: Cannot delete - type is used by products
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: Product type not found
 
   /pfp/portfolios:
     get:
