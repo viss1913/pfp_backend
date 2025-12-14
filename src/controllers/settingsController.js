@@ -55,11 +55,11 @@ const pdsCofinIncomeBracketUpdateSchema = Joi.object({
 
 // Схемы валидации для линий доходности пассивного дохода
 const passiveIncomeYieldLineSchema = Joi.object({
-    min_term_months: Joi.number().min(0).required(),
-    max_term_months: Joi.number().min(0).required(),
-    min_amount: Joi.number().min(0).required(),
-    max_amount: Joi.number().min(0).required(),
-    yield_percent: Joi.number().min(0).required()
+    min_term_months: Joi.number().min(0).unsafe().required(),
+    max_term_months: Joi.number().min(0).unsafe().required(),
+    min_amount: Joi.number().min(0).unsafe().required(),
+    max_amount: Joi.number().min(0).unsafe().required(),
+    yield_percent: Joi.number().min(0).unsafe().required()
 });
 
 const passiveIncomeYieldUpdateSchema = Joi.object({
