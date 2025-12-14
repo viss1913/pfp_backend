@@ -29,8 +29,10 @@ components:
         product_type:
           type: string
           description: |
-            Код типа продукта (должен существовать в справочнике типов продуктов).
+            **ВАЖНО: На фронтенде это поле должно быть выпадающим списком!**
+            Код типа продукта из справочника типов продуктов.
             Получить список доступных типов: GET /api/pfp/product-types
+            Значение должно быть одним из кодов (code) из этого списка.
             Для софинансирования ПДС используйте тип "PDS".
         currency:
           type: string
@@ -59,6 +61,63 @@ components:
           type: number
         yield_percent:
           type: number
+    ProductCreate:
+      type: object
+      required:
+        - name
+        - product_type
+        - currency
+      description: |
+        Схема для создания нового продукта.
+        Поле product_type должно быть выбрано из списка доступных типов продуктов,
+        полученных через GET /api/pfp/product-types
+      properties:
+        name:
+          type: string
+          description: Название продукта
+        product_type:
+          type: string
+          description: |
+            **ВАЖНО: Это поле должно быть выпадающим списком на фронтенде!**
+            Код типа продукта из справочника типов продуктов.
+            Получить список доступных типов: GET /api/pfp/product-types
+            Значение должно быть одним из кодов (code) из этого списка.
+            Для софинансирования ПДС используйте тип "PDS".
+          example: PDS
+        currency:
+          type: string
+          description: Валюта продукта
+          example: RUB
+        lines:
+          type: array
+          description: Массив линий доходности продукта
+          items:
+            $ref: '#/components/schemas/ProductLine'
+    ProductLine:
+      type: object
+      description: Линия доходности продукта
+      required:
+        - min_term_months
+        - max_term_months
+        - min_amount
+        - max_amount
+        - yield_percent
+      properties:
+        min_term_months:
+          type: number
+          description: Минимальный срок в месяцах (включительно)
+        max_term_months:
+          type: number
+          description: Максимальный срок в месяцах (включительно)
+        min_amount:
+          type: number
+          description: Минимальная сумма (включительно)
+        max_amount:
+          type: number
+          description: Максимальная сумма (включительно)
+        yield_percent:
+          type: number
+          description: Доходность в процентах годовых (%)
     ProductType:
       type: object
       description: Тип продукта
@@ -168,6 +227,53 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PortfolioRiskProfile'
+    PortfolioUpdate:
+      type: object
+      description: |
+        Схема для обновления портфеля. Все поля опциональны.
+        **Важно:** Поддерживаются оба формата для риск-профилей:
+        - `riskProfiles` (camelCase, рекомендуется)
+        - `risk_profiles` (snake_case, для обратной совместимости)
+      properties:
+        name:
+          type: string
+        currency:
+          type: string
+        amount_from:
+          type: number
+        amount_to:
+          type: number
+        term_from_months:
+          type: integer
+        term_to_months:
+          type: integer
+        age_from:
+          type: integer
+          nullable: true
+        age_to:
+          type: integer
+          nullable: true
+        investor_type:
+          type: string
+          nullable: true
+        gender:
+          type: string
+          nullable: true
+        classes:
+          type: array
+          items:
+            type: integer
+          description: Массив ID классов портфеля
+        riskProfiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioRiskProfile'
+          description: Массив риск-профилей (camelCase, рекомендуется)
+        risk_profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioRiskProfile'
+          description: Массив риск-профилей (snake_case, для обратной совместимости)
     PortfolioRiskProfile:
       type: object
       properties:
@@ -670,15 +776,25 @@ paths:
                   $ref: '#/components/schemas/Product'
     post:
       summary: Create product
+      description: |
+        Создает новый продукт. 
+        **Важно для фронтенда:** Поле `product_type` должно быть выпадающим списком,
+        заполняемым из GET /api/pfp/product-types
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              allOf:
-                - $ref: '#/components/schemas/Product'
+              $ref: '#/components/schemas/ProductCreate'
       responses:
         '201':
           description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Validation error (например, неверный product_type)
           
   /pfp/products/{id}:
     get:
@@ -694,6 +810,10 @@ paths:
           description: OK
     put:
       summary: Update product
+      description: |
+        Обновляет существующий продукт.
+        **Важно для фронтенда:** Поле `product_type` должно быть выпадающим списком,
+        заполняемым из GET /api/pfp/product-types
       parameters:
         - in: path
           name: id
@@ -701,13 +821,22 @@ paths:
           schema:
             type: integer
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Product'
+              $ref: '#/components/schemas/ProductCreate'
       responses:
         '200':
           description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Validation error (например, неверный product_type)
+        '404':
+          description: Product not found
     delete:
       summary: Delete product
       parameters:
@@ -882,6 +1011,11 @@ paths:
           description: OK
     put:
       summary: Update portfolio
+      description: |
+        Обновляет существующий портфель. Все поля опциональны (частичное обновление).
+        **Важно для фронтенда:** Поддерживаются оба формата для риск-профилей:
+        - `riskProfiles` (camelCase, рекомендуется) - соответствует формату ответа API
+        - `risk_profiles` (snake_case) - для обратной совместимости
       parameters:
         - in: path
           name: id
@@ -892,10 +1026,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Portfolio'
+              $ref: '#/components/schemas/PortfolioUpdate'
       responses:
         '200':
           description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+        '400':
+          description: Validation error
+        '403':
+          description: Access denied
+        '404':
+          description: Portfolio not found
     delete:
       summary: Delete portfolio
       parameters:
