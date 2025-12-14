@@ -1,7 +1,7 @@
 const portfolioService = require('../services/portfolioService');
 const Joi = require('joi');
 
-// Simplified Schema
+// Simplified Schema for create
 const portfolioSchema = Joi.object({
     name: Joi.string().required(),
     currency: Joi.string().default('RUB'),
@@ -13,6 +13,31 @@ const portfolioSchema = Joi.object({
     age_to: Joi.number().integer().allow(null),
     investor_type: Joi.string().allow(null),
     gender: Joi.string().allow(null),
+    classes: Joi.array().items(Joi.number().integer()).optional(), // Class IDs
+    riskProfiles: Joi.array().items(Joi.object({
+        profile_type: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required(),
+        potential_yield_percent: Joi.number().allow(null),
+        instruments: Joi.array().items(Joi.object({
+            product_id: Joi.number().integer().required(),
+            bucket_type: Joi.string().valid('INITIAL_CAPITAL', 'TOP_UP').allow(null),
+            share_percent: Joi.number().required(),
+            order_index: Joi.number().integer().allow(null)
+        })).optional()
+    })).optional()
+});
+
+// Schema for update (all fields optional for partial updates)
+const portfolioUpdateSchema = Joi.object({
+    name: Joi.string().optional(),
+    currency: Joi.string().optional(),
+    amount_from: Joi.number().optional(),
+    amount_to: Joi.number().optional(),
+    term_from_months: Joi.number().integer().optional(),
+    term_to_months: Joi.number().integer().optional(),
+    age_from: Joi.number().integer().allow(null).optional(),
+    age_to: Joi.number().integer().allow(null).optional(),
+    investor_type: Joi.string().allow(null).optional(),
+    gender: Joi.string().allow(null).optional(),
     classes: Joi.array().items(Joi.number().integer()).optional(), // Class IDs
     riskProfiles: Joi.array().items(Joi.object({
         profile_type: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required(),
@@ -71,6 +96,11 @@ class PortfolioController {
 
     async update(req, res, next) {
         try {
+            const validation = portfolioUpdateSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
             const { id } = req.params;
             const agentId = req.user.agentId;
             const isAdmin = req.user.isAdmin;

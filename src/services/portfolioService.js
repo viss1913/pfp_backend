@@ -37,7 +37,7 @@ class PortfolioService {
             throw { status: 403, message: 'Access denied' };
         }
 
-        const { classes, riskProfiles, ...fields } = data;
+        const { classes, riskProfiles, id: _, agent_id, is_default, is_active, created_at, updated_at, ...fields } = data;
         await portfolioRepository.update(id, fields, classes, riskProfiles);
         return this.getPortfolioById(id);
     }

@@ -78,13 +78,18 @@ class PortfolioRepository {
 
     async update(id, portfolioData, classIds, riskProfilesData) {
         return db.transaction(async (trx) => {
-            // Update basic fields
-            await trx('portfolios').where({ id }).update({ ...portfolioData, updated_at: new Date() });
+            // Update basic fields (only if there are fields to update)
+            if (Object.keys(portfolioData).length > 0) {
+                await trx('portfolios').where({ id }).update({ ...portfolioData, updated_at: new Date() });
+            } else {
+                // Still update updated_at even if no other fields changed
+                await trx('portfolios').where({ id }).update({ updated_at: new Date() });
+            }
 
             // Update Classes: Delete all links, re-insert
-            if (classIds) {
+            if (classIds !== undefined) {
                 await trx('portfolio_class_links').where({ portfolio_id: id }).del();
-                if (classIds.length > 0) {
+                if (classIds && classIds.length > 0) {
                     const links = classIds.map(cid => ({ portfolio_id: id, class_id: cid }));
                     await trx('portfolio_class_links').insert(links);
                 }
@@ -93,25 +98,27 @@ class PortfolioRepository {
             // Update Risk Profiles: Delete all profiles (cascade deletes instruments), re-insert
             // Note: This changes IDs of profiles. If that matters, we need smarter update. 
             // Requirement says "old connections are deleted and created again". So full wipe is OK.
-            if (riskProfilesData) {
-                // First find profiles to ensure we delete them? OR just delete by portfolio_id?
-                // Cascade delete on instruments handles instruments. 
-                // We just need to delete profiles.
+            if (riskProfilesData !== undefined) {
+                // Delete all existing profiles (cascade will delete instruments)
                 await trx('portfolio_risk_profiles').where({ portfolio_id: id }).del();
 
-                for (const profile of riskProfilesData) {
-                    const { instruments, ...profileFields } = profile;
-                    const [profileId] = await trx('portfolio_risk_profiles').insert({
-                        ...profileFields,
-                        portfolio_id: id
-                    });
+                // Insert new profiles if provided
+                if (riskProfilesData && riskProfilesData.length > 0) {
+                    for (const profile of riskProfilesData) {
+                        const { instruments, ...profileFields } = profile;
+                        const insertResult = await trx('portfolio_risk_profiles').insert({
+                            ...profileFields,
+                            portfolio_id: id
+                        });
+                        const profileId = Array.isArray(insertResult) ? insertResult[0] : insertResult;
 
-                    if (instruments && instruments.length > 0) {
-                        const instrumentsWithId = instruments.map(inst => ({
-                            ...inst,
-                            portfolio_risk_profile_id: profileId
-                        }));
-                        await trx('portfolio_instruments').insert(instrumentsWithId);
+                        if (instruments && instruments.length > 0) {
+                            const instrumentsWithId = instruments.map(inst => ({
+                                ...inst,
+                                portfolio_risk_profile_id: profileId
+                            }));
+                            await trx('portfolio_instruments').insert(instrumentsWithId);
+                        }
                     }
                 }
             }
