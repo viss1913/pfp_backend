@@ -107,9 +107,30 @@ class PortfolioController {
 
     async update(req, res, next) {
         try {
-            const validation = portfolioUpdateSchema.validate(req.body);
+            // Log incoming request for debugging
+            console.log('=== Portfolio Update Request ===');
+            console.log('Portfolio ID:', req.params.id);
+            console.log('Request body keys:', Object.keys(req.body));
+            console.log('Has riskProfiles:', req.body.riskProfiles !== undefined);
+            console.log('Has risk_profiles:', req.body.risk_profiles !== undefined);
+            if (req.body.riskProfiles) {
+                console.log('riskProfiles length:', req.body.riskProfiles?.length);
+            }
+            if (req.body.risk_profiles) {
+                console.log('risk_profiles length:', req.body.risk_profiles?.length);
+            }
+
+            const validation = portfolioUpdateSchema.validate(req.body, { abortEarly: false });
             if (validation.error) {
-                return res.status(400).json({ error: validation.error.details[0].message });
+                console.error('Validation errors:', validation.error.details);
+                return res.status(400).json({ 
+                    error: 'Validation error',
+                    message: validation.error.details[0].message,
+                    details: validation.error.details.map(d => ({
+                        field: d.path.join('.'),
+                        message: d.message
+                    }))
+                });
             }
 
             // Normalize field names: convert snake_case to camelCase
