@@ -624,6 +624,130 @@ class SettingsService {
      * @param {number} avgMonthlyIncome - Среднемесячный доход ДО НДФЛ (₽/мес)
      * @returns {Promise<Object>} Результат расчета
      */
+    // ========== Методы для работы с линиями доходности пассивного дохода ==========
+
+    /**
+     * Получить все линии доходности для пассивного дохода
+     */
+    async getPassiveIncomeYield() {
+        const setting = await settingsRepository.findByKey('passive_income_yield');
+        if (!setting) {
+            throw { 
+                status: 404, 
+                message: 'Passive income yield settings not found',
+                error: 'Settings not found'
+            };
+        }
+        return {
+            lines: this._parseValue(setting.value, setting.value_type),
+            updated_at: setting.updated_at
+        };
+    }
+
+    /**
+     * Обновить линии доходности для пассивного дохода
+     */
+    async updatePassiveIncomeYield(lines, isAdmin) {
+        if (!isAdmin) {
+            throw { 
+                status: 403, 
+                message: 'Only administrators can manage passive income yield settings',
+                error: 'Forbidden'
+            };
+        }
+
+        // Валидация: проверяем, что lines - это массив
+        if (!Array.isArray(lines)) {
+            throw {
+                status: 400,
+                message: 'lines must be an array',
+                error: 'Validation error'
+            };
+        }
+
+        // Валидация каждой линии
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (typeof line.min_term_months !== 'number' || line.min_term_months < 0) {
+                throw {
+                    status: 400,
+                    message: `Line ${i}: min_term_months must be a non-negative number`,
+                    error: 'Validation error'
+                };
+            }
+            if (typeof line.max_term_months !== 'number' || line.max_term_months < 0) {
+                throw {
+                    status: 400,
+                    message: `Line ${i}: max_term_months must be a non-negative number`,
+                    error: 'Validation error'
+                };
+            }
+            if (line.max_term_months < line.min_term_months) {
+                throw {
+                    status: 400,
+                    message: `Line ${i}: max_term_months must be >= min_term_months`,
+                    error: 'Validation error'
+                };
+            }
+            if (typeof line.min_amount !== 'number' || line.min_amount < 0) {
+                throw {
+                    status: 400,
+                    message: `Line ${i}: min_amount must be a non-negative number`,
+                    error: 'Validation error'
+                };
+            }
+            if (typeof line.max_amount !== 'number' || line.max_amount < 0) {
+                throw {
+                    status: 400,
+                    message: `Line ${i}: max_amount must be a non-negative number`,
+                    error: 'Validation error'
+                };
+            }
+            if (line.max_amount < line.min_amount) {
+                throw {
+                    status: 400,
+                    message: `Line ${i}: max_amount must be >= min_amount`,
+                    error: 'Validation error'
+                };
+            }
+            if (typeof line.yield_percent !== 'number' || line.yield_percent < 0) {
+                throw {
+                    status: 400,
+                    message: `Line ${i}: yield_percent must be a non-negative number`,
+                    error: 'Validation error'
+                };
+            }
+        }
+
+        await settingsRepository.updateByKey('passive_income_yield', lines);
+        return this.getPassiveIncomeYield();
+    }
+
+    /**
+     * Найти подходящую линию доходности по сумме и сроку
+     * @param {number} amount - Сумма
+     * @param {number} termMonths - Срок в месяцах
+     * @returns {Object|null} - Найденная линия или null
+     */
+    async findPassiveIncomeYieldLine(amount, termMonths) {
+        const setting = await this.getPassiveIncomeYield();
+        const lines = setting.lines;
+
+        if (!lines || lines.length === 0) {
+            return null;
+        }
+
+        // Ищем подходящую линию
+        const line = lines.find(l =>
+            amount >= l.min_amount &&
+            amount <= l.max_amount &&
+            termMonths >= l.min_term_months &&
+            termMonths <= l.max_term_months
+        );
+
+        return line || null;
+    }
+
     async calculatePdsCofinancing(yearlyContribution, avgMonthlyIncome) {
         // Получаем настройки
         const settings = await pdsSettingsRepository.find();

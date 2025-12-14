@@ -53,6 +53,19 @@ const pdsCofinIncomeBracketUpdateSchema = Joi.object({
     ratio_denominator: Joi.number().integer().positive().optional()
 });
 
+// Схемы валидации для линий доходности пассивного дохода
+const passiveIncomeYieldLineSchema = Joi.object({
+    min_term_months: Joi.number().min(0).required(),
+    max_term_months: Joi.number().min(0).required(),
+    min_amount: Joi.number().min(0).required(),
+    max_amount: Joi.number().min(0).required(),
+    yield_percent: Joi.number().min(0).required()
+});
+
+const passiveIncomeYieldUpdateSchema = Joi.object({
+    lines: Joi.array().items(passiveIncomeYieldLineSchema).min(1).required()
+});
+
 class SettingsController {
     async getAll(req, res, next) {
         try {
@@ -355,6 +368,41 @@ class SettingsController {
 
             await settingsService.deletePdsCofinIncomeBracket(parseInt(id), isAdmin);
             res.status(204).send();
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // ========== Методы для работы с линиями доходности пассивного дохода ==========
+
+    /**
+     * GET /settings/passive-income/yield
+     * Получить все линии доходности для пассивного дохода
+     */
+    async getPassiveIncomeYield(req, res, next) {
+        try {
+            const yieldSettings = await settingsService.getPassiveIncomeYield();
+            res.json(yieldSettings);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * PUT /settings/passive-income/yield
+     * Обновить линии доходности для пассивного дохода (admin only)
+     */
+    async updatePassiveIncomeYield(req, res, next) {
+        try {
+            const isAdmin = req.user.isAdmin;
+
+            const validation = passiveIncomeYieldUpdateSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const updated = await settingsService.updatePassiveIncomeYield(req.body.lines, isAdmin);
+            res.json(updated);
         } catch (err) {
             next(err);
         }

@@ -24,6 +24,10 @@ router.post('/pds/cofin-income-brackets', settingsController.createPdsCofinIncom
 router.patch('/pds/cofin-income-brackets/:id', settingsController.updatePdsCofinIncomeBracket);
 router.delete('/pds/cofin-income-brackets/:id', settingsController.deletePdsCofinIncomeBracket);
 
+// Настройки пассивного дохода (должны быть ПЕРЕД /:key, чтобы не перехватывались)
+router.get('/passive-income/yield', settingsController.getPassiveIncomeYield);
+router.put('/passive-income/yield', settingsController.updatePassiveIncomeYield);
+
 // Роуты с параметрами должны быть в конце
 router.get('/:key', settingsController.getByKey);
 router.put('/:key', settingsController.update);

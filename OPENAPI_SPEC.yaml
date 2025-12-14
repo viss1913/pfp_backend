@@ -384,6 +384,71 @@ components:
         message:
           type: string
           description: Сообщение (если взнос меньше минимального)
+    PassiveIncomeYieldLine:
+      type: object
+      description: Линия доходности для пассивного дохода
+      required:
+        - min_term_months
+        - max_term_months
+        - min_amount
+        - max_amount
+        - yield_percent
+      properties:
+        min_term_months:
+          type: number
+          format: double
+          minimum: 0
+          description: Минимальный срок в месяцах (включительно)
+          example: 0
+        max_term_months:
+          type: number
+          format: double
+          minimum: 0
+          description: Максимальный срок в месяцах (включительно)
+          example: 60
+        min_amount:
+          type: number
+          format: double
+          minimum: 0
+          description: Минимальная сумма (₽), включительно
+          example: 0
+        max_amount:
+          type: number
+          format: double
+          minimum: 0
+          description: Максимальная сумма (₽), включительно
+          example: 1000000000000
+        yield_percent:
+          type: number
+          format: double
+          minimum: 0
+          description: Доходность в процентах годовых (%)
+          example: 14.0
+    PassiveIncomeYieldSettings:
+      type: object
+      description: Настройки линий доходности для пассивного дохода
+      properties:
+        lines:
+          type: array
+          description: Массив линий доходности
+          items:
+            $ref: '#/components/schemas/PassiveIncomeYieldLine'
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления
+    PassiveIncomeYieldUpdate:
+      type: object
+      description: Обновление линий доходности для пассивного дохода
+      required:
+        - lines
+      properties:
+        lines:
+          type: array
+          minItems: 1
+          description: Массив линий доходности
+          items:
+            $ref: '#/components/schemas/PassiveIncomeYieldLine'
 
 
 security:
@@ -1088,3 +1153,43 @@ paths:
           description: Forbidden (admin only)
         '404':
           description: PDS cofinancing income bracket not found
+
+  /pfp/settings/passive-income/yield:
+    get:
+      summary: Получить линии доходности для пассивного дохода
+      tags:
+        - Settings
+      description: Возвращает все линии доходности для целей типа "Пассивный доход"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PassiveIncomeYieldSettings'
+        '404':
+          description: Passive income yield settings not found
+    put:
+      summary: Обновить линии доходности для пассивного дохода (admin only)
+      tags:
+        - Settings
+      description: Обновляет линии доходности для целей типа "Пассивный доход". Полностью заменяет существующие линии новым массивом.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PassiveIncomeYieldUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PassiveIncomeYieldSettings'
+        '400':
+          description: Validation error
+        '403':
+          description: Forbidden (admin only)
+        '404':
+          description: Passive income yield settings not found
