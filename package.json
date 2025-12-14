@@ -10,6 +10,7 @@
     "seed": "knex seed:run",
     "setup": "npm run migrate && npm run seed",
     "check-tables": "node scripts/check_tables.js",
+    "fix-migrations": "node scripts/fix_migrations.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
