@@ -31,9 +31,9 @@ const calculationRequestSchema = Joi.object({
         .description('Массив целей для расчета'),
     client: Joi.object({
         birth_date: Joi.string().optional()
-            .description('Дата рождения клиента (формат: YYYY-MM-DD или ISO 8601). Требуется для расчета НСЖ'),
+            .description('Дата рождения клиента (формат: YYYY-MM-DD или ISO 8601). Требуется для расчета НСЖ и Пенсии'),
         sex: Joi.string().valid('male', 'female', 'M', 'F', 'мужской', 'женский').optional()
-            .description('Пол клиента. Требуется для расчета НСЖ'),
+            .description('Пол клиента. Требуется для расчета НСЖ и Пенсии'),
         fio: Joi.string().optional()
             .description('ФИО клиента'),
         name: Joi.string().optional()
@@ -42,6 +42,10 @@ const calculationRequestSchema = Joi.object({
             .description('Телефон клиента'),
         email: Joi.string().email().optional()
             .description('Email клиента'),
+        avg_monthly_income: Joi.number().min(0).optional()
+            .description('Среднемесячный доход до НДФЛ (₽/мес). Используется для оценки ИПК при расчете пенсии и для расчета софинансирования ПДС'),
+        ipk_current: Joi.number().min(0).allow(null).optional()
+            .description('Текущий ИПК (индивидуальный пенсионный коэффициент) клиента. Если не указан, будет оценен на основе дохода'),
         insured_person: Joi.object({
             is_policy_holder: Joi.boolean().optional()
                 .description('Является ли застрахованный страхователем'),
@@ -52,7 +56,7 @@ const calculationRequestSchema = Joi.object({
         }).optional()
             .description('Данные застрахованного лица (если отличается от страхователя)')
     }).optional()
-        .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ)')
+        .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ и Пенсии)')
 });
 
 class ClientController {
