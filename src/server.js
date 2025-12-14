@@ -22,7 +22,25 @@ async function startServer() {
                 console.log('✅ Seeds completed successfully');
                 console.log('👤 Admin user created: admin@pfp.local / admin123');
             } else {
-                console.log('ℹ️  Users already exist, skipping seeds');
+                console.log('ℹ️  Users already exist, skipping main seeds');
+            }
+            
+            // Check if product_types table exists and is empty, then seed it
+            try {
+                const tableExists = await db.schema.hasTable('product_types');
+                if (tableExists) {
+                    const productTypeCount = await db('product_types').count('* as count').first();
+                    if (parseInt(productTypeCount.count) === 0) {
+                        console.log('📦 No product types found, running product types seed...');
+                        // Run product types seed directly
+                        const productTypesSeed = require('../database/seeds/02_product_types');
+                        await productTypesSeed.seed(db);
+                        console.log('✅ Product types seed completed successfully');
+                    }
+                }
+            } catch (seedError) {
+                console.warn('⚠️  Could not seed product types:', seedError.message);
+                // Don't fail server startup if seed fails
             }
         }
 
