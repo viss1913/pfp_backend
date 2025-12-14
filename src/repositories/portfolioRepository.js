@@ -21,11 +21,37 @@ class PortfolioRepository {
         const portfolio = await db('portfolios').where({ id }).first();
         if (!portfolio) return null;
 
-        // Fetch Classes
-        const classes = await db('portfolio_class_links')
-            .join('portfolio_classes', 'portfolio_class_links.class_id', 'portfolio_classes.id')
-            .where('portfolio_class_links.portfolio_id', id)
-            .select('portfolio_classes.*');
+        // Fetch Classes - check if table exists first
+        let classes = [];
+        try {
+            const tableExists = await db.schema.hasTable('portfolio_class_links');
+            if (tableExists) {
+                classes = await db('portfolio_class_links')
+                    .join('portfolio_classes', 'portfolio_class_links.class_id', 'portfolio_classes.id')
+                    .where('portfolio_class_links.portfolio_id', id)
+                    .select('portfolio_classes.*');
+            } else {
+                console.warn('⚠️  Table portfolio_class_links does not exist. Run migrations!');
+                // Try to get classes from JSON field if exists
+                if (portfolio.classes) {
+                    try {
+                        const classIds = typeof portfolio.classes === 'string' 
+                            ? JSON.parse(portfolio.classes) 
+                            : portfolio.classes;
+                        if (Array.isArray(classIds) && classIds.length > 0) {
+                            classes = await db('portfolio_classes')
+                                .whereIn('id', classIds)
+                                .select('*');
+                        }
+                    } catch (e) {
+                        console.warn('Could not parse classes from JSON field:', e.message);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching classes:', error.message);
+            // Continue without classes if table doesn't exist
+        }
 
         // Fetch Risk Profiles
         const profiles = await db('portfolio_risk_profiles').where({ portfolio_id: id });

@@ -9,8 +9,15 @@ const AUTO_SEED = process.env.AUTO_SEED !== 'false'; // Set to 'false' to disabl
 async function startServer() {
     try {
         console.log('Running database migrations...');
-        await db.migrate.latest();
-        console.log('✅ Migrations completed successfully');
+        try {
+            await db.migrate.latest();
+            console.log('✅ Migrations completed successfully');
+        } catch (migrationError) {
+            console.error('❌ Migration error:', migrationError.message);
+            console.error('Stack:', migrationError.stack);
+            // Don't exit - try to continue, but log the error
+            console.warn('⚠️  Continuing despite migration error. Some features may not work.');
+        }
 
         // Auto-seed if users table is empty (first run)
         if (AUTO_SEED) {
