@@ -396,14 +396,44 @@ class SettingsController {
         try {
             const isAdmin = req.user.isAdmin;
 
-            const validation = passiveIncomeYieldUpdateSchema.validate(req.body);
+            console.log('=== Passive Income Yield Update Request ===');
+            console.log('Request body:', JSON.stringify(req.body, null, 2));
+
+            // Предварительная обработка: конвертируем строки в числа
+            if (req.body && req.body.lines && Array.isArray(req.body.lines)) {
+                req.body.lines = req.body.lines.map((line, index) => {
+                    const converted = {
+                        min_term_months: typeof line.min_term_months === 'string' ? parseFloat(line.min_term_months) : (typeof line.min_term_months === 'number' ? line.min_term_months : NaN),
+                        max_term_months: typeof line.max_term_months === 'string' ? parseFloat(line.max_term_months) : (typeof line.max_term_months === 'number' ? line.max_term_months : NaN),
+                        min_amount: typeof line.min_amount === 'string' ? parseFloat(line.min_amount) : (typeof line.min_amount === 'number' ? line.min_amount : NaN),
+                        max_amount: typeof line.max_amount === 'string' ? parseFloat(line.max_amount) : (typeof line.max_amount === 'number' ? line.max_amount : NaN),
+                        yield_percent: typeof line.yield_percent === 'string' ? parseFloat(line.yield_percent) : (typeof line.yield_percent === 'number' ? line.yield_percent : NaN)
+                    };
+                    console.log(`Line ${index} converted:`, converted);
+                    return converted;
+                });
+            }
+
+            console.log('Processed lines:', JSON.stringify(req.body.lines, null, 2));
+
+            const validation = passiveIncomeYieldUpdateSchema.validate(req.body, { 
+                abortEarly: false,
+                convert: true 
+            });
             if (validation.error) {
-                return res.status(400).json({ error: validation.error.details[0].message });
+                console.error('Validation error:', validation.error);
+                const errorMessages = validation.error.details.map(detail => detail.message).join('; ');
+                return res.status(400).json({ 
+                    error: 'Validation error',
+                    message: errorMessages,
+                    details: validation.error.details
+                });
             }
 
             const updated = await settingsService.updatePassiveIncomeYield(req.body.lines, isAdmin);
             res.json(updated);
         } catch (err) {
+            console.error('Error in updatePassiveIncomeYield:', err);
             next(err);
         }
     }
