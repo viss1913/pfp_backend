@@ -241,9 +241,20 @@ class PortfolioController {
             const agentId = req.user.agentId;
             const isAdmin = req.user.isAdmin;
 
+            console.log('Calling updatePortfolio with:', {
+                id,
+                agentId,
+                isAdmin,
+                normalizedDataKeys: Object.keys(normalizedData),
+                hasRiskProfiles: !!normalizedData.riskProfiles
+            });
+
             const result = await portfolioService.updatePortfolio(id, agentId, isAdmin, normalizedData);
+            console.log('Update successful');
             res.json(result);
         } catch (err) {
+            console.error('Error in portfolio update:', err);
+            console.error('Error stack:', err.stack);
             next(err);
         }
     }

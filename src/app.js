@@ -10,38 +10,22 @@ const errorHandler = require('./middlewares/errorHandler');
 const app = express();
 
 // CORS configuration - must be before other middleware
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-        
-        // List of allowed origins
-        const allowedOrigins = [
-            'https://pfpfrontver2.vercel.app',
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:5173',
-            'http://localhost:5174'
-        ];
-        
-        if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-            callback(null, true);
-        } else {
-            callback(null, true); // Allow all origins for now, can be restricted later
-        }
-    },
+// Allow all origins for now to fix CORS issues
+app.use(cors({
+    origin: true, // Allow all origins
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-agent-id', 'x-role', 'x-api-key'],
-    exposedHeaders: ['Content-Type', 'Authorization']
-};
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-agent-id', 'x-role', 'x-api-key', 'X-Requested-With'],
+    exposedHeaders: ['Content-Type', 'Authorization'],
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+}));
 
-app.use(cors(corsOptions));
-
-// Helmet configuration - must be after CORS
+// Helmet configuration - must be after CORS, with CORS-friendly settings
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginEmbedderPolicy: false
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: false // Disable CSP to avoid conflicts
 }));
 
 app.use(express.json());
