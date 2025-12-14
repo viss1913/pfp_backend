@@ -160,7 +160,10 @@ components:
           type: number
           minimum: 0
           exclusiveMinimum: true
-          description: Target amount in currency
+          description: |
+            Target amount in currency.
+            For PASSIVE_INCOME goals (goal_type_id: 2): desired monthly income (₽/month).
+            For other goals: target amount to accumulate (₽).
           example: 3000000
         term_months:
           type: integer
@@ -257,6 +260,166 @@ components:
               enum: [male, female, M, F]
               description: Insured person sex (if different from policy holder)
               example: "female"
+    PassiveIncomeCalculationResult:
+      type: object
+      description: Result for PASSIVE_INCOME goal type (goal_type_id: 2)
+      properties:
+        goal_id:
+          type: integer
+          description: Goal type ID (2 for PASSIVE_INCOME)
+          example: 2
+        goal_name:
+          type: string
+          description: Goal name
+          example: "Пассивный доход"
+        goal_type:
+          type: string
+          enum: [PASSIVE_INCOME]
+          description: Goal type identifier
+        passive_income_calculation:
+          type: object
+          description: Passive income specific calculation details
+          properties:
+            desired_monthly_income_initial:
+              type: number
+              format: double
+              description: Desired monthly income as specified by user (₽/month)
+              example: 100000
+            desired_monthly_income_with_inflation:
+              type: number
+              format: double
+              description: Desired monthly income adjusted for inflation at goal term (₽/month)
+              example: 120000
+            required_capital:
+              type: number
+              format: double
+              description: Required capital to generate desired monthly income (₽)
+              example: 10000000
+            yield_percent:
+              type: number
+              format: double
+              description: Annual yield percentage used for calculation (%)
+              example: 14.0
+            yield_line:
+              type: object
+              description: Yield line used for calculation
+              properties:
+                min_term_months:
+                  type: number
+                  format: double
+                  description: Minimum term in months
+                max_term_months:
+                  type: number
+                  format: double
+                  description: Maximum term in months
+                min_amount:
+                  type: number
+                  format: double
+                  description: Minimum amount
+                max_amount:
+                  type: number
+                  format: double
+                  description: Maximum amount
+        financials:
+          type: object
+          description: Financial calculation results
+          properties:
+            cost_initial:
+              type: number
+              format: double
+              description: Required capital (same as required_capital)
+            cost_with_inflation:
+              type: number
+              format: double
+              description: Required capital (inflation already applied to income, not to capital)
+            inflation_annual_percent:
+              type: number
+              format: double
+              description: Annual inflation rate used (%)
+            investment_expense_growth_monthly_percent:
+              type: number
+              format: double
+              description: Monthly investment expense growth rate (%)
+            investment_expense_growth_annual_percent:
+              type: number
+              format: double
+              description: Annual investment expense growth rate (%)
+            initial_capital:
+              type: number
+              format: double
+              description: Initial capital (₽)
+            capital_gap:
+              type: number
+              format: double
+              description: Capital shortage (₽)
+            recommended_replenishment:
+              type: number
+              format: double
+              description: Recommended monthly replenishment (₽)
+            portfolio_yield_annual_percent:
+              type: number
+              format: double
+              description: Portfolio annual yield (%)
+        pds_cofinancing:
+          type: object
+          nullable: true
+          description: PDS cofinancing calculation results (if PDS product is in portfolio)
+          properties:
+            cofinancing_next_year:
+              type: integer
+              description: Cofinancing amount for next year (₽)
+            total_cofinancing_nominal:
+              type: number
+              format: double
+              description: Total cofinancing amount (nominal, ₽)
+            total_cofinancing_with_investment:
+              type: number
+              format: double
+              description: Total cofinancing amount with investment growth (₽)
+            pds_yield_annual_percent:
+              type: number
+              format: double
+              description: PDS product annual yield (%)
+            new_capital_gap:
+              type: number
+              format: double
+              description: Capital gap after cofinancing (₽)
+            yearly_breakdown:
+              type: array
+              description: Yearly breakdown of cofinancing
+              items:
+                type: object
+                properties:
+                  year:
+                    type: integer
+                    description: Year
+                  capital_start_of_year:
+                    type: number
+                    format: double
+                    description: Capital at start of year (₽)
+                  client_contrib_year:
+                    type: number
+                    format: double
+                    description: Client contributions for year (₽)
+                  cofinancing_for_year:
+                    type: number
+                    format: double
+                    description: Cofinancing calculated for this year (₽)
+                  cofinancing_paid_in_year:
+                    type: number
+                    format: double
+                    description: Cofinancing paid in this year (₽)
+                  capital_end_of_year:
+                    type: number
+                    format: double
+                    description: Capital at end of year (₽)
+                  percentage_income:
+                    type: number
+                    format: double
+                    description: Interest income for year (₽)
+        error:
+          type: string
+          description: Error message if calculation failed
     CalculationResponse:
       type: object
       properties:
@@ -266,6 +429,7 @@ components:
             oneOf:
               - $ref: '#/components/schemas/PortfolioCalculationResult'
               - $ref: '#/components/schemas/LifeCalculationResult'
+              - $ref: '#/components/schemas/PassiveIncomeCalculationResult'
     PortfolioCalculationResult:
       type: object
       properties:
@@ -989,10 +1153,20 @@ paths:
         - For LIFE goals, client data (birth_date, sex) is recommended for accurate calculations
         - LIFE goals return NSJ calculation results instead of portfolio-based calculations
         
+        **Special handling for PASSIVE_INCOME goals (goal_type_id: 2):**
+        - For PASSIVE_INCOME goals, `target_amount` represents desired monthly income (₽/month), not a target capital amount
+        - The system calculates required capital based on:
+          1. Desired monthly income adjusted for inflation at goal term
+          2. Yield percentage from passive income yield settings (matched by term only)
+        - Formula: `required_capital = (desired_monthly_income_with_inflation * 12 * 100) / yield_percent`
+        - The calculation then proceeds with standard replenishment logic using the calculated required capital
+        - Inflation is applied to income, not to capital (no double inflation)
+        - Returns `PassiveIncomeCalculationResult` with detailed breakdown
+        
         **PDS Cofinancing (automatic calculation):**
         - If a portfolio contains a product with `product_type: "PDS"`, the system automatically calculates PDS cofinancing effect
         - For PDS cofinancing calculation, provide `avg_monthly_income` in the goal (average monthly income BEFORE NDFL deduction)
-        - The cofinancing result is included in `pds_cofinancing` field of `PortfolioCalculationResult`
+        - The cofinancing result is included in `pds_cofinancing` field of `PortfolioCalculationResult` or `PassiveIncomeCalculationResult`
         - Cofinancing reduces the capital gap and adjusts recommended monthly replenishment
       requestBody:
         required: true

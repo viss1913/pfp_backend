@@ -725,11 +725,12 @@ class SettingsService {
 
     /**
      * Найти подходящую линию доходности по сумме и сроку
-     * @param {number} amount - Сумма
+     * @param {number} amount - Сумма (опционально, для пассивного дохода можно передать 0)
      * @param {number} termMonths - Срок в месяцах
+     * @param {boolean} byTermOnly - Если true, искать только по сроку, игнорируя сумму
      * @returns {Object|null} - Найденная линия или null
      */
-    async findPassiveIncomeYieldLine(amount, termMonths) {
+    async findPassiveIncomeYieldLine(amount, termMonths, byTermOnly = false) {
         const setting = await this.getPassiveIncomeYield();
         const lines = setting.lines;
 
@@ -737,13 +738,23 @@ class SettingsService {
             return null;
         }
 
-        // Ищем подходящую линию
-        const line = lines.find(l =>
-            amount >= l.min_amount &&
-            amount <= l.max_amount &&
-            termMonths >= l.min_term_months &&
-            termMonths <= l.max_term_months
-        );
+        let line;
+        
+        if (byTermOnly) {
+            // Ищем только по сроку
+            line = lines.find(l =>
+                termMonths >= l.min_term_months &&
+                termMonths <= l.max_term_months
+            );
+        } else {
+            // Ищем по сумме и сроку
+            line = lines.find(l =>
+                amount >= l.min_amount &&
+                amount <= l.max_amount &&
+                termMonths >= l.min_term_months &&
+                termMonths <= l.max_term_months
+            );
+        }
 
         return line || null;
     }
