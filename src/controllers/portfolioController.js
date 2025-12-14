@@ -27,6 +27,7 @@ const portfolioSchema = Joi.object({
 });
 
 // Schema for update (all fields optional for partial updates)
+// Support both camelCase (riskProfiles) and snake_case (risk_profiles)
 const portfolioUpdateSchema = Joi.object({
     name: Joi.string().optional(),
     currency: Joi.string().optional(),
@@ -48,8 +49,18 @@ const portfolioUpdateSchema = Joi.object({
             share_percent: Joi.number().required(),
             order_index: Joi.number().integer().allow(null)
         })).optional()
+    })).optional(),
+    risk_profiles: Joi.array().items(Joi.object({
+        profile_type: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required(),
+        potential_yield_percent: Joi.number().allow(null),
+        instruments: Joi.array().items(Joi.object({
+            product_id: Joi.number().integer().required(),
+            bucket_type: Joi.string().valid('INITIAL_CAPITAL', 'TOP_UP').allow(null),
+            share_percent: Joi.number().required(),
+            order_index: Joi.number().integer().allow(null)
+        })).optional()
     })).optional()
-});
+}).unknown(true); // Allow additional fields that might be sent by frontend
 
 class PortfolioController {
     async getAll(req, res, next) {
@@ -101,11 +112,18 @@ class PortfolioController {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
+            // Normalize field names: convert snake_case to camelCase
+            const normalizedData = { ...req.body };
+            if (normalizedData.risk_profiles !== undefined && normalizedData.riskProfiles === undefined) {
+                normalizedData.riskProfiles = normalizedData.risk_profiles;
+                delete normalizedData.risk_profiles;
+            }
+
             const { id } = req.params;
             const agentId = req.user.agentId;
             const isAdmin = req.user.isAdmin;
 
-            const result = await portfolioService.updatePortfolio(id, agentId, isAdmin, req.body);
+            const result = await portfolioService.updatePortfolio(id, agentId, isAdmin, normalizedData);
             res.json(result);
         } catch (err) {
             next(err);
