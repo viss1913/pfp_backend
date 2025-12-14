@@ -1,23 +1,6 @@
 const portfolioService = require('../services/portfolioService');
 const Joi = require('joi');
 
-// Simplified Schema for create - supports both old and new formats
-const portfolioSchema = Joi.object({
-    name: Joi.string().required(),
-    currency: Joi.string().default('RUB'),
-    amount_from: Joi.number().required(),
-    amount_to: Joi.number().required(),
-    term_from_months: Joi.number().integer().required(),
-    term_to_months: Joi.number().integer().required(),
-    age_from: Joi.number().integer().allow(null),
-    age_to: Joi.number().integer().allow(null),
-    investor_type: Joi.string().allow(null),
-    gender: Joi.string().allow(null),
-    classes: Joi.array().items(Joi.number().integer()).optional(), // Class IDs
-    riskProfiles: Joi.array().items(riskProfileSchema).optional(),
-    risk_profiles: Joi.array().items(riskProfileSchema).optional()
-});
-
 // Schema for risk profile instrument (used in both old and new formats)
 const instrumentSchema = Joi.object({
     product_id: Joi.number().integer().required(),
@@ -42,6 +25,23 @@ const riskProfileSchema = Joi.object({
     initial_replenishment: Joi.array().items(instrumentSchema).optional(),
     top_up: Joi.array().items(instrumentSchema).optional() // Legacy alias for initial_replenishment
 }).unknown(false); // Don't allow unknown fields in risk profile
+
+// Simplified Schema for create - supports both old and new formats
+const portfolioSchema = Joi.object({
+    name: Joi.string().required(),
+    currency: Joi.string().default('RUB'),
+    amount_from: Joi.number().required(),
+    amount_to: Joi.number().required(),
+    term_from_months: Joi.number().integer().required(),
+    term_to_months: Joi.number().integer().required(),
+    age_from: Joi.number().integer().allow(null),
+    age_to: Joi.number().integer().allow(null),
+    investor_type: Joi.string().allow(null),
+    gender: Joi.string().allow(null),
+    classes: Joi.array().items(Joi.number().integer()).optional(), // Class IDs
+    riskProfiles: Joi.array().items(riskProfileSchema).optional(),
+    risk_profiles: Joi.array().items(riskProfileSchema).optional()
+});
 
 // Schema for update (all fields optional for partial updates)
 // Support both camelCase (riskProfiles) and snake_case (risk_profiles)
