@@ -27,16 +27,25 @@ class ProductRepository {
         return rows.map(row => {
             let yields = [];
             if (row.lines) {
-                const lines = typeof row.lines === 'string' ? JSON.parse(row.lines) : row.lines;
-                // Convert from lines format (min_term_months, max_term_months, min_amount, max_amount, yield_percent)
-                // to yields format (term_from_months, term_to_months, amount_from, amount_to, yield_percent)
-                yields = lines.map(line => ({
-                    term_from_months: line.min_term_months || line.term_from_months || 0,
-                    term_to_months: line.max_term_months || line.term_to_months || 0,
-                    amount_from: line.min_amount || line.amount_from || 0,
-                    amount_to: line.max_amount || line.amount_to || 0,
-                    yield_percent: line.yield_percent || 0
-                }));
+                try {
+                    const lines = typeof row.lines === 'string' ? JSON.parse(row.lines) : row.lines;
+                    // Ensure lines is an array
+                    if (Array.isArray(lines)) {
+                        // Convert from lines format (min_term_months, max_term_months, min_amount, max_amount, yield_percent)
+                        // to yields format (term_from_months, term_to_months, amount_from, amount_to, yield_percent)
+                        yields = lines.map(line => ({
+                            term_from_months: line.min_term_months || line.term_from_months || 0,
+                            term_to_months: line.max_term_months || line.term_to_months || 0,
+                            amount_from: line.min_amount || line.amount_from || 0,
+                            amount_to: line.max_amount || line.amount_to || 0,
+                            yield_percent: line.yield_percent || 0
+                        }));
+                    }
+                } catch (error) {
+                    console.error(`Error parsing lines JSON for product ${row.id}:`, error);
+                    // Continue with empty yields array if JSON is invalid
+                    yields = [];
+                }
             }
             return {
                 ...row,
@@ -52,16 +61,25 @@ class ProductRepository {
         // Parse lines JSON and convert to yields format for compatibility
         let yields = [];
         if (product.lines) {
-            const lines = typeof product.lines === 'string' ? JSON.parse(product.lines) : product.lines;
-            // Convert from lines format (min_term_months, max_term_months, min_amount, max_amount, yield_percent)
-            // to yields format (term_from_months, term_to_months, amount_from, amount_to, yield_percent)
-            yields = lines.map(line => ({
-                term_from_months: line.min_term_months || line.term_from_months || 0,
-                term_to_months: line.max_term_months || line.term_to_months || 0,
-                amount_from: line.min_amount || line.amount_from || 0,
-                amount_to: line.max_amount || line.amount_to || 0,
-                yield_percent: line.yield_percent || 0
-            }));
+            try {
+                const lines = typeof product.lines === 'string' ? JSON.parse(product.lines) : product.lines;
+                // Ensure lines is an array
+                if (Array.isArray(lines)) {
+                    // Convert from lines format (min_term_months, max_term_months, min_amount, max_amount, yield_percent)
+                    // to yields format (term_from_months, term_to_months, amount_from, amount_to, yield_percent)
+                    yields = lines.map(line => ({
+                        term_from_months: line.min_term_months || line.term_from_months || 0,
+                        term_to_months: line.max_term_months || line.term_to_months || 0,
+                        amount_from: line.min_amount || line.amount_from || 0,
+                        amount_to: line.max_amount || line.amount_to || 0,
+                        yield_percent: line.yield_percent || 0
+                    }));
+                }
+            } catch (error) {
+                console.error(`Error parsing lines JSON for product ${id}:`, error);
+                // Continue with empty yields array if JSON is invalid
+                yields = [];
+            }
         }
         product.yields = yields;
         return product;
