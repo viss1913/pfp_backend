@@ -53,12 +53,39 @@ class PortfolioRepository {
             // Continue without classes if table doesn't exist
         }
 
-        // Fetch Risk Profiles
-        const profiles = await db('portfolio_risk_profiles').where({ portfolio_id: id });
+        // Fetch Risk Profiles - check if table exists first
+        let profiles = [];
+        try {
+            const tableExists = await db.schema.hasTable('portfolio_risk_profiles');
+            if (tableExists) {
+                profiles = await db('portfolio_risk_profiles').where({ portfolio_id: id });
 
-        // For each profile, fetch instruments
-        for (const profile of profiles) {
-            profile.instruments = await db('portfolio_instruments').where({ portfolio_risk_profile_id: profile.id });
+                // For each profile, fetch instruments
+                for (const profile of profiles) {
+                    const instrumentsTableExists = await db.schema.hasTable('portfolio_instruments');
+                    if (instrumentsTableExists) {
+                        profile.instruments = await db('portfolio_instruments').where({ portfolio_risk_profile_id: profile.id });
+                    } else {
+                        console.warn('⚠️  Table portfolio_instruments does not exist. Run migrations!');
+                        profile.instruments = [];
+                    }
+                }
+            } else {
+                console.warn('⚠️  Table portfolio_risk_profiles does not exist. Run migrations!');
+                // Try to get from JSON field if exists
+                if (portfolio.risk_profiles) {
+                    try {
+                        profiles = typeof portfolio.risk_profiles === 'string' 
+                            ? JSON.parse(portfolio.risk_profiles) 
+                            : portfolio.risk_profiles;
+                    } catch (e) {
+                        console.warn('Could not parse risk_profiles from JSON field:', e.message);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching risk profiles:', error.message);
+            // Continue with empty profiles if table doesn't exist
         }
 
         return {
@@ -114,10 +141,15 @@ class PortfolioRepository {
 
             // Update Classes: Delete all links, re-insert
             if (classIds !== undefined) {
-                await trx('portfolio_class_links').where({ portfolio_id: id }).del();
-                if (classIds && classIds.length > 0) {
-                    const links = classIds.map(cid => ({ portfolio_id: id, class_id: cid }));
-                    await trx('portfolio_class_links').insert(links);
+                const classLinksTableExists = await trx.schema.hasTable('portfolio_class_links');
+                if (classLinksTableExists) {
+                    await trx('portfolio_class_links').where({ portfolio_id: id }).del();
+                    if (classIds && classIds.length > 0) {
+                        const links = classIds.map(cid => ({ portfolio_id: id, class_id: cid }));
+                        await trx('portfolio_class_links').insert(links);
+                    }
+                } else {
+                    console.warn('⚠️  Table portfolio_class_links does not exist. Skipping class links update.');
                 }
             }
 
@@ -125,6 +157,11 @@ class PortfolioRepository {
             // Note: This changes IDs of profiles. If that matters, we need smarter update. 
             // Requirement says "old connections are deleted and created again". So full wipe is OK.
             if (riskProfilesData !== undefined) {
+                const riskProfilesTableExists = await trx.schema.hasTable('portfolio_risk_profiles');
+                if (!riskProfilesTableExists) {
+                    throw new Error('Table portfolio_risk_profiles does not exist. Please run migrations first.');
+                }
+                
                 // Delete all existing profiles (cascade will delete instruments)
                 await trx('portfolio_risk_profiles').where({ portfolio_id: id }).del();
 

@@ -10,11 +10,36 @@ async function startServer() {
     try {
         console.log('Running database migrations...');
         try {
-            await db.migrate.latest();
-            console.log('✅ Migrations completed successfully');
+            const migrations = await db.migrate.latest();
+            if (migrations && migrations.length > 0) {
+                console.log(`✅ Applied ${migrations.length} migration(s):`, migrations);
+            } else {
+                console.log('✅ All migrations are up to date');
+            }
+            
+            // Verify critical tables exist
+            const criticalTables = [
+                'portfolios',
+                'portfolio_class_links',
+                'portfolio_risk_profiles',
+                'portfolio_instruments',
+                'portfolio_classes'
+            ];
+            
+            console.log('Checking critical tables...');
+            for (const table of criticalTables) {
+                const exists = await db.schema.hasTable(table);
+                if (exists) {
+                    console.log(`  ✅ Table '${table}' exists`);
+                } else {
+                    console.error(`  ❌ Table '${table}' is MISSING!`);
+                }
+            }
         } catch (migrationError) {
             console.error('❌ Migration error:', migrationError.message);
             console.error('Stack:', migrationError.stack);
+            console.error('⚠️  CRITICAL: Migrations failed! Server may not work correctly.');
+            console.error('⚠️  Please check the error above and fix database schema issues.');
             // Don't exit - try to continue, but log the error
             console.warn('⚠️  Continuing despite migration error. Some features may not work.');
         }
