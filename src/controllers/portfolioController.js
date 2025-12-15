@@ -167,6 +167,8 @@ class PortfolioController {
             console.log('=== Portfolio Update Request ===');
             console.log('Portfolio ID:', req.params.id);
             console.log('Request body keys:', Object.keys(req.body));
+            console.log('Has classes:', req.body.classes !== undefined);
+            console.log('Classes value:', req.body.classes);
             console.log('Has riskProfiles:', req.body.riskProfiles !== undefined);
             console.log('Has risk_profiles:', req.body.risk_profiles !== undefined);
             if (req.body.riskProfiles) {

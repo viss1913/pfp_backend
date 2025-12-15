@@ -238,18 +238,33 @@ class PortfolioRepository {
             }
 
             // Update Classes: Delete all links, re-insert (если используем нормализованные таблицы)
+            // Если classIds передан (даже если это пустой массив или null), обновляем связи
             if (classIds !== undefined) {
+                // Нормализуем: null или не-массив превращаем в пустой массив
+                const normalizedClassIds = Array.isArray(classIds) ? classIds : [];
+                
+                console.log(`[PortfolioRepository] Updating classes for portfolio ${id}:`, classIds, '-> normalized:', normalizedClassIds);
                 const classLinksTableExists = await trx.schema.hasTable('portfolio_class_links');
                 if (classLinksTableExists) {
-                    await trx('portfolio_class_links').where({ portfolio_id: id }).del();
-                    if (classIds && classIds.length > 0) {
-                        const links = classIds.map(cid => ({ portfolio_id: id, class_id: cid }));
+                    // Всегда удаляем все существующие связи для этого портфеля
+                    const deletedCount = await trx('portfolio_class_links').where({ portfolio_id: id }).del();
+                    console.log(`[PortfolioRepository] Deleted ${deletedCount} existing class links for portfolio ${id}`);
+                    // Если массив не пустой, создаем новые связи
+                    if (normalizedClassIds.length > 0) {
+                        const links = normalizedClassIds.map(cid => ({ portfolio_id: id, class_id: cid }));
                         await trx('portfolio_class_links').insert(links);
+                        console.log(`[PortfolioRepository] Created ${links.length} new class links for portfolio ${id}`);
+                    } else {
+                        console.log(`[PortfolioRepository] No new class links to create (empty array)`);
                     }
+                    // Если массив пустой, просто не создаем новые связи (уже удалили старые выше)
                 } else {
                     // Fallback: сохраняем в JSON поле
-                    await trx('portfolios').where({ id }).update({ classes: JSON.stringify(classIds || []) });
+                    await trx('portfolios').where({ id }).update({ classes: JSON.stringify(normalizedClassIds) });
+                    console.log(`[PortfolioRepository] Updated classes JSON field for portfolio ${id} (fallback mode)`);
                 }
+            } else {
+                console.log(`[PortfolioRepository] classes not provided, skipping class links update for portfolio ${id}`);
             }
         });
     }
