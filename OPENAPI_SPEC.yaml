@@ -288,16 +288,37 @@ components:
             $ref: '#/components/schemas/PortfolioInstrument'
     PortfolioInstrument:
       type: object
+      description: |
+        Инструмент портфеля. При GET-запросе может содержать дополнительные поля (id, portfolio_risk_profile_id),
+        которые автоматически игнорируются при PUT-запросе.
       properties:
         product_id:
           type: integer
+          description: ID продукта (обязательно)
         bucket_type:
           type: string
           enum: [INITIAL_CAPITAL, TOP_UP]
+          description: Тип сегмента (INITIAL_CAPITAL - стартовый капитал, TOP_UP - пополнения)
+          nullable: true
         share_percent:
           type: number
+          description: Доля в процентах (обязательно)
         order_index:
           type: integer
+          description: Порядок сортировки (опционально)
+          nullable: true
+        id:
+          type: integer
+          description: |
+            ID инструмента (только в GET-ответе, игнорируется при PUT).
+            Это поле присутствует в ответе API, но не нужно отправлять при обновлении.
+          readOnly: true
+        portfolio_risk_profile_id:
+          type: integer
+          description: |
+            ID профиля риска (только в GET-ответе, игнорируется при PUT).
+            Это поле присутствует в ответе API, но не нужно отправлять при обновлении.
+          readOnly: true
     SystemSetting:
       type: object
       properties:
@@ -1013,9 +1034,14 @@ paths:
       summary: Update portfolio
       description: |
         Обновляет существующий портфель. Все поля опциональны (частичное обновление).
-        **Важно для фронтенда:** Поддерживаются оба формата для риск-профилей:
-        - `riskProfiles` (camelCase, рекомендуется) - соответствует формату ответа API
-        - `risk_profiles` (snake_case) - для обратной совместимости
+        
+        **Важно для фронтенда:**
+        - Поддерживаются оба формата для риск-профилей:
+          - `riskProfiles` (camelCase, рекомендуется) - соответствует формату ответа API
+          - `risk_profiles` (snake_case) - для обратной совместимости
+        - Можно отправлять данные как есть из GET-ответа: лишние поля (id, portfolio_risk_profile_id) 
+          в инструментах автоматически отфильтруются бэкендом
+        - Формат инструментов: массив `instruments` с полями `product_id`, `bucket_type`, `share_percent`, `order_index`
       parameters:
         - in: path
           name: id

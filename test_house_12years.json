@@ -4,16 +4,11 @@
       "goal_type_id": 4,
       "name": "Дом",
       "target_amount": 10000000,
-      "term_months": 60,
+      "term_months": 144,
       "risk_profile": "BALANCED",
-      "initial_capital": 1000000
-    },
-    {
-      "goal_type_id": 5,
-      "name": "Жизнь",
-      "target_amount": 1000000,
-      "term_months": 120,
-      "risk_profile": "BALANCED"
+      "initial_capital": 500000,
+      "inflation_rate": 4.0,
+      "avg_monthly_income": 75000
     }
   ],
   "client": {
@@ -21,3 +16,7 @@
     "sex": "male"
   }
 }
+
+
+
+

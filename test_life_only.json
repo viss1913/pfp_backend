@@ -1,0 +1,25 @@
+{
+  "goals": [
+    {
+      "goal_type_id": 5,
+      "name": "Жизнь",
+      "target_amount": 2000000,
+      "term_months": 120,
+      "risk_profile": "BALANCED"
+    }
+  ],
+  "client": {
+    "birth_date": "1979-01-01",
+    "sex": "male"
+  }
+}
+
+
+
+
+
+
+
+
+
+

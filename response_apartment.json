@@ -1,0 +1,183 @@
+﻿{
+    "results":  [
+                    {
+                        "goal_id":  4,
+                        "goal_name":  "Квартира",
+                        "portfolio":  {
+                                          "id":  1,
+                                          "name":  "Первый портфель",
+                                          "currency":  "RUB"
+                                      },
+                        "products":  [
+                                         {
+                                             "product_id":  3,
+                                             "name":  "ПДС НПФ",
+                                             "share_percent":  100,
+                                             "yield_percent":  15,
+                                             "matched_line":  {
+                                                                  "term_from_months":  0,
+                                                                  "term_to_months":  360,
+                                                                  "amount_from":  100001,
+                                                                  "amount_to":  10000000000,
+                                                                  "yield_percent":  15
+                                                              }
+                                         }
+                                     ],
+                        "financials":  {
+                                           "cost_initial":  3000000,
+                                           "cost_with_inflation":  6236784.54,
+                                           "inflation_annual_percent":  5,
+                                           "investment_expense_growth_monthly_percent":  0.33,
+                                           "investment_expense_growth_annual_percent":  4.03,
+                                           "initial_capital":  200000,
+                                           "capital_gap":  4609372.21,
+                                           "recommended_replenishment":  4091.31,
+                                           "portfolio_yield_annual_percent":  15
+                                       },
+                        "pds_cofinancing":  {
+                                                "cofinancing_next_year":  36000,
+                                                "total_cofinancing_nominal":  360000,
+                                                "total_cofinancing_with_investment":  1540280.77,
+                                                "pds_yield_annual_percent":  15,
+                                                "new_capital_gap":  3069091.44,
+                                                "yearly_breakdown":  [
+                                                                         {
+                                                                             "year":  2026,
+                                                                             "capital_start_of_year":  201377.68,
+                                                                             "client_contrib_year":  75088.49,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  349385.13,
+                                                                             "percentage_income":  36918.96
+                                                                         },
+                                                                         {
+                                                                             "year":  2027,
+                                                                             "capital_start_of_year":  349385.13,
+                                                                             "client_contrib_year":  78116.56,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  522823.22,
+                                                                             "percentage_income":  59321.53
+                                                                         },
+                                                                         {
+                                                                             "year":  2028,
+                                                                             "capital_start_of_year":  522823.22,
+                                                                             "client_contrib_year":  81266.74,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  725636.78,
+                                                                             "percentage_income":  85546.82
+                                                                         },
+                                                                         {
+                                                                             "year":  2029,
+                                                                             "capital_start_of_year":  725636.78,
+                                                                             "client_contrib_year":  84543.96,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  962367.63,
+                                                                             "percentage_income":  116186.88
+                                                                         },
+                                                                         {
+                                                                             "year":  2030,
+                                                                             "capital_start_of_year":  962367.63,
+                                                                             "client_contrib_year":  87953.34,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  1238244.3,
+                                                                             "percentage_income":  151923.33
+                                                                         },
+                                                                         {
+                                                                             "year":  2031,
+                                                                             "capital_start_of_year":  1238244.3,
+                                                                             "client_contrib_year":  91500.21,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  1559285.3,
+                                                                             "percentage_income":  193540.79
+                                                                         },
+                                                                         {
+                                                                             "year":  2032,
+                                                                             "capital_start_of_year":  1559285.3,
+                                                                             "client_contrib_year":  95190.11,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  1932417.84,
+                                                                             "percentage_income":  241942.43
+                                                                         },
+                                                                         {
+                                                                             "year":  2033,
+                                                                             "capital_start_of_year":  1932417.84,
+                                                                             "client_contrib_year":  99028.82,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  2365614.35,
+                                                                             "percentage_income":  298167.69
+                                                                         },
+                                                                         {
+                                                                             "year":  2034,
+                                                                             "capital_start_of_year":  2365614.35,
+                                                                             "client_contrib_year":  103022.32,
+                                                                             "cofinancing_for_year":  36000,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  2868049.51,
+                                                                             "percentage_income":  363412.84
+                                                                         },
+                                                                         {
+                                                                             "year":  2035,
+                                                                             "capital_start_of_year":  2868049.51,
+                                                                             "client_contrib_year":  107176.87,
+                                                                             "cofinancing_for_year":  0,
+                                                                             "cofinancing_paid_in_year":  36000,
+                                                                             "capital_end_of_year":  3450280.9,
+                                                                             "percentage_income":  439054.51
+                                                                         },
+                                                                         {
+                                                                             "year":  2036,
+                                                                             "capital_start_of_year":  3450280.9,
+                                                                             "client_contrib_year":  111498.96,
+                                                                             "cofinancing_for_year":  0,
+                                                                             "cofinancing_paid_in_year":  0,
+                                                                             "capital_end_of_year":  4086739.8,
+                                                                             "percentage_income":  524959.94
+                                                                         },
+                                                                         {
+                                                                             "year":  2037,
+                                                                             "capital_start_of_year":  4086739.8,
+                                                                             "client_contrib_year":  115995.35,
+                                                                             "cofinancing_for_year":  0,
+                                                                             "cofinancing_paid_in_year":  0,
+                                                                             "capital_end_of_year":  4823463.06,
+                                                                             "percentage_income":  620727.91
+                                                                         },
+                                                                         {
+                                                                             "year":  2038,
+                                                                             "capital_start_of_year":  4823463.06,
+                                                                             "client_contrib_year":  120673.06,
+                                                                             "cofinancing_for_year":  0,
+                                                                             "cofinancing_paid_in_year":  0,
+                                                                             "capital_end_of_year":  5675683.71,
+                                                                             "percentage_income":  731547.59
+                                                                         },
+                                                                         {
+                                                                             "year":  2039,
+                                                                             "capital_start_of_year":  5675683.71,
+                                                                             "client_contrib_year":  125539.41,
+                                                                             "cofinancing_for_year":  0,
+                                                                             "cofinancing_paid_in_year":  0,
+                                                                             "capital_end_of_year":  6660927.56,
+                                                                             "percentage_income":  859704.44
+                                                                         },
+                                                                         {
+                                                                             "year":  2040,
+                                                                             "capital_start_of_year":  6660927.56,
+                                                                             "client_contrib_year":  119520.21,
+                                                                             "cofinancing_for_year":  0,
+                                                                             "cofinancing_paid_in_year":  0,
+                                                                             "capital_end_of_year":  7788275.58,
+                                                                             "percentage_income":  1007827.82
+                                                                         }
+                                                                     ]
+                                            }
+                    }
+                ]
+}

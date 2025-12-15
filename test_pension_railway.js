@@ -1,15 +1,15 @@
 /**
- * Тестовый скрипт для проверки расчета пенсии
- * Использование: node test_pension_local.js [url]
- * Пример: node test_pension_local.js http://localhost:3000
+ * Тестовый скрипт для проверки расчета пенсии на Railway
+ * Использование: node test_pension_railway.js [railway-url]
+ * Пример: node test_pension_railway.js https://pfpbackend-production.up.railway.app
  */
 
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
 
-const baseUrl = process.argv[2] || 'http://localhost:3000';
-const testDataFile = process.argv[3] || 'test_pension_45_male.json';
+const railwayUrl = process.argv[2] || 'https://pfpbackend-production.up.railway.app';
+const testDataFile = process.argv[3] || 'test_pension_45_98k.json';
 
 // Читаем тестовые данные из файла
 let testData;
@@ -24,11 +24,11 @@ try {
 const postData = JSON.stringify(testData);
 
 // Определяем протокол
-const isHttps = baseUrl.startsWith('https');
+const isHttps = railwayUrl.startsWith('https');
 const client = isHttps ? https : http;
 
 // Парсим URL
-const url = new URL(baseUrl);
+const url = new URL(railwayUrl);
 const options = {
     hostname: url.hostname,
     port: url.port || (isHttps ? 443 : 80),
@@ -41,22 +41,23 @@ const options = {
 };
 
 console.log('='.repeat(60));
-console.log('Тестирование расчета ПЕНСИИ');
+console.log('Тестирование расчета ПЕНСИИ на Railway');
 console.log('='.repeat(60));
-console.log(`URL: ${baseUrl}`);
+console.log(`URL: ${railwayUrl}`);
 console.log(`Эндпоинт: ${options.path}`);
 console.log(`Файл данных: ${testDataFile}`);
 console.log('\nДанные клиента:');
 console.log(`  Дата рождения: ${testData.client.birth_date}`);
 console.log(`  Пол: ${testData.client.sex}`);
-console.log(`  Возраст: ~${new Date().getFullYear() - new Date(testData.client.birth_date).getFullYear()} лет`);
-console.log(`  Среднемесячный доход: ${testData.client.avg_monthly_income || 'не указан'} руб`);
+const age = new Date().getFullYear() - new Date(testData.client.birth_date).getFullYear();
+console.log(`  Возраст: ~${age} лет`);
+console.log(`  Среднемесячный доход: ${testData.client.avg_monthly_income.toLocaleString('ru-RU')} руб`);
 console.log(`  ИПК текущий: ${testData.client.ipk_current !== null ? testData.client.ipk_current : 'не указан (будет оценен)'}`);
 console.log('\nЦель:');
 console.log(`  Название: ${testData.goals[0].name}`);
-console.log(`  Желаемая пенсия: ${testData.goals[0].target_amount} руб/мес`);
+console.log(`  Желаемая пенсия: ${testData.goals[0].target_amount.toLocaleString('ru-RU')} руб/мес`);
 console.log(`  Срок: ${testData.goals[0].term_months || 'автоматически (до выхода на пенсию)'} месяцев`);
-console.log(`  Начальный капитал: ${testData.goals[0].initial_capital || 0} руб`);
+console.log(`  Начальный капитал: ${(testData.goals[0].initial_capital || 0).toLocaleString('ru-RU')} руб`);
 console.log('\nОтправка запроса...\n');
 
 const req = client.request(options, (res) => {
@@ -163,10 +164,9 @@ const req = client.request(options, (res) => {
 req.on('error', (e) => {
     console.error(`❌ Ошибка запроса: ${e.message}`);
     console.error('\nПроверьте:');
-    console.error('1. Что сервер запущен (npm start или node src/server.js)');
-    console.error('2. Что миграции выполнены (npm run migrate)');
-    console.error('3. Что seeds выполнены (npm run seed)');
-    console.error('4. Правильность URL (по умолчанию http://localhost:3000)');
+    console.error('1. Правильность URL Railway');
+    console.error('2. Что сервер запущен и доступен');
+    console.error('3. Что миграции выполнены');
 });
 
 req.write(postData);

@@ -47,3 +47,4 @@ class ProductTypeRepository {
 
 module.exports = new ProductTypeRepository();
 
+

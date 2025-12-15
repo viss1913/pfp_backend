@@ -93,3 +93,4 @@ class ProductTypeController {
 
 module.exports = new ProductTypeController();
 
+

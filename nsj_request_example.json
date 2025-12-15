@@ -1,0 +1,34 @@
+{
+  "operation": "Contract.LifeEndowment.calculate",
+  "data": {
+    "beginDate": "10.01.2025 00:00:00",
+    "insConditions": {
+      "program": "test",
+      "currency": "RUR",
+      "paymentVariant": 0,
+      "term": 20
+    },
+    "policyHolder": {
+      "dob": "01.01.1989",
+      "age": 35,
+      "sex": "male"
+    },
+    "insuredPerson": {
+      "isPolicyHolder": true
+    },
+    "calcData": {
+      "valuationType": "byLimit",
+      "limit": 2500000
+    }
+  }
+}
+
+
+
+
+
+
+
+
+
+

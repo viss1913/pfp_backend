@@ -10,8 +10,8 @@ const calculationRequestSchema = Joi.object({
             .description('Название цели'),
         target_amount: Joi.number().positive().required()
             .description('Целевая сумма'),
-        term_months: Joi.number().integer().positive().required()
-            .description('Срок достижения цели в месяцах'),
+        term_months: Joi.number().integer().min(0).optional()
+            .description('Срок достижения цели в месяцах. Для PENSION можно не указывать (будет рассчитан автоматически до выхода на пенсию)'),
         risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required()
             .description('Риск-профиль: CONSERVATIVE, BALANCED или AGGRESSIVE'),
         initial_capital: Joi.number().min(0).optional().default(0)

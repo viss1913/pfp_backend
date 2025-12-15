@@ -1,0 +1,21 @@
+{
+  "goals": [
+    {
+      "goal_type_id": 4,
+      "name": "Квартира",
+      "target_amount": 3000000,
+      "term_months": 180,
+      "risk_profile": "BALANCED",
+      "initial_capital": 200000,
+      "inflation_rate": 5.0,
+      "avg_monthly_income": 76000
+    }
+  ],
+  "client": {
+    "birth_date": "1979-01-01",
+    "sex": "male"
+  }
+}
+
+
+

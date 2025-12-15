@@ -19,7 +19,7 @@ const riskProfileSchema = Joi.object({
         bucket_type: Joi.string().valid('INITIAL_CAPITAL', 'TOP_UP').allow(null),
         share_percent: Joi.number().required(),
         order_index: Joi.number().integer().allow(null).optional()
-    })).optional(),
+    }).unknown(true)).optional(), // Allow extra fields like id, portfolio_risk_profile_id from GET response
     // Old format: initial_capital and initial_replenishment (or top_up)
     initial_capital: Joi.array().items(instrumentSchema).optional(),
     initial_replenishment: Joi.array().items(instrumentSchema).optional(),

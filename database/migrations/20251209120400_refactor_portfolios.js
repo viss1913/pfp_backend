@@ -27,3 +27,12 @@ exports.down = function (knex) {
     });
 };
 
+
+
+
+
+
+
+
+
+

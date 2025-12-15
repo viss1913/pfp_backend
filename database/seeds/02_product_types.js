@@ -26,3 +26,4 @@ exports.seed = async function (knex) {
     console.log('✅ Product types seed data inserted successfully!');
 };
 
+

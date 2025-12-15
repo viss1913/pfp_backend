@@ -3,21 +3,31 @@
     {
       "goal_type_id": 4,
       "name": "Дом",
-      "target_amount": 10000000,
-      "term_months": 60,
+      "target_amount": 12000000,
+      "term_months": 120,
       "risk_profile": "BALANCED",
-      "initial_capital": 1000000
+      "initial_capital": 4000000
     },
     {
       "goal_type_id": 5,
       "name": "Жизнь",
-      "target_amount": 1000000,
-      "term_months": 120,
+      "target_amount": 2500000,
+      "term_months": 240,
       "risk_profile": "BALANCED"
     }
   ],
   "client": {
-    "birth_date": "1979-01-01",
+    "birth_date": "1989-01-01",
     "sex": "male"
   }
 }
+
+
+
+
+
+
+
+
+
+

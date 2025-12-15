@@ -264,3 +264,11 @@ Content-Type: application/json
 Полная спецификация API доступна в файле `OPENAPI_SPEC.yaml` (раздел `/pfp/settings/tax-2ndfl/brackets`).
 
 
+
+
+
+
+
+
+
+

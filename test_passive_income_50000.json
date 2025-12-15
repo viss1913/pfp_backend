@@ -3,12 +3,11 @@
     {
       "goal_type_id": 2,
       "name": "Пассивный доход",
-      "target_amount": 5000000,
-      "term_months": 120,
+      "target_amount": 50000,
+      "term_months": 180,
       "risk_profile": "BALANCED",
-      "initial_capital": 500000,
-      "inflation_rate": 4.0,
-      "avg_monthly_income": 150000
+      "initial_capital": 250000,
+      "inflation_rate": 6.0
     }
   ],
   "client": {

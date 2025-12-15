@@ -19,3 +19,4 @@ router.delete('/:id', productTypeController.delete);
 
 module.exports = router;
 
+

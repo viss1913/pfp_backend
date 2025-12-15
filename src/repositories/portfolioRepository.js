@@ -116,10 +116,14 @@ class PortfolioRepository {
                     });
 
                     if (instruments && instruments.length > 0) {
-                        const instrumentsWithId = instruments.map(inst => ({
-                            ...inst,
-                            portfolio_risk_profile_id: profileId
-                        }));
+                        const instrumentsWithId = instruments.map(inst => {
+                            // Filter out extra fields that might come from GET response (id, portfolio_risk_profile_id)
+                            const { id, portfolio_risk_profile_id, ...cleanInst } = inst;
+                            return {
+                                ...cleanInst,
+                                portfolio_risk_profile_id: profileId
+                            };
+                        });
                         await trx('portfolio_instruments').insert(instrumentsWithId);
                     }
                 }
@@ -169,17 +173,20 @@ class PortfolioRepository {
                 if (riskProfilesData && riskProfilesData.length > 0) {
                     for (const profile of riskProfilesData) {
                         const { instruments, ...profileFields } = profile;
-                        const insertResult = await trx('portfolio_risk_profiles').insert({
+                        const [profileId] = await trx('portfolio_risk_profiles').insert({
                             ...profileFields,
                             portfolio_id: id
                         });
-                        const profileId = Array.isArray(insertResult) ? insertResult[0] : insertResult;
 
                         if (instruments && instruments.length > 0) {
-                            const instrumentsWithId = instruments.map(inst => ({
-                                ...inst,
-                                portfolio_risk_profile_id: profileId
-                            }));
+                            const instrumentsWithId = instruments.map(inst => {
+                                // Filter out extra fields that might come from GET response (id, portfolio_risk_profile_id)
+                                const { id, portfolio_risk_profile_id, ...cleanInst } = inst;
+                                return {
+                                    ...cleanInst,
+                                    portfolio_risk_profile_id: profileId
+                                };
+                            });
                             await trx('portfolio_instruments').insert(instrumentsWithId);
                         }
                     }

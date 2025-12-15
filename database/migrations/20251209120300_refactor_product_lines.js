@@ -22,3 +22,12 @@ exports.down = function (knex) {
     });
 };
 
+
+
+
+
+
+
+
+
+
