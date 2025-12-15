@@ -38,7 +38,10 @@ const portfolioSchema = Joi.object({
     age_to: Joi.number().integer().allow(null),
     investor_type: Joi.string().allow(null),
     gender: Joi.string().allow(null),
-    classes: Joi.array().items(Joi.number().integer()).optional(), // Class IDs
+    classes: Joi.alternatives().try(
+        Joi.array().items(Joi.number().integer()), // Array of IDs: [1, 2, 3]
+        Joi.array().items(Joi.object({ id: Joi.number().integer().required() }).unknown(true)) // Array of objects: [{id: 1}, {id: 2}]
+    ).optional(), // Class IDs (as numbers or objects with id)
     riskProfiles: Joi.array().items(riskProfileSchema).optional(),
     risk_profiles: Joi.array().items(riskProfileSchema).optional()
 });
@@ -56,7 +59,10 @@ const portfolioUpdateSchema = Joi.object({
     age_to: Joi.number().integer().allow(null).optional(),
     investor_type: Joi.string().allow(null).optional(),
     gender: Joi.string().allow(null).optional(),
-    classes: Joi.array().items(Joi.number().integer()).optional(), // Class IDs
+    classes: Joi.alternatives().try(
+        Joi.array().items(Joi.number().integer()), // Array of IDs: [1, 2, 3]
+        Joi.array().items(Joi.object({ id: Joi.number().integer().required() }).unknown(true)) // Array of objects: [{id: 1}, {id: 2}]
+    ).optional(), // Class IDs (as numbers or objects with id)
     riskProfiles: Joi.array().items(riskProfileSchema).optional(),
     risk_profiles: Joi.array().items(riskProfileSchema).optional()
 }).unknown(true); // Allow additional fields that might be sent by frontend
@@ -110,6 +116,16 @@ class PortfolioController {
             if (normalizedData.risk_profiles !== undefined && normalizedData.riskProfiles === undefined) {
                 normalizedData.riskProfiles = normalizedData.risk_profiles;
                 delete normalizedData.risk_profiles;
+            }
+
+            // Normalize classes: if it's an array of objects, extract IDs
+            if (normalizedData.classes !== undefined && Array.isArray(normalizedData.classes)) {
+                if (normalizedData.classes.length > 0 && typeof normalizedData.classes[0] === 'object' && normalizedData.classes[0] !== null) {
+                    // It's an array of objects, extract IDs
+                    normalizedData.classes = normalizedData.classes.map(c => typeof c === 'object' && c !== null ? c.id : c).filter(id => id !== undefined && id !== null);
+                    console.log('Normalized classes from objects to IDs:', normalizedData.classes);
+                }
+                // If it's already an array of numbers, keep it as is
             }
 
             // Convert old format (initial_capital/initial_replenishment) to new format (instruments)
@@ -196,6 +212,16 @@ class PortfolioController {
             if (normalizedData.risk_profiles !== undefined && normalizedData.riskProfiles === undefined) {
                 normalizedData.riskProfiles = normalizedData.risk_profiles;
                 delete normalizedData.risk_profiles;
+            }
+
+            // Normalize classes: if it's an array of objects, extract IDs
+            if (normalizedData.classes !== undefined && Array.isArray(normalizedData.classes)) {
+                if (normalizedData.classes.length > 0 && typeof normalizedData.classes[0] === 'object' && normalizedData.classes[0] !== null) {
+                    // It's an array of objects, extract IDs
+                    normalizedData.classes = normalizedData.classes.map(c => typeof c === 'object' && c !== null ? c.id : c).filter(id => id !== undefined && id !== null);
+                    console.log('Normalized classes from objects to IDs:', normalizedData.classes);
+                }
+                // If it's already an array of numbers, keep it as is
             }
 
             // Convert old format (initial_capital/initial_replenishment) to new format (instruments)
