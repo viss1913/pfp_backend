@@ -74,36 +74,42 @@ class PortfolioRepository {
         const portfolio = await db('portfolios').where({ id }).first();
         if (!portfolio) return null;
 
-        // Fetch Classes - check if table exists first
+        // Fetch Classes - ПРИОРИТЕТ: читаем из JSON поля portfolios.classes (основное хранилище)
         let classes = [];
         try {
-            const tableExists = await db.schema.hasTable('portfolio_class_links');
-            if (tableExists) {
-                classes = await db('portfolio_class_links')
-                    .join('portfolio_classes', 'portfolio_class_links.class_id', 'portfolio_classes.id')
-                    .where('portfolio_class_links.portfolio_id', id)
-                    .select('portfolio_classes.*');
-            } else {
-                console.warn('⚠️  Table portfolio_class_links does not exist. Run migrations!');
-                // Try to get classes from JSON field if exists
-                if (portfolio.classes) {
-                    try {
-                        const classIds = typeof portfolio.classes === 'string' 
-                            ? JSON.parse(portfolio.classes) 
-                            : portfolio.classes;
-                        if (Array.isArray(classIds) && classIds.length > 0) {
-                            classes = await db('portfolio_classes')
-                                .whereIn('id', classIds)
-                                .select('*');
-                        }
-                    } catch (e) {
-                        console.warn('Could not parse classes from JSON field:', e.message);
+            // Сначала пытаемся прочитать из JSON поля portfolios.classes
+            if (portfolio.classes) {
+                try {
+                    const classIds = typeof portfolio.classes === 'string' 
+                        ? JSON.parse(portfolio.classes) 
+                        : portfolio.classes;
+                    if (Array.isArray(classIds) && classIds.length > 0) {
+                        classes = await db('portfolio_classes')
+                            .whereIn('id', classIds)
+                            .select('*');
+                        console.log(`[PortfolioRepository] Loaded ${classes.length} classes from JSON field for portfolio ${id}`);
+                    }
+                } catch (e) {
+                    console.warn('Could not parse classes from JSON field:', e.message);
+                }
+            }
+            
+            // Если JSON поле пустое или не существует, пробуем прочитать из portfolio_class_links (fallback)
+            if (classes.length === 0) {
+                const tableExists = await db.schema.hasTable('portfolio_class_links');
+                if (tableExists) {
+                    classes = await db('portfolio_class_links')
+                        .join('portfolio_classes', 'portfolio_class_links.class_id', 'portfolio_classes.id')
+                        .where('portfolio_class_links.portfolio_id', id)
+                        .select('portfolio_classes.*');
+                    if (classes.length > 0) {
+                        console.log(`[PortfolioRepository] Loaded ${classes.length} classes from portfolio_class_links (fallback) for portfolio ${id}`);
                     }
                 }
             }
         } catch (error) {
             console.error('Error fetching classes:', error.message);
-            // Continue without classes if table doesn't exist
+            // Continue without classes if error
         }
 
         // Используем ТОЛЬКО JSON поле risk_profiles - просто и понятно
@@ -237,34 +243,41 @@ class PortfolioRepository {
                 await trx('portfolios').where({ id }).update({ updated_at: new Date() });
             }
 
-            // Update Classes: Delete all links, re-insert (если используем нормализованные таблицы)
-            // Если classIds передан (даже если это пустой массив или null), обновляем связи
+            // Update Classes: Храним ТОЛЬКО в JSON поле portfolios.classes (просто и понятно!)
             if (classIds !== undefined) {
                 // Нормализуем: null или не-массив превращаем в пустой массив
-                const normalizedClassIds = Array.isArray(classIds) ? classIds : [];
+                let normalizedClassIds = Array.isArray(classIds) ? classIds : [];
+                
+                // Дополнительная нормализация: если это массив объектов, извлекаем ID
+                if (normalizedClassIds.length > 0 && typeof normalizedClassIds[0] === 'object' && normalizedClassIds[0] !== null) {
+                    normalizedClassIds = normalizedClassIds.map(c => typeof c === 'object' && c !== null ? c.id : c).filter(id => id !== undefined && id !== null);
+                    console.log(`[PortfolioRepository] Extracted IDs from objects array:`, normalizedClassIds);
+                }
                 
                 console.log(`[PortfolioRepository] Updating classes for portfolio ${id}:`, classIds, '-> normalized:', normalizedClassIds);
+                
+                // Обновляем JSON поле classes в таблице portfolios
+                // MySQL JSON поле - всегда используем JSON.stringify (даже для пустого массива)
+                const classesJson = JSON.stringify(normalizedClassIds);
+                const updateResult = await trx('portfolios').where({ id }).update({ classes: classesJson });
+                console.log(`[PortfolioRepository] ✅ Updated classes JSON field in portfolios table:`, normalizedClassIds);
+                console.log(`[PortfolioRepository] Update result (affected rows):`, updateResult);
+                
+                // Также обновляем таблицу связей portfolio_class_links (если она используется для других целей)
+                // Но основное хранилище - JSON поле в portfolios
                 const classLinksTableExists = await trx.schema.hasTable('portfolio_class_links');
                 if (classLinksTableExists) {
-                    // Всегда удаляем все существующие связи для этого портфеля
+                    // Синхронизируем таблицу связей с JSON полем (для обратной совместимости)
                     const deletedCount = await trx('portfolio_class_links').where({ portfolio_id: id }).del();
                     console.log(`[PortfolioRepository] Deleted ${deletedCount} existing class links for portfolio ${id}`);
-                    // Если массив не пустой, создаем новые связи
                     if (normalizedClassIds.length > 0) {
                         const links = normalizedClassIds.map(cid => ({ portfolio_id: id, class_id: cid }));
                         await trx('portfolio_class_links').insert(links);
-                        console.log(`[PortfolioRepository] Created ${links.length} new class links for portfolio ${id}`);
-                    } else {
-                        console.log(`[PortfolioRepository] No new class links to create (empty array)`);
+                        console.log(`[PortfolioRepository] Created ${links.length} new class links for portfolio ${id} (sync with JSON field)`);
                     }
-                    // Если массив пустой, просто не создаем новые связи (уже удалили старые выше)
-                } else {
-                    // Fallback: сохраняем в JSON поле
-                    await trx('portfolios').where({ id }).update({ classes: JSON.stringify(normalizedClassIds) });
-                    console.log(`[PortfolioRepository] Updated classes JSON field for portfolio ${id} (fallback mode)`);
                 }
             } else {
-                console.log(`[PortfolioRepository] classes not provided, skipping class links update for portfolio ${id}`);
+                console.log(`[PortfolioRepository] classes not provided, skipping update for portfolio ${id}`);
             }
         });
     }
