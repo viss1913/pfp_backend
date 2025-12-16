@@ -73,3 +73,9 @@ async function checkAndCreateTables() {
 
 checkAndCreateTables();
 
+
+
+
+
+
+

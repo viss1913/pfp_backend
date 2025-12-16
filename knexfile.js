@@ -1,7 +1,7 @@
 require('dotenv').config();
 const path = require('path');
 
-// Railway provides MYSQL_URL, parse it if available
+// Railway provides MYSQL_URL (internal) and MYSQL_PUBLIC_URL (external)
 const parseMySQLUrl = (url) => {
     if (!url) return null;
 
@@ -19,16 +19,15 @@ const parseMySQLUrl = (url) => {
     }
 };
 
-// Try MYSQL_URL first, then fall back to individual variables
-const railwayConnection = parseMySQLUrl(process.env.MYSQL_URL);
+// PRIORITIZE MYSQL_PUBLIC_URL for local dev, then MYSQL_URL for prod
+const railwayConnection = parseMySQLUrl(process.env.MYSQL_PUBLIC_URL) || parseMySQLUrl(process.env.MYSQL_URL);
 
-// Railway also provides individual MYSQL* variables
 const getConnection = () => {
     if (railwayConnection) {
         return railwayConnection;
     }
 
-    // Check for Railway's individual variables (MYSQLHOST, MYSQLUSER, etc.)
+    // Check for Railway's individual variables
     if (process.env.MYSQLHOST) {
         return {
             host: process.env.MYSQLHOST,
@@ -39,7 +38,7 @@ const getConnection = () => {
         };
     }
 
-    // Fall back to custom DB_* variables for local development
+    // Fall back to custom DB_* variables
     return {
         host: process.env.DB_HOST || '127.0.0.1',
         port: Number(process.env.DB_PORT) || 3306,

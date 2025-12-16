@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const clientController = require('../controllers/clientController');
 
-router.post('/calculate', clientController.calculateFirstRun);
+// Calculator (Stateless)
+router.post('/calculate', clientController.calculateFirstRun.bind(clientController));
+
+// Client Management (DB)
+router.post('/', clientController.create.bind(clientController));
+router.get('/:id', clientController.get.bind(clientController));
+router.put('/:id', clientController.update.bind(clientController));
 
 module.exports = router;

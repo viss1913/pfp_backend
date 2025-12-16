@@ -59,7 +59,10 @@ const calculationRequestSchema = Joi.object({
         .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ и Пенсии)')
 });
 
+const clientService = require('../services/clientService');
+
 class ClientController {
+    // --- Existing Calculator ---
     async calculateFirstRun(req, res, next) {
         try {
             // Валидация входных данных
@@ -76,6 +79,42 @@ class ClientController {
 
             const result = await calculationService.calculateFirstRun(req.body);
             res.json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    // --- New Client Management ---
+
+    async create(req, res, next) {
+        try {
+            // Basic Joi validation for structure could be here
+            // For now passing directly to service
+            const clientId = await clientService.createFullClient(req.body);
+            const fullClient = await clientService.getFullClient(clientId);
+            res.status(201).json(fullClient);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async get(req, res, next) {
+        try {
+            const { id } = req.params;
+            const client = await clientService.getFullClient(id);
+            if (!client) {
+                return res.status(404).json({ error: 'Client not found' });
+            }
+            res.json(client);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async update(req, res, next) {
+        try {
+            // TODO: Implement update logic in service
+            res.status(501).json({ message: 'Not implemented yet' });
         } catch (err) {
             next(err);
         }

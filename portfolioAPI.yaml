@@ -2,7 +2,17 @@ openapi: 3.0.0
 info:
   title: Portfolio API
   version: 1.0.0
-  description: API для управления портфелями
+  description: |
+    API для управления портфелями.
+    
+    **Авторизация:**
+    1. Получите JWT токен через POST /api/auth/login
+    2. Используйте токен в заголовке: Authorization: Bearer {token}
+    
+    **Важно при обновлении портфеля:**
+    - Получите текущий портфель через GET
+    - Измените нужные поля
+    - Отправьте весь объект обратно через PUT
 
 servers:
   - url: https://pfpbackend-production.up.railway.app/api
@@ -68,6 +78,9 @@ paths:
     
     put:
       summary: Обновить портфель
+      description: |
+        **Важно:** Рекомендуется отправлять все данные портфеля целиком, включая все поля.
+        Получите текущий портфель через GET, измените нужные поля и отправьте обратно через PUT.
       tags: [Portfolios]
       security:
         - bearerAuth: []
@@ -83,6 +96,53 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/PortfolioUpdate'
+            example:
+              name: "Консервативный портфель"
+              currency: "RUB"
+              amount_from: 100000
+              amount_to: 10000000
+              term_from_months: 12
+              term_to_months: 60
+              age_from: 25
+              age_to: 55
+              investor_type: "QUALIFIED"
+              gender: "MALE"
+              classes: [2, 3, 4]
+              riskProfiles:
+                - profile_type: "CONSERVATIVE"
+                  instruments:
+                    - product_id: 3
+                      bucket_type: "INITIAL_CAPITAL"
+                      share_percent: 70.0
+                      order_index: 1
+                    - product_id: 4
+                      bucket_type: "INITIAL_CAPITAL"
+                      share_percent: 30.0
+                      order_index: 2
+                    - product_id: 3
+                      bucket_type: "TOP_UP"
+                      share_percent: 100.0
+                      order_index: 1
+                - profile_type: "BALANCED"
+                  instruments:
+                    - product_id: 3
+                      bucket_type: "INITIAL_CAPITAL"
+                      share_percent: 100.0
+                      order_index: 1
+                    - product_id: 3
+                      bucket_type: "TOP_UP"
+                      share_percent: 100.0
+                      order_index: 1
+                - profile_type: "AGGRESSIVE"
+                  instruments:
+                    - product_id: 3
+                      bucket_type: "INITIAL_CAPITAL"
+                      share_percent: 100.0
+                      order_index: 1
+                    - product_id: 3
+                      bucket_type: "TOP_UP"
+                      share_percent: 100.0
+                      order_index: 1
       responses:
         '200':
           description: Портфель обновлен
@@ -272,7 +332,62 @@ components:
 
     PortfolioUpdate:
       type: object
-      description: Все поля опциональны (частичное обновление)
+      description: |
+        **Рекомендуется отправлять все данные портфеля целиком.**
+        
+        Алгоритм обновления:
+        1. Получите текущий портфель через GET /pfp/portfolios/{id}
+        2. Измените нужные поля
+        3. Отправьте весь объект обратно через PUT
+        
+        Все поля опциональны для обратной совместимости, но рекомендуется заполнять все.
+      example:
+        name: "Консервативный портфель"
+        currency: "RUB"
+        amount_from: 100000
+        amount_to: 10000000
+        term_from_months: 12
+        term_to_months: 60
+        age_from: 25
+        age_to: 55
+        investor_type: "QUALIFIED"
+        gender: "MALE"
+        classes: [2, 3, 4]
+        riskProfiles:
+          - profile_type: "CONSERVATIVE"
+            instruments:
+              - product_id: 3
+                bucket_type: "INITIAL_CAPITAL"
+                share_percent: 70.0
+                order_index: 1
+              - product_id: 4
+                bucket_type: "INITIAL_CAPITAL"
+                share_percent: 30.0
+                order_index: 2
+              - product_id: 3
+                bucket_type: "TOP_UP"
+                share_percent: 100.0
+                order_index: 1
+          - profile_type: "BALANCED"
+            instruments:
+              - product_id: 3
+                bucket_type: "INITIAL_CAPITAL"
+                share_percent: 100.0
+                order_index: 1
+              - product_id: 3
+                bucket_type: "TOP_UP"
+                share_percent: 100.0
+                order_index: 1
+          - profile_type: "AGGRESSIVE"
+            instruments:
+              - product_id: 3
+                bucket_type: "INITIAL_CAPITAL"
+                share_percent: 100.0
+                order_index: 1
+              - product_id: 3
+                bucket_type: "TOP_UP"
+                share_percent: 100.0
+                order_index: 1
       properties:
         name:
           type: string

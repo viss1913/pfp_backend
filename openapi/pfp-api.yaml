@@ -741,6 +741,193 @@ components:
           description: Detailed error information from NSJ API
 
 
+    Client:
+      type: object
+      required:
+        - first_name
+        - last_name
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+        last_name:
+          type: string
+        middle_name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+        avg_monthly_income:
+          type: number
+        employment_type:
+          type: string
+        tax_mode:
+          type: string
+        assets_total:
+          type: number
+          readOnly: true
+        liabilities_total:
+          type: number
+          readOnly: true
+        net_worth:
+          type: number
+          readOnly: true
+        goals_summary:
+          type: array
+          readOnly: true
+          items:
+            type: object
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+
+    ClientAsset:
+      type: object
+      required:
+        - type
+        - name
+        - current_value
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        type:
+          type: string
+          enum: [DEPOSIT, CASH, BROKERAGE, IIS, PDS, NSJ, REAL_ESTATE, CRYPTO, OTHER]
+        name:
+          type: string
+        current_value:
+          type: number
+        currency:
+          type: string
+          default: RUB
+        yield_percent:
+          type: number
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        risk_level:
+          type: string
+          enum: [conservative, moderate, aggressive]
+
+    ClientLiability:
+      type: object
+      required:
+        - type
+        - name
+        - remaining_amount
+        - monthly_payment
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        type:
+          type: string
+          enum: [MORTGAGE, CONSUMER_LOAN, CREDIT_CARD, AUTO_LOAN, OTHER]
+        name:
+          type: string
+        remaining_amount:
+          type: number
+        monthly_payment:
+          type: number
+        interest_rate:
+          type: number
+        end_date:
+          type: string
+          format: date
+
+    ClientExpense:
+      type: object
+      required:
+        - category
+        - amount
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        category:
+          type: string
+          enum: [LIVING, HOUSING, CHILDREN, LOANS, LEISURE, OTHER]
+        name:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+          default: RUB
+
+    ClientGoal:
+       type: object
+       required:
+         - goal_type_id
+         - name
+       properties:
+         id:
+            type: integer
+            readOnly: true
+         goal_type_id:
+            type: integer
+         name:
+            type: string
+         target_amount:
+            type: number
+         desired_monthly_income:
+            type: number
+         term_months:
+            type: integer
+         risk_profile:
+            type: string
+         initial_capital:
+            type: number
+         inflation_rate:
+            type: number
+
+    FullClientRequest:
+      type: object
+      required:
+        - client
+      properties:
+        client:
+          $ref: '#/components/schemas/Client'
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientAsset'
+        liabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientLiability'
+        expenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientExpense'
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClientGoal'
+
+    FullClientResponse:
+      allOf:
+        - $ref: '#/components/schemas/FullClientRequest'
+
 security:
   - bearerAuth: []
   - apiKeyAuth: []
@@ -1139,6 +1326,80 @@ paths:
   # ============================================
   # CLIENT API (Public, no authentication)
   # ============================================
+  /client:
+    post:
+      summary: Create new client profile (Full)
+      tags:
+        - Client API
+      security: []
+      description: |
+        Creates a new client profile along with assets, liabilities, and expenses.
+        Automatically calculates Net Worth and other aggregates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FullClientRequest'
+      responses:
+        '201':
+          description: Client created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullClientResponse'
+        '400':
+          description: Validation error
+
+  /client/{id}:
+    get:
+      summary: Get full client profile
+      tags:
+        - Client API
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Full client profile found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullClientResponse'
+        '404':
+          description: Client not found
+
+    put:
+      summary: Update client profile
+      tags:
+        - Client API
+      security: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FullClientRequest'
+      responses:
+        '200':
+          description: Client updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullClientResponse'
+        '501':
+          description: Not implemented yet
+
   /client/calculate:
     post:
       summary: Calculate financial plan for goals (Client API - Public)

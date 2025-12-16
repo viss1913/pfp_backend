@@ -29,7 +29,7 @@ class CalculationService {
 
         // 3. Оценка ИПК
         let ipkEst = 0;
-        
+
         if (client.ipk_current !== null && client.ipk_current !== undefined) {
             // Если ИПК передан с фронта, используем его
             ipkEst = Number(client.ipk_current);
@@ -39,18 +39,18 @@ class CalculationService {
             const incomeAnnual = avgMonthlyIncome * 12;
             const pensionMaxSalaryLimit = systemSettings.pension_max_salary_limit || 2759000;
             const pensionPfrContributionRatePart1 = systemSettings.pension_pfr_contribution_rate_part1 || 22;
-            
+
             const baseUsed = Math.min(incomeAnnual, pensionMaxSalaryLimit);
             const contribs = baseUsed * (pensionPfrContributionRatePart1 / 100);
             const maxContribs = pensionMaxSalaryLimit * (pensionPfrContributionRatePart1 / 100);
-            
+
             // ИПК за текущий год: 10 * (contribs / maxContribs) с ограничением [0;10]
             const ipkYearNow = Math.max(0, Math.min(10, 10 * (contribs / maxContribs)));
-            
+
             // Коэффициент для прошлых лет
             const pensionIpkPastCoef = systemSettings.pension_ipk_past_coef || 0.6;
             const avgIpkPast = ipkYearNow * pensionIpkPastCoef;
-            
+
             // Общий ИПК = средний ИПК за прошлые годы * количество лет работы
             ipkEst = avgIpkPast * yearsOfWork;
         }
@@ -59,7 +59,7 @@ class CalculationService {
         const inflationRate = systemSettings.inflation_rate || 4.0;
         const pensionPointCost = systemSettings.pension_point_cost || 145.69;
         const pensionFixedPayment = systemSettings.pension_fixed_payment || 8907;
-        
+
         const pensionPointCostFuture = pensionPointCost * Math.pow(1 + (inflationRate / 100), yearsToPension);
         const pensionFixedPaymentFuture = pensionFixedPayment * Math.pow(1 + (inflationRate / 100), yearsToPension);
 
@@ -116,10 +116,10 @@ class CalculationService {
         for (const goal of goals) {
             // Проверяем, является ли цель типом LIFE (goal_type_id: 5 или name: "Жизнь")
             const isLifeGoal = goal.goal_type_id === 5 || goal.name === 'Жизнь';
-            
+
             // Проверяем, является ли цель типом PASSIVE_INCOME (goal_type_id: 2)
             const isPassiveIncomeGoal = goal.goal_type_id === 2;
-            
+
             // Проверяем, является ли цель типом PENSION (goal_type_id: 6)
             const isPensionGoal = goal.goal_type_id === 6;
 
@@ -140,7 +140,7 @@ class CalculationService {
                     console.log('Calling nsjApiService.calculateLifeInsurance with params:', JSON.stringify(nsjParams, null, 2));
                     const nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
                     console.log('NSJ Result received:', JSON.stringify(nsjResult, null, 2));
-                    
+
                     results.push({
                         goal_id: goal.goal_type_id,
                         goal_name: goal.name,
@@ -192,19 +192,19 @@ class CalculationService {
                 console.log('=== PASSIVE INCOME CALCULATION START ===');
                 console.log('Goal:', goal.name, 'Goal ID:', goal.goal_type_id);
                 console.log('Target monthly income:', goal.target_amount, 'Term months:', goal.term_months);
-                
+
                 try {
                     // Шаг 1: Пересчет желаемого дохода с учетом инфляции
                     const inflationAnnualUsed = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;
                     const infl_month_decimal = Math.pow(1 + (inflationAnnualUsed / 100), 1 / 12) - 1;
                     const desiredMonthlyIncomeWithInflation = goal.target_amount * Math.pow(1 + infl_month_decimal, goal.term_months);
-                    
+
                     console.log('Desired monthly income (initial):', goal.target_amount);
                     console.log('Desired monthly income (with inflation):', desiredMonthlyIncomeWithInflation);
-                    
+
                     // Шаг 2: Поиск линии доходности по сроку и расчет необходимого капитала
                     const yieldLine = await settingsService.findPassiveIncomeYieldLine(0, goal.term_months, true); // byTermOnly = true
-                    
+
                     if (!yieldLine) {
                         results.push({
                             goal_id: goal.goal_type_id,
@@ -213,36 +213,36 @@ class CalculationService {
                         });
                         continue;
                     }
-                    
+
                     console.log('Found yield line:', yieldLine);
                     const yieldPercent = yieldLine.yield_percent;
-                    
+
                     // Расчет необходимого капитала: (желаемый_доход_с_инфляцией * 12 * 100) / yield_percent
                     const requiredCapital = (desiredMonthlyIncomeWithInflation * 12 * 100) / yieldPercent;
-                    
+
                     console.log('Required capital:', requiredCapital);
                     console.log('Yield percent:', yieldPercent);
-                    
+
                     // Шаг 3: Расчет пополнений (без повторной инфляции)
                     const Cost = requiredCapital; // Это уже финальная сумма
                     const CostWithInflation = requiredCapital; // Не применяем инфляцию повторно
                     const Month = goal.term_months;
                     const InitialCapital = goal.initial_capital || 0;
-                    
+
                     // Получаем доходность портфеля (используем yield из линии)
                     const d_annual = yieldPercent;
                     const d_month_decimal = Math.pow(1 + (d_annual / 100), 1 / 12) - 1;
                     const m_month_decimal = m_month_percent / 100;
-                    
+
                     // Future Value of Initial Capital
                     const FutureValueInitial = InitialCapital * Math.pow(1 + d_month_decimal, Month);
-                    
+
                     // Gap (Capital Shortage)
                     const CapitalGap = CostWithInflation - FutureValueInitial;
-                    
+
                     // Initial Replenishment
                     let recommendedReplenishment = 0;
-                    
+
                     if (Math.abs(m_month_decimal - d_month_decimal) < 0.0000001) {
                         recommendedReplenishment = CapitalGap / (Month * Math.pow(1 + d_month_decimal, Month - 1));
                     } else {
@@ -251,36 +251,36 @@ class CalculationService {
                         const term2 = Math.pow(1 + m_month_decimal, Month - 1);
                         const term3 = Math.pow(1 + d_month_decimal, Month - 1);
                         const denominator = term1 * (term2 - term3);
-                        
+
                         if (denominator !== 0) {
                             recommendedReplenishment = numerator / denominator;
                         }
                     }
-                    
+
                     // Шаг 4: Проверка на ПДС и софинансирование
                     // Для пассивного дохода нужно найти портфель, чтобы проверить наличие ПДС
                     const portfolio = await portfolioRepository.findByCriteria({
                         classId: goal.goal_type_id,
-                        amount: requiredCapital,
+                        amount: goal.initial_capital || 0, // Используем первоначальный капитал для выбора портфеля
                         term: goal.term_months
                     });
-                    
+
                     let pdsCofinancingResult = null;
-                    
+
                     if (portfolio) {
                         let riskProfiles = portfolio.risk_profiles;
                         if (typeof riskProfiles === 'string') {
                             try { riskProfiles = JSON.parse(riskProfiles); } catch (e) { riskProfiles = []; }
                         }
-                        
+
                         const profile = riskProfiles.find(p => p.profile_type === goal.risk_profile);
-                        
+
                         if (profile) {
                             const capitalDistribution = profile.initial_capital || [];
                             let pdsProductId = null;
                             let pdsShareInitial = 0;
                             let pdsShareTopUp = 0;
-                            
+
                             // Ищем ПДС в initial_capital
                             for (const item of capitalDistribution) {
                                 const product = await productRepository.findById(item.product_id);
@@ -290,7 +290,7 @@ class CalculationService {
                                     break;
                                 }
                             }
-                            
+
                             // Ищем ПДС в top_up
                             if (pdsProductId) {
                                 const topUpDistribution = profile.top_up || [];
@@ -300,18 +300,18 @@ class CalculationService {
                                         break;
                                     }
                                 }
-                                
+
                                 if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
                                     pdsShareTopUp = pdsShareInitial;
                                 }
                             }
-                            
+
                             // Если нашли ПДС, рассчитываем эффект софинансирования
                             if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
                                 try {
                                     const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
                                     const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
-                                    
+
                                     pdsCofinancingResult = await pdsCofinancingService.calculateCofinancingEffect({
                                         capitalGap: CapitalGap,
                                         initialReplenishment: recommendedReplenishment,
@@ -325,7 +325,7 @@ class CalculationService {
                                         monthlyGrowthRate: m_month_decimal,
                                         portfolioYieldMonthly: d_month_decimal
                                     });
-                                    
+
                                     if (pdsCofinancingResult.pds_applied) {
                                         recommendedReplenishment = pdsCofinancingResult.recommendedReplenishment;
                                     }
@@ -335,7 +335,7 @@ class CalculationService {
                             }
                         }
                     }
-                    
+
                     // Формируем результат
                     const resultItem = {
                         goal_id: goal.goal_type_id,
@@ -365,7 +365,7 @@ class CalculationService {
                             portfolio_yield_annual_percent: Math.round(d_annual * 100) / 100
                         }
                     };
-                    
+
                     // Добавляем данные по софинансированию ПДС, если применимо
                     if (pdsCofinancingResult && pdsCofinancingResult.pds_applied) {
                         resultItem.pds_cofinancing = {
@@ -377,7 +377,7 @@ class CalculationService {
                             yearly_breakdown: pdsCofinancingResult.yearly_breakdown
                         };
                     }
-                    
+
                     results.push(resultItem);
                     continue; // Пропускаем обычный расчет для PASSIVE_INCOME
                 } catch (passiveIncomeError) {
@@ -398,7 +398,7 @@ class CalculationService {
                 console.log('=== PENSION CALCULATION START ===');
                 console.log('Goal:', goal.name, 'Goal ID:', goal.goal_type_id);
                 console.log('Target monthly pension:', goal.target_amount, 'Term months:', goal.term_months);
-                
+
                 try {
                     // Проверяем наличие необходимых данных клиента
                     if (!client || !client.birth_date) {
@@ -455,12 +455,12 @@ class CalculationService {
                     // Рассчитываем прогнозную госпенсию
                     const nowDate = new Date();
                     const statePensionResult = await this.calculateStatePension(clientWithIncome, pensionSettings, nowDate);
-                    
+
                     console.log('State pension calculation result:', statePensionResult);
 
                     // Определяем срок до пенсии: если term_months не задан или 0, используем years_to_pension * 12
-                    const termMonthsForCalculation = (goal.term_months && goal.term_months > 0) 
-                        ? goal.term_months 
+                    const termMonthsForCalculation = (goal.term_months && goal.term_months > 0)
+                        ? goal.term_months
                         : statePensionResult.years_to_pension * 12;
 
                     // Рассчитываем желаемую пенсию в будущем (с учетом инфляции)
@@ -527,10 +527,10 @@ class CalculationService {
                     // Используем логику PASSIVE_INCOME для расчета дефицита
                     const infl_month_decimal_pi = Math.pow(1 + (inflationAnnualUsed / 100), 1 / 12) - 1;
                     const desiredMonthlyIncomeWithInflation = virtualPassiveIncomeGoal.target_amount * Math.pow(1 + infl_month_decimal_pi, virtualPassiveIncomeGoal.term_months);
-                    
+
                     // Поиск линии доходности
                     const yieldLine = await settingsService.findPassiveIncomeYieldLine(0, virtualPassiveIncomeGoal.term_months, true);
-                    
+
                     if (!yieldLine) {
                         results.push({
                             goal_id: goal.goal_type_id,
@@ -540,24 +540,24 @@ class CalculationService {
                         });
                         continue;
                     }
-                    
+
                     const yieldPercent = yieldLine.yield_percent;
                     const requiredCapital = (desiredMonthlyIncomeWithInflation * 12 * 100) / yieldPercent;
-                    
+
                     const Cost = requiredCapital;
                     const CostWithInflation = requiredCapital;
                     const Month = virtualPassiveIncomeGoal.term_months;
                     const InitialCapital = virtualPassiveIncomeGoal.initial_capital || 0;
-                    
+
                     const d_annual = yieldPercent;
                     const d_month_decimal = Math.pow(1 + (d_annual / 100), 1 / 12) - 1;
                     const m_month_decimal = m_month_percent / 100;
-                    
+
                     const FutureValueInitial = InitialCapital * Math.pow(1 + d_month_decimal, Month);
                     const CapitalGap = CostWithInflation - FutureValueInitial;
-                    
+
                     let recommendedReplenishment = 0;
-                    
+
                     if (Math.abs(m_month_decimal - d_month_decimal) < 0.0000001) {
                         recommendedReplenishment = CapitalGap / (Month * Math.pow(1 + d_month_decimal, Month - 1));
                     } else {
@@ -566,35 +566,35 @@ class CalculationService {
                         const term2 = Math.pow(1 + m_month_decimal, Month - 1);
                         const term3 = Math.pow(1 + d_month_decimal, Month - 1);
                         const denominator = term1 * (term2 - term3);
-                        
+
                         if (denominator !== 0) {
                             recommendedReplenishment = numerator / denominator;
                         }
                     }
-                    
+
                     // Проверка на ПДС и софинансирование (используем портфель класса "пенсия" - id=1)
                     const portfolio = await portfolioRepository.findByCriteria({
                         classId: 1, // Портфель класса "пенсия"
-                        amount: requiredCapital,
+                        amount: InitialCapital, // Используем первоначальный капитал для выбора портфеля
                         term: Month
                     });
-                    
+
                     let pdsCofinancingResult = null;
-                    
+
                     if (portfolio) {
                         let riskProfiles = portfolio.risk_profiles;
                         if (typeof riskProfiles === 'string') {
                             try { riskProfiles = JSON.parse(riskProfiles); } catch (e) { riskProfiles = []; }
                         }
-                        
+
                         const profile = riskProfiles.find(p => p.profile_type === goal.risk_profile);
-                        
+
                         if (profile) {
                             const capitalDistribution = profile.initial_capital || [];
                             let pdsProductId = null;
                             let pdsShareInitial = 0;
                             let pdsShareTopUp = 0;
-                            
+
                             for (const item of capitalDistribution) {
                                 const product = await productRepository.findById(item.product_id);
                                 if (product && product.product_type === 'PDS') {
@@ -603,7 +603,7 @@ class CalculationService {
                                     break;
                                 }
                             }
-                            
+
                             if (pdsProductId) {
                                 const topUpDistribution = profile.top_up || [];
                                 for (const item of topUpDistribution) {
@@ -612,17 +612,17 @@ class CalculationService {
                                         break;
                                     }
                                 }
-                                
+
                                 if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
                                     pdsShareTopUp = pdsShareInitial;
                                 }
                             }
-                            
+
                             if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
                                 try {
                                     const avgMonthlyIncome = clientWithIncome.avg_monthly_income || 0;
                                     const startDate = virtualPassiveIncomeGoal.start_date ? new Date(virtualPassiveIncomeGoal.start_date) : new Date();
-                                    
+
                                     pdsCofinancingResult = await pdsCofinancingService.calculateCofinancingEffect({
                                         capitalGap: CapitalGap,
                                         initialReplenishment: recommendedReplenishment,
@@ -636,7 +636,7 @@ class CalculationService {
                                         monthlyGrowthRate: m_month_decimal,
                                         portfolioYieldMonthly: d_month_decimal
                                     });
-                                    
+
                                     if (pdsCofinancingResult.pds_applied) {
                                         recommendedReplenishment = pdsCofinancingResult.recommendedReplenishment;
                                     }
@@ -646,7 +646,7 @@ class CalculationService {
                             }
                         }
                     }
-                    
+
                     // Формируем результат для цели "Пенсия"
                     const resultItem = {
                         goal_id: goal.goal_type_id,
@@ -695,7 +695,7 @@ class CalculationService {
                             portfolio_yield_annual_percent: Math.round(d_annual * 100) / 100
                         }
                     };
-                    
+
                     // Добавляем данные по софинансированию ПДС, если применимо
                     if (pdsCofinancingResult && pdsCofinancingResult.pds_applied) {
                         resultItem.pds_cofinancing = {
@@ -707,7 +707,7 @@ class CalculationService {
                             yearly_breakdown: pdsCofinancingResult.yearly_breakdown
                         };
                     }
-                    
+
                     results.push(resultItem);
                     continue; // Пропускаем обычный расчет для PENSION
                 } catch (pensionError) {
@@ -726,7 +726,7 @@ class CalculationService {
             // --- Step 1: Find Portfolio (для обычных целей) ---
             const portfolio = await portfolioRepository.findByCriteria({
                 classId: goal.goal_type_id,
-                amount: goal.target_amount,
+                amount: goal.initial_capital || 0, // Используем первоначальный капитал для выбора портфеля
                 term: goal.term_months
             });
 
@@ -763,7 +763,7 @@ class CalculationService {
             for (const item of capitalDistribution) {
                 const product = await productRepository.findById(item.product_id);
                 if (!product) continue;
-                
+
                 // Логирование для отладки
                 console.log('=== PRODUCT DEBUG ===');
                 console.log('Product ID:', product.id);
@@ -782,11 +782,11 @@ class CalculationService {
                 // product.yields содержит массив доходностей с полями:
                 // term_from_months, term_to_months, amount_from, amount_to, yield_percent
                 const yields = product.yields || [];
-                
+
                 if (yields.length === 0) {
                     console.warn(`Product ${product.id} (${product.name}) has no yields configured`);
                 }
-                
+
                 const line = yields.find(l =>
                     nominalAmountToCheck >= parseFloat(l.amount_from) &&
                     nominalAmountToCheck <= parseFloat(l.amount_to) &&
@@ -918,7 +918,7 @@ class CalculationService {
                 try {
                     // Получаем доход клиента (из goal, client или 0)
                     const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
-                    
+
                     // Получаем дату начала (из goal или текущая дата)
                     const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
 
