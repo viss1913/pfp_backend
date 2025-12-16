@@ -120,8 +120,8 @@ class CalculationService {
             // Проверяем, является ли цель типом PASSIVE_INCOME (goal_type_id: 2)
             const isPassiveIncomeGoal = goal.goal_type_id === 2;
 
-            // Проверяем, является ли цель типом PENSION (goal_type_id: 6)
-            const isPensionGoal = goal.goal_type_id === 6;
+            // Проверяем, является ли цель типом PENSION (goal_type_id: 1)
+            const isPensionGoal = goal.goal_type_id === 1;
 
             // Если это цель типа LIFE, вызываем API НСЖ
             if (isLifeGoal) {
@@ -528,28 +528,122 @@ class CalculationService {
                     const infl_month_decimal_pi = Math.pow(1 + (inflationAnnualUsed / 100), 1 / 12) - 1;
                     const desiredMonthlyIncomeWithInflation = virtualPassiveIncomeGoal.target_amount * Math.pow(1 + infl_month_decimal_pi, virtualPassiveIncomeGoal.term_months);
 
-                    // Поиск линии доходности
-                    const yieldLine = await settingsService.findPassiveIncomeYieldLine(0, virtualPassiveIncomeGoal.term_months, true);
+                    // 1. РАСЧЕТ ЦЕЛЕВОГО КАПИТАЛА (Payout Phase)
+                    // Для этого используем настройки доходности "Пассивного дохода" (глобальные)
+                    // Потому что мы считаем, какой капитал нам нужен, чтобы жить на проценты
+                    const payoutYieldLine = await settingsService.findPassiveIncomeYieldLine(0, virtualPassiveIncomeGoal.term_months, true);
 
-                    if (!yieldLine) {
+                    if (!payoutYieldLine) {
                         results.push({
                             goal_id: goal.goal_type_id,
                             goal_name: goal.name,
                             goal_type: 'PENSION',
-                            error: `No yield line found for term ${virtualPassiveIncomeGoal.term_months} months in passive income yield settings`
+                            error: `No passive income yield line found for term ${virtualPassiveIncomeGoal.term_months} months to calculate required capital`
                         });
                         continue;
                     }
 
-                    const yieldPercent = yieldLine.yield_percent;
-                    const requiredCapital = (desiredMonthlyIncomeWithInflation * 12 * 100) / yieldPercent;
+                    const payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
 
+                    // Расчет необходимого капитала: (MonthlyIncome * 12 * 100) / PayoutYield
+                    const requiredCapital = (desiredMonthlyIncomeWithInflation * 12 * 100) / payoutYieldPercent;
+
+                    console.log('Pension Payout Calc:', {
+                        desiredMonthlyIncomeWithInflation,
+                        payoutYieldPercent,
+                        requiredCapital
+                    });
+
+
+                    // 2. РАСЧЕТ НАКОПЛЕНИЯ (Accumulation Phase)
+                    // Для этого ищем портфель "Пенсия" и считаем доходность его продуктов
+                    const portfolioForAcc = await portfolioRepository.findByCriteria({
+                        classId: 1,
+                        amount: goal.initial_capital || 0,
+                        term: virtualPassiveIncomeGoal.term_months
+                    });
+
+                    if (!portfolioForAcc) {
+                        results.push({
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            goal_type: 'PENSION',
+                            error: `No portfolio found (Class 1) to determine accumulation yield`
+                        });
+                        continue;
+                    }
+
+                    // Получаем доходность из риск-профиля портфеля
+                    let riskProfilesYield = portfolioForAcc.risk_profiles;
+                    if (typeof riskProfilesYield === 'string') {
+                        try { riskProfilesYield = JSON.parse(riskProfilesYield); } catch (e) { riskProfilesYield = []; }
+                    }
+                    const profileYield = riskProfilesYield.find(p => p.profile_type === goal.risk_profile);
+
+                    if (!profileYield) {
+                        results.push({
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            goal_type: 'PENSION',
+                            error: `Risk profile ${goal.risk_profile} not found in pension portfolio`
+                        });
+                        continue;
+                    }
+
+                    // Считаем средневзвешенную доходность портфеля (для накопления)
+                    let weightedYieldAnnual = 0;
+
+                    // Support both legacy (initial_capital) and new (instruments) formats
+                    let capitalDistributionYield = profileYield.initial_capital;
+                    if (!capitalDistributionYield && profileYield.instruments) {
+                        capitalDistributionYield = profileYield.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
+                    }
+                    capitalDistributionYield = capitalDistributionYield || [];
+
+                    for (const item of capitalDistributionYield) {
+                        const product = await productRepository.findById(item.product_id);
+                        if (!product) continue;
+
+                        // Calculate allocated amount for this product
+                        const initialCap = goal.initial_capital || 0;
+                        let allocatedAmount = initialCap * (item.share_percent / 100);
+                        if (allocatedAmount === 0) allocatedAmount = 1;
+
+                        const yields = product.yields || [];
+
+                        // Find line matching BOTH Term AND Amount
+                        const line = yields.find(l =>
+                            virtualPassiveIncomeGoal.term_months >= l.term_from_months &&
+                            virtualPassiveIncomeGoal.term_months <= l.term_to_months &&
+                            allocatedAmount >= parseFloat(l.amount_from) &&
+                            allocatedAmount <= parseFloat(l.amount_to)
+                        );
+
+                        const effectiveLine = line || yields.find(l =>
+                            virtualPassiveIncomeGoal.term_months >= l.term_from_months &&
+                            virtualPassiveIncomeGoal.term_months <= l.term_to_months
+                        ) || yields[0];
+
+                        const productYield = effectiveLine ? parseFloat(effectiveLine.yield_percent) : 0;
+
+                        weightedYieldAnnual += (productYield * (item.share_percent / 100));
+                    }
+
+                    const accumulationYieldPercent = weightedYieldAnnual;
+
+                    console.log('Pension Accumulation Calc:', {
+                        accumulationYieldPercent,
+                        initial_capital: goal.initial_capital
+                    });
+
+                    // 3. МАТЕМАТИКА
                     const Cost = requiredCapital;
                     const CostWithInflation = requiredCapital;
                     const Month = virtualPassiveIncomeGoal.term_months;
                     const InitialCapital = virtualPassiveIncomeGoal.initial_capital || 0;
 
-                    const d_annual = yieldPercent;
+                    // Используем доходность ПОРТФЕЛЯ для роста накоплений
+                    const d_annual = accumulationYieldPercent;
                     const d_month_decimal = Math.pow(1 + (d_annual / 100), 1 / 12) - 1;
                     const m_month_decimal = m_month_percent / 100;
 
@@ -572,12 +666,9 @@ class CalculationService {
                         }
                     }
 
-                    // Проверка на ПДС и софинансирование (используем портфель класса "пенсия" - id=1)
-                    const portfolio = await portfolioRepository.findByCriteria({
-                        classId: 1, // Портфель класса "пенсия"
-                        amount: InitialCapital, // Используем первоначальный капитал для выбора портфеля
-                        term: Month
-                    });
+                    // Используем тот же портфель для проверки ПДС
+                    const portfolio = portfolioForAcc;
+
 
                     let pdsCofinancingResult = null;
 
@@ -590,7 +681,12 @@ class CalculationService {
                         const profile = riskProfiles.find(p => p.profile_type === goal.risk_profile);
 
                         if (profile) {
-                            const capitalDistribution = profile.initial_capital || [];
+                            // Support both legacy and new formats
+                            let capitalDistribution = profile.initial_capital;
+                            if (!capitalDistribution && profile.instruments) {
+                                capitalDistribution = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
+                            }
+                            capitalDistribution = capitalDistribution || [];
                             let pdsProductId = null;
                             let pdsShareInitial = 0;
                             let pdsShareTopUp = 0;
@@ -605,7 +701,11 @@ class CalculationService {
                             }
 
                             if (pdsProductId) {
-                                const topUpDistribution = profile.top_up || [];
+                                let topUpDistribution = profile.top_up;
+                                if (!topUpDistribution && profile.instruments) {
+                                    topUpDistribution = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                                }
+                                topUpDistribution = topUpDistribution || [];
                                 for (const item of topUpDistribution) {
                                     if (item.product_id === pdsProductId) {
                                         pdsShareTopUp = item.share_percent;
@@ -675,13 +775,8 @@ class CalculationService {
                             desired_monthly_income_initial: Math.round(pensionGapMonthlyCurrent * 100) / 100,
                             desired_monthly_income_with_inflation: Math.round(desiredMonthlyIncomeWithInflation * 100) / 100,
                             required_capital: Math.round(requiredCapital * 100) / 100,
-                            yield_percent: Math.round(yieldPercent * 100) / 100,
-                            yield_line: {
-                                min_term_months: yieldLine.min_term_months,
-                                max_term_months: yieldLine.max_term_months,
-                                min_amount: yieldLine.min_amount,
-                                max_amount: yieldLine.max_amount
-                            }
+                            yield_percent: Math.round(payoutYieldPercent * 100) / 100
+                            // yield_line removed as we use portfolio average yield
                         },
                         financials: {
                             cost_initial: Math.round(Cost * 100) / 100,
