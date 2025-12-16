@@ -853,7 +853,12 @@ class CalculationService {
             let weightedYieldAnnual = 0;
             const productDetails = [];
 
-            const capitalDistribution = profile.initial_capital || [];
+            // Support both legacy (initial_capital) and new (instruments) formats
+            let capitalDistribution = profile.initial_capital;
+            if (!capitalDistribution && profile.instruments) {
+                capitalDistribution = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
+            }
+            capitalDistribution = capitalDistribution || [];
 
             for (const item of capitalDistribution) {
                 const product = await productRepository.findById(item.product_id);
@@ -994,7 +999,12 @@ class CalculationService {
 
             // Ищем ПДС в top_up
             if (pdsProductId) {
-                const topUpDistribution = profile.top_up || [];
+                let topUpDistribution = profile.top_up;
+                if (!topUpDistribution && profile.instruments) {
+                    topUpDistribution = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                }
+                topUpDistribution = topUpDistribution || [];
+
                 for (const item of topUpDistribution) {
                     if (item.product_id === pdsProductId) {
                         pdsShareTopUp = item.share_percent;
