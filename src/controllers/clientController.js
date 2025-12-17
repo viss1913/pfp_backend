@@ -26,7 +26,9 @@ const calculationRequestSchema = Joi.object({
         payment_variant: Joi.number().integer().valid(0, 1, 2, 4, 12).optional()
             .description('Вариант оплаты для НСЖ: 0 - единовременно, 1 - ежегодно, 2 - раз в полгода, 4 - ежеквартально, 12 - ежемесячно'),
         program: Joi.string().optional()
-            .description('Код продукта НСЖ (по умолчанию "base")')
+            .description('Код продукта НСЖ (по умолчанию "base")'),
+        monthly_replenishment: Joi.number().min(0).optional()
+            .description('Ежемесячное пополнение (планируемое, для некоторых целей)')
     })).min(1).required()
         .description('Массив целей для расчета'),
     client: Joi.object({
