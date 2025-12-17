@@ -660,7 +660,9 @@ class CalculationService {
 
 
                         // Capture Raw Replenishment BEFORE PDS adjustment
-                        const recommendedReplenishmentRaw = recommendedReplenishment;
+                    // Сохраняем «сырое» пополнение до учета софинансирования ПДС,
+                    // чтобы вернуть оба значения (с ПДС и без ПДС)
+                    const recommendedReplenishmentRaw = recommendedReplenishment;
 
                         // Если нашли ПДС, рассчитываем эффект софинансирования
                         if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
@@ -1234,7 +1236,9 @@ class CalculationService {
                             investment_expense_growth_annual_percent: Math.round(((Math.pow(1 + m_month_decimal, 12) - 1) * 100) * 100) / 100,
                             initial_capital: InitialCapital,
                             capital_gap: Math.round(CapitalGap * 100) / 100,
+                            // with/without PDS replenishments
                             recommended_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                            recommended_replenishment_without_pds: Math.round(recommendedReplenishmentRaw * 100) / 100,
                         },
                         // --- UNIFIED BLOCKS ---
                         summary: {
@@ -1242,6 +1246,7 @@ class CalculationService {
                             status: CapitalGap > 0 ? 'GAP' : 'OK',
                             initial_capital: InitialCapital,
                             monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                            monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw * 100) / 100,
                             total_capital_at_end: Math.round(CostWithInflation * 100) / 100, // Capital needed at retirement
                             target_achieved: true, // Assuming recommendations are followed
                             projected_value: Math.round(desiredPensionMonthlyFuture * 100) / 100, // Monthly Pension
