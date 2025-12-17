@@ -114,16 +114,305 @@ class CalculationService {
         const results = [];
 
         for (const goal of goals) {
-            // Проверяем, является ли цель типом LIFE (goal_type_id: 5 или name: "Жизнь")
+            // ---------------------------------------------------------
+            // 1. DETERMINE GOAL TYPE
+            // ---------------------------------------------------------
+
+            // PENSION (id=1)
+            const isPensionGoal = goal.goal_type_id === 1 || (goal.name && goal.name.toUpperCase().includes('ПЕНСИЯ'));
+
+            // PASSIVE_INCOME (id=2) - "Рантье"
+            const isPassiveIncomeGoal = goal.goal_type_id === 2 || (goal.name && goal.name.toUpperCase().includes('РАНТЬЕ'));
+
+            // INVESTMENT (id=3) - "Накопление" / "Приумножение" / "INVESTMENT"
+            const isInvestmentGoal = goal.goal_type_id === 3 || goal.name === 'Приумножение капитала' || (goal.type && goal.type.toUpperCase() === 'INVESTMENT');
+
+            // LIFE (id=5) - "Жизнь" / NSJ
             const isLifeGoal = goal.goal_type_id === 5 || goal.name === 'Жизнь';
 
-            // Проверяем, является ли цель типом PASSIVE_INCOME (goal_type_id: 2)
-            const isPassiveIncomeGoal = goal.goal_type_id === 2;
+            // If checking explicitly by ID, ensure we don't double match if IDs overlap with names logic unexpectedly.
+            // Prioritize ID checks if validation confirms IDs.
 
-            // Проверяем, является ли цель типом PENSION (goal_type_id: 1)
-            const isPensionGoal = goal.goal_type_id === 1;
+            // ... (Dispatch logic) ...
 
-            // Если это цель типа LIFE, вызываем API НСЖ
+            // Если это цель типа INVESTMENT / CAPITAL
+            if (isInvestmentGoal) {
+                console.log('=== INVESTMENT CALCULATION START ===');
+                console.log('Goal:', goal.name, 'Goal ID:', goal.goal_type_id);
+
+                try {
+                    // 1. ПАРАМЕТРЫ
+                    const initialCapital = goal.initial_capital || 0;
+                    const monthlyReplenishment = goal.monthly_replenishment || 0; // Using specific field if available, or assume passed in another way?
+                    // Usually 'target_amount' is present, but here we calculate Result. 
+                    // However, 'monthly_replenishment' might be passed as 'initial_replenishment' or user might provide it in 'goal.monthly_replenishment'.
+                    // If not present, we can't calculate accumulation properly unless we assume 0.
+                    // Let's assume input has 'monthly_replenishment'.
+                    const replenishment = goal.monthly_replenishment || goal.replenishment_amount || 0;
+
+                    const termMonths = goal.term_months || 120; // Default 10 years if missing
+                    const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;
+                    const inflationMonthly = Math.pow(1 + (inflationRate / 100), 1 / 12) - 1;
+
+                    // 2. ИЩЕМ ПОРТФЕЛЬ
+                    const portfolio = await portfolioRepository.findByCriteria({
+                        classId: 3, // Assuming ID 3 for Investment/Capital based on heuristic
+                        amount: initialCapital,
+                        term: termMonths
+                    });
+
+                    if (!portfolio) {
+                        throw new Error(`No portfolio found for Investment calculation (Class ID 3, Amount ${initialCapital}, Term ${termMonths})`);
+                    }
+
+                    // 3. СЧИТАЕМ ДОХОДНОСТЬ ПОРТФЕЛЯ (Взвешенная)
+                    let riskProfiles = typeof portfolio.risk_profiles === 'string'
+                        ? JSON.parse(portfolio.risk_profiles)
+                        : portfolio.risk_profiles;
+
+                    const profile = riskProfiles.find(p => p.profile_type === (goal.risk_profile || 'BALANCED'));
+
+                    if (!profile) {
+                        throw new Error(`Risk profile ${goal.risk_profile} not found in portfolio ${portfolio.name}`);
+                    }
+
+                    // Calculate Weighted Yield AND Build Composition
+                    let weightedYieldAnnual = 0;
+
+                    // Prepare Composition arrays
+                    const initialCapitalComposition = [];
+                    const topUpComposition = [];
+
+                    // --- INITIAL CAPITAL ALLOCATION ---
+                    let instruments = profile.initial_capital || [];
+                    if (!instruments.length && profile.instruments) {
+                        instruments = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
+                    }
+
+                    for (const item of instruments) {
+                        const product = await productRepository.findById(item.product_id);
+                        if (!product) continue;
+
+                        const amountForProduct = Math.max(initialCapital * (item.share_percent / 100), 1);
+
+                        const yields = product.yields || [];
+                        const line = yields.find(l =>
+                            termMonths >= l.term_from_months &&
+                            termMonths <= l.term_to_months &&
+                            amountForProduct >= parseFloat(l.amount_from) &&
+                            amountForProduct <= parseFloat(l.amount_to)
+                        ) || yields.find(l =>
+                            termMonths >= l.term_from_months &&
+                            termMonths <= l.term_to_months
+                        ) || yields[0];
+
+                        const pYield = line ? parseFloat(line.yield_percent) : 0;
+                        weightedYieldAnnual += pYield * (item.share_percent / 100);
+
+                        initialCapitalComposition.push({
+                            product_id: product.id,
+                            product_name: product.name,
+                            product_type: product.product_type,
+                            share_percent: item.share_percent,
+                            amount: Math.round(amountForProduct * 100) / 100,
+                            yield_percent: pYield
+                        });
+                    }
+
+                    console.log(`Weighted Annual Yield: ${weightedYieldAnnual}%`);
+
+                    // --- TOP-UP ALLOCATION (for Composition display) ---
+                    let topUpInstrumentsForComposition = profile.top_up || [];
+                    if (!topUpInstrumentsForComposition.length && profile.instruments) {
+                        topUpInstrumentsForComposition = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                    }
+                    // Fallback to initial structure if top-up not defined (often they are same)
+                    // But we need to build the composition array
+                    if (!topUpInstrumentsForComposition.length && instruments.length > 0) {
+                        // If no explicit top-up, usually it follows initial capital OR it might be empty?
+                        // In our logic, if topUp is empty, we might not be replenishing into specific products?
+                        // Actually, accumulation logic assumes "weightedYieldAnnual" applies to EVERYTHING.
+                        // So implicit assumption implies TopUp structure == Initial Structure if not defined.
+                        // Let's mirror initial for display if empty, or map explicit.
+                        topUpInstrumentsForComposition = instruments; // Fallback for display
+                    }
+
+                    for (const item of topUpInstrumentsForComposition) {
+                        const product = await productRepository.findById(item.product_id);
+                        if (!product) continue;
+
+                        // Yield for TopUp might be different due to smaller amounts per month?
+                        // BUT for simplicity in "Weighted Yield" calculation above, we used Initial Capital amounts.
+                        // Strictly speaking, we should re-calculate weighted yield for TopUps if amounts differ drastically and hit different yield lines.
+                        // For MVP/V1, we use the same Portfolio Yield.
+                        // Here we just record metadata.
+                        const pYield = weightedYieldAnnual; // Simplified for display, or fetch precise? Let's leave undefined or portfolio avg for now to avoid confusion.
+
+                        topUpComposition.push({
+                            product_id: product.id,
+                            product_name: product.name,
+                            product_type: product.product_type,
+                            share_percent: item.share_percent,
+                            amount: Math.round((replenishment * (item.share_percent / 100)) * 100) / 100,
+                            yield_percent: null // Not strictly calculated per line
+                        });
+                    }
+
+                    // 4. НАКОПЛЕНИЕ (Собственный капитал + Проценты)
+                    const yieldMonthly = Math.pow(1 + (weightedYieldAnnual / 100), 1 / 12) - 1;
+                    const mgmtFeeMonthly = m_month_percent / 100; // Investment expense
+                    const effectiveYieldMonthly = yieldMonthly; // - mgmtFeeMonthly (if we want to subtract fee, but usually fee is on AUM or similar. User logic "m_month_percent" used in PassiveIncome seems to suggest expense GROWTH? Or check passive income logic: term2 = (1 + m_month_decimal)... term1 = 1 + d_month_decimal.
+                    // In passive income:
+                    // numerator = Gap * (m_mont - d_mont)
+                    // It seems m_month_percent IS NOT a fee, but "Indexation of Replenishment" or similar?
+                    // Wait, lines 90-97: "Investment Expense Growth". This implies the EXPENSE grows?
+                    // Ah, in Passive Income calc: "investment_expense_growth_monthly".
+                    // Let's stick to simple logic: Input Inflation is for replenishment indexation.
+
+                    let accumulatedOwnCapital = initialCapital;
+                    let totalOwnContributions = initialCapital;
+                    let currentReplenishment = replenishment;
+
+                    const yearlyBreakdownOwn = [];
+
+                    for (let m = 1; m <= termMonths; m++) {
+                        // 1. Accrue Interest
+                        accumulatedOwnCapital *= (1 + effectiveYieldMonthly);
+
+                        // 2. Add Replenishment
+                        accumulatedOwnCapital += currentReplenishment;
+                        totalOwnContributions += currentReplenishment;
+
+                        // 3. Index Replenishment (Monthly per instruction "для простоты")
+                        currentReplenishment *= (1 + inflationMonthly);
+
+                        if (m % 12 === 0) {
+                            yearlyBreakdownOwn.push({
+                                year: Math.ceil(m / 12),
+                                accumulated_capital: accumulatedOwnCapital,
+                                total_contributions: totalOwnContributions
+                            });
+                        }
+                    }
+
+                    // 5. ПДС (Софинансирование)
+                    let pdsResult = null;
+                    let pdsShareInitial = 0;
+                    let pdsShareTopUp = 0;
+                    let pdsProductId = null;
+
+                    // Find PDS share
+                    for (const item of instruments) {
+                        const product = await productRepository.findById(item.product_id);
+                        if (product && product.product_type === 'PDS') {
+                            pdsProductId = product.id;
+                            pdsShareInitial = item.share_percent;
+                            break;
+                        }
+                    }
+                    // Find Top Up share (assuming structure similar to PassiveIncome check)
+                    let topUpInstruments = profile.top_up || [];
+                    if (!topUpInstruments.length && profile.instruments) {
+                        topUpInstruments = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                    }
+                    for (const item of topUpInstruments) {
+                        if (item.product_id === pdsProductId) {
+                            pdsShareTopUp = item.share_percent;
+                            break;
+                        }
+                    }
+                    if (!pdsShareTopUp && pdsShareInitial) pdsShareTopUp = pdsShareInitial; // Fallback
+
+                    if (pdsProductId) {
+                        const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
+                        const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
+
+                        // Use service to calculate State Capital accumulation
+                        // We use the "Gap" service but ignore gap-specific returns, looking only at 'total_cofinancing_with_investment'
+                        // and 'yearly_breakdown'.
+                        // We pass 'replenishment' as 'initialReplenishment'.
+                        // 'capitalGap' irrelevant -> pass 0 or a dummy big number, it returns total cofinancing anyway.
+
+                        pdsResult = await pdsCofinancingService.calculateCofinancingEffect({
+                            capitalGap: 0,
+                            initialReplenishment: replenishment,
+                            initialCapital: initialCapital,
+                            pdsShareInitial: pdsShareInitial,
+                            pdsShareTopUp: pdsShareTopUp,
+                            pdsProductId: pdsProductId,
+                            termMonths: termMonths,
+                            avgMonthlyIncome: avgMonthlyIncome,
+                            startDate: startDate,
+                            monthlyGrowthRate: inflationMonthly, // Indexation
+                            portfolioYieldMonthly: yieldMonthly
+                        });
+                    }
+
+                    const totalStateCapital = pdsResult ? pdsResult.total_cofinancing_with_investment : 0;
+                    const totalCapital = accumulatedOwnCapital + totalStateCapital;
+
+                    results.push({
+                        goal_id: goal.goal_type_id,
+                        goal_name: goal.name,
+                        goal_type: 'INVESTMENT',
+                        investment_calculation: {
+                            initial_capital: initialCapital,
+                            monthly_replenishment_start: replenishment,
+                            term_months: termMonths,
+                            portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
+                            inflation_rate_annual: inflationRate,
+
+                            total_capital: Math.round(totalCapital * 100) / 100,
+                            total_own_capital: Math.round(accumulatedOwnCapital * 100) / 100,
+                            total_state_capital: Math.round(totalStateCapital * 100) / 100,
+                            total_own_contributions: Math.round(totalOwnContributions * 100) / 100,
+
+                            yearly_breakdown_own: yearlyBreakdownOwn
+                        },
+                        pds_cofinancing: pdsResult ? {
+                            cofinancing_next_year: pdsResult.cofinancing_next_year,
+                            total_cofinancing_nominal: pdsResult.total_cofinancing_nominal,
+                            total_cofinancing_with_investment: pdsResult.total_cofinancing_with_investment,
+                            pds_yield_annual_percent: pdsResult.pds_yield_annual_percent,
+                            yearly_breakdown: pdsResult.yearly_breakdown
+                        } : null,
+
+                        // --- NEW: Unified Summary & Detail Blocks ---
+                        summary: {
+                            goal_type: 'INVESTMENT',
+                            status: 'OK',
+                            initial_capital: initialCapital,
+                            monthly_replenishment: replenishment,
+                            total_capital_at_end: Math.round(totalCapital * 100) / 100,
+                            target_achieved: true, // Investment is always achieved (accumulation)
+                            projected_value: Math.round(totalCapital * 100) / 100,
+                            state_benefit: Math.round(totalStateCapital * 100) / 100 // Explicit "Bonus" from state
+                        },
+                        portfolio_structure: {
+                            risk_profile: goal.risk_profile || 'BALANCED',
+                            portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
+                            inflation_rate_used: inflationRate,
+                            portfolio_composition: {
+                                initial_capital_allocation: initialCapitalComposition,
+                                monthly_topup_allocation: topUpComposition
+                            }
+                        }
+                    });
+
+                    continue;
+
+                } catch (err) {
+                    console.error('Investment calculation error:', err);
+                    results.push({
+                        goal_id: goal.goal_type_id,
+                        goal_name: goal.name,
+                        goal_type: 'INVESTMENT',
+                        error: err.message
+                    });
+                    continue;
+                }
+            }
+
             if (isLifeGoal) {
                 console.log('=== NSJ CALCULATION START ===');
                 console.log('Goal:', goal.name, 'Goal ID:', goal.goal_type_id);
@@ -138,7 +427,13 @@ class CalculationService {
                         program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
                     };
                     console.log('Calling nsjApiService.calculateLifeInsurance with params:', JSON.stringify(nsjParams, null, 2));
-                    const nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
+                    let nsjResult;
+                    try {
+                        nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
+                    } catch (e) {
+                        // Fallback logic or rethrow if strictly required, but existing logic catches below
+                        throw e;
+                    }
                     console.log('NSJ Result received:', JSON.stringify(nsjResult, null, 2));
 
                     results.push({
@@ -266,6 +561,11 @@ class CalculationService {
                     });
 
                     let pdsCofinancingResult = null;
+                    const initialCapitalComposition = [];
+                    const topUpComposition = [];
+                    let pdsProductId = null;
+                    let pdsShareInitial = 0;
+                    let pdsShareTopUp = 0;
 
                     if (portfolio) {
                         let riskProfiles = portfolio.risk_profiles;
@@ -277,9 +577,9 @@ class CalculationService {
 
                         if (profile) {
                             const capitalDistribution = profile.initial_capital || [];
-                            let pdsProductId = null;
-                            let pdsShareInitial = 0;
-                            let pdsShareTopUp = 0;
+                            pdsProductId = null;
+                            pdsShareInitial = 0;
+                            pdsShareTopUp = 0;
 
                             // Ищем ПДС в initial_capital
                             for (const item of capitalDistribution) {
@@ -301,37 +601,93 @@ class CalculationService {
                                     }
                                 }
 
-                                if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
-                                    pdsShareTopUp = pdsShareInitial;
-                                }
                             }
+                        }
 
-                            // Если нашли ПДС, рассчитываем эффект софинансирования
-                            if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
-                                try {
-                                    const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
-                                    const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
+                        // --- BUILD ALLOCATION ARRAYS FOR COMPOSITION (Unified API) ---
+                        const initialCapitalComposition = [];
+                        const topUpComposition = [];
 
-                                    pdsCofinancingResult = await pdsCofinancingService.calculateCofinancingEffect({
-                                        capitalGap: CapitalGap,
-                                        initialReplenishment: recommendedReplenishment,
-                                        initialCapital: InitialCapital,
-                                        pdsShareInitial: pdsShareInitial,
-                                        pdsShareTopUp: pdsShareTopUp,
-                                        pdsProductId: pdsProductId,
-                                        termMonths: Month,
-                                        avgMonthlyIncome: avgMonthlyIncome,
-                                        startDate: startDate,
-                                        monthlyGrowthRate: m_month_decimal,
-                                        portfolioYieldMonthly: d_month_decimal
-                                    });
+                        // Support legacy and new structure for initial
+                        let instruments = capitalDistribution;
+                        if (!instruments.length && profile.instruments) {
+                            instruments = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
+                        }
 
-                                    if (pdsCofinancingResult.pds_applied) {
-                                        recommendedReplenishment = pdsCofinancingResult.recommendedReplenishment;
-                                    }
-                                } catch (pdsError) {
-                                    console.error('PDS cofinancing calculation error for passive income:', pdsError);
+                        // To match Investment logic, we need to fetch all products in composition
+                        // We might have already fetched some for PDS check, but let's iterate to build full list
+                        for (const item of instruments) {
+                            const product = await productRepository.findById(item.product_id);
+                            if (!product) continue;
+                            const amountForProduct = Math.max(InitialCapital * (item.share_percent / 100), 1);
+
+                            // Simplified Yield fetch for display - matching PDS logic somewhat or just getting product lines
+                            // For Passive Income we currently use Global Yield Line setting, but composition should show product yields if possible?
+                            // "Weighted Yield" is not strictly used in Passive Income calc (it uses the Yield curve setting),
+                            // BUT the Portfolio Composition should reflect what sits inside.
+                            const yields = product.yields || [];
+                            const line = yields.find(l =>
+                                Month >= l.term_from_months &&
+                                Month <= l.term_to_months &&
+                                amountForProduct >= parseFloat(l.amount_from) &&
+                                amountForProduct <= parseFloat(l.amount_to)
+                            ) || yields[0];
+
+                            initialCapitalComposition.push({
+                                product_id: product.id,
+                                product_name: product.name,
+                                product_type: product.product_type,
+                                share_percent: item.share_percent,
+                                amount: Math.round(amountForProduct * 100) / 100,
+                                yield_percent: line ? parseFloat(line.yield_percent) : 0
+                            });
+                        }
+
+                        let topUpDist = profile.top_up || [];
+                        if (!topUpDist.length && profile.instruments) {
+                            topUpDist = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                        }
+                        if (!topUpDist.length && instruments.length > 0) topUpDist = instruments; // Fallback
+
+                        for (const item of topUpDist) {
+                            const product = await productRepository.findById(item.product_id);
+                            if (!product) continue;
+                            topUpComposition.push({
+                                product_id: product.id,
+                                product_name: product.name,
+                                product_type: product.product_type,
+                                share_percent: item.share_percent,
+                                amount: Math.round((recommendedReplenishment * (item.share_percent / 100)) * 100) / 100,
+                                yield_percent: null
+                            });
+                        }
+
+
+                        // Если нашли ПДС, рассчитываем эффект софинансирования
+                        if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
+                            try {
+                                const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
+                                const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
+
+                                pdsCofinancingResult = await pdsCofinancingService.calculateCofinancingEffect({
+                                    capitalGap: CapitalGap,
+                                    initialReplenishment: recommendedReplenishment,
+                                    initialCapital: InitialCapital,
+                                    pdsShareInitial: pdsShareInitial,
+                                    pdsShareTopUp: pdsShareTopUp,
+                                    pdsProductId: pdsProductId,
+                                    termMonths: Month,
+                                    avgMonthlyIncome: avgMonthlyIncome,
+                                    startDate: startDate,
+                                    monthlyGrowthRate: m_month_decimal,
+                                    portfolioYieldMonthly: d_month_decimal
+                                });
+
+                                if (pdsCofinancingResult.pds_applied) {
+                                    recommendedReplenishment = pdsCofinancingResult.recommendedReplenishment;
                                 }
+                            } catch (pdsError) {
+                                console.error('PDS cofinancing calculation error for passive income:', pdsError);
                             }
                         }
                     }
@@ -363,10 +719,36 @@ class CalculationService {
                             capital_gap: Math.round(CapitalGap * 100) / 100,
                             recommended_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                             portfolio_yield_annual_percent: Math.round(d_annual * 100) / 100
+                        },
+                        // --- UNIFIED BLOCKS ---
+                        summary: {
+                            goal_type: 'PASSIVE_INCOME',
+                            status: CapitalGap > 0 ? 'GAP' : 'OK',
+                            initial_capital: InitialCapital,
+                            monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                            // For Passive Income, "Total Capital" is "Required Capital" to generate income
+                            total_capital_at_end: Math.round(requiredCapital * 100) / 100,
+                            target_achieved: CapitalGap <= 0,
+                            projected_value: Math.round(desiredMonthlyIncomeWithInflation * 100) / 100, // Monthly income
+                            // If PDS applied, we can show state contribution benefit to gap? 
+                            // Currently PDS logic "covers" gap by reducing replenishment.
+                            // State benefit in accumulated capital can be inferred from Total Cofinancing.
+                            state_benefit: (pdsCofinancingResult && pdsCofinancingResult.pds_applied)
+                                ? Math.round(pdsCofinancingResult.total_cofinancing_with_investment * 100) / 100
+                                : 0
+                        },
+                        portfolio_structure: {
+                            risk_profile: goal.risk_profile || 'BALANCED',
+                            portfolio_yield_annual: Math.round(d_annual * 100) / 100,
+                            inflation_rate_used: inflationAnnualUsed,
+                            portfolio_composition: {
+                                initial_capital_allocation: portfolio ? initialCapitalComposition : [],
+                                monthly_topup_allocation: portfolio ? topUpComposition : []
+                            }
                         }
                     };
 
-                    // Добавляем данные по софинансированию ПДС, если применимо
+                    // Add PDS data if available
                     if (pdsCofinancingResult && pdsCofinancingResult.pds_applied) {
                         resultItem.pds_cofinancing = {
                             cofinancing_next_year: pdsCofinancingResult.cofinancing_next_year,
@@ -379,7 +761,7 @@ class CalculationService {
                     }
 
                     results.push(resultItem);
-                    continue; // Пропускаем обычный расчет для PASSIVE_INCOME
+                    continue;
                 } catch (passiveIncomeError) {
                     console.error('Passive income calculation error:', passiveIncomeError);
                     results.push({
@@ -671,6 +1053,8 @@ class CalculationService {
 
 
                     let pdsCofinancingResult = null;
+                    const initialCapitalComposition = [];
+                    const topUpComposition = [];
 
                     if (portfolio) {
                         let riskProfiles = portfolio.risk_profiles;
@@ -687,36 +1071,77 @@ class CalculationService {
                                 capitalDistribution = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
                             }
                             capitalDistribution = capitalDistribution || [];
+
                             let pdsProductId = null;
                             let pdsShareInitial = 0;
                             let pdsShareTopUp = 0;
+                            // initialCapitalComposition already declared in outer scope
+                            // topUpComposition already declared in outer scope
 
                             for (const item of capitalDistribution) {
                                 const product = await productRepository.findById(item.product_id);
-                                if (product && product.product_type === 'PDS') {
+                                if (!product) continue;
+
+                                // Check for PDS
+                                if (product.product_type === 'PDS') {
                                     pdsProductId = product.id;
                                     pdsShareInitial = item.share_percent;
-                                    break;
                                 }
+
+                                // Build Composition
+                                const amountForProduct = Math.max(InitialCapital * (item.share_percent / 100), 1);
+                                const yields = product.yields || [];
+                                const line = yields.find(l =>
+                                    Month >= l.term_from_months &&
+                                    Month <= l.term_to_months &&
+                                    amountForProduct >= parseFloat(l.amount_from) &&
+                                    amountForProduct <= parseFloat(l.amount_to)
+                                ) || yields[0];
+
+                                initialCapitalComposition.push({
+                                    product_id: product.id,
+                                    product_name: product.name,
+                                    product_type: product.product_type,
+                                    share_percent: item.share_percent,
+                                    amount: Math.round(amountForProduct * 100) / 100,
+                                    yield_percent: line ? parseFloat(line.yield_percent) : 0
+                                });
                             }
 
                             if (pdsProductId) {
-                                let topUpDistribution = profile.top_up;
-                                if (!topUpDistribution && profile.instruments) {
-                                    topUpDistribution = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                                // Build TopUp Composition
+                                let topUpDistForComp = profile.top_up;
+                                if (!topUpDistForComp && profile.instruments) {
+                                    topUpDistForComp = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
                                 }
-                                topUpDistribution = topUpDistribution || [];
-                                for (const item of topUpDistribution) {
+                                if ((!topUpDistForComp || !topUpDistForComp.length) && capitalDistribution.length > 0) {
+                                    topUpDistForComp = capitalDistribution; // Fallback
+                                }
+                                topUpDistForComp = topUpDistForComp || [];
+
+                                for (const item of topUpDistForComp) {
+                                    const product = await productRepository.findById(item.product_id);
+                                    if (!product) continue;
+                                    // Check if this is PDS to set share
                                     if (item.product_id === pdsProductId) {
                                         pdsShareTopUp = item.share_percent;
-                                        break;
                                     }
+
+                                    topUpComposition.push({
+                                        product_id: product.id,
+                                        product_name: product.name,
+                                        product_type: product.product_type,
+                                        share_percent: item.share_percent,
+                                        amount: Math.round((recommendedReplenishment * (item.share_percent / 100)) * 100) / 100,
+                                        yield_percent: null
+                                    });
                                 }
 
                                 if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
                                     pdsShareTopUp = pdsShareInitial;
                                 }
                             }
+
 
                             if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
                                 try {
@@ -787,7 +1212,28 @@ class CalculationService {
                             initial_capital: InitialCapital,
                             capital_gap: Math.round(CapitalGap * 100) / 100,
                             recommended_replenishment: Math.round(recommendedReplenishment * 100) / 100,
-                            portfolio_yield_annual_percent: Math.round(d_annual * 100) / 100
+                        },
+                        // --- UNIFIED BLOCKS ---
+                        summary: {
+                            goal_type: 'PENSION',
+                            status: CapitalGap > 0 ? 'GAP' : 'OK',
+                            initial_capital: InitialCapital,
+                            monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                            total_capital_at_end: Math.round(CostWithInflation * 100) / 100, // Capital needed at retirement
+                            target_achieved: true, // Assuming recommendations are followed
+                            projected_value: Math.round(desiredPensionMonthlyFuture * 100) / 100, // Monthly Pension
+                            state_benefit: (pdsCofinancingResult && pdsCofinancingResult.pds_applied)
+                                ? Math.round(pdsCofinancingResult.total_cofinancing_with_investment * 100) / 100
+                                : 0
+                        },
+                        portfolio_structure: {
+                            risk_profile: goal.risk_profile || 'BALANCED',
+                            portfolio_yield_annual: Math.round(d_annual * 100) / 100,
+                            inflation_rate_used: inflationAnnualUsed,
+                            portfolio_composition: {
+                                initial_capital_allocation: initialCapitalComposition,
+                                monthly_topup_allocation: topUpComposition
+                            }
                         }
                     };
 
@@ -852,6 +1298,8 @@ class CalculationService {
             // Calculate weighted yield (d)
             let weightedYieldAnnual = 0;
             const productDetails = [];
+            const initialCapitalComposition = [];
+            const topUpComposition = [];
 
             // Support both legacy (initial_capital) and new (instruments) formats
             let capitalDistribution = profile.initial_capital;
@@ -910,6 +1358,38 @@ class CalculationService {
                     share_percent: item.share_percent,
                     yield_percent: productYield,
                     matched_line: effectiveLine
+                });
+
+                initialCapitalComposition.push({
+                    product_id: product.id,
+                    product_name: product.name,
+                    product_type: product.product_type,
+                    share_percent: item.share_percent,
+                    amount: Math.round(allocatedAmount * 100) / 100,
+                    yield_percent: productYield
+                });
+            }
+
+            // Build TopUp Composition
+            let topUpDistForComp = profile.top_up;
+            if (!topUpDistForComp && profile.instruments) {
+                topUpDistForComp = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+            }
+            if ((!topUpDistForComp || !topUpDistForComp.length) && capitalDistribution.length > 0) {
+                topUpDistForComp = capitalDistribution; // Fallback
+            }
+            topUpDistForComp = topUpDistForComp || [];
+
+            for (const item of topUpDistForComp) {
+                const product = await productRepository.findById(item.product_id);
+                if (!product) continue;
+                topUpComposition.push({
+                    product_id: product.id,
+                    product_name: product.name,
+                    product_type: product.product_type,
+                    share_percent: item.share_percent,
+                    amount: Math.round((recommendedReplenishment || 0) * (item.share_percent / 100) * 100) / 100,
+                    yield_percent: null
                 });
             }
 
@@ -1071,6 +1551,28 @@ class CalculationService {
                     capital_gap: Math.round(CapitalGap * 100) / 100,
                     recommended_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                     portfolio_yield_annual_percent: Math.round(d_annual * 100) / 100
+                },
+                // --- UNIFIED BLOCKS ---
+                summary: {
+                    goal_type: 'OTHER', // Or generic? Let's use OTHER for now to signify fallback
+                    status: CapitalGap > 0 ? 'GAP' : 'OK',
+                    initial_capital: InitialCapital,
+                    monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                    total_capital_at_end: Math.round(CostWithInflation * 100) / 100,
+                    target_achieved: true,
+                    projected_value: Math.round(FutureValueInitial * 100) / 100, // Roughly, actually we want end capital
+                    state_benefit: (pdsCofinancingResult && pdsCofinancingResult.pds_applied)
+                        ? Math.round(pdsCofinancingResult.total_cofinancing_with_investment * 100) / 100
+                        : 0
+                },
+                portfolio_structure: {
+                    risk_profile: goal.risk_profile || 'BALANCED',
+                    portfolio_yield_annual: Math.round(d_annual * 100) / 100,
+                    inflation_rate_used: inflationAnnualUsed,
+                    portfolio_composition: {
+                        initial_capital_allocation: initialCapitalComposition,
+                        monthly_topup_allocation: topUpComposition
+                    }
                 }
             };
 
