@@ -189,7 +189,10 @@ class CalculationService {
                         instruments = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
                     }
 
-                    for (const item of instruments) {
+                    // We declare capitalDistribution here for clarity and use in top-up fallback
+                    const capitalDistribution = instruments;
+
+                    for (const item of capitalDistribution) {
                         const product = await productRepository.findById(item.product_id);
                         if (!product) continue;
 
@@ -647,7 +650,7 @@ class CalculationService {
                         if (!topUpDist.length && profile.instruments) {
                             topUpDist = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
                         }
-                        if (!topUpDist.length && instruments.length > 0) topUpDist = instruments; // Fallback
+                        if (!topUpDist.length && capitalDistribution.length > 0) topUpDist = capitalDistribution; // Fallback
 
                         for (const item of topUpDist) {
                             const product = await productRepository.findById(item.product_id);
