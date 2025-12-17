@@ -646,24 +646,9 @@ class CalculationService {
                             });
                         }
 
-                        let topUpDist = profile.top_up || [];
-                        if (!topUpDist.length && profile.instruments) {
-                            topUpDist = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
-                        }
-                        if (!topUpDist.length && capitalDistribution.length > 0) topUpDist = capitalDistribution; // Fallback
 
-                        for (const item of topUpDist) {
-                            const product = await productRepository.findById(item.product_id);
-                            if (!product) continue;
-                            topUpComposition.push({
-                                product_id: product.id,
-                                product_name: product.name,
-                                product_type: product.product_type,
-                                share_percent: item.share_percent,
-                                amount: Math.round((recommendedReplenishment * (item.share_percent / 100)) * 100) / 100,
-                                yield_percent: null
-                            });
-                        }
+                        // TopUp Allocation calculation will be done AFTER recommendedReplenishment is finalized
+                        // (after PDS adjustment)
 
 
                         // Если нашли ПДС, рассчитываем эффект софинансирования
@@ -692,6 +677,28 @@ class CalculationService {
                             } catch (pdsError) {
                                 console.error('PDS cofinancing calculation error for passive income:', pdsError);
                             }
+                        }
+
+
+                        // --- FINAL TOP-UP COMPOSITION BUILD ---
+                        // Now that recommendedReplenishment is finalized (potentially reduced by PDS), we build the composition
+                        let topUpDist = profile.top_up || [];
+                        if (!topUpDist.length && profile.instruments) {
+                            topUpDist = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                        }
+                        if (!topUpDist.length && capitalDistribution.length > 0) topUpDist = capitalDistribution; // Fallback
+
+                        for (const item of topUpDist) {
+                            const product = await productRepository.findById(item.product_id);
+                            if (!product) continue;
+                            topUpComposition.push({
+                                product_id: product.id,
+                                product_name: product.name,
+                                product_type: product.product_type,
+                                share_percent: item.share_percent,
+                                amount: Math.round((recommendedReplenishment * (item.share_percent / 100)) * 100) / 100,
+                                yield_percent: null
+                            });
                         }
                     }
 
