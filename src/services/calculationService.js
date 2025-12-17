@@ -385,7 +385,14 @@ class CalculationService {
                             goal_type: 'INVESTMENT',
                             status: 'OK',
                             initial_capital: initialCapital,
+                            initial_capital: initialCapital,
                             monthly_replenishment: replenishment,
+                            monthly_replenishment_without_pds: replenishment, // Since PDS is additive here, not reductive, maybe same? 
+                            // Wait, for Investment, PDS *adds* to capital, but "replenishment" is input. 
+                            // The user asked "without PDS to compare". But here replenishment is INPUT. 
+                            // So "without PDS" is just replenishment. 
+                            // For Passive Income/Pension, replenishment is *calculated*.
+                            // Let's keep it consistent. If input is fixed, "without PDS" is same.
                             total_capital_at_end: Math.round(totalCapital * 100) / 100,
                             target_achieved: true, // Investment is always achieved (accumulation)
                             projected_value: Math.round(totalCapital * 100) / 100,
@@ -651,6 +658,10 @@ class CalculationService {
                         // (after PDS adjustment)
 
 
+
+                        // Capture Raw Replenishment BEFORE PDS adjustment
+                        const recommendedReplenishmentRaw = recommendedReplenishment;
+
                         // Если нашли ПДС, рассчитываем эффект софинансирования
                         if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
                             try {
@@ -735,7 +746,9 @@ class CalculationService {
                             goal_type: 'PASSIVE_INCOME',
                             status: CapitalGap > 0 ? 'GAP' : 'OK',
                             initial_capital: InitialCapital,
+                            initial_capital: InitialCapital,
                             monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                            monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw * 100) / 100,
                             // For Passive Income, "Total Capital" is "Required Capital" to generate income
                             total_capital_at_end: Math.round(requiredCapital * 100) / 100,
                             target_achieved: CapitalGap <= 0,
@@ -1085,8 +1098,8 @@ class CalculationService {
                             let pdsProductId = null;
                             let pdsShareInitial = 0;
                             let pdsShareTopUp = 0;
-                            // initialCapitalComposition already declared in outer scope
-                            // topUpComposition already declared in outer scope
+
+                            const recommendedReplenishmentRaw = recommendedReplenishment;
 
                             for (const item of capitalDistribution) {
                                 const product = await productRepository.findById(item.product_id);
@@ -1567,7 +1580,9 @@ class CalculationService {
                     goal_type: 'OTHER', // Or generic? Let's use OTHER for now to signify fallback
                     status: CapitalGap > 0 ? 'GAP' : 'OK',
                     initial_capital: InitialCapital,
+                    initial_capital: InitialCapital,
                     monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                    monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw * 100) / 100,
                     total_capital_at_end: Math.round(CostWithInflation * 100) / 100,
                     target_achieved: true,
                     projected_value: Math.round(FutureValueInitial * 100) / 100, // Roughly, actually we want end capital
