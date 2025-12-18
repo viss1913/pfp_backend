@@ -1400,29 +1400,6 @@ class CalculationService {
                 });
             }
 
-            // Build TopUp Composition
-            let topUpDistForComp = profile.top_up;
-            if (!topUpDistForComp && profile.instruments) {
-                topUpDistForComp = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
-            }
-            if ((!topUpDistForComp || !topUpDistForComp.length) && capitalDistribution.length > 0) {
-                topUpDistForComp = capitalDistribution; // Fallback
-            }
-            topUpDistForComp = topUpDistForComp || [];
-
-            for (const item of topUpDistForComp) {
-                const product = await productRepository.findById(item.product_id);
-                if (!product) continue;
-                topUpComposition.push({
-                    product_id: product.id,
-                    product_name: product.name,
-                    product_type: product.product_type,
-                    share_percent: item.share_percent,
-                    amount: Math.round((recommendedReplenishment || 0) * (item.share_percent / 100) * 100) / 100,
-                    yield_percent: null
-                });
-            }
-
             const d_annual = weightedYieldAnnual; // d in year percent
 
             // Проверка: если доходность портфеля равна 0, это может быть проблемой
@@ -1561,6 +1538,29 @@ class CalculationService {
                     console.error('PDS cofinancing calculation error:', pdsError);
                     // Продолжаем с исходным расчетом при ошибке
                 }
+            }
+
+            // Build TopUp Composition (after recommendedReplenishment is calculated)
+            let topUpDistForComp = profile.top_up;
+            if (!topUpDistForComp && profile.instruments) {
+                topUpDistForComp = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+            }
+            if ((!topUpDistForComp || !topUpDistForComp.length) && capitalDistribution.length > 0) {
+                topUpDistForComp = capitalDistribution; // Fallback
+            }
+            topUpDistForComp = topUpDistForComp || [];
+
+            for (const item of topUpDistForComp) {
+                const product = await productRepository.findById(item.product_id);
+                if (!product) continue;
+                topUpComposition.push({
+                    product_id: product.id,
+                    product_name: product.name,
+                    product_type: product.product_type,
+                    share_percent: item.share_percent,
+                    amount: Math.round((recommendedReplenishment || 0) * (item.share_percent / 100) * 100) / 100,
+                    yield_percent: null
+                });
             }
 
             const resultItem = {
