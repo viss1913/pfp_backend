@@ -318,12 +318,26 @@ class CalculationService {
                     if (!topUpInstruments.length && profile.instruments) {
                         topUpInstruments = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
                     }
-                    for (const item of topUpInstruments) {
-                        if (item.product_id === pdsProductId) {
-                            pdsShareTopUp = item.share_percent;
-                            break;
+
+                    if (pdsProductId) {
+                        for (const item of topUpInstruments) {
+                            if (item.product_id === pdsProductId) {
+                                pdsShareTopUp = item.share_percent;
+                                break;
+                            }
+                        }
+                    } else {
+                        // If not found in initial, search in top-up
+                        for (const item of topUpInstruments) {
+                            const product = await productRepository.findById(item.product_id);
+                            if (product && product.product_type === 'PDS') {
+                                pdsProductId = product.id;
+                                pdsShareTopUp = item.share_percent;
+                                break;
+                            }
                         }
                     }
+
                     if (!pdsShareTopUp && pdsShareInitial) pdsShareTopUp = pdsShareInitial; // Fallback
 
                     if (pdsProductId) {
@@ -384,7 +398,6 @@ class CalculationService {
                         summary: {
                             goal_type: 'INVESTMENT',
                             status: 'OK',
-                            initial_capital: initialCapital,
                             initial_capital: initialCapital,
                             monthly_replenishment: replenishment,
                             monthly_replenishment_without_pds: replenishment, // Since PDS is additive here, not reductive, maybe same? 
@@ -613,15 +626,24 @@ class CalculationService {
                         }
 
                         // Ищем ПДС в top_up
+                        const topUpDistribution = profile.top_up || [];
                         if (pdsProductId) {
-                            const topUpDistribution = profile.top_up || [];
                             for (const item of topUpDistribution) {
                                 if (item.product_id === pdsProductId) {
                                     pdsShareTopUp = item.share_percent;
                                     break;
                                 }
                             }
-
+                        } else {
+                            // Если не нашли в initial, ищем в top_up
+                            for (const item of topUpDistribution) {
+                                const product = await productRepository.findById(item.product_id);
+                                if (product && product.product_type === 'PDS') {
+                                    pdsProductId = product.id;
+                                    pdsShareTopUp = item.share_percent;
+                                    break;
+                                }
+                            }
                         }
 
                         // --- BUILD ALLOCATION ARRAYS FOR COMPOSITION (Unified API) ---
@@ -756,7 +778,6 @@ class CalculationService {
                         summary: {
                             goal_type: 'PASSIVE_INCOME',
                             status: CapitalGap > 0 ? 'GAP' : 'OK',
-                            initial_capital: InitialCapital,
                             initial_capital: InitialCapital,
                             monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                             monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw * 100) / 100,
@@ -1144,38 +1165,47 @@ class CalculationService {
                                 });
                             }
 
-                            if (pdsProductId) {
-                                // Build TopUp Composition
-                                let topUpDistForComp = profile.top_up;
-                                if (!topUpDistForComp && profile.instruments) {
-                                    topUpDistForComp = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
-                                }
-                                if ((!topUpDistForComp || !topUpDistForComp.length) && (capitalDistribution && capitalDistribution.length > 0)) {
-                                    topUpDistForComp = capitalDistribution; // Fallback
-                                }
-                                topUpDistForComp = topUpDistForComp || [];
+                            // Build TopUp Composition
+                            let topUpDistForComp = profile.top_up;
+                            if (!topUpDistForComp && profile.instruments) {
+                                topUpDistForComp = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                            }
+                            if ((!topUpDistForComp || !topUpDistForComp.length) && (capitalDistribution && capitalDistribution.length > 0)) {
+                                topUpDistForComp = capitalDistribution; // Fallback
+                            }
+                            topUpDistForComp = topUpDistForComp || [];
 
+                            if (!pdsProductId) {
+                                // Search for PDS in top-up if not found in initial
                                 for (const item of topUpDistForComp) {
                                     const product = await productRepository.findById(item.product_id);
-                                    if (!product) continue;
-                                    // Check if this is PDS to set share
-                                    if (item.product_id === pdsProductId) {
-                                        pdsShareTopUp = item.share_percent;
+                                    if (product && product.product_type === 'PDS') {
+                                        pdsProductId = product.id;
+                                        break;
                                     }
+                                }
+                            }
 
-                                    topUpComposition.push({
-                                        product_id: product.id,
-                                        product_name: product.name,
-                                        product_type: product.product_type,
-                                        share_percent: item.share_percent,
-                                        amount: Math.round((recommendedReplenishment * (item.share_percent / 100)) * 100) / 100,
-                                        yield_percent: null
-                                    });
+                            for (const item of topUpDistForComp) {
+                                const product = await productRepository.findById(item.product_id);
+                                if (!product) continue;
+                                // Check if this is PDS to set share
+                                if (pdsProductId && item.product_id === pdsProductId) {
+                                    pdsShareTopUp = item.share_percent;
                                 }
 
-                                if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
-                                    pdsShareTopUp = pdsShareInitial;
-                                }
+                                topUpComposition.push({
+                                    product_id: product.id,
+                                    product_name: product.name,
+                                    product_type: product.product_type,
+                                    share_percent: item.share_percent,
+                                    amount: Math.round((recommendedReplenishment * (item.share_percent / 100)) * 100) / 100,
+                                    yield_percent: null
+                                });
+                            }
+
+                            if (pdsProductId && pdsShareTopUp === 0 && pdsShareInitial > 0) {
+                                pdsShareTopUp = pdsShareInitial;
                             }
 
 
@@ -1496,25 +1526,35 @@ class CalculationService {
             console.log('PDS search result - pdsProductId:', pdsProductId, 'pdsShareInitial:', pdsShareInitial);
 
             // Ищем ПДС в top_up
-            if (pdsProductId) {
-                let topUpDistribution = profile.top_up;
-                if (!topUpDistribution && profile.instruments) {
-                    topUpDistribution = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
-                }
-                topUpDistribution = topUpDistribution || [];
+            let topUpDistribution = profile.top_up;
+            if (!topUpDistribution && profile.instruments) {
+                topUpDistribution = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+            }
+            topUpDistribution = topUpDistribution || [];
 
+            if (pdsProductId) {
                 for (const item of topUpDistribution) {
                     if (item.product_id === pdsProductId) {
                         pdsShareTopUp = item.share_percent;
                         break;
                     }
                 }
-
-                // Если в top_up нет ПДС, используем долю из initial_capital
-                if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
-                    pdsShareTopUp = pdsShareInitial;
+            } else {
+                // Если не нашли в initial, ищем в top_up
+                for (const item of topUpDistribution) {
+                    const product = await productRepository.findById(item.product_id);
+                    if (product && product.product_type === 'PDS') {
+                        pdsProductId = product.id;
+                        pdsShareTopUp = item.share_percent;
+                        break;
+                    }
                 }
             }
+            // Если в top_up нет ПДС, используем долю из initial_capital
+            if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
+                pdsShareTopUp = pdsShareInitial;
+            }
+
 
             // Если нашли ПДС, рассчитываем эффект софинансирования
             if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
@@ -1597,7 +1637,6 @@ class CalculationService {
                 summary: {
                     goal_type: 'OTHER', // Or generic? Let's use OTHER for now to signify fallback
                     status: CapitalGap > 0 ? 'GAP' : 'OK',
-                    initial_capital: InitialCapital,
                     initial_capital: InitialCapital,
                     monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                     monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw * 100) / 100,
