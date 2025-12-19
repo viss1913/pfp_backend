@@ -24,7 +24,13 @@ class ClientService {
                 await clientRepository.addExpenses(expenses, trx);
             }
 
-            // 3. Recalculate Aggregates (Net Worth) and Update Client
+            // 3. Add Goals if present
+            if (data.goals && data.goals.length > 0) {
+                const goals = data.goals.map(g => ({ ...g, client_id: clientId }));
+                await clientRepository.addGoals(goals, trx);
+            }
+
+            // 4. Recalculate Aggregates (Net Worth) and Update Client
             await this.updateFinancialAggregates(clientId, trx);
 
             return clientId;
