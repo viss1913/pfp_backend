@@ -584,6 +584,8 @@ class CalculationService {
                         }
 
                         const profile = riskProfiles.find(p => p.profile_type === (goal.risk_profile || 'BALANCED'));
+                        let recommendedReplenishmentRaw = 0; // Pre-initialize to avoid TDZ shadowing issues
+
                         if (!profile) {
                             results.push({
                                 goal_id: goal.goal_type_id,
@@ -670,7 +672,7 @@ class CalculationService {
                         // Capture Raw Replenishment BEFORE PDS adjustment
                         // Сохраняем «сырое» пополнение до учета софинансирования ПДС,
                         // чтобы вернуть оба значения (с ПДС и без ПДС)
-                        const recommendedReplenishmentRaw = recommendedReplenishment;
+                        recommendedReplenishmentRaw = recommendedReplenishment;
 
                         // Если нашли ПДС, рассчитываем эффект софинансирования
                         if (pdsProductId && (pdsShareInitial > 0 || pdsShareTopUp > 0)) {
