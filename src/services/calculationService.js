@@ -610,7 +610,17 @@ class CalculationService {
                             continue;
                         }
 
+                        // Support legacy and new structure for distributions
                         capitalDistribution = profile.initial_capital || [];
+                        if (!capitalDistribution.length && profile.instruments) {
+                            capitalDistribution = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
+                        }
+
+                        let topUpDistribution = profile.top_up || [];
+                        if (!topUpDistribution.length && profile.instruments) {
+                            topUpDistribution = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
+                        }
+
                         pdsProductId = null;
                         pdsShareInitial = 0;
                         pdsShareTopUp = 0;
@@ -626,10 +636,9 @@ class CalculationService {
                         }
 
                         // Ищем ПДС в top_up
-                        const topUpDistribution = profile.top_up || [];
                         if (pdsProductId) {
                             for (const item of topUpDistribution) {
-                                if (item.product_id === pdsProductId) {
+                                if (item.product_id == pdsProductId) {
                                     pdsShareTopUp = item.share_percent;
                                     break;
                                 }
@@ -646,18 +655,17 @@ class CalculationService {
                             }
                         }
 
+                        // Если в top_up нет ПДС, а в initial есть, пробуем использовать ту же долю (fallback)
+                        if (pdsProductId && !pdsShareTopUp && pdsShareInitial) {
+                            pdsShareTopUp = pdsShareInitial;
+                        }
+
                         // --- BUILD ALLOCATION ARRAYS FOR COMPOSITION (Unified API) ---
                         // (Use existing initialCapitalComposition and topUpComposition declared at lines 574-575)
 
-                        // Support legacy and new structure for initial
-                        let instruments = capitalDistribution;
-                        if (!instruments.length && profile.instruments) {
-                            instruments = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
-                        }
-
                         // To match Investment logic, we need to fetch all products in composition
-                        // We might have already fetched some for PDS check, but let's iterate to build full list
-                        for (const item of instruments) {
+                        // We use the already built capitalDistribution
+                        for (const item of capitalDistribution) {
                             const product = await productRepository.findById(item.product_id);
                             if (!product) continue;
                             const amountForProduct = Math.max(InitialCapital * (item.share_percent / 100), 1);
@@ -726,10 +734,7 @@ class CalculationService {
 
                         // --- FINAL TOP-UP COMPOSITION BUILD ---
                         // Now that recommendedReplenishment is finalized (potentially reduced by PDS), we build the composition
-                        let topUpDist = profile.top_up || [];
-                        if (!topUpDist.length && profile.instruments) {
-                            topUpDist = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
-                        }
+                        let topUpDist = topUpDistribution;
                         if (!topUpDist.length && capitalDistribution.length > 0) topUpDist = capitalDistribution; // Fallback
 
                         for (const item of topUpDist) {
@@ -1190,7 +1195,7 @@ class CalculationService {
                                 const product = await productRepository.findById(item.product_id);
                                 if (!product) continue;
                                 // Check if this is PDS to set share
-                                if (pdsProductId && item.product_id === pdsProductId) {
+                                if (pdsProductId && item.product_id == pdsProductId) {
                                     pdsShareTopUp = item.share_percent;
                                 }
 
@@ -1204,7 +1209,7 @@ class CalculationService {
                                 });
                             }
 
-                            if (pdsProductId && pdsShareTopUp === 0 && pdsShareInitial > 0) {
+                            if (pdsProductId && !pdsShareTopUp && pdsShareInitial) {
                                 pdsShareTopUp = pdsShareInitial;
                             }
 
@@ -1534,7 +1539,7 @@ class CalculationService {
 
             if (pdsProductId) {
                 for (const item of topUpDistribution) {
-                    if (item.product_id === pdsProductId) {
+                    if (item.product_id == pdsProductId) {
                         pdsShareTopUp = item.share_percent;
                         break;
                     }
@@ -1551,7 +1556,7 @@ class CalculationService {
                 }
             }
             // Если в top_up нет ПДС, используем долю из initial_capital
-            if (pdsShareTopUp === 0 && pdsShareInitial > 0) {
+            if (pdsProductId && !pdsShareTopUp && pdsShareInitial) {
                 pdsShareTopUp = pdsShareInitial;
             }
 
