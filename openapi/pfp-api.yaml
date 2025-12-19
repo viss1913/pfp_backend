@@ -196,6 +196,11 @@ components:
           format: date
           description: Дата начала цели (YYYY-MM-DD или ISO 8601). По умолчанию текущая дата. Используется для расчета софинансирования ПДС
           example: "2024-01-01"
+        monthly_replenishment:
+          type: number
+          minimum: 0
+          description: Планируемое ежемесячное пополнение (для INVESTMENT вводим вручную, для других может не использоваться)
+          example: 10000
         payment_variant:
           type: integer
           enum: [0, 1, 2, 4, 12]
@@ -356,6 +361,10 @@ components:
               type: number
               format: double
               description: Recommended monthly replenishment (₽)
+            monthly_replenishment_without_pds:
+              type: number
+              format: double
+              description: Recommended monthly replenishment without PDS cofinancing (₽)
             portfolio_yield_annual_percent:
               type: number
               format: double
@@ -417,19 +426,37 @@ components:
                     type: number
                     format: double
                     description: Interest income for year (₽)
+        summary:
+          $ref: '#/components/schemas/GoalCalculationSummary'
         error:
           type: string
           description: Error message if calculation failed
     CalculationResponse:
       type: object
       properties:
-        results:
+        summary:
+          type: object
+          properties:
+            goals_count:
+              type: integer
+              description: Total number of calculated goals
+            total_capital:
+              type: number
+              format: double
+              description: Cumulative projected capital across all goals (₽)
+            total_state_benefit:
+              type: number
+              format: double
+              description: Total state benefit (NSJ + PDS) accumulated across all goals (₽)
+        goals:
           type: array
+          description: List of goals with calculation results, in the original request order
           items:
             oneOf:
               - $ref: '#/components/schemas/PortfolioCalculationResult'
               - $ref: '#/components/schemas/LifeCalculationResult'
               - $ref: '#/components/schemas/PassiveIncomeCalculationResult'
+              - $ref: '#/components/schemas/PensionCalculationResult'
     PortfolioCalculationResult:
       type: object
       properties:
@@ -498,6 +525,9 @@ components:
               type: number
             recommended_replenishment:
               type: number
+            monthly_replenishment_without_pds:
+              type: number
+              description: Recommended monthly replenishment without PDS cofinancing (₽)
             portfolio_yield_annual_percent:
               type: number
         pds_cofinancing:
@@ -547,6 +577,8 @@ components:
                   percentage_income:
                     type: number
                     description: Процентный доход за год (₽)
+        summary:
+          $ref: '#/components/schemas/GoalCalculationSummary'
         error:
           type: string
           description: Error message if calculation failed
@@ -733,12 +765,11 @@ components:
                   type: string
               calculation_date:
                 type: integer
+        summary:
+          $ref: '#/components/schemas/GoalCalculationSummary'
         error:
           type: string
           description: Error message if NSJ calculation failed
-        nsj_error_details:
-          type: object
-          description: Detailed error information from NSJ API
 
 
     Client:

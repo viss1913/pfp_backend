@@ -11,22 +11,17 @@ const MAX_COFINANCING_YEARS = 10;
  */
 const COFINANCING_MONTH = 8;
 
+/**
+ * Базовый лимит софинансирования в год
+ */
+const BASE_ANNUAL_LIMIT = 36000;
+
 class PdsCofinancingService {
     /**
-     * Рассчитать эффект софинансирования ПДС
+     * Рассчитать эффект софинансирования ПДС с учетом ежегодных лимитов
      * 
      * @param {Object} params - Параметры расчета
-     * @param {number} params.capitalGap - Нехватка капитала без учета софинансирования
-     * @param {number} params.initialReplenishment - Месячное пополнение без учета софинансирования
-     * @param {number} params.initialCapital - Начальный капитал клиента
-     * @param {number} params.pdsShareInitial - Доля ПДС в начальном капитале (0-100)
-     * @param {number} params.pdsShareTopUp - Доля ПДС в пополнениях (0-100)
-     * @param {number} params.pdsProductId - ID продукта ПДС
-     * @param {number} params.termMonths - Срок цели в месяцах
-     * @param {number} params.avgMonthlyIncome - Среднемесячный доход клиента до НДФЛ (₽/мес)
-     * @param {Date|string} params.startDate - Дата начала (по умолчанию сегодня)
-     * @param {number} params.monthlyGrowthRate - Рост взноса в месяц (десятичная дробь, например 0.0033)
-     * @param {number} params.portfolioYieldMonthly - Доходность портфеля в месяц (десятичная дробь) для пересчета пополнения
+     * @param {Object} [params.usedCofinancingPerYear] - Объект {год: уже_использовано}, для учета лимита по нескольким целям
      * @returns {Promise<Object>} Результат расчета софинансирования
      */
     async calculateCofinancingEffect(params) {
@@ -41,7 +36,8 @@ class PdsCofinancingService {
             avgMonthlyIncome,
             startDate = new Date(),
             monthlyGrowthRate,
-            portfolioYieldMonthly
+            portfolioYieldMonthly,
+            usedCofinancingPerYear = {}
         } = params;
 
         // Если доля ПДС = 0, возвращаем исходные значения
@@ -52,7 +48,8 @@ class PdsCofinancingService {
                 total_cofinancing_nominal: 0,
                 total_cofinancing_with_investment: 0,
                 yearly_breakdown: [],
-                pds_applied: false
+                pds_applied: false,
+                actualUsedCofinancingPerYear: {}
             };
         }
 
@@ -62,33 +59,23 @@ class PdsCofinancingService {
             throw new Error(`PDS product with id ${pdsProductId} not found`);
         }
 
-        // Вычисляем текущий ПДС-капитал (для поиска доходности)
         const pdsInitialCapital = initialCapital * (pdsShareInitial / 100);
-
-        // Находим ставку ПДС из линий продукта
         const pdsYieldAnnual = this._findPdsYield(pdsProduct, pdsInitialCapital, termMonths);
         if (pdsYieldAnnual === null) {
             throw new Error(`PDS yield not found for capital ${pdsInitialCapital} and term ${termMonths} months`);
         }
-
-        // Переводим годовую ставку в месячную
         const pdsYieldMonthly = Math.pow(1 + (pdsYieldAnnual / 100), 1 / 12) - 1;
 
-        // Нормализуем дату начала
         const start = startDate instanceof Date ? startDate : new Date(startDate);
         const startYear = start.getFullYear();
-        const startMonth = start.getMonth() + 1; // JavaScript months are 0-based
+        const startMonth = start.getMonth() + 1;
 
-        // Определяем фактический год начала участия (с учетом взноса или капитала)
-        // Если в текущем году (например, 2025) не было ни капитала, ни пополнений (например, декабрь),
-        // то первый год участия для 10-летнего лимита будет следующий.
         let cofinancingStartYear = startYear;
         if (pdsInitialCapital <= 0 && startMonth === 12) {
             cofinancingStartYear = startYear + 1;
         }
 
-        // --- FIRST PASS: Estimate total co-financing with initial (dirty) replenishment ---
-        // Это нужно, чтобы понять, насколько софинансирование уменьшит общий GAP.
+        // --- FIRST PASS: Estimate total co-financing ---
         const firstPass = await this._runSimulation({
             pdsInitialCapital,
             monthlyPdsReplenishment: initialReplenishment * (pdsShareTopUp / 100),
@@ -98,28 +85,28 @@ class PdsCofinancingService {
             startMonth,
             cofinancingStartYear,
             monthlyGrowthRate,
-            avgMonthlyIncome
+            avgMonthlyIncome,
+            usedCofinancingPerYear,
+            passName: "Pass 1"
         });
 
-        // Будущая стоимость софинансирования из первой симуляции
         const totalCofinancingWithInvestment = firstPass.stateCapital;
-        const newCapitalGap = capitalGap - totalCofinancingWithInvestment;
 
-        // Пересчет рекомендованного пополнения с новой нехваткой
         let recommendedReplenishment = initialReplenishment;
-        if (newCapitalGap > 0 && portfolioYieldMonthly !== undefined) {
-            recommendedReplenishment = this._recalculateReplenishment(
-                newCapitalGap,
-                termMonths,
-                monthlyGrowthRate,
-                portfolioYieldMonthly
-            );
-        } else if (newCapitalGap <= 0) {
-            recommendedReplenishment = 0;
+        if (capitalGap > 0) {
+            const newCapitalGap = capitalGap - totalCofinancingWithInvestment;
+            if (newCapitalGap > 0 && portfolioYieldMonthly !== undefined) {
+                recommendedReplenishment = this._recalculateReplenishment(
+                    newCapitalGap,
+                    termMonths,
+                    monthlyGrowthRate,
+                    portfolioYieldMonthly
+                );
+            } else if (newCapitalGap <= 0) {
+                recommendedReplenishment = 0;
+            }
         }
 
-        // --- SECOND PASS: Final simulation with accurate (clean) replenishment for the breakdown ---
-        // Теперь строим таблицу на базе того, что реально будет платить клиент.
         const secondPass = await this._runSimulation({
             pdsInitialCapital,
             monthlyPdsReplenishment: recommendedReplenishment * (pdsShareTopUp / 100),
@@ -129,8 +116,17 @@ class PdsCofinancingService {
             startMonth,
             cofinancingStartYear,
             monthlyGrowthRate,
-            avgMonthlyIncome
+            avgMonthlyIncome,
+            usedCofinancingPerYear,
+            passName: "Pass 2"
         });
+
+
+
+        let finalNewCapitalGap = 0;
+        if (capitalGap > 0) {
+            finalNewCapitalGap = Math.max(0, capitalGap - secondPass.stateCapital);
+        }
 
         return {
             recommendedReplenishment: Math.round(recommendedReplenishment * 100) / 100,
@@ -140,7 +136,8 @@ class PdsCofinancingService {
             yearly_breakdown: secondPass.yearlyData,
             pds_applied: true,
             pds_yield_annual_percent: Math.round(pdsYieldAnnual * 100) / 100,
-            new_capital_gap: Math.round(newCapitalGap * 100) / 100
+            new_capital_gap: Math.round(finalNewCapitalGap * 100) / 100,
+            actualUsedCofinancingPerYear: secondPass.actualUsedInYear // Возвращаем, сколько реально задействовали в этой цели
         };
     }
 
@@ -158,23 +155,22 @@ class PdsCofinancingService {
             startMonth,
             cofinancingStartYear,
             monthlyGrowthRate,
-            avgMonthlyIncome
+            avgMonthlyIncome,
+            usedCofinancingPerYear = {},
+            passName = "Default"
         } = config;
 
-        // Инициализация счетчиков
         let clientCapital = pdsInitialCapital;
         let stateCapital = 0;
         let totalCofinNominal = 0;
+        const actualUsedInYear = {}; // Сколько бонуса ПДС привязали к этой конкретной цели по годам
 
-        // Трекинг взносов по годам
         const yearlyContributions = {};
         if (pdsInitialCapital > 0) {
             yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + pdsInitialCapital;
         }
 
         const yearlyData = [];
-
-        // Взносы начинаются со следующего месяца
         let firstContributionDate = new Date(startYear, startMonth - 1, 1);
         if (startMonth === 12) {
             firstContributionDate.setFullYear(startYear + 1, 0, 1);
@@ -198,23 +194,30 @@ class PdsCofinancingService {
                 const capitalAtYearEnd = clientCapital + stateCapital;
                 const percentageIncome = capitalAtYearEnd - capitalAtYearStart - clientContribThisYear - cofinPaidThisYear;
 
+                // Расчет "заработанного" за прошлый год для отображения в таблице
                 let cofinForPrevYear = 0;
                 if (yearlyContributions[currentYear] && currentYear - cofinancingStartYear < MAX_COFINANCING_YEARS) {
                     try {
+                        const alreadyTaken = usedCofinancingPerYear[currentYear] || 0;
+                        const remainingLimit = Math.max(0, BASE_ANNUAL_LIMIT - alreadyTaken);
+
                         const cofinResult = await settingsService.calculatePdsCofinancing(
                             yearlyContributions[currentYear],
-                            avgMonthlyIncome
+                            avgMonthlyIncome,
+                            remainingLimit
                         );
                         cofinForPrevYear = cofinResult.state_cofin_amount || 0;
-                    } catch (e) { }
+                    } catch (e) {
+                        console.error(`[PDS Debug] Error in year ${currentYear}:`, e);
+                    }
                 }
 
                 yearlyData.push({
                     year: currentYear,
                     capital_start_of_year: Math.round(capitalAtYearStart * 100) / 100,
                     client_contrib_year: Math.round(clientContribThisYear * 100) / 100,
-                    cofinancing_earned: cofinForPrevYear, // Заработано за этот год (придет в августе следующего)
-                    cofinancing_paid_in_year: Math.round(cofinPaidThisYear * 100) / 100, // Реально зачисленное в этом году
+                    cofinancing_earned: cofinForPrevYear,
+                    cofinancing_paid_in_year: Math.round(cofinPaidThisYear * 100) / 100,
                     capital_end_of_year: Math.round(capitalAtYearEnd * 100) / 100,
                     percentage_income: Math.round(percentageIncome * 100) / 100
                 });
@@ -225,11 +228,9 @@ class PdsCofinancingService {
                 currentYear = year;
             }
 
-            // Начисление процентов
             clientCapital = clientCapital * (1 + pdsYieldMonthly);
             stateCapital = stateCapital * (1 + pdsYieldMonthly);
 
-            // Взнос клиента
             if (monthIndex < termMonths - 1) {
                 const monthlyContribution = monthlyPdsReplenishment * Math.pow(1 + monthlyGrowthRate, monthIndex);
                 clientCapital += monthlyContribution;
@@ -240,17 +241,25 @@ class PdsCofinancingService {
             // Начисление софинансирования в августе
             if (month === COFINANCING_MONTH && year > cofinancingStartYear) {
                 const prevYear = year - 1;
+                // ВАЖНО: Мы смотрим лимит того года, ЗА КОТОРЫЙ платим (prevYear), 
+                // но выплату получаем в текущем (year). Лимит ПДС 36к относится к году взносов.
                 if (year - cofinancingStartYear <= MAX_COFINANCING_YEARS && yearlyContributions[prevYear]) {
                     try {
+                        const alreadyTaken = usedCofinancingPerYear[prevYear] || 0;
+                        const remainingLimit = Math.max(0, BASE_ANNUAL_LIMIT - alreadyTaken);
+
                         const cofinResult = await settingsService.calculatePdsCofinancing(
                             yearlyContributions[prevYear],
-                            avgMonthlyIncome
+                            avgMonthlyIncome,
+                            remainingLimit
                         );
                         const stateCofinAmount = cofinResult.state_cofin_amount || 0;
                         if (stateCofinAmount > 0) {
                             stateCapital += stateCofinAmount;
                             totalCofinNominal += stateCofinAmount;
                             cofinPaidThisYear += stateCofinAmount;
+                            // Накапливаем, сколько эта цель "съела" из лимита за этот год взносов
+                            actualUsedInYear[prevYear] = (actualUsedInYear[prevYear] || 0) + stateCofinAmount;
                         }
                     } catch (e) { }
                 }
@@ -266,9 +275,13 @@ class PdsCofinancingService {
         let cofinForThisYear = 0;
         if (yearlyContributions[currentYear] && currentYear - cofinancingStartYear < MAX_COFINANCING_YEARS) {
             try {
+                const alreadyTaken = usedCofinancingPerYear[currentYear] || 0;
+                const remainingLimit = Math.max(0, BASE_ANNUAL_LIMIT - alreadyTaken);
+
                 const cofinResult = await settingsService.calculatePdsCofinancing(
                     yearlyContributions[currentYear],
-                    avgMonthlyIncome
+                    avgMonthlyIncome,
+                    remainingLimit
                 );
                 cofinForThisYear = cofinResult.state_cofin_amount || 0;
             } catch (e) { }
@@ -284,13 +297,17 @@ class PdsCofinancingService {
             percentage_income: Math.round(percentageIncome * 100) / 100
         });
 
-        // Софинансирование в следующем году (прогноз за текущий календарный год)
+        // Прогноз на след. год (август будущего года)
         let cofinancingNextYear = 0;
         if (yearlyContributions[startYear]) {
             try {
+                const alreadyTaken = usedCofinancingPerYear[startYear] || 0;
+                const remainingLimit = Math.max(0, BASE_ANNUAL_LIMIT - alreadyTaken);
+
                 const cofinResult = await settingsService.calculatePdsCofinancing(
                     yearlyContributions[startYear],
-                    avgMonthlyIncome
+                    avgMonthlyIncome,
+                    remainingLimit
                 );
                 cofinancingNextYear = cofinResult.state_cofin_amount || 0;
             } catch (e) { }
@@ -300,33 +317,24 @@ class PdsCofinancingService {
             stateCapital,
             totalCofinNominal,
             yearlyData,
-            cofinancingNextYear
+            cofinancingNextYear,
+            actualUsedInYear
         };
     }
 
-    /**
-     * Найти доходность ПДС из линий продукта
-     * @private
-     */
     _findPdsYield(pdsProduct, capitalAmount, termMonths) {
         const yields = pdsProduct.yields || [];
         if (yields.length === 0) return null;
-
         const line = yields.find(l =>
             capitalAmount >= parseFloat(l.amount_from) &&
             capitalAmount <= parseFloat(l.amount_to) &&
             termMonths >= l.term_from_months &&
             termMonths <= l.term_to_months
         );
-
         const effectiveLine = line || yields[0];
         return effectiveLine ? parseFloat(effectiveLine.yield_percent) : null;
     }
 
-    /**
-     * Пересчитать рекомендованное пополнение
-     * @private
-     */
     _recalculateReplenishment(capitalGap, termMonths, m_month_decimal, d_month_decimal) {
         let recommendedReplenishment = 0;
         if (Math.abs(m_month_decimal - d_month_decimal) < 0.0000001) {

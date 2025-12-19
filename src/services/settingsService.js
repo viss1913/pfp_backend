@@ -90,7 +90,7 @@ class SettingsService {
     async get(key) {
         const setting = await settingsRepository.findByKey(key);
         if (!setting) return null;
-        
+
         return {
             key: setting.key,
             value: this._parseValue(setting.value, setting.value_type),
@@ -115,8 +115,8 @@ class SettingsService {
     async getTaxBracketById(id) {
         const bracket = await tax2ndflRepository.findById(id);
         if (!bracket) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: `Tax bracket with id ${id} not found`,
                 error: 'Tax bracket not found'
             };
@@ -130,8 +130,8 @@ class SettingsService {
     async getTaxBracketByIncome(income) {
         const bracket = await tax2ndflRepository.findByIncome(income);
         if (!bracket) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: `No tax bracket found for income ${income}`,
                 error: 'Tax bracket not found'
             };
@@ -144,8 +144,8 @@ class SettingsService {
      */
     async createTaxBracket(data, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage tax brackets',
                 error: 'Forbidden'
             };
@@ -165,11 +165,11 @@ class SettingsService {
         for (const bracket of existing) {
             // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
             if (
-                (data.income_from <= bracket.income_to) && 
+                (data.income_from <= bracket.income_to) &&
                 (data.income_to >= bracket.income_from)
             ) {
-                throw { 
-                    status: 400, 
+                throw {
+                    status: 400,
                     message: `Income range [${data.income_from}, ${data.income_to}] overlaps with existing bracket [${bracket.income_from}, ${bracket.income_to}] (id: ${bracket.id})`,
                     error: 'Overlapping brackets'
                 };
@@ -195,8 +195,8 @@ class SettingsService {
      */
     async updateTaxBracket(id, data, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage tax brackets',
                 error: 'Forbidden'
             };
@@ -204,8 +204,8 @@ class SettingsService {
 
         const existing = await tax2ndflRepository.findById(id);
         if (!existing) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: `Tax bracket with id ${id} not found`,
                 error: 'Tax bracket not found'
             };
@@ -232,11 +232,11 @@ class SettingsService {
 
             // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
             if (
-                (incomeFrom <= bracket.income_to) && 
+                (incomeFrom <= bracket.income_to) &&
                 (incomeTo >= bracket.income_from)
             ) {
-                throw { 
-                    status: 400, 
+                throw {
+                    status: 400,
                     message: `Income range [${incomeFrom}, ${incomeTo}] overlaps with existing bracket [${bracket.income_from}, ${bracket.income_to}] (id: ${bracket.id})`,
                     error: 'Overlapping brackets'
                 };
@@ -252,8 +252,8 @@ class SettingsService {
      */
     async deleteTaxBracket(id, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage tax brackets',
                 error: 'Forbidden'
             };
@@ -261,8 +261,8 @@ class SettingsService {
 
         const bracket = await tax2ndflRepository.findById(id);
         if (!bracket) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: `Tax bracket with id ${id} not found`,
                 error: 'Tax bracket not found'
             };
@@ -277,8 +277,8 @@ class SettingsService {
      */
     async createTaxBracketsMany(brackets, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage tax brackets',
                 error: 'Forbidden'
             };
@@ -305,14 +305,14 @@ class SettingsService {
             for (let j = i + 1; j < brackets.length; j++) {
                 const b1 = brackets[i];
                 const b2 = brackets[j];
-                
+
                 // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
                 if (
-                    (b1.income_from <= b2.income_to) && 
+                    (b1.income_from <= b2.income_to) &&
                     (b1.income_to >= b2.income_from)
                 ) {
-                    throw { 
-                        status: 400, 
+                    throw {
+                        status: 400,
                         message: `Bracket at index ${i} overlaps with bracket at index ${j}`,
                         error: 'Validation error'
                     };
@@ -326,11 +326,11 @@ class SettingsService {
             for (const existingBracket of existing) {
                 // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
                 if (
-                    (newBracket.income_from <= existingBracket.income_to) && 
+                    (newBracket.income_from <= existingBracket.income_to) &&
                     (newBracket.income_to >= existingBracket.income_from)
                 ) {
-                    throw { 
-                        status: 400, 
+                    throw {
+                        status: 400,
                         message: `Bracket at index ${i} overlaps with existing bracket [${existingBracket.income_from}, ${existingBracket.income_to}] (id: ${existingBracket.id})`,
                         error: 'Overlapping brackets'
                     };
@@ -377,8 +377,8 @@ class SettingsService {
     async getPdsCofinSettings() {
         const settings = await pdsSettingsRepository.find();
         if (!settings) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: 'PDS cofinancing settings not found',
                 error: 'Settings not found'
             };
@@ -391,8 +391,8 @@ class SettingsService {
      */
     async updatePdsCofinSettings(data, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage PDS cofinancing settings',
                 error: 'Forbidden'
             };
@@ -440,8 +440,8 @@ class SettingsService {
     async getPdsCofinIncomeBracketById(id) {
         const bracket = await pdsCofinIncomeBracketsRepository.findById(id);
         if (!bracket) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: `PDS cofinancing income bracket with id ${id} not found`,
                 error: 'Bracket not found'
             };
@@ -454,8 +454,8 @@ class SettingsService {
      */
     async createPdsCofinIncomeBracket(data, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage PDS cofinancing income brackets',
                 error: 'Forbidden'
             };
@@ -484,17 +484,17 @@ class SettingsService {
         // Валидация: проверяем, что диапазоны не пересекаются
         const existing = await pdsCofinIncomeBracketsRepository.findAll();
         const incomeTo = data.income_to !== undefined && data.income_to !== null ? data.income_to : Infinity;
-        
+
         for (const bracket of existing) {
             const bracketIncomeTo = bracket.income_to !== null ? bracket.income_to : Infinity;
-            
+
             // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
             if (
-                (data.income_from <= bracketIncomeTo) && 
+                (data.income_from <= bracketIncomeTo) &&
                 (incomeTo >= bracket.income_from)
             ) {
-                throw { 
-                    status: 400, 
+                throw {
+                    status: 400,
                     message: `Income range [${data.income_from}, ${data.income_to === null ? '∞' : data.income_to}] overlaps with existing bracket [${bracket.income_from}, ${bracket.income_to === null ? '∞' : bracket.income_to}] (id: ${bracket.id})`,
                     error: 'Overlapping brackets'
                 };
@@ -519,8 +519,8 @@ class SettingsService {
      */
     async updatePdsCofinIncomeBracket(id, data, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage PDS cofinancing income brackets',
                 error: 'Forbidden'
             };
@@ -528,8 +528,8 @@ class SettingsService {
 
         const existing = await pdsCofinIncomeBracketsRepository.findById(id);
         if (!existing) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: `PDS cofinancing income bracket with id ${id} not found`,
                 error: 'Bracket not found'
             };
@@ -538,7 +538,7 @@ class SettingsService {
         // Валидация: если указаны оба поля, проверяем корректность диапазона
         const incomeFrom = data.income_from !== undefined ? data.income_from : existing.income_from;
         const incomeTo = data.income_to !== undefined ? (data.income_to === null ? null : data.income_to) : existing.income_to;
-        
+
         if (incomeFrom < 0) {
             throw {
                 status: 400,
@@ -566,11 +566,11 @@ class SettingsService {
 
             // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
             if (
-                (incomeFrom <= bracketIncomeTo) && 
+                (incomeFrom <= bracketIncomeTo) &&
                 (incomeToForCheck >= bracket.income_from)
             ) {
-                throw { 
-                    status: 400, 
+                throw {
+                    status: 400,
                     message: `Income range [${incomeFrom}, ${incomeTo === null ? '∞' : incomeTo}] overlaps with existing bracket [${bracket.income_from}, ${bracket.income_to === null ? '∞' : bracket.income_to}] (id: ${bracket.id})`,
                     error: 'Overlapping brackets'
                 };
@@ -580,7 +580,7 @@ class SettingsService {
         // Валидация коэффициентов
         const ratioNumerator = data.ratio_numerator !== undefined ? data.ratio_numerator : existing.ratio_numerator;
         const ratioDenominator = data.ratio_denominator !== undefined ? data.ratio_denominator : existing.ratio_denominator;
-        
+
         if (ratioNumerator <= 0 || ratioDenominator <= 0) {
             throw {
                 status: 400,
@@ -598,8 +598,8 @@ class SettingsService {
      */
     async deletePdsCofinIncomeBracket(id, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage PDS cofinancing income brackets',
                 error: 'Forbidden'
             };
@@ -607,8 +607,8 @@ class SettingsService {
 
         const bracket = await pdsCofinIncomeBracketsRepository.findById(id);
         if (!bracket) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: `PDS cofinancing income bracket with id ${id} not found`,
                 error: 'Bracket not found'
             };
@@ -632,8 +632,8 @@ class SettingsService {
     async getPassiveIncomeYield() {
         const setting = await settingsRepository.findByKey('passive_income_yield');
         if (!setting) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: 'Passive income yield settings not found',
                 error: 'Settings not found'
             };
@@ -649,8 +649,8 @@ class SettingsService {
      */
     async updatePassiveIncomeYield(lines, isAdmin) {
         if (!isAdmin) {
-            throw { 
-                status: 403, 
+            throw {
+                status: 403,
                 message: 'Only administrators can manage passive income yield settings',
                 error: 'Forbidden'
             };
@@ -739,7 +739,7 @@ class SettingsService {
         }
 
         let line;
-        
+
         if (byTermOnly) {
             // Ищем только по сроку
             line = lines.find(l =>
@@ -759,12 +759,12 @@ class SettingsService {
         return line || null;
     }
 
-    async calculatePdsCofinancing(yearlyContribution, avgMonthlyIncome) {
+    async calculatePdsCofinancing(yearlyContribution, avgMonthlyIncome, overrideMaxAmount = null) {
         // Получаем настройки
         const settings = await pdsSettingsRepository.find();
         if (!settings) {
-            throw { 
-                status: 500, 
+            throw {
+                status: 500,
                 message: 'PDS cofinancing settings not configured',
                 error: 'Configuration error'
             };
@@ -783,8 +783,8 @@ class SettingsService {
         // Находим подходящий диапазон дохода
         const bracket = await pdsCofinIncomeBracketsRepository.findByIncome(avgMonthlyIncome);
         if (!bracket) {
-            throw { 
-                status: 404, 
+            throw {
+                status: 404,
                 message: `No income bracket found for monthly income ${avgMonthlyIncome} ₽`,
                 error: 'Bracket not found'
             };
@@ -793,11 +793,12 @@ class SettingsService {
         // Рассчитываем коэффициент
         const cofinCoef = bracket.ratio_numerator / bracket.ratio_denominator;
 
-        // Рассчитываем сумму софинансирования с учетом лимита
+        // Рассчитываем сумму софинансирования с учетом лимита (базового или переданного)
+        const limit = overrideMaxAmount !== null ? overrideMaxAmount : settings.max_state_cofin_amount_per_year;
         const calculatedAmount = yearlyContribution * cofinCoef;
         const stateCofinAmount = Math.min(
-            Math.floor(calculatedAmount), 
-            settings.max_state_cofin_amount_per_year
+            Math.floor(calculatedAmount),
+            limit
         );
 
         return {

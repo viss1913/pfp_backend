@@ -111,9 +111,15 @@ class CalculationService {
             console.warn('Could not fetch inflation_rate_year, using default 4.0');
         }
 
-        const results = [];
+        const usedCofinancingPerYear = {};
+        const resultsIndexed = [];
 
-        for (const goal of goals) {
+        // Сортируем цели по сроку (от самых дальних к самым коротким), 
+        // чтобы приоритет софинансирования ПДС был у долгосрочных целей.
+        const indexedGoals = (goals || []).map((g, i) => ({ goal: g, index: i }))
+            .sort((a, b) => (b.goal.term_months || 0) - (a.goal.term_months || 0));
+
+        for (const { goal, index } of indexedGoals) {
             // ---------------------------------------------------------
             // 1. DETERMINE GOAL TYPE
             // ---------------------------------------------------------
@@ -129,11 +135,6 @@ class CalculationService {
 
             // LIFE (id=5) - "Жизнь" / NSJ
             const isLifeGoal = goal.goal_type_id === 5 || goal.name === 'Жизнь';
-
-            // If checking explicitly by ID, ensure we don't double match if IDs overlap with names logic unexpectedly.
-            // Prioritize ID checks if validation confirms IDs.
-
-            // ... (Dispatch logic) ...
 
             // Если это цель типа INVESTMENT / CAPITAL
             if (isInvestmentGoal) {
@@ -321,7 +322,7 @@ class CalculationService {
 
                     if (pdsProductId) {
                         for (const item of topUpInstruments) {
-                            if (item.product_id === pdsProductId) {
+                            if (item.product_id == pdsProductId) {
                                 pdsShareTopUp = item.share_percent;
                                 break;
                             }
@@ -361,63 +362,68 @@ class CalculationService {
                             avgMonthlyIncome: avgMonthlyIncome,
                             startDate: startDate,
                             monthlyGrowthRate: inflationMonthly, // Indexation
-                            portfolioYieldMonthly: yieldMonthly
+                            portfolioYieldMonthly: yieldMonthly,
+                            usedCofinancingPerYear
                         });
+
+                        // Обновляем использованное софинансирование для следующих целей
+                        if (pdsResult && pdsResult.actualUsedCofinancingPerYear) {
+                            for (const yr in pdsResult.actualUsedCofinancingPerYear) {
+                                usedCofinancingPerYear[yr] = (usedCofinancingPerYear[yr] || 0) + pdsResult.actualUsedCofinancingPerYear[yr];
+                            }
+                        }
                     }
 
                     const totalStateCapital = pdsResult ? pdsResult.total_cofinancing_with_investment : 0;
                     const totalCapital = accumulatedOwnCapital + totalStateCapital;
 
-                    results.push({
-                        goal_id: goal.goal_type_id,
-                        goal_name: goal.name,
-                        goal_type: 'INVESTMENT',
-                        investment_calculation: {
-                            initial_capital: initialCapital,
-                            monthly_replenishment_start: replenishment,
-                            term_months: termMonths,
-                            portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
-                            inflation_rate_annual: inflationRate,
-
-                            total_capital: Math.round(totalCapital * 100) / 100,
-                            total_own_capital: Math.round(accumulatedOwnCapital * 100) / 100,
-                            total_state_capital: Math.round(totalStateCapital * 100) / 100,
-                            total_own_contributions: Math.round(totalOwnContributions * 100) / 100,
-
-                            yearly_breakdown_own: yearlyBreakdownOwn
-                        },
-                        pds_cofinancing: pdsResult ? {
-                            cofinancing_next_year: pdsResult.cofinancing_next_year,
-                            total_cofinancing_nominal: pdsResult.total_cofinancing_nominal,
-                            total_cofinancing_with_investment: pdsResult.total_cofinancing_with_investment,
-                            pds_yield_annual_percent: pdsResult.pds_yield_annual_percent,
-                            yearly_breakdown: pdsResult.yearly_breakdown
-                        } : null,
-
-                        // --- NEW: Unified Summary & Detail Blocks ---
-                        summary: {
+                    resultsIndexed.push({
+                        index, result: {
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
                             goal_type: 'INVESTMENT',
-                            status: 'OK',
-                            initial_capital: initialCapital,
-                            monthly_replenishment: replenishment,
-                            monthly_replenishment_without_pds: replenishment, // Since PDS is additive here, not reductive, maybe same? 
-                            // Wait, for Investment, PDS *adds* to capital, but "replenishment" is input. 
-                            // The user asked "without PDS to compare". But here replenishment is INPUT. 
-                            // So "without PDS" is just replenishment. 
-                            // For Passive Income/Pension, replenishment is *calculated*.
-                            // Let's keep it consistent. If input is fixed, "without PDS" is same.
-                            total_capital_at_end: Math.round(totalCapital * 100) / 100,
-                            target_achieved: true, // Investment is always achieved (accumulation)
-                            projected_value: Math.round(totalCapital * 100) / 100,
-                            state_benefit: Math.round(totalStateCapital * 100) / 100 // Explicit "Bonus" from state
-                        },
-                        portfolio_structure: {
-                            risk_profile: goal.risk_profile || 'BALANCED',
-                            portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
-                            inflation_rate_used: inflationRate,
-                            portfolio_composition: {
-                                initial_capital_allocation: initialCapitalComposition,
-                                monthly_topup_allocation: topUpComposition
+                            investment_calculation: {
+                                initial_capital: initialCapital,
+                                monthly_replenishment_start: replenishment,
+                                term_months: termMonths,
+                                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
+                                inflation_rate_annual: inflationRate,
+
+                                total_capital: Math.round(totalCapital * 100) / 100,
+                                total_own_capital: Math.round(accumulatedOwnCapital * 100) / 100,
+                                total_state_capital: Math.round(totalStateCapital * 100) / 100,
+                                total_own_contributions: Math.round(totalOwnContributions * 100) / 100,
+
+                                yearly_breakdown_own: yearlyBreakdownOwn
+                            },
+                            pds_cofinancing: pdsResult ? {
+                                cofinancing_next_year: pdsResult.cofinancing_next_year,
+                                total_cofinancing_nominal: pdsResult.total_cofinancing_nominal,
+                                total_cofinancing_with_investment: pdsResult.total_cofinancing_with_investment,
+                                pds_yield_annual_percent: pdsResult.pds_yield_annual_percent,
+                                yearly_breakdown: pdsResult.yearly_breakdown
+                            } : null,
+
+                            // --- NEW: Unified Summary & Detail Blocks ---
+                            summary: {
+                                goal_type: 'INVESTMENT',
+                                status: 'OK',
+                                initial_capital: initialCapital,
+                                monthly_replenishment: replenishment,
+                                monthly_replenishment_without_pds: replenishment,
+                                total_capital_at_end: Math.round(totalCapital * 100) / 100,
+                                target_achieved: true,
+                                projected_value: Math.round(totalCapital * 100) / 100,
+                                state_benefit: Math.round(totalStateCapital * 100) / 100
+                            },
+                            portfolio_structure: {
+                                risk_profile: goal.risk_profile || 'BALANCED',
+                                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
+                                inflation_rate_used: inflationRate,
+                                portfolio_composition: {
+                                    initial_capital_allocation: initialCapitalComposition,
+                                    monthly_topup_allocation: topUpComposition
+                                }
                             }
                         }
                     });
@@ -426,11 +432,13 @@ class CalculationService {
 
                 } catch (err) {
                     console.error('Investment calculation error:', err);
-                    results.push({
-                        goal_id: goal.goal_type_id,
-                        goal_name: goal.name,
-                        goal_type: 'INVESTMENT',
-                        error: err.message
+                    resultsIndexed.push({
+                        index, result: {
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            goal_type: 'INVESTMENT',
+                            error: err.message
+                        }
                     });
                     continue;
                 }
@@ -601,11 +609,13 @@ class CalculationService {
                         const profile = riskProfiles.find(p => p.profile_type === (goal.risk_profile || 'BALANCED'));
 
                         if (!profile) {
-                            results.push({
-                                goal_id: goal.goal_type_id,
-                                goal_name: goal.name,
-                                goal_type: 'PASSIVE_INCOME',
-                                error: `Risk profile ${goal.risk_profile || 'BALANCED'} not found in portfolio ${portfolio.name}`
+                            resultsIndexed.push({
+                                index, result: {
+                                    goal_id: goal.goal_type_id,
+                                    goal_name: goal.name,
+                                    goal_type: 'PASSIVE_INCOME',
+                                    error: `Risk profile ${goal.risk_profile || 'BALANCED'} not found in portfolio ${portfolio.name}`
+                                }
                             });
                             continue;
                         }
@@ -720,11 +730,18 @@ class CalculationService {
                                     avgMonthlyIncome: avgMonthlyIncome,
                                     startDate: startDate,
                                     monthlyGrowthRate: m_month_decimal,
-                                    portfolioYieldMonthly: d_month_decimal
+                                    portfolioYieldMonthly: d_month_decimal,
+                                    usedCofinancingPerYear
                                 });
 
                                 if (pdsCofinancingResult.pds_applied) {
                                     recommendedReplenishment = pdsCofinancingResult.recommendedReplenishment;
+                                    // Обновляем использованное софинансирование
+                                    if (pdsCofinancingResult.actualUsedCofinancingPerYear) {
+                                        for (const yr in pdsCofinancingResult.actualUsedCofinancingPerYear) {
+                                            usedCofinancingPerYear[yr] = (usedCofinancingPerYear[yr] || 0) + pdsCofinancingResult.actualUsedCofinancingPerYear[yr];
+                                        }
+                                    }
                                 }
                             } catch (pdsError) {
                                 console.error('PDS cofinancing calculation error for passive income:', pdsError);
@@ -820,16 +837,18 @@ class CalculationService {
                         };
                     }
 
-                    results.push(resultItem);
+                    resultsIndexed.push({ index, result: resultItem });
                     continue;
                 } catch (passiveIncomeError) {
                     console.error('Passive income calculation error:', passiveIncomeError);
-                    results.push({
-                        goal_id: goal.goal_type_id,
-                        goal_name: goal.name,
-                        goal_type: 'PASSIVE_INCOME',
-                        error: `Passive income calculation failed: ${passiveIncomeError.message || 'Unknown error'}`,
-                        error_details: passiveIncomeError
+                    resultsIndexed.push({
+                        index, result: {
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            goal_type: 'PASSIVE_INCOME',
+                            error: `Passive income calculation failed: ${passiveIncomeError.message || 'Unknown error'}`,
+                            error_details: passiveIncomeError
+                        }
                     });
                     continue;
                 }
@@ -844,11 +863,13 @@ class CalculationService {
                 try {
                     // Проверяем наличие необходимых данных клиента
                     if (!client || !client.birth_date) {
-                        results.push({
-                            goal_id: goal.goal_type_id,
-                            goal_name: goal.name,
-                            goal_type: 'PENSION',
-                            error: 'Client birth_date is required for pension calculation'
+                        resultsIndexed.push({
+                            index, result: {
+                                goal_id: goal.goal_type_id,
+                                goal_name: goal.name,
+                                goal_type: 'PENSION',
+                                error: 'Client birth_date is required for pension calculation'
+                            }
                         });
                         continue;
                     }
@@ -1006,11 +1027,13 @@ class CalculationService {
                     });
 
                     if (!portfolioForAcc) {
-                        results.push({
-                            goal_id: goal.goal_type_id,
-                            goal_name: goal.name,
-                            goal_type: 'PENSION',
-                            error: `No portfolio found (Class 1) to determine accumulation yield`
+                        resultsIndexed.push({
+                            index, result: {
+                                goal_id: goal.goal_type_id,
+                                goal_name: goal.name,
+                                goal_type: 'PENSION',
+                                error: `No portfolio found (Class 1) to determine accumulation yield`
+                            }
                         });
                         continue;
                     }
@@ -1023,11 +1046,13 @@ class CalculationService {
                     const profileYield = riskProfilesYield.find(p => p.profile_type === goal.risk_profile);
 
                     if (!profileYield) {
-                        results.push({
-                            goal_id: goal.goal_type_id,
-                            goal_name: goal.name,
-                            goal_type: 'PENSION',
-                            error: `Risk profile ${goal.risk_profile} not found in pension portfolio`
+                        resultsIndexed.push({
+                            index, result: {
+                                goal_id: goal.goal_type_id,
+                                goal_name: goal.name,
+                                goal_type: 'PENSION',
+                                error: `Risk profile ${goal.risk_profile} not found in pension portfolio`
+                            }
                         });
                         continue;
                     }
@@ -1230,11 +1255,18 @@ class CalculationService {
                                         avgMonthlyIncome: avgMonthlyIncome,
                                         startDate: startDate,
                                         monthlyGrowthRate: m_month_decimal,
-                                        portfolioYieldMonthly: d_month_decimal
+                                        portfolioYieldMonthly: d_month_decimal,
+                                        usedCofinancingPerYear
                                     });
 
                                     if (pdsCofinancingResult.pds_applied) {
                                         recommendedReplenishment = pdsCofinancingResult.recommendedReplenishment;
+                                        // Обновляем использованное софинансирование
+                                        if (pdsCofinancingResult.actualUsedCofinancingPerYear) {
+                                            for (const yr in pdsCofinancingResult.actualUsedCofinancingPerYear) {
+                                                usedCofinancingPerYear[yr] = (usedCofinancingPerYear[yr] || 0) + pdsCofinancingResult.actualUsedCofinancingPerYear[yr];
+                                            }
+                                        }
                                     }
                                 } catch (pdsError) {
                                     console.error('PDS cofinancing calculation error for pension:', pdsError);
@@ -1323,16 +1355,18 @@ class CalculationService {
                         };
                     }
 
-                    results.push(resultItem);
+                    resultsIndexed.push({ index, result: resultItem });
                     continue; // Пропускаем обычный расчет для PENSION
                 } catch (pensionError) {
                     console.error('Pension calculation error:', pensionError);
-                    results.push({
-                        goal_id: goal.goal_type_id,
-                        goal_name: goal.name,
-                        goal_type: 'PENSION',
-                        error: `Pension calculation failed: ${pensionError.message || 'Unknown error'}`,
-                        error_details: pensionError
+                    resultsIndexed.push({
+                        index, result: {
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            goal_type: 'PENSION',
+                            error: `Pension calculation failed: ${pensionError.message || 'Unknown error'}`,
+                            error_details: pensionError
+                        }
                     });
                     continue;
                 }
@@ -1346,9 +1380,11 @@ class CalculationService {
             });
 
             if (!portfolio) {
-                results.push({
-                    goal_name: goal.name,
-                    error: 'Portfolio not found for specified criteria'
+                resultsIndexed.push({
+                    index, result: {
+                        goal_name: goal.name,
+                        error: 'Portfolio not found for specified criteria'
+                    }
                 });
                 continue;
             }
@@ -1362,9 +1398,11 @@ class CalculationService {
             const profile = riskProfiles.find(p => p.profile_type === goal.risk_profile);
 
             if (!profile) {
-                results.push({
-                    goal_name: goal.name,
-                    error: `Risk profile ${goal.risk_profile} not found in portfolio ${portfolio.name}`
+                resultsIndexed.push({
+                    index, result: {
+                        goal_name: goal.name,
+                        error: `Risk profile ${goal.risk_profile} not found in portfolio ${portfolio.name}`
+                    }
                 });
                 continue;
             }
@@ -1581,12 +1619,19 @@ class CalculationService {
                         avgMonthlyIncome: avgMonthlyIncome,
                         startDate: startDate,
                         monthlyGrowthRate: m_month_decimal,
-                        portfolioYieldMonthly: d_month_decimal
+                        portfolioYieldMonthly: d_month_decimal,
+                        usedCofinancingPerYear
                     });
 
                     // Обновляем рекомендованное пополнение с учетом софинансирования
                     if (pdsCofinancingResult.pds_applied) {
                         recommendedReplenishment = pdsCofinancingResult.recommendedReplenishment;
+                        // Обновляем использованное софинансирование
+                        if (pdsCofinancingResult.actualUsedCofinancingPerYear) {
+                            for (const yr in pdsCofinancingResult.actualUsedCofinancingPerYear) {
+                                usedCofinancingPerYear[yr] = (usedCofinancingPerYear[yr] || 0) + pdsCofinancingResult.actualUsedCofinancingPerYear[yr];
+                            }
+                        }
                     }
                 } catch (pdsError) {
                     console.error('PDS cofinancing calculation error:', pdsError);
@@ -1675,11 +1720,21 @@ class CalculationService {
                 };
             }
 
-            results.push(resultItem);
+            resultsIndexed.push({ index, result: resultItem });
         }
 
+        // Сортируем результаты обратно в соответствии с порядком целей в запросе
+        const results = resultsIndexed
+            .sort((a, b) => a.index - b.index)
+            .map(item => item.result);
+
         return {
-            results: results
+            summary: {
+                goals_count: goals.length,
+                total_capital: results.reduce((sum, r) => sum + (r.summary?.total_capital_at_end || 0), 0),
+                total_state_benefit: results.reduce((sum, r) => sum + (r.summary?.state_benefit || 0), 0)
+            },
+            goals: results
         };
     }
 }
