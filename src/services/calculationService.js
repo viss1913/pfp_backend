@@ -570,6 +570,8 @@ class CalculationService {
                         term: goal.term_months
                     });
 
+                    let recommendedReplenishmentRaw = recommendedReplenishment;
+                    let capitalDistribution = [];
                     let pdsCofinancingResult = null;
                     const initialCapitalComposition = [];
                     const topUpComposition = [];
@@ -584,7 +586,6 @@ class CalculationService {
                         }
 
                         const profile = riskProfiles.find(p => p.profile_type === (goal.risk_profile || 'BALANCED'));
-                        let recommendedReplenishmentRaw = 0; // Pre-initialize to avoid TDZ shadowing issues
 
                         if (!profile) {
                             results.push({
@@ -595,8 +596,6 @@ class CalculationService {
                             });
                             continue;
                         }
-
-                        let capitalDistribution = []; // Move out and initialize to avoid TDZ
 
                         capitalDistribution = profile.initial_capital || [];
                         pdsProductId = null;
