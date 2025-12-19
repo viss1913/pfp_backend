@@ -583,40 +583,48 @@ class CalculationService {
                             try { riskProfiles = JSON.parse(riskProfiles); } catch (e) { riskProfiles = []; }
                         }
 
-                        const profile = riskProfiles.find(p => p.profile_type === goal.risk_profile);
+                        const profile = riskProfiles.find(p => p.profile_type === (goal.risk_profile || 'BALANCED'));
+                        if (!profile) {
+                            results.push({
+                                goal_id: goal.goal_type_id,
+                                goal_name: goal.name,
+                                goal_type: 'PASSIVE_INCOME',
+                                error: `Risk profile ${goal.risk_profile || 'BALANCED'} not found in portfolio ${portfolio.name}`
+                            });
+                            continue;
+                        }
 
-                        if (profile) {
-                            const capitalDistribution = profile.initial_capital || [];
-                            pdsProductId = null;
-                            pdsShareInitial = 0;
-                            pdsShareTopUp = 0;
+                        let capitalDistribution = []; // Move out and initialize to avoid TDZ
 
-                            // Ищем ПДС в initial_capital
-                            for (const item of capitalDistribution) {
-                                const product = await productRepository.findById(item.product_id);
-                                if (product && product.product_type === 'PDS') {
-                                    pdsProductId = product.id;
-                                    pdsShareInitial = item.share_percent;
+                        capitalDistribution = profile.initial_capital || [];
+                        pdsProductId = null;
+                        pdsShareInitial = 0;
+                        pdsShareTopUp = 0;
+
+                        // Ищем ПДС в initial_capital
+                        for (const item of capitalDistribution) {
+                            const product = await productRepository.findById(item.product_id);
+                            if (product && product.product_type === 'PDS') {
+                                pdsProductId = product.id;
+                                pdsShareInitial = item.share_percent;
+                                break;
+                            }
+                        }
+
+                        // Ищем ПДС в top_up
+                        if (pdsProductId) {
+                            const topUpDistribution = profile.top_up || [];
+                            for (const item of topUpDistribution) {
+                                if (item.product_id === pdsProductId) {
+                                    pdsShareTopUp = item.share_percent;
                                     break;
                                 }
                             }
 
-                            // Ищем ПДС в top_up
-                            if (pdsProductId) {
-                                const topUpDistribution = profile.top_up || [];
-                                for (const item of topUpDistribution) {
-                                    if (item.product_id === pdsProductId) {
-                                        pdsShareTopUp = item.share_percent;
-                                        break;
-                                    }
-                                }
-
-                            }
                         }
 
                         // --- BUILD ALLOCATION ARRAYS FOR COMPOSITION (Unified API) ---
-                        const initialCapitalComposition = [];
-                        const topUpComposition = [];
+                        // (Use existing initialCapitalComposition and topUpComposition declared at lines 574-575)
 
                         // Support legacy and new structure for initial
                         let instruments = capitalDistribution;
@@ -1141,7 +1149,7 @@ class CalculationService {
                                 if (!topUpDistForComp && profile.instruments) {
                                     topUpDistForComp = profile.instruments.filter(i => i.bucket_type === 'TOP_UP');
                                 }
-                                if ((!topUpDistForComp || !topUpDistForComp.length) && capitalDistribution.length > 0) {
+                                if ((!topUpDistForComp || !topUpDistForComp.length) && (capitalDistribution && capitalDistribution.length > 0)) {
                                     topUpDistForComp = capitalDistribution; // Fallback
                                 }
                                 topUpDistForComp = topUpDistForComp || [];
