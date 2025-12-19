@@ -8,8 +8,16 @@ class ClientRepository {
         return id;
     }
 
-    async findById(id) {
-        return knex('clients').where({ id }).first();
+    async findById(id, trx = null) {
+        const query = knex('clients').where({ id }).first();
+        if (trx) query.transacting(trx);
+        return query;
+    }
+
+    async findByEmail(email, trx = null) {
+        const query = knex('clients').where({ email }).first();
+        if (trx) query.transacting(trx);
+        return query;
     }
 
     async update(id, data, trx = null) {

@@ -1431,6 +1431,37 @@ paths:
         '501':
           description: Not implemented yet
 
+  /client/first-run:
+    post:
+      summary: Integrated First Run (Create Profile + Calculate Plan)
+      tags:
+        - Client API
+      security: []
+      description: |
+        Atomically creates/updates a client profile (including assets, liabilities, goals) 
+        and performs the initial financial plan calculation.
+        
+        If a client with the same email already exists, their profile is updated, 
+        and all previous assets/goals are REPLACED with the ones provided in this request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FullClientRequest'
+      responses:
+        '200':
+          description: Profile created/updated and calculation performed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  client_id:
+                    type: integer
+                  calculation:
+                    $ref: '#/components/schemas/CalculationResponse'
+
   /client/calculate:
     post:
       summary: Calculate financial plan for goals (Client API - Public)

@@ -4,6 +4,7 @@ const clientController = require('../controllers/clientController');
 
 // Calculator (Stateless)
 router.post('/calculate', clientController.calculateFirstRun.bind(clientController));
+router.post('/first-run', clientController.firstRun.bind(clientController));
 
 // Client Management (DB)
 router.post('/', clientController.create.bind(clientController));

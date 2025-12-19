@@ -5,10 +5,57 @@ class ClientService {
     async createFullClient(data) {
         // data structure: { client: {...}, assets: [], liabilities: [], expenses: [], goals: [] }
         return await knex.transaction(async (trx) => {
-            // 1. Create Base Client
-            const clientId = await clientRepository.create(data.client, trx);
+            let clientId;
+            const clientData = { ...data.client };
 
-            // 2. Add Related Data if present
+            // Handle name splitting if 'fio' is provided instead of first_name/last_name
+            if (clientData.fio && (!clientData.first_name || !clientData.last_name)) {
+                const parts = clientData.fio.trim().split(/\s+/);
+                if (parts.length >= 2) {
+                    clientData.last_name = clientData.last_name || parts[0];
+                    clientData.first_name = clientData.first_name || parts[1];
+                    clientData.middle_name = clientData.middle_name || parts.slice(2).join(' ') || null;
+                } else if (parts.length === 1) {
+                    clientData.first_name = clientData.first_name || parts[0];
+                    clientData.last_name = clientData.last_name || ' '; // Database requires notNullable
+                }
+            }
+
+            // Map sex/gender if needed
+            if (clientData.sex && !clientData.gender) {
+                clientData.gender = clientData.sex;
+            }
+
+            // Ensure required fields for DB
+            clientData.first_name = clientData.first_name || ' ';
+            clientData.last_name = clientData.last_name || ' ';
+
+            // Remove non-DB fields
+            delete clientData.fio;
+            delete clientData.sex;
+
+
+            // 1. Check if client exists by email (Upsert logic)
+            if (clientData.email) {
+                const existing = await clientRepository.findByEmail(clientData.email, trx);
+                if (existing) {
+                    clientId = existing.id;
+                    await clientRepository.update(clientId, clientData, trx);
+
+                    // Clear existing related data to replace with new data (Fresh Start)
+                    await clientRepository.deleteAssets(clientId, trx);
+                    await clientRepository.deleteLiabilities(clientId, trx);
+                    await clientRepository.deleteExpenses(clientId, trx);
+                    await clientRepository.deleteGoals(clientId, trx);
+                }
+            }
+
+            // 2. Create if not found/no email
+            if (!clientId) {
+                clientId = await clientRepository.create(clientData, trx);
+            }
+
+            // 3. Add Related Data
             if (data.assets && data.assets.length > 0) {
                 const assets = data.assets.map(a => ({ ...a, client_id: clientId }));
                 await clientRepository.addAssets(assets, trx);
@@ -24,9 +71,30 @@ class ClientService {
                 await clientRepository.addExpenses(expenses, trx);
             }
 
-            // 3. Add Goals if present
             if (data.goals && data.goals.length > 0) {
-                const goals = data.goals.map(g => ({ ...g, client_id: clientId }));
+                const goalColumns = [
+                    'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
+                    'term_months', 'end_date', 'initial_capital', 'inflation_rate', 'risk_profile'
+                ];
+
+                const goals = data.goals.map(g => {
+                    const goalRecord = { client_id: clientId };
+                    const params = {};
+
+                    Object.keys(g).forEach(key => {
+                        if (goalColumns.includes(key)) {
+                            goalRecord[key] = g[key];
+                        } else if (key !== 'client_id' && key !== 'id') {
+                            params[key] = g[key];
+                        }
+                    });
+
+                    if (Object.keys(params).length > 0) {
+                        goalRecord.params = JSON.stringify(params);
+                    }
+
+                    return goalRecord;
+                });
                 await clientRepository.addGoals(goals, trx);
             }
 

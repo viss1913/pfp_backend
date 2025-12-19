@@ -86,7 +86,36 @@ class ClientController {
         }
     }
 
-    // --- New Client Management ---
+    // --- New Integrated Method (First Run / Onboarding) ---
+    async firstRun(req, res, next) {
+        try {
+            // 1. Validation (Reuse existing schema for calculation parts, but full request has assets/etc)
+            const validation = calculationRequestSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map(d => ({
+                        field: d.path.join('.'),
+                        message: d.message
+                    }))
+                });
+            }
+
+            // 2. Save/Update Profile
+            const clientId = await clientService.createFullClient(req.body);
+
+            // 3. Perform Calculation
+            const calculation = await calculationService.calculateFirstRun(req.body);
+
+            // 4. Return combined result
+            res.status(200).json({
+                client_id: clientId,
+                calculation: calculation
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
 
     async create(req, res, next) {
         try {
