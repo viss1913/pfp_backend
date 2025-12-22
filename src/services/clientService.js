@@ -109,6 +109,10 @@ class ClientService {
         return await clientRepository.getFullClientData(id);
     }
 
+    async updateClient(id, data) {
+        return await clientRepository.update(id, data);
+    }
+
     async updateFinancialAggregates(clientId, trx = null) {
         // Fetch fresh data (using transaction if provided, though repository methods here might need generic trx support or we assume read is safe)
         // For simplicity in this step, we just calculate from what we can fetch.

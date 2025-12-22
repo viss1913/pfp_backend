@@ -117,13 +117,18 @@ class ClientController {
                 });
             }
 
-            // 2. Save/Update Profile
-            const clientId = await clientService.createFullClient(req.body);
-
-            // 3. Perform Calculation
+            // 2. Perform Calculation (This may inject "Smart" goals into req.body.goals)
             const calculation = await calculationService.calculateFirstRun(req.body);
 
-            // 4. Return combined result
+            // 3. Save/Update Profile (Now include injected goals)
+            const clientId = await clientService.createFullClient(req.body);
+
+            // 4. Save Calculation Snapshot to Client record for Agent/Consultant
+            await clientService.updateClient(clientId, {
+                goals_summary: JSON.stringify(calculation)
+            });
+
+            // 5. Return combined result
             res.status(200).json({
                 client_id: clientId,
                 calculation: calculation

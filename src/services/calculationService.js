@@ -205,13 +205,53 @@ class CalculationService {
         return { fixedInflows, sharedInflowsTaken, allInflows: [...fixedInflows, ...sharedInflowsTaken] };
     }
 
+    _calculateLifeInsuranceNeed(client, goals) {
+        const existingLife = goals.find(g => g.goal_type_id === 5 || (g.name && g.name.toUpperCase() === 'LIFE') || (g.name && g.name.includes('Жизнь')));
+        if (existingLife) return;
+
+        const birthDate = client.birth_date ? new Date(client.birth_date) : new Date();
+        const age = new Date().getFullYear() - birthDate.getFullYear();
+        const income = client.avg_monthly_income || 0;
+        if (income <= 0) return;
+
+        const yearsTo70 = Math.max(0, 70 - age);
+        const termYears = Math.min(20, yearsTo70);
+        if (termYears <= 0) return;
+
+        let targetAmount = income * 36;
+        let annualPremium = (targetAmount / termYears) * 1.2;
+        let monthlyPremium = annualPremium / 12;
+
+        const budgetCap = income * 0.04;
+        if (monthlyPremium > budgetCap) {
+            monthlyPremium = budgetCap;
+            annualPremium = monthlyPremium * 12;
+            targetAmount = (annualPremium / 1.2) * termYears;
+        }
+
+        goals.push({
+            goal_type_id: 5,
+            name: 'Страхование жизни (Smart)',
+            priority: 2,
+            is_policymaker: true, // Added flag
+            term_months: termYears * 12,
+            target_amount: targetAmount,
+            monthly_replenishment: monthlyPremium,
+            initial_capital: 0,
+            inflation_rate: 0
+        });
+        console.log(`[SmartLife] Injected: Term ${termYears}y, Coverage ${Math.round(targetAmount)}, Premium ${Math.round(monthlyPremium)}`);
+    }
+
     /**
      * Perform First Run calculation for a client request
      * @param {Object} data - CalculationRequest data
      */
     async calculateFirstRun(data) {
-        const { goals, client } = data; // client - опциональные данные клиента для НСЖ
+        const { goals, client } = data;
         const clientData = client || {};
+
+        this._calculateLifeInsuranceNeed(clientData, goals);
 
         // 1. COLLECT ASSETS AND POOL
         let poolBalance = Number(clientData.total_liquid_capital || 0);
@@ -631,48 +671,85 @@ class CalculationService {
                 console.log('Goal:', goal.name, 'Goal ID:', goal.goal_type_id);
                 console.log('Target amount:', goal.target_amount, 'Term months:', goal.term_months);
                 console.log('Client data:', JSON.stringify(client || {}, null, 2));
+
                 try {
                     const nsjParams = {
                         target_amount: goal.target_amount,
                         term_months: goal.term_months,
                         client: client || {},
-                        payment_variant: goal.payment_variant || 0, // По умолчанию единовременно
+                        payment_variant: goal.payment_variant || 12, // Default to Monthly for Smart Goals
                         program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
                     };
-                    console.log('Calling nsjApiService.calculateLifeInsurance with params:', JSON.stringify(nsjParams, null, 2));
+                    console.log('Calling nsjApiService.calculateLifeInsurance (Smart or Manual) with params:', JSON.stringify(nsjParams, null, 2));
+
                     let nsjResult;
                     try {
                         nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
-                    } catch (e) {
-                        // Fallback logic or rethrow if strictly required, but existing logic catches below
-                        throw e;
+                    } catch (apiError) {
+                        // If it's a smart goal, we have a fallback. If manual, rethrow to outer catch.
+                        if (goal.is_policymaker) {
+                            console.warn('NSJ API Failed for Smart Goal, using Fallback Calculation:', apiError.message);
+                            throw { is_smart_fallback: true };
+                        }
+                        throw apiError;
                     }
+
                     console.log('NSJ Result received:', JSON.stringify(nsjResult, null, 2));
 
-                    results.push({
-                        goal_id: goal.goal_type_id,
-                        goal_name: goal.name,
-                        goal_type: 'LIFE',
-                        nsj_calculation: {
-                            success: nsjResult.success,
-                            term_years: nsjResult.term || nsjResult.term_years,
-                            garantProfit: nsjResult.garantProfit || 0,
-                            risks: nsjResult.risks || [],
-                            total_premium: nsjResult.total_premium || nsjResult.total_premium_rur,
-                            total_premium_rur: nsjResult.total_premium_rur || nsjResult.total_premium,
-                            total_limit: nsjResult.total_limit,
-                            payTerm: nsjResult.payTerm,
-                            payEndDate: nsjResult.payEndDate,
-                            comission: nsjResult.comission || null,
-                            rvd: nsjResult.rvd || null,
-                            cashSurrenderValues: nsjResult.cashSurrenderValues || null,
-                            payments_list: nsjResult.payments_list || [],
-                            warnings: nsjResult.warnings || [],
-                            calculation_date: nsjResult.calculation_date
+                    resultsIndexed.push({
+                        index,
+                        result: {
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            goal_type: 'LIFE',
+                            summary: {
+                                goal_type: 'LIFE',
+                                status: 'OK',
+                                initial_capital: 0,
+                                monthly_replenishment: Math.round((nsjResult.total_premium || 0) / (nsjResult.term_years ? nsjResult.term_years * 12 : 1)),
+                                monthly_replenishment_without_pds: 0,
+                                total_capital_at_end: nsjResult.total_limit || 0,
+                                target_achieved: true,
+                                projected_value: nsjResult.total_limit || 0,
+                                state_benefit: 0
+                            },
+                            nsj_calculation: nsjResult
                         }
                     });
-                    continue; // Пропускаем обычный расчет для LIFE
+                    continue;
                 } catch (nsjError) {
+                    // Fallback for Smart Goals if API failed OR specifically triggered
+                    if (goal.is_policymaker || nsjError.is_smart_fallback) {
+                        console.log('Using Smart Life Fallback (Bypass) due to API error or choice');
+                        resultsIndexed.push({
+                            index,
+                            result: {
+                                goal_id: goal.goal_type_id,
+                                goal_name: goal.name,
+                                goal_type: 'LIFE',
+                                summary: {
+                                    goal_type: 'LIFE',
+                                    status: 'OK',
+                                    initial_capital: 0,
+                                    monthly_replenishment: Math.round((goal.monthly_replenishment || 0) * 100) / 100,
+                                    monthly_replenishment_without_pds: Math.round((goal.monthly_replenishment || 0) * 100) / 100,
+                                    total_capital_at_end: Math.round((goal.target_amount || 0) * 100) / 100,
+                                    target_achieved: true,
+                                    projected_value: Math.round((goal.target_amount || 0) * 100) / 100,
+                                    state_benefit: 0
+                                },
+                                nsj_calculation: {
+                                    success: true,
+                                    term_years: Math.round((goal.term_months || 0) / 12),
+                                    total_premium: Math.round((goal.monthly_replenishment || 0) * (goal.term_months || 0)),
+                                    total_limit: goal.target_amount,
+                                    warnings: ['Calculated by Smart Engine (Fallback Mode)']
+                                }
+                            }
+                        });
+                        continue;
+                    }
+
                     console.error('NSJ API Error for goal:', goal.name, nsjError);
                     const errorMessage = nsjError.message || nsjError.status || 'Unknown error';
                     const errorDetails = nsjError.errors || nsjError.warnings || nsjError.details || [];
@@ -683,13 +760,28 @@ class CalculationService {
                         warnings: nsjError.warnings || [],
                         full_response: nsjError.full_response || null
                     };
-                    results.push({
-                        goal_id: goal.goal_type_id,
-                        goal_name: goal.name,
-                        goal_type: 'LIFE',
-                        error: `NSJ calculation failed: ${errorMessage}`,
-                        nsj_error_details: errorDetails,
-                        nsj_error_full: fullError // Полная информация об ошибке для отладки
+                    resultsIndexed.push({
+                        index,
+                        result: {
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            goal_type: 'LIFE',
+                            // Add dummy summary for robustness
+                            summary: {
+                                goal_type: 'LIFE',
+                                status: 'ERROR',
+                                initial_capital: 0,
+                                monthly_replenishment: 0,
+                                monthly_replenishment_without_pds: 0,
+                                total_capital_at_end: 0,
+                                target_achieved: false,
+                                projected_value: 0,
+                                state_benefit: 0
+                            },
+                            error: `NSJ calculation failed: ${errorMessage}`,
+                            nsj_error_details: errorDetails,
+                            nsj_error_full: fullError // Полная информация об ошибке для отладки
+                        }
                     });
                     continue;
                 }
