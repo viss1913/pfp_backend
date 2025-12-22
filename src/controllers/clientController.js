@@ -28,7 +28,11 @@ const calculationRequestSchema = Joi.object({
         program: Joi.string().optional()
             .description('Код продукта НСЖ (по умолчанию "base")'),
         monthly_replenishment: Joi.number().min(0).optional()
-            .description('Ежемесячное пополнение (планируемое, для некоторых целей)')
+            .description('Ежемесячное пополнение (планируемое, для некоторых целей)'),
+        id: Joi.string().optional()
+            .description('Уникальный ID цели (для связки с активами)'),
+        priority: Joi.number().integer().min(1).max(10).optional()
+            .description('Приоритет цели (1 - самый высокий). Если не указан, определяется по типу цели')
     })).min(1).required()
         .description('Массив целей для расчета'),
     client: Joi.object({
@@ -48,6 +52,18 @@ const calculationRequestSchema = Joi.object({
             .description('Среднемесячный доход до НДФЛ (₽/мес). Используется для оценки ИПК при расчете пенсии и для расчета софинансирования ПДС'),
         ipk_current: Joi.number().min(0).allow(null).optional()
             .description('Текущий ИПК (индивидуальный пенсионный коэффициент) клиента. Если не указан, будет оценен на основе дохода'),
+        total_liquid_capital: Joi.number().min(0).optional().default(0)
+            .description('Общий ликвидный капитал клиента (Бассейн)'),
+        assets: Joi.array().items(Joi.object({
+            type: Joi.string().required(),
+            amount: Joi.number().min(0).optional(),
+            current_value: Joi.number().min(0).optional(),
+            unlock_month: Joi.number().integer().min(0).optional(),
+            sell_month: Joi.number().integer().min(0).optional(),
+            name: Joi.string().optional(),
+            goal_id: Joi.string().allow(null).optional()
+        })).optional().default([])
+            .description('Список активов клиента (депозиты, недвижимость и т.д.)'),
         insured_person: Joi.object({
             is_policy_holder: Joi.boolean().optional()
                 .description('Является ли застрахованный страхователем'),

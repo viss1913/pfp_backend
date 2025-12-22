@@ -1,0 +1,19 @@
+{
+  "goals": [
+    {
+      "goal_type_id": 4,
+      "name": "Дом",
+      "target_amount": 10000000,
+      "term_months": 180,
+      "risk_profile": "CONSERVATIVE",
+      "initial_capital": 2000000,
+      "inflation_rate": 6.0
+    }
+  ],
+  "client": {
+    "birth_date": "1995-01-01",
+    "sex": "male",
+    "avg_monthly_income": 100000
+  }
+}
+

@@ -78,17 +78,158 @@ class CalculationService {
         };
     }
 
+    _getPriority(goal) {
+        // 1: Reservoir/Emergency
+        // 2: Pension (id 1)
+        // 3: Passive Income (id 2) / Life (id 5)
+        // 4: Investment (id 3) / Other
+        const name = (goal.name || '').toUpperCase();
+        // Keep name check for backward compatibility or explicit "Reservation" naming
+        if (name.includes('РЕЗЕРВ') || name.includes('RESERVOIR')) return 1;
+
+        const map = {
+            7: 1, // FinReserve
+            1: 2, // Pension
+            2: 3, // Passive Income
+            5: 3  // Life
+        };
+        return map[goal.goal_type_id] || 4;
+    }
+
+    /**
+     * Simulate goal accumulation and find required monthly replenishment
+     * @param {Object} params 
+     */
+    async _simulateGoal(params) {
+        const {
+            initialCapital,
+            targetAmountFuture, // Already inflation-adjusted
+            termMonths,
+            monthlyYieldRate,
+            monthlyInflationRate,
+            inflows = [], // Array of { month, amount }
+            initialReplenishment = 0 // Starting guess if any
+        } = params;
+
+        // Implementation of finding replenishment using binary search or similar
+        // For simplicity, let's start with a simulation function first
+        const simulate = (mReplen) => {
+            let balance = initialCapital;
+            let currentReplen = mReplen;
+
+            // Add month 0 inflows
+            const m0Inflows = inflows.filter(i => i.month === 0);
+            for (const inf of m0Inflows) balance += inf.amount;
+
+            for (let m = 1; m <= termMonths; m++) {
+                // Yield accrual
+                balance *= (1 + monthlyYieldRate);
+                // Monthly top-up
+                balance += currentReplen;
+                // Add inflows for this month
+                const monthInflows = inflows.filter(i => i.month === m);
+                for (const inf of monthInflows) balance += inf.amount;
+                // Indexation
+                currentReplen *= (1 + monthlyInflationRate);
+            }
+            return balance;
+        };
+
+        // Binary search for replenishment
+        let low = 0;
+        let high = targetAmountFuture; // Safe upper bound
+        let mid = 0;
+
+        // If we already have enough capital
+        if (simulate(0) >= targetAmountFuture) return 0;
+
+        for (let i = 0; i < 40; i++) { // 40 iterations for high precision
+            mid = (low + high) / 2;
+            if (simulate(mid) < targetAmountFuture) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        return high;
+    }
+
+    /**
+     * Get all inflows for a goal (Fixed + allocated from Shared Pool)
+     */
+    _getGoalInflows(goal, assets, sharedPoolEvents, termMonths, initialCapital, targetAmountFuture, yieldMonthly, inflationMonthly, replenishment = 0) {
+        const fixedInflows = assets
+            .filter(a => a.goal_id === goal.id || a.goal_id === String(goal.id))
+            .map(a => ({
+                month: a.unlock_month || a.sell_month || 0,
+                amount: Number(a.amount || a.current_value || 0)
+            }));
+
+        const sharedInflowsTaken = [];
+        if (targetAmountFuture > 0) {
+            const getFV = (replen, infs) => {
+                let b = initialCapital;
+                let r = replen;
+                for (let m = 1; m <= termMonths; m++) {
+                    const mInfs = infs.filter(i => i.month === m);
+                    for (const inf of mInfs) b += inf.amount;
+                    b *= (1 + yieldMonthly);
+                    b += r;
+                    r *= (1 + inflationMonthly);
+                }
+                return b;
+            };
+
+            const fvWithoutShared = getFV(replenishment, fixedInflows);
+            let gapFuture = Math.max(0, targetAmountFuture - fvWithoutShared);
+
+            if (gapFuture > 0) {
+                for (const event of sharedPoolEvents) {
+                    if (event.month > termMonths) continue;
+                    if (event.amount <= 0) continue;
+
+                    const fvMultiplier = Math.pow(1 + yieldMonthly, termMonths - event.month);
+                    const neededNow = gapFuture / fvMultiplier;
+                    const takenAmount = Math.min(event.amount, neededNow);
+
+                    if (takenAmount > 0) {
+                        event.amount -= takenAmount;
+                        sharedInflowsTaken.push({ month: event.month, amount: takenAmount });
+                        gapFuture -= (takenAmount * fvMultiplier);
+                    }
+                    if (gapFuture <= 0) break;
+                }
+            }
+        }
+        return { fixedInflows, sharedInflowsTaken, allInflows: [...fixedInflows, ...sharedInflowsTaken] };
+    }
+
     /**
      * Perform First Run calculation for a client request
      * @param {Object} data - CalculationRequest data
      */
     async calculateFirstRun(data) {
         const { goals, client } = data; // client - опциональные данные клиента для НСЖ
+        const clientData = client || {};
 
-        // 1. Fetch System Settings
+        // 1. COLLECT ASSETS AND POOL
+        let poolBalance = Number(clientData.total_liquid_capital || 0);
+        const assets = clientData.assets || [];
 
-        // A. Investment Expense Growth (Monthly) from DB
-        // User didn't ask to change this to annual yet, keeping as monthly
+        // Chronological list of shared pool events (unlock_month: 0 is current liquid)
+        const sharedPoolEvents = assets
+            .filter(a => !a.goal_id)
+            .map(a => ({
+                month: a.unlock_month || a.sell_month || 0,
+                amount: Number(a.amount || a.current_value || 0)
+            }))
+            .sort((a, b) => a.month - b.month);
+
+        // Add initial liquid to the start
+        sharedPoolEvents.unshift({ month: 0, amount: poolBalance });
+
+        // 2. Fetch System Settings
         let m_month_percent = 0.0;
         try {
             const setting = await settingsService.get('investment_expense_growth_monthly');
@@ -99,10 +240,8 @@ class CalculationService {
             console.warn('Could not fetch investment_expense_growth_monthly, using default 0.0');
         }
 
-        // B. Inflation (Annual) from DB
         let db_inflation_year_percent = 4.0;
         try {
-            // Changed key to annual per legacy refactoring
             const setting = await settingsService.get('inflation_rate_year');
             if (setting && setting.value) {
                 db_inflation_year_percent = Number(setting.value);
@@ -114,10 +253,16 @@ class CalculationService {
         const usedCofinancingPerYear = {};
         const resultsIndexed = [];
 
-        // Сортируем цели по сроку (от самых дальних к самым коротким), 
-        // чтобы приоритет софинансирования ПДС был у долгосрочных целей.
+        // 3. SORT GOALS BY PRIORITY
+        // 1. Priority (highest first)
+        // 2. Term (shortest first)
         const indexedGoals = (goals || []).map((g, i) => ({ goal: g, index: i }))
-            .sort((a, b) => (b.goal.term_months || 0) - (a.goal.term_months || 0));
+            .sort((a, b) => {
+                const pA = a.goal.priority || this._getPriority(a.goal);
+                const pB = b.goal.priority || this._getPriority(b.goal);
+                if (pA !== pB) return pA - pB;
+                return (a.goal.term_months || 0) - (b.goal.term_months || 0);
+            });
 
         for (const { goal, index } of indexedGoals) {
             // ---------------------------------------------------------
@@ -136,24 +281,32 @@ class CalculationService {
             // LIFE (id=5) - "Жизнь" / NSJ
             const isLifeGoal = goal.goal_type_id === 5 || goal.name === 'Жизнь';
 
-            // Если это цель типа INVESTMENT / CAPITAL
-            if (isInvestmentGoal) {
+            // FIN_RESERVE (id=7) or name match
+            const isFinReserveGoal = goal.goal_type_id === 7 || (goal.name && goal.name.toUpperCase().includes('РЕЗЕРВ'));
+
+            // Если это цель типа INVESTMENT / CAPITAL / FIN_RESERVE
+            if (isInvestmentGoal || isFinReserveGoal) {
                 console.log('=== INVESTMENT CALCULATION START ===');
                 console.log('Goal:', goal.name, 'Goal ID:', goal.goal_type_id);
 
                 try {
                     // 1. ПАРАМЕТРЫ
                     const initialCapital = goal.initial_capital || 0;
-                    const monthlyReplenishment = goal.monthly_replenishment || 0; // Using specific field if available, or assume passed in another way?
+                    const replenishment = goal.monthly_replenishment || goal.replenishment_amount || 0; // Using specific field if available, or assume passed in another way?
                     // Usually 'target_amount' is present, but here we calculate Result. 
                     // However, 'monthly_replenishment' might be passed as 'initial_replenishment' or user might provide it in 'goal.monthly_replenishment'.
                     // If not present, we can't calculate accumulation properly unless we assume 0.
                     // Let's assume input has 'monthly_replenishment'.
-                    const replenishment = goal.monthly_replenishment || goal.replenishment_amount || 0;
+
 
                     const termMonths = goal.term_months || 120; // Default 10 years if missing
                     const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;
                     const inflationMonthly = Math.pow(1 + (inflationRate / 100), 1 / 12) - 1;
+
+                    // --- NEW: ASSET ALLOCATION ---
+                    // No initial declaration here, we'll get them from helper below
+                    const targetAmount = goal.target_amount || 0;
+                    const targetAmountFuture = targetAmount * Math.pow(1 + inflationMonthly, termMonths);
 
                     // 2. ИЩЕМ ПОРТФЕЛЬ
                     const portfolio = await portfolioRepository.findByCriteria({
@@ -262,32 +415,61 @@ class CalculationService {
                         });
                     }
 
-                    // 4. НАКОПЛЕНИЕ (Собственный капитал + Проценты)
+                    // 4. ДИНАМИЧЕСКОЕ РАСПРЕДЕЛЕНИЕ ИЗ ПУЛА
                     const yieldMonthly = Math.pow(1 + (weightedYieldAnnual / 100), 1 / 12) - 1;
-                    const mgmtFeeMonthly = m_month_percent / 100; // Investment expense
-                    const effectiveYieldMonthly = yieldMonthly; // - mgmtFeeMonthly (if we want to subtract fee, but usually fee is on AUM or similar. User logic "m_month_percent" used in PassiveIncome seems to suggest expense GROWTH? Or check passive income logic: term2 = (1 + m_month_decimal)... term1 = 1 + d_month_decimal.
-                    // In passive income:
-                    // numerator = Gap * (m_mont - d_mont)
-                    // It seems m_month_percent IS NOT a fee, but "Indexation of Replenishment" or similar?
-                    // Wait, lines 90-97: "Investment Expense Growth". This implies the EXPENSE grows?
-                    // Ah, in Passive Income calc: "investment_expense_growth_monthly".
-                    // Let's stick to simple logic: Input Inflation is for replenishment indexation.
 
-                    let accumulatedOwnCapital = initialCapital;
-                    let totalOwnContributions = initialCapital;
-                    let currentReplenishment = replenishment;
+                    // Prioritize pool usage by assuming 0 replenishment first
+                    const { fixedInflows, sharedInflowsTaken, allInflows } = this._getGoalInflows(
+                        goal, assets, sharedPoolEvents, termMonths, initialCapital, targetAmountFuture, yieldMonthly, inflationMonthly, 0
+                    );
+
+                    // --- NEW: SOLVE FOR RECOMMENDED REPLENISHMENT ---
+                    let recommendedReplenishment = 0;
+                    if (targetAmountFuture > 0) {
+                        recommendedReplenishment = await this._simulateGoal({
+                            initialCapital: initialCapital,
+                            targetAmountFuture: targetAmountFuture,
+                            termMonths: termMonths,
+                            monthlyYieldRate: yieldMonthly,
+                            monthlyInflationRate: inflationMonthly,
+                            inflows: allInflows
+                        });
+                    } else {
+                        recommendedReplenishment = replenishment || 0;
+                    }
+
+                    const recommendedReplenishmentRaw = recommendedReplenishment;
+
+                    // 5. НАКОПЛЕНИЕ
+                    const sharedInitial = sharedInflowsTaken
+                        .filter(i => i.month === 0)
+                        .reduce((sum, i) => sum + i.amount, 0);
+
+                    const effectiveInitialCapital = initialCapital + sharedInitial;
+                    const effectiveYieldMonthly = yieldMonthly;
+
+                    let accumulatedOwnCapital = effectiveInitialCapital;
+                    let totalOwnContributions = effectiveInitialCapital;
+                    let currentReplenishment = recommendedReplenishment;
 
                     const yearlyBreakdownOwn = [];
 
                     for (let m = 1; m <= termMonths; m++) {
-                        // 1. Accrue Interest
+                        // Add Inflows (from month 1 onwards)
+                        const monthInflows = allInflows.filter(i => i.month === m);
+                        for (const inf of monthInflows) {
+                            accumulatedOwnCapital += inf.amount;
+                            totalOwnContributions += inf.amount;
+                        }
+
+                        // 2. Accrue Interest
                         accumulatedOwnCapital *= (1 + effectiveYieldMonthly);
 
-                        // 2. Add Replenishment
+                        // 3. Add Replenishment
                         accumulatedOwnCapital += currentReplenishment;
                         totalOwnContributions += currentReplenishment;
 
-                        // 3. Index Replenishment (Monthly per instruction "для простоты")
+                        // 4. Index Replenishment
                         currentReplenishment *= (1 + inflationMonthly);
 
                         if (m % 12 === 0) {
@@ -354,7 +536,7 @@ class CalculationService {
                         pdsResult = await pdsCofinancingService.calculateCofinancingEffect({
                             capitalGap: 0,
                             initialReplenishment: replenishment,
-                            initialCapital: initialCapital,
+                            initialCapital: effectiveInitialCapital,
                             pdsShareInitial: pdsShareInitial,
                             pdsShareTopUp: pdsShareTopUp,
                             pdsProductId: pdsProductId,
@@ -407,13 +589,13 @@ class CalculationService {
                             // --- NEW: Unified Summary & Detail Blocks ---
                             summary: {
                                 goal_type: 'INVESTMENT',
-                                status: 'OK',
-                                initial_capital: initialCapital,
-                                monthly_replenishment: replenishment,
-                                monthly_replenishment_without_pds: replenishment,
+                                status: (totalCapital >= targetAmountFuture * 0.999) ? 'OK' : 'GAP',
+                                initial_capital: Math.round(effectiveInitialCapital * 100) / 100,
+                                monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                                monthly_replenishment_without_pds: Math.round(recommendedReplenishment * 100) / 100,
                                 total_capital_at_end: Math.round(totalCapital * 100) / 100,
-                                target_achieved: true,
-                                projected_value: Math.round(totalCapital * 100) / 100,
+                                target_achieved: (totalCapital >= targetAmountFuture * 0.999),
+                                projected_value: Math.round(targetAmountFuture * 100) / 100,
                                 state_benefit: Math.round(totalStateCapital * 100) / 100
                             },
                             portfolio_structure: {
@@ -550,38 +732,34 @@ class CalculationService {
                     console.log('Yield percent:', yieldPercent);
 
                     // Шаг 3: Расчет пополнений (без повторной инфляции)
-                    const Cost = requiredCapital; // Это уже финальная сумма
-                    const CostWithInflation = requiredCapital; // Не применяем инфляцию повторно
                     const Month = goal.term_months;
                     const InitialCapital = goal.initial_capital || 0;
 
                     // Получаем доходность портфеля (используем yield из линии)
                     const d_annual = yieldPercent;
                     const d_month_decimal = Math.pow(1 + (d_annual / 100), 1 / 12) - 1;
+
                     const m_month_decimal = m_month_percent / 100;
+                    const CostWithInflation = requiredCapital;
+                    const Cost = (requiredCapital / Math.pow(1 + infl_month_decimal, Month));
 
-                    // Future Value of Initial Capital
-                    const FutureValueInitial = InitialCapital * Math.pow(1 + d_month_decimal, Month);
+                    const sharedInitial = sharedInflowsTaken
+                        .filter(i => i.month === 0)
+                        .reduce((sum, i) => sum + i.amount, 0);
+                    const effectiveInitialCapital = InitialCapital + sharedInitial;
 
-                    // Gap (Capital Shortage)
-                    const CapitalGap = CostWithInflation - FutureValueInitial;
+                    // Solve for recommendedReplenishment using simulation
+                    let recommendedReplenishment = await this._simulateGoal({
+                        initialCapital: InitialCapital,
+                        targetAmountFuture: CostWithInflation,
+                        termMonths: Month,
+                        monthlyYieldRate: d_month_decimal,
+                        monthlyInflationRate: infl_month_decimal,
+                        inflows: allInflows
+                    });
 
-                    // Initial Replenishment
-                    let recommendedReplenishment = 0;
-
-                    if (Math.abs(m_month_decimal - d_month_decimal) < 0.0000001) {
-                        recommendedReplenishment = CapitalGap / (Month * Math.pow(1 + d_month_decimal, Month - 1));
-                    } else {
-                        const numerator = CapitalGap * (m_month_decimal - d_month_decimal);
-                        const term1 = 1 + d_month_decimal;
-                        const term2 = Math.pow(1 + m_month_decimal, Month - 1);
-                        const term3 = Math.pow(1 + d_month_decimal, Month - 1);
-                        const denominator = term1 * (term2 - term3);
-
-                        if (denominator !== 0) {
-                            recommendedReplenishment = numerator / denominator;
-                        }
-                    }
+                    // For legacy summary logic
+                    const CapitalGap = Math.max(0, CostWithInflation - (InitialCapital * Math.pow(1 + d_month_decimal, Month)));
 
                     // Шаг 4: Проверка на ПДС и софинансирование
                     // Для пассивного дохода нужно найти портфель, чтобы проверить наличие ПДС
@@ -800,7 +978,7 @@ class CalculationService {
                         summary: {
                             goal_type: 'PASSIVE_INCOME',
                             status: CapitalGap > 0 ? 'GAP' : 'OK',
-                            initial_capital: InitialCapital,
+                            initial_capital: Math.round(effectiveInitialCapital * 100) / 100,
                             monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                             monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw * 100) / 100,
                             // For Passive Income, "Total Capital" is "Required Capital" to generate income
@@ -1098,42 +1276,45 @@ class CalculationService {
 
                     const accumulationYieldPercent = weightedYieldAnnual;
 
-                    console.log('Pension Accumulation Calc:', {
-                        accumulationYieldPercent,
-                        initial_capital: goal.initial_capital
+                    const termMonthsPensionAccum = virtualPassiveIncomeGoal.term_months;
+                    const initialCapitalPension = goal.initial_capital || 0;
+                    const targetCapitalPension = requiredCapital;
+                    const inflationMonthlyPension = infl_month_decimal_pi;
+                    const yieldMonthlyPension = Math.pow(1 + (accumulationYieldPercent / 100), 1 / 12) - 1;
+
+                    // --- NEW: ASSET ALLOCATION ---
+                    const { fixedInflows, sharedInflowsTaken, allInflows } = this._getGoalInflows(
+                        goal, assets, sharedPoolEvents, termMonthsPensionAccum, initialCapitalPension, targetCapitalPension, yieldMonthlyPension, inflationMonthlyPension, 0
+                    );
+
+                    // Solve for recommendedReplenishment using simulation
+                    let recommendedReplenishment = await this._simulateGoal({
+                        initialCapital: initialCapitalPension,
+                        targetAmountFuture: targetCapitalPension,
+                        termMonths: termMonthsPensionAccum,
+                        monthlyYieldRate: yieldMonthlyPension,
+                        monthlyInflationRate: inflationMonthlyPension,
+                        inflows: allInflows
                     });
 
-                    // 3. МАТЕМАТИКА
-                    const Cost = requiredCapital;
-                    const CostWithInflation = requiredCapital;
-                    const Month = virtualPassiveIncomeGoal.term_months;
-                    const InitialCapital = virtualPassiveIncomeGoal.initial_capital || 0;
+                    // For legacy summary logic
+                    const InitialCapital = initialCapitalPension;
+                    const Month = termMonthsPensionAccum;
+                    const CostWithInflation = targetCapitalPension;
+                    const d_month_decimal = yieldMonthlyPension;
+                    // infl_month_decimal already defined above at 1104 or 1161
 
-                    // Используем доходность ПОРТФЕЛЯ для роста накоплений
-                    const d_annual = accumulationYieldPercent;
-                    const d_month_decimal = Math.pow(1 + (d_annual / 100), 1 / 12) - 1;
-                    const m_month_decimal = m_month_percent / 100;
-
-                    const FutureValueInitial = InitialCapital * Math.pow(1 + d_month_decimal, Month);
-                    const CapitalGap = CostWithInflation - FutureValueInitial;
-
-                    let recommendedReplenishment = 0;
-
-                    if (Math.abs(m_month_decimal - d_month_decimal) < 0.0000001) {
-                        recommendedReplenishment = CapitalGap / (Month * Math.pow(1 + d_month_decimal, Month - 1));
-                    } else {
-                        const numerator = CapitalGap * (m_month_decimal - d_month_decimal);
-                        const term1 = 1 + d_month_decimal;
-                        const term2 = Math.pow(1 + m_month_decimal, Month - 1);
-                        const term3 = Math.pow(1 + d_month_decimal, Month - 1);
-                        const denominator = term1 * (term2 - term3);
-
-                        if (denominator !== 0) {
-                            recommendedReplenishment = numerator / denominator;
-                        }
-                    }
-
+                    const CapitalGap = Math.max(0, CostWithInflation - (InitialCapital * Math.pow(1 + d_month_decimal, Month)));
                     const recommendedReplenishmentRaw = recommendedReplenishment;
+
+                    const m_month_percent = 0; // Default
+                    const m_month_decimal = m_month_percent / 100;
+                    const Cost = (targetCapitalPension / Math.pow(1 + infl_month_decimal, Month));
+
+                    const sharedInitial = sharedInflowsTaken
+                        .filter(i => i.month === 0)
+                        .reduce((sum, i) => sum + i.amount, 0);
+                    const effectiveInitialCapital = InitialCapital + sharedInitial;
 
                     // Используем тот же портфель для проверки ПДС
                     const portfolio = portfolioForAcc;
@@ -1310,8 +1491,8 @@ class CalculationService {
                             cost_initial: Math.round(Cost * 100) / 100,
                             cost_with_inflation: Math.round(CostWithInflation * 100) / 100,
                             inflation_annual_percent: Math.round(inflationAnnualUsed * 100) / 100,
-                            investment_expense_growth_monthly_percent: m_month_percent,
-                            investment_expense_growth_annual_percent: Math.round(((Math.pow(1 + m_month_decimal, 12) - 1) * 100) * 100) / 100,
+                            investment_expense_growth_monthly_percent: Math.round(infl_month_decimal * 100 * 100) / 100,
+                            investment_expense_growth_annual_percent: Math.round(inflationAnnualUsed * 100) / 100,
                             initial_capital: InitialCapital,
                             capital_gap: Math.round(CapitalGap * 100) / 100,
                             // with/without PDS replenishments
@@ -1322,7 +1503,7 @@ class CalculationService {
                         summary: {
                             goal_type: 'PENSION',
                             status: CapitalGap > 0 ? 'GAP' : 'OK',
-                            initial_capital: InitialCapital,
+                            initial_capital: Math.round(effectiveInitialCapital * 100) / 100,
                             monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                             monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw * 100) / 100,
                             total_capital_at_end: Math.round(CostWithInflation * 100) / 100, // Capital needed at retirement
@@ -1334,7 +1515,7 @@ class CalculationService {
                         },
                         portfolio_structure: {
                             risk_profile: goal.risk_profile || 'BALANCED',
-                            portfolio_yield_annual: Math.round(d_annual * 100) / 100,
+                            portfolio_yield_annual: Math.round(accumulationYieldPercent * 100) / 100,
                             inflation_rate_used: inflationAnnualUsed,
                             portfolio_composition: {
                                 initial_capital_allocation: initialCapitalComposition,

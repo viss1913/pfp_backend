@@ -106,3 +106,8 @@ const portfolioId = process.argv[2] ? parseInt(process.argv[2]) : 1;
 checkPortfolioClasses(portfolioId);
 
 
+
+
+
+
+

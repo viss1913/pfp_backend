@@ -1,0 +1,95 @@
+{
+  "client": {
+    "first_name": "Иван",
+    "last_name": "Иванов",
+    "middle_name": "Петрович",
+    "birth_date": "1979-01-15",
+    "gender": "male",
+    "phone": "+79991234567",
+    "email": "ivan.ivanov@example.com",
+    "avg_monthly_income": 98000,
+    "employment_type": "EMPLOYEE",
+    "tax_mode": "STANDARD"
+  },
+  "assets": [
+    {
+      "type": "CASH",
+      "name": "Наличные",
+      "current_value": 50000,
+      "currency": "RUB"
+    },
+    {
+      "type": "DEPOSIT",
+      "name": "Депозит в банке",
+      "current_value": 500000,
+      "currency": "RUB",
+      "yield_percent": 8.5,
+      "risk_level": "conservative"
+    },
+    {
+      "type": "PDS",
+      "name": "ПДС НПФ",
+      "current_value": 20000,
+      "currency": "RUB",
+      "yield_percent": 13,
+      "risk_level": "moderate"
+    },
+    {
+      "type": "REAL_ESTATE",
+      "name": "Квартира",
+      "current_value": 5000000,
+      "currency": "RUB"
+    }
+  ],
+  "liabilities": [
+    {
+      "type": "MORTGAGE",
+      "name": "Ипотека",
+      "remaining_amount": 3000000,
+      "monthly_payment": 25000,
+      "interest_rate": 9.5,
+      "end_date": "2035-12-31"
+    }
+  ],
+  "expenses": [
+    {
+      "category": "HOUSING",
+      "name": "Коммунальные услуги",
+      "amount": 8000,
+      "currency": "RUB"
+    },
+    {
+      "category": "LIVING",
+      "name": "Продукты питания",
+      "amount": 20000,
+      "currency": "RUB"
+    },
+    {
+      "category": "LEISURE",
+      "name": "Развлечения",
+      "amount": 10000,
+      "currency": "RUB"
+    }
+  ],
+  "goals": [
+    {
+      "goal_type_id": 1,
+      "name": "Пенсия",
+      "target_amount": 80000,
+      "term_months": 240,
+      "risk_profile": "BALANCED",
+      "initial_capital": 20000,
+      "inflation_rate": 4.0
+    },
+    {
+      "goal_type_id": 4,
+      "name": "Дом",
+      "target_amount": 10000000,
+      "term_months": 180,
+      "risk_profile": "CONSERVATIVE",
+      "initial_capital": 2000000,
+      "inflation_rate": 6.0
+    }
+  ]
+}
+

@@ -1,0 +1,20 @@
+{
+  "goals": [
+    {
+      "goal_type_id": 3,
+      "name": "Приумножение капитала",
+      "target_amount": 3000000,
+      "term_months": 240,
+      "risk_profile": "BALANCED",
+      "initial_capital": 40000,
+      "monthly_replenishment": 3000,
+      "inflation_rate": 4.0
+    }
+  ],
+  "client": {
+    "birth_date": "1985-01-01",
+    "sex": "male",
+    "avg_monthly_income": 70000
+  }
+}
+

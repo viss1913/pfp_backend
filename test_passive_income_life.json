@@ -1,0 +1,27 @@
+{
+  "goals": [
+    {
+      "goal_type_id": 2,
+      "name": "Пассивный доход",
+      "target_amount": 100000,
+      "term_months": 120,
+      "risk_profile": "BALANCED",
+      "initial_capital": 0,
+      "inflation_rate": 4.0,
+      "avg_monthly_income": 150000
+    },
+    {
+      "goal_type_id": 5,
+      "name": "Жизнь",
+      "target_amount": 2000000,
+      "term_months": 180,
+      "risk_profile": "BALANCED"
+    }
+  ],
+  "client": {
+    "birth_date": "1985-01-01",
+    "sex": "male",
+    "avg_monthly_income": 150000
+  }
+}
+
