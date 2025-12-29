@@ -28,32 +28,42 @@ class CalculationService {
         const yearsToPension = Math.max(retirementYear - currentYear, 0);
 
         // 3. Оценка ИПК
-        let ipkEst = 0;
+
+        // Вспомогательный расчет ИПК за 1 год при текущем доходе (для оценки будущего и прошлого)
+        const avgMonthlyIncome = client.avg_monthly_income || 0;
+        const incomeAnnual = avgMonthlyIncome * 12;
+        const pensionMaxSalaryLimit = systemSettings.pension_max_salary_limit || 2759000;
+        const pensionPfrContributionRatePart1 = systemSettings.pension_pfr_contribution_rate_part1 || 22;
+
+        const baseUsed = Math.min(incomeAnnual, pensionMaxSalaryLimit);
+        const contribs = baseUsed * (pensionPfrContributionRatePart1 / 100);
+        const maxContribs = pensionMaxSalaryLimit * (pensionPfrContributionRatePart1 / 100);
+
+        // ИПК, зарабатываемый за один год сейчас (максимум 10)
+        let ipkYearNow = 0;
+        if (maxContribs > 0) {
+            ipkYearNow = Math.max(0, Math.min(10, 10 * (contribs / maxContribs)));
+        }
+
+        // Накопленный ИПК (до сегодняшнего дня)
+        let ipkSoFar = 0;
 
         if (client.ipk_current !== null && client.ipk_current !== undefined) {
-            // Если ИПК передан с фронта, используем его
-            ipkEst = Number(client.ipk_current);
+            // Если ИПК передан с фронта (например с Госуслуг), используем его
+            ipkSoFar = Number(client.ipk_current);
         } else {
-            // Иначе оцениваем ИПК на основе дохода
-            const avgMonthlyIncome = client.avg_monthly_income || 0;
-            const incomeAnnual = avgMonthlyIncome * 12;
-            const pensionMaxSalaryLimit = systemSettings.pension_max_salary_limit || 2759000;
-            const pensionPfrContributionRatePart1 = systemSettings.pension_pfr_contribution_rate_part1 || 22;
-
-            const baseUsed = Math.min(incomeAnnual, pensionMaxSalaryLimit);
-            const contribs = baseUsed * (pensionPfrContributionRatePart1 / 100);
-            const maxContribs = pensionMaxSalaryLimit * (pensionPfrContributionRatePart1 / 100);
-
-            // ИПК за текущий год: 10 * (contribs / maxContribs) с ограничением [0;10]
-            const ipkYearNow = Math.max(0, Math.min(10, 10 * (contribs / maxContribs)));
-
-            // Коэффициент для прошлых лет
+            // Иначе оцениваем прошлое через коэффициент
             const pensionIpkPastCoef = systemSettings.pension_ipk_past_coef || 0.6;
             const avgIpkPast = ipkYearNow * pensionIpkPastCoef;
-
-            // Общий ИПК = средний ИПК за прошлые годы * количество лет работы
-            ipkEst = avgIpkPast * yearsOfWork;
+            ipkSoFar = avgIpkPast * yearsOfWork;
         }
+
+        // Будущий ИПК (от сегодня до пенсии)
+        // Предполагаем сохранение текущего уровня дохода (в реальном выражении)
+        const ipkFuture = ipkYearNow * yearsToPension;
+
+        // Итоговый прогнозный ИПК
+        const ipkEst = ipkSoFar + ipkFuture;
 
         // 4. Индексация фиксированной выплаты и стоимости балла до выхода на пенсию
         const inflationRate = systemSettings.inflation_rate || 4.0;
@@ -694,7 +704,6 @@ class CalculationService {
                         throw apiError;
                     }
 
-                    console.log('NSJ Result received:', JSON.stringify(nsjResult, null, 2));
 
                     resultsIndexed.push({
                         index,

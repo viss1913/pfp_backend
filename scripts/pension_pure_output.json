@@ -1,0 +1,376 @@
+{
+  "summary": {
+    "goals_count": 1,
+    "total_capital": 14850079.08,
+    "total_state_benefit": 3268774.64
+  },
+  "goals": [
+    {
+      "goal_id": 1,
+      "goal_name": "Моя Пенсия",
+      "goal_type": "PENSION",
+      "state_pension": {
+        "ipk_est": 192.33,
+        "state_pension_monthly_future": 119771.01,
+        "state_pension_monthly_current": 36927.64,
+        "retirement_age": 65,
+        "retirement_year": 2055,
+        "years_to_pension": 30,
+        "years_of_work": 17,
+        "age": 35
+      },
+      "desired_pension": {
+        "desired_monthly_income_initial": 80000,
+        "desired_monthly_income_with_inflation": 259471.8
+      },
+      "pension_gap": {
+        "gap_monthly_future": 139700.79,
+        "gap_monthly_current": 43072.36,
+        "has_gap": true
+      },
+      "passive_income_calculation": {
+        "desired_monthly_income_initial": 43072.36,
+        "desired_monthly_income_with_inflation": 139700.79,
+        "required_capital": 13970079.08,
+        "yield_percent": 12
+      },
+      "financials": {
+        "cost_initial": 4307236.17,
+        "cost_with_inflation": 13970079.08,
+        "inflation_annual_percent": 4,
+        "investment_expense_growth_monthly_percent": 0.33,
+        "investment_expense_growth_annual_percent": 4,
+        "initial_capital": 70000,
+        "capital_gap": 11231966.22,
+        "recommended_replenishment": 2124.37,
+        "recommended_replenishment_without_pds": 2180.2
+      },
+      "summary": {
+        "goal_type": "PENSION",
+        "status": "GAP",
+        "initial_capital": 70000,
+        "monthly_replenishment": 2124.37,
+        "monthly_replenishment_without_pds": 2180.2,
+        "total_capital_at_end": 13970079.08,
+        "target_achieved": true,
+        "projected_value": 259471.8,
+        "state_benefit": 3268774.64
+      },
+      "portfolio_structure": {
+        "risk_profile": "BALANCED",
+        "portfolio_yield_annual": 13,
+        "inflation_rate_used": 4,
+        "portfolio_composition": {
+          "initial_capital_allocation": [
+            {
+              "product_id": 3,
+              "product_name": "ПДС НПФ (Updated)",
+              "product_type": "PDS",
+              "share_percent": 100,
+              "amount": 70000,
+              "yield_percent": 13
+            }
+          ],
+          "monthly_topup_allocation": [
+            {
+              "product_id": 3,
+              "product_name": "ПДС НПФ (Updated)",
+              "product_type": "PDS",
+              "share_percent": 100,
+              "amount": 2180.2,
+              "yield_percent": null
+            }
+          ]
+        }
+      },
+      "pds_cofinancing": {
+        "cofinancing_next_year": 36000,
+        "total_cofinancing_nominal": 150714,
+        "total_cofinancing_with_investment": 3268774.64,
+        "pds_yield_annual_percent": 13,
+        "new_capital_gap": 7963191.58,
+        "yearly_breakdown": [
+          {
+            "year": 2025,
+            "capital_start_of_year": 70000,
+            "client_contrib_year": 23368.12,
+            "cofinancing_earned": 36000,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 102900.16,
+            "percentage_income": 9532.04
+          },
+          {
+            "year": 2026,
+            "capital_start_of_year": 102900.16,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 36000,
+            "capital_end_of_year": 180751.99,
+            "percentage_income": 16359.33
+          },
+          {
+            "year": 2027,
+            "capital_start_of_year": 180751.99,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 244503.65,
+            "percentage_income": 25513.16
+          },
+          {
+            "year": 2028,
+            "capital_start_of_year": 244503.65,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 316543.02,
+            "percentage_income": 33800.88
+          },
+          {
+            "year": 2029,
+            "capital_start_of_year": 316543.02,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 397947.51,
+            "percentage_income": 43165.99
+          },
+          {
+            "year": 2030,
+            "capital_start_of_year": 397947.51,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 489934.58,
+            "percentage_income": 53748.58
+          },
+          {
+            "year": 2031,
+            "capital_start_of_year": 489934.58,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 593879.97,
+            "percentage_income": 65706.9
+          },
+          {
+            "year": 2032,
+            "capital_start_of_year": 593879.97,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 711338.26,
+            "percentage_income": 79219.8
+          },
+          {
+            "year": 2033,
+            "capital_start_of_year": 711338.26,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 844066.13,
+            "percentage_income": 94489.38
+          },
+          {
+            "year": 2034,
+            "capital_start_of_year": 844066.13,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 12746,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 994048.63,
+            "percentage_income": 111744
+          },
+          {
+            "year": 2035,
+            "capital_start_of_year": 994048.63,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 12746,
+            "capital_end_of_year": 1163528.84,
+            "percentage_income": 131241.72
+          },
+          {
+            "year": 2036,
+            "capital_start_of_year": 1163528.84,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 1341765.51,
+            "percentage_income": 152744.17
+          },
+          {
+            "year": 2037,
+            "capital_start_of_year": 1341765.51,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 1543172.93,
+            "percentage_income": 175914.93
+          },
+          {
+            "year": 2038,
+            "capital_start_of_year": 1543172.93,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 1770763.33,
+            "percentage_income": 202097.9
+          },
+          {
+            "year": 2039,
+            "capital_start_of_year": 1770763.33,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 2027940.47,
+            "percentage_income": 231684.65
+          },
+          {
+            "year": 2040,
+            "capital_start_of_year": 2027940.47,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 2318550.64,
+            "percentage_income": 265117.68
+          },
+          {
+            "year": 2041,
+            "capital_start_of_year": 2318550.64,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 2646940.14,
+            "percentage_income": 302897
+          },
+          {
+            "year": 2042,
+            "capital_start_of_year": 2646940.14,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 3018020.27,
+            "percentage_income": 345587.64
+          },
+          {
+            "year": 2043,
+            "capital_start_of_year": 3018020.27,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 3437340.82,
+            "percentage_income": 393828.05
+          },
+          {
+            "year": 2044,
+            "capital_start_of_year": 3437340.82,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 3911173.03,
+            "percentage_income": 448339.72
+          },
+          {
+            "year": 2045,
+            "capital_start_of_year": 3911173.03,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 4446603.44,
+            "percentage_income": 509937.91
+          },
+          {
+            "year": 2046,
+            "capital_start_of_year": 4446603.44,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 5051639.8,
+            "percentage_income": 579543.87
+          },
+          {
+            "year": 2047,
+            "capital_start_of_year": 5051639.8,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 5735330.89,
+            "percentage_income": 658198.59
+          },
+          {
+            "year": 2048,
+            "capital_start_of_year": 5735330.89,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 6507901.81,
+            "percentage_income": 747078.43
+          },
+          {
+            "year": 2049,
+            "capital_start_of_year": 6507901.81,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 7380906.96,
+            "percentage_income": 847512.65
+          },
+          {
+            "year": 2050,
+            "capital_start_of_year": 7380906.96,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 8367402.78,
+            "percentage_income": 961003.32
+          },
+          {
+            "year": 2051,
+            "capital_start_of_year": 8367402.78,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 9482143.05,
+            "percentage_income": 1089247.78
+          },
+          {
+            "year": 2052,
+            "capital_start_of_year": 9482143.05,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 10741799.56,
+            "percentage_income": 1234164.01
+          },
+          {
+            "year": 2053,
+            "capital_start_of_year": 10741799.56,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 12165211.41,
+            "percentage_income": 1397919.36
+          },
+          {
+            "year": 2054,
+            "capital_start_of_year": 12165211.41,
+            "client_contrib_year": 25492.49,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 13773666.81,
+            "percentage_income": 1582962.9
+          },
+          {
+            "year": 2055,
+            "capital_start_of_year": 13773666.81,
+            "client_contrib_year": 0,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "capital_end_of_year": 13914665.69,
+            "percentage_income": 140998.88
+          }
+        ]
+      }
+    }
+  ]
+}
