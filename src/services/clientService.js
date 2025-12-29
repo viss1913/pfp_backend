@@ -137,6 +137,9 @@ class ClientService {
 
         return { assetsTotal, liabilitiesTotal, netWorth };
     }
-}
 
+    async getClientsByAgent(agentId, options = {}) {
+        return await clientRepository.findAllByAgent(agentId, options);
+    }
+}
 module.exports = new ClientService();

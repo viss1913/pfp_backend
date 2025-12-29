@@ -112,6 +112,37 @@ class ClientRepository {
             goals
         };
     }
+
+    async findAllByAgent(agentId, options = {}) {
+        const { limit = 20, page = 1, sort = 'created_at', order = 'desc' } = options;
+        const offset = (page - 1) * limit;
+
+        // Base query
+        const query = knex('clients')
+            .where({ agent_id: agentId });
+
+        // Count total for pagination
+        const countQuery = query.clone().count('id as total').first();
+        const totalResult = await countQuery;
+        const total = totalResult ? parseInt(totalResult.total) : 0;
+
+        // Fetch paginated data
+        const data = await query
+            .select('*')
+            .orderBy(sort, order)
+            .limit(limit)
+            .offset(offset);
+
+        return {
+            data,
+            pagination: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / limit)
+            }
+        };
+    }
 }
 
 module.exports = new ClientRepository();

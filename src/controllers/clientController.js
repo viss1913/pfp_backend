@@ -8,8 +8,8 @@ const calculationRequestSchema = Joi.object({
             .description('ID класса портфеля (из portfolio_classes). Для LIFE используйте 5'),
         name: Joi.string().required()
             .description('Название цели'),
-        target_amount: Joi.number().positive().required()
-            .description('Целевая сумма'),
+        target_amount: Joi.number().positive().optional()
+            .description('Целевая сумма (опционально для INVESTMENT, обязательно для других целей типа ПОКУПКА)'),
         term_months: Joi.number().integer().min(0).optional()
             .description('Срок достижения цели в месяцах. Для PENSION можно не указывать (будет рассчитан автоматически до выхода на пенсию)'),
         risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required()
@@ -120,7 +120,13 @@ class ClientController {
             // 2. Perform Calculation (This may inject "Smart" goals into req.body.goals)
             const calculation = await calculationService.calculateFirstRun(req.body);
 
-            // 3. Save/Update Profile (Now include injected goals)
+            // 3. Inject Agent ID if authenticated
+            if (req.user && req.user.agentId) {
+                if (!req.body.client) req.body.client = {};
+                req.body.client.agent_id = req.user.agentId;
+            }
+
+            // 4. Save/Update Profile (Now include injected goals)
             const clientId = await clientService.createFullClient(req.body);
 
             // 4. Save Calculation Snapshot to Client record for Agent/Consultant
@@ -142,9 +148,31 @@ class ClientController {
         try {
             // Basic Joi validation for structure could be here
             // For now passing directly to service
+            if (req.user && req.user.agentId) {
+                if (!req.body.client) req.body.client = {};
+                req.body.client.agent_id = req.user.agentId;
+            }
+
             const clientId = await clientService.createFullClient(req.body);
             const fullClient = await clientService.getFullClient(clientId);
             res.status(201).json(fullClient);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async listByAgent(req, res, next) {
+        try {
+            const agentId = req.user.agentId;
+            if (!agentId) {
+                return res.status(400).json({ error: 'Agent ID not found in token' });
+            }
+
+            // Extract query params for pagination/sorting if needed
+            const { page, limit, sort, order } = req.query;
+
+            const clients = await clientService.getClientsByAgent(agentId, { page, limit, sort, order });
+            res.json(clients);
         } catch (err) {
             next(err);
         }

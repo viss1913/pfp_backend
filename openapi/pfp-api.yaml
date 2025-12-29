@@ -7,6 +7,10 @@ servers:
   - url: /api
     description: Main API server
 
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
 components:
   securitySchemes:
     bearerAuth:
@@ -17,6 +21,7 @@ components:
       type: apiKey
       in: header
       name: x-api-key
+      description: API Key for server-to-server integration (Partners)
   schemas:
     Product:
       type: object

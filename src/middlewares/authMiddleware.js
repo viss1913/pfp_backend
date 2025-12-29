@@ -1,17 +1,20 @@
 const authService = require('../services/authService');
+const apiKeyService = require('../services/apiKeyService');
 
 /**
  * Authentication middleware
- * Supports both JWT tokens and legacy x-agent-id headers
+ * Supports:
+ * 1. JWT tokens (Bearer check) -> Frontend (Agents)
+ * 2. API Keys (x-api-key) -> Partners/Integrations
+ * 3. Legacy (x-agent-id) -> Deprecated (Dev only recommended)
  */
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
     try {
-        // Check for Authorization header with Bearer token
+        // 1. Check for Authorization header (JWT)
         const authHeader = req.headers.authorization;
 
         if (authHeader && authHeader.startsWith('Bearer ')) {
-            // JWT authentication
-            const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+            const token = authHeader.substring(7);
             const decoded = authService.verifyToken(token);
 
             req.user = {
@@ -25,26 +28,41 @@ function authMiddleware(req, res, next) {
             return next();
         }
 
-        // Legacy authentication (for backward compatibility)
+        // 2. Check for API Key (x-api-key)
+        const apiKey = req.headers['x-api-key'];
+        if (apiKey) {
+            const agentContext = await apiKeyService.validateKey(apiKey);
+            if (!agentContext) {
+                return res.status(401).json({ error: 'Invalid API Key' });
+            }
+            req.user = agentContext;
+            return next();
+        }
+
+        // 3. Legacy Authentication (x-agent-id)
+        // TODO: Disable in production or log warning
         const agentId = req.headers['x-agent-id'];
         const role = req.headers['x-role'];
 
-        if (!agentId) {
-            return res.status(401).json({
-                error: 'Authentication required. Provide Bearer token or x-agent-id header.'
-            });
+        if (agentId) {
+            req.user = {
+                id: parseInt(agentId),
+                agentId: parseInt(agentId),
+                isAdmin: role === 'admin',
+                role: role || 'agent',
+                isLegacy: true
+            };
+            return next();
         }
 
-        req.user = {
-            id: parseInt(agentId),
-            agentId: parseInt(agentId),
-            isAdmin: role === 'admin',
-            role: role || 'agent'
-        };
+        // If no auth method found
+        return res.status(401).json({
+            error: 'Authentication required. Provide Bearer token or x-api-key.'
+        });
 
-        next();
     } catch (err) {
-        return res.status(401).json({ error: err.message || 'Invalid authentication' });
+        console.error('Auth Middleware Error:', err);
+        return res.status(401).json({ error: 'Invalid authentication' });
     }
 }
 

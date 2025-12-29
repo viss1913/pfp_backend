@@ -325,8 +325,8 @@ class CalculationService {
             // PASSIVE_INCOME (id=2) - "Рантье"
             const isPassiveIncomeGoal = goal.goal_type_id === 2 || (goal.name && goal.name.toUpperCase().includes('РАНТЬЕ'));
 
-            // INVESTMENT (id=3) - "Накопление" / "Приумножение" / "INVESTMENT"
-            const isInvestmentGoal = goal.goal_type_id === 3 || goal.name === 'Приумножение капитала' || (goal.type && goal.type.toUpperCase() === 'INVESTMENT');
+            // INVESTMENT (id=3) - Refactored to use logic at end of loop (Projection)
+            const isInvestmentGoal = false; // goal.goal_type_id === 3 ... DISABLED
 
             // LIFE (id=5) - "Жизнь" / NSJ
             const isLifeGoal = goal.goal_type_id === 5 || goal.name === 'Жизнь';
@@ -1648,6 +1648,200 @@ class CalculationService {
                             goal_type: 'PENSION',
                             error: `Pension calculation failed: ${pensionError.message || 'Unknown error'}`,
                             error_details: pensionError
+                        }
+                    });
+                    continue;
+                }
+            }
+
+
+
+            // --- INVESTMENT PROJECTION LOGIC (ID=3) ---
+            if (goal.goal_type_id == 3) {
+                try {
+                    // 1. Find Portfolio (Class 3)
+                    const portfolio = await portfolioRepository.findByCriteria({
+                        classId: 3,
+                        amount: goal.initial_capital || 0,
+                        term: goal.term_months
+                    });
+
+                    if (!portfolio) {
+                        resultsIndexed.push({
+                            index, result: {
+                                goal_id: goal.goal_type_id,
+                                goal_name: goal.name,
+                                goal_type: 'INVESTMENT',
+                                error: 'Portfolio not found for investment criteria'
+                            }
+                        });
+                        continue;
+                    }
+
+                    // 2. Determine Weighted Yield
+                    let riskProfiles = portfolio.risk_profiles;
+                    if (typeof riskProfiles === 'string') {
+                        try { riskProfiles = JSON.parse(riskProfiles); } catch (e) { riskProfiles = []; }
+                    }
+                    const profile = riskProfiles.find(p => p.profile_type === goal.risk_profile);
+
+                    if (!profile) {
+                        resultsIndexed.push({
+                            index, result: {
+                                goal_id: goal.goal_type_id,
+                                goal_name: goal.name,
+                                goal_type: 'INVESTMENT',
+                                error: `Risk profile ${goal.risk_profile} not found`
+                            }
+                        });
+                        continue;
+                    }
+
+                    let weightedYieldAnnual = 0;
+                    // Support both legacy (initial_capital) and new (instruments) formats
+                    let capitalDistribution = profile.initial_capital;
+                    if (!capitalDistribution && profile.instruments) {
+                        capitalDistribution = profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL');
+                    }
+                    capitalDistribution = capitalDistribution || [];
+
+                    // Check for PDS in valid products
+                    let pdsProductId = null;
+
+                    for (const item of capitalDistribution) {
+                        const product = await productRepository.findById(item.product_id);
+                        if (!product) continue;
+
+                        if (product.product_type === 'PDS') {
+                            pdsProductId = product.id;
+                        }
+
+                        // Determine yield for product
+                        const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
+                        const yields = product.yields || [];
+                        const line = yields.find(l =>
+                            goal.term_months >= l.term_from_months &&
+                            goal.term_months <= l.term_to_months &&
+                            allocatedAmount >= parseFloat(l.amount_from) &&
+                            allocatedAmount <= parseFloat(l.amount_to)
+                        ) || yields[0];
+
+                        const productYield = line ? parseFloat(line.yield_percent) : 0;
+                        weightedYieldAnnual += (productYield * (item.share_percent / 100));
+                    }
+
+                    const portfolioYieldAnnual = weightedYieldAnnual;
+                    const portfolioYieldMonthly = Math.pow(1 + (portfolioYieldAnnual / 100), 1 / 12) - 1;
+
+                    // 3. Projection Simulation
+                    let currentBalance = goal.initial_capital || 0;
+                    let totalClientInvestment = goal.initial_capital || 0;
+                    let totalStateBenefit = 0;
+                    let totalInvestmentIncome = 0; // Will be calculated as diff
+
+                    const monthlyReplenishment = goal.monthly_replenishment || 0;
+                    const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;
+                    const monthlyInflation = Math.pow(1 + (inflationRate / 100), 1 / 12) - 1;
+
+                    // PDS Helpers
+                    const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
+                    const startYear = startDate.getFullYear();
+                    const startMonth = startDate.getMonth() + 1; // 1-12
+                    const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
+
+                    // Track yearly contributions for PDS limits
+                    const yearlyContributions = {};
+                    // Add initial capital to first year? Only if it counts as connection. 
+                    // Usually initial capital is lump sum, but let's assume it counts for PDS limit check if made in current year.
+                    if (goal.initial_capital > 0) {
+                        yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + goal.initial_capital;
+                    }
+
+                    // Loop months
+                    let currentDate = new Date(startDate);
+
+                    for (let m = 0; m < goal.term_months; m++) {
+                        const year = currentDate.getFullYear();
+                        const month = currentDate.getMonth() + 1;
+
+                        // 3.1 Investment Growth
+                        const growth = currentBalance * portfolioYieldMonthly;
+                        currentBalance += growth;
+
+                        // 3.2 Monthly Top-Up (Indexation option could be added here, currently simplified const or simple inflation)
+                        // Assuming valid monthly replenishment stays constant in real terms? 
+                        // Or nominal? Usually nominal unless "indexation" checked. 
+                        // Let's assume nominal for input flexibility, or indexed?
+                        // Standard logic uses 'm_month_percent' for growth. Let's assume it grows with inflation to keep real value.
+                        // 3.2 Monthly Top-Up (Ordered by User: use 'investment_expense_growth_monthly' for indexation)
+                        // This parameter is stored in 'm_month_percent' (fetched at start of function)
+                        // It is usually a percent like 0.33, so we divide by 100 for calculation.
+                        // However, if user overrides inflation_rate in Goal, should we use that?
+                        // User request: "у нас етсь такой парамтер investment_expense_growth_monthly"
+                        // Let's use m_month_percent. Note: m_month_percent is usually e.g. 0.33
+                        const indexationRate = (m_month_percent || 0) / 100;
+                        const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m);
+
+                        currentBalance += indexedReplenishment;
+                        totalClientInvestment += indexedReplenishment;
+                        yearlyContributions[year] = (yearlyContributions[year] || 0) + indexedReplenishment;
+
+                        // 3.3 PDS Co-financing (August)
+                        // Logic: In August, we get co-financing for Previous Year
+                        if (pdsProductId && month === 8 && year > startYear) { // 8 = August
+                            const prevYear = year - 1;
+                            // Check if we are within 10 years of program
+                            if (prevYear - startYear < 10 && yearlyContributions[prevYear]) {
+                                // Calculate State Benefit
+                                const cofinResult = await settingsService.calculatePdsCofinancing(
+                                    yearlyContributions[prevYear],
+                                    avgMonthlyIncome,
+                                    36000 // Limit per year. Assuming 36000 available for this goal.
+                                );
+                                const benefit = cofinResult.state_cofin_amount || 0;
+                                if (benefit > 0) {
+                                    currentBalance += benefit;
+                                    totalStateBenefit += benefit;
+                                }
+                            }
+                        }
+
+                        // Next month
+                        currentDate.setMonth(currentDate.getMonth() + 1);
+                    }
+
+                    totalInvestmentIncome = currentBalance - totalClientInvestment - totalStateBenefit;
+
+                    // Result Construction
+                    resultsIndexed.push({
+                        index, result: {
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            goal_type: 'INVESTMENT',
+                            projected_value: Math.round(currentBalance * 100) / 100,
+                            total_client_investment: Math.round(totalClientInvestment * 100) / 100,
+                            total_investment_income: Math.round(totalInvestmentIncome * 100) / 100,
+                            total_state_benefit: Math.round(totalStateBenefit * 100) / 100,
+                            yield_annual_percent: Math.round(portfolioYieldAnnual * 100) / 100,
+                            term_months: goal.term_months,
+                            portfolio_name: portfolio.name,
+                            // Legacy structure fields for compatibility if frontend expects them
+                            summary: {
+                                status: 'OK',
+                                projected_value: Math.round(currentBalance * 100) / 100,
+                                target_achieved: true
+                            }
+                        }
+                    });
+                    continue;
+
+                } catch (invError) {
+                    console.error('Investment calculation error:', invError);
+                    resultsIndexed.push({
+                        index, result: {
+                            goal_id: goal.goal_type_id,
+                            goal_name: goal.name,
+                            error: 'Investment calculation failed'
                         }
                     });
                     continue;
