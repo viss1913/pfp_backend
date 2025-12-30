@@ -26,40 +26,41 @@ async function testPensionApi() {
     };
 
     console.log('Sending API request to:', url);
-    console.log('Payload:', JSON.stringify(payload, null, 2));
+    // console.log('Payload:', JSON.stringify(payload, null, 2));
 
     try {
         const response = await axios.post(url, payload);
         const result = response.data;
 
         console.log('\n=== API Response ===');
-        // console.log(JSON.stringify(result, null, 2));
 
         if (result.goals && result.goals.length > 0) {
             const pensionGoal = result.goals.find(g => g.goal_type === 'PENSION');
             if (pensionGoal) {
-                console.log('\n=> Pension Goal Found:');
-                console.log('State Pension (Projected Monthly):', Math.round(pensionGoal.state_pension?.state_pension_monthly_future || 0));
-                console.log('State Pension (Today\'s Prices):', Math.round(pensionGoal.state_pension?.state_pension_monthly_current || 0));
+                console.log('\n=> Pension Goal Found');
 
                 console.log('\n--- Gap Analysis ---');
-                console.log('Desired Pension (Initial):', Math.round(pensionGoal.desired_pension?.desired_monthly_income_initial || 0));
-                console.log('Gap (Monthly Future):', Math.round(pensionGoal.pension_gap?.gap_monthly_future || 0));
+                console.log('Recommended Replenishment (WITH PDS):', Math.round(pensionGoal.financials?.recommended_replenishment || 0));
+                console.log('Recommended Replenishment (WO PDS):', Math.round(pensionGoal.financials?.recommended_replenishment_without_pds || 0));
 
-                if (pensionGoal.pension_gap?.has_gap) {
-                    console.log('GAP DETECTED!');
-                    console.log('Recommended Replenishment (WITH PDS):', Math.round(pensionGoal.financials?.recommended_replenishment || 0));
-                    console.log('Recommended Replenishment (WO PDS):', Math.round(pensionGoal.financials?.recommended_replenishment_without_pds || 0));
+                if (pensionGoal.pds_cofinancing) {
+                    console.log('\n--- PDS & TAX DETAILS ---');
+                    console.log('State Cofinancing (With Inv):', Math.round(pensionGoal.pds_cofinancing.total_cofinancing_with_investment));
+                    console.log('Tax Deductions (Nominal):', Math.round(pensionGoal.pds_cofinancing.total_tax_deductions_nominal || 0));
+                    console.log('Tax Deductions (With Inv):', Math.round(pensionGoal.pds_cofinancing.total_tax_deductions_with_investment || 0));
 
-                    if (pensionGoal.pds_cofinancing) {
-                        console.log('PDS Applied! Total Benefit:', Math.round(pensionGoal.pds_cofinancing.total_cofinancing_with_investment));
-                    } else {
-                        console.log('No PDS applied.');
+                    // Check yearly breakdown
+                    const breakdown = pensionGoal.pds_cofinancing.yearly_breakdown;
+                    if (breakdown && breakdown.length > 0) {
+                        console.log(`Breakdown Years: ${breakdown.length}`);
+                        // Show Year 1, Year 10, Year 20, Last Year
+                        [0, 9, 19, breakdown.length - 1].forEach(idx => {
+                            if (breakdown[idx]) {
+                                const y = breakdown[idx];
+                                console.log(`Year ${y.year}: Refund Received = ${y.tax_refund_received}, Refund Projected = ${y.tax_refund_projected}`);
+                            }
+                        });
                     }
-                }
-
-                if (pensionGoal.error) {
-                    console.error('GOAL ERROR:', pensionGoal.error);
                 }
             } else {
                 console.log('No PENSION goal found.');
@@ -69,7 +70,7 @@ async function testPensionApi() {
         console.error('API Request Failed:', error.message);
         if (error.response) {
             console.error('Status:', error.response.status);
-            console.error('Data:', error.response.data);
+            console.error('Data:', JSON.stringify(error.response.data, null, 2));
         }
     }
 }

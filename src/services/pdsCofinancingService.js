@@ -49,7 +49,9 @@ class PdsCofinancingService {
                 total_cofinancing_with_investment: 0,
                 yearly_breakdown: [],
                 pds_applied: false,
-                actualUsedCofinancingPerYear: {}
+                actualUsedCofinancingPerYear: {},
+                total_tax_deductions_nominal: 0,
+                total_tax_deductions_with_investment: 0
             };
         }
 
@@ -137,7 +139,9 @@ class PdsCofinancingService {
             pds_applied: true,
             pds_yield_annual_percent: Math.round(pdsYieldAnnual * 100) / 100,
             new_capital_gap: Math.round(finalNewCapitalGap * 100) / 100,
-            actualUsedCofinancingPerYear: secondPass.actualUsedInYear // Возвращаем, сколько реально задействовали в этой цели
+            actualUsedCofinancingPerYear: secondPass.actualUsedInYear, // Возвращаем, сколько реально задействовали в этой цели
+            total_tax_deductions_nominal: Math.round(secondPass.totalTaxRefundNominal * 100) / 100,
+            total_tax_deductions_with_investment: Math.round(secondPass.taxCapital * 100) / 100
         };
     }
 
@@ -165,7 +169,9 @@ class PdsCofinancingService {
 
         let clientCapital = pdsInitialCapital;
         let stateCapital = 0;
+        let taxCapital = 0; // Accumulated tax refunds with investment
         let totalCofinNominal = 0;
+        let totalTaxRefundNominal = 0;
         const actualUsedInYear = {}; // Сколько бонуса ПДС привязали к этой конкретной цели по годам
 
         const yearlyContributions = {};
@@ -259,6 +265,7 @@ class PdsCofinancingService {
             // --- GROWTH ---
             clientCapital = clientCapital * (1 + pdsYieldMonthly);
             stateCapital = stateCapital * (1 + pdsYieldMonthly);
+            taxCapital = taxCapital * (1 + pdsYieldMonthly); // Tax refunds also grow
 
             if (monthIndex < termMonths - 1) {
                 const monthlyContribution = monthlyPdsReplenishment * Math.pow(1 + monthlyGrowthRate, monthIndex);
@@ -285,6 +292,9 @@ class PdsCofinancingService {
                         if (refund > 0) {
                             // Reinvest into Client Capital
                             clientCapital += refund;
+                            // Track for reporting
+                            taxCapital += refund;
+                            totalTaxRefundNominal += refund;
                             taxRefundThisYear += refund;
                         }
                     } catch (e) {
@@ -386,7 +396,9 @@ class PdsCofinancingService {
             totalCofinNominal,
             yearlyData,
             cofinancingNextYear,
-            actualUsedInYear
+            actualUsedInYear,
+            taxCapital,
+            totalTaxRefundNominal
         };
     }
 

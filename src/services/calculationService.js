@@ -1112,6 +1112,8 @@ class CalculationService {
                             total_cofinancing_with_investment: pdsCofinancingResult.total_cofinancing_with_investment,
                             pds_yield_annual_percent: pdsCofinancingResult.pds_yield_annual_percent,
                             new_capital_gap: pdsCofinancingResult.new_capital_gap,
+                            total_tax_deductions_nominal: pdsCofinancingResult.total_tax_deductions_nominal,
+                            total_tax_deductions_with_investment: pdsCofinancingResult.total_tax_deductions_with_investment,
                             yearly_breakdown: pdsCofinancingResult.yearly_breakdown
                         };
                     }
@@ -1640,6 +1642,8 @@ class CalculationService {
                             total_cofinancing_with_investment: pdsCofinancingResult.total_cofinancing_with_investment,
                             pds_yield_annual_percent: pdsCofinancingResult.pds_yield_annual_percent,
                             new_capital_gap: pdsCofinancingResult.new_capital_gap,
+                            total_tax_deductions_nominal: pdsCofinancingResult.total_tax_deductions_nominal,
+                            total_tax_deductions_with_investment: pdsCofinancingResult.total_tax_deductions_with_investment,
                             yearly_breakdown: pdsCofinancingResult.yearly_breakdown
                         };
                     }
