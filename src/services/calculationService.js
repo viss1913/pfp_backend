@@ -1325,6 +1325,13 @@ class CalculationService {
                     const profileYield = riskProfilesYield.find(p => p.profile_type === goal.risk_profile);
 
                     if (!profileYield) {
+                        console.log('--- DEBUG RISK PROFILE FAIL ---');
+                        console.log('Goal object:', JSON.stringify(goal, null, 2));
+                        console.log('Goal Risk Profile:', goal.risk_profile);
+                        console.log('Portfolio Risk Profiles Types:', riskProfilesYield.map(p => p.profile_type));
+                    }
+
+                    if (!profileYield) {
                         resultsIndexed.push({
                             index, result: {
                                 goal_id: goal.goal_type_id,
@@ -1408,8 +1415,8 @@ class CalculationService {
                     const CapitalGap = Math.max(0, CostWithInflation - (InitialCapital * Math.pow(1 + d_month_decimal, Month)));
                     const recommendedReplenishmentRaw = recommendedReplenishment;
 
-                    const m_month_percent = 0; // Default
-                    const m_month_decimal = m_month_percent / 100;
+                    const m_month_percent = inflationAnnualUsed; // Use inflation for PDS replenishment growth
+                    const m_month_decimal = infl_month_decimal; // Use calculated decimal
                     const Cost = (targetCapitalPension / Math.pow(1 + infl_month_decimal, Month));
 
                     const sharedInitial = sharedInflowsTaken

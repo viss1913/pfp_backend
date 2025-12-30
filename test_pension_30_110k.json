@@ -3,20 +3,17 @@
     {
       "goal_type_id": 1,
       "name": "Пенсия",
-      "target_amount": 80000,
+      "target_amount": 100000,
       "term_months": 0,
       "risk_profile": "BALANCED",
-      "initial_capital": 0,
-      "inflation_rate": 4.0
+      "initial_capital": 50000,
+      "inflation_rate": 6.0
     }
   ],
   "client": {
-    "birth_date": "1985-01-01",
+    "birth_date": "1994-01-01",
     "sex": "male",
-    "avg_monthly_income": 150000,
+    "avg_monthly_income": 110000,
     "ipk_current": null
   }
 }
-
-
-

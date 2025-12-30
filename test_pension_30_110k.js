@@ -5,7 +5,7 @@ const path = require('path');
 const BASE_URL = 'pfpbackend-production.up.railway.app';
 
 // Читаем JSON файл
-const jsonPath = path.join(__dirname, 'test_house_30_10m.json');
+const jsonPath = path.join(__dirname, 'test_pension_30_110k.json');
 const testData = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
 
 const postData = JSON.stringify(testData);
@@ -22,7 +22,7 @@ const options = {
 };
 
 console.log('='.repeat(80));
-console.log('ТЕСТ РАСЧЕТА: ДОМ');
+console.log('ТЕСТ РАСЧЕТА: ПЕНСИЯ (30 лет, 110k доход, 100k цель)');
 console.log('='.repeat(80));
 console.log('');
 console.log('URL: https://' + BASE_URL + options.path);
@@ -34,8 +34,8 @@ const clientData = testData.client;
 console.log('─'.repeat(80));
 console.log('ПАРАМЕТРЫ ЦЕЛИ');
 console.log('─'.repeat(80));
-console.log('  • Стоимость дома:', goal.target_amount?.toLocaleString('ru-RU'), 'руб.');
-console.log('  • Срок:', `${goal.term_months} месяцев (${goal.term_months / 12} лет)`);
+console.log('  • Целевая пенсия:', goal.target_amount?.toLocaleString('ru-RU'), 'руб/мес');
+console.log('  • Срок:', goal.term_months === 0 ? 'Автоматический (до выхода на пенсию)' : `${goal.term_months} месяцев`);
 console.log('  • Первоначальный капитал:', goal.initial_capital?.toLocaleString('ru-RU'), 'руб.');
 console.log('  • Риск-профиль:', goal.risk_profile);
 console.log('  • Инфляция:', goal.inflation_rate || 'N/A', '% годовых');
@@ -47,12 +47,7 @@ console.log('─'.repeat(80));
 console.log('  • Дата рождения:', clientData.birth_date);
 console.log('  • Пол:', clientData.sex);
 console.log('  • Среднемесячный доход:', clientData.avg_monthly_income?.toLocaleString('ru-RU'), 'руб/мес');
-console.log('');
-
-console.log('─'.repeat(80));
-console.log('ДАННЫЕ ЗАПРОСА');
-console.log('─'.repeat(80));
-console.log(JSON.stringify(testData, null, 2));
+console.log('  • Текущий ИПК:', clientData.ipk_current || 'не указан');
 console.log('');
 
 console.log('─'.repeat(80));
@@ -89,8 +84,8 @@ const req = https.request(options, (res) => {
                 console.log('='.repeat(80));
                 console.log('');
 
-                if (parsed.results && parsed.results.length > 0) {
-                    const result = parsed.results[0];
+                if (parsed.goals && parsed.goals.length > 0) {
+                    const result = parsed.goals[0];
                     
                     if (result.error) {
                         console.log('❌ Ошибка:', result.error);
@@ -102,23 +97,61 @@ const req = https.request(options, (res) => {
                         console.log('РЕЗУЛЬТАТЫ РАСЧЕТА');
                         console.log('─'.repeat(80));
                         console.log('');
-                        console.log('Цель:', result.goal_name || 'Дом');
-                        console.log('Тип цели:', result.goal_type || 'OTHER');
-                        if (result.portfolio) {
-                            console.log('Портфель:', result.portfolio.name || 'N/A');
-                        }
+                        console.log('Цель:', result.goal_name || 'Пенсия');
+                        console.log('Тип цели:', result.goal_type || 'PENSION');
                         console.log('');
+
+                        if (result.state_pension) {
+                            const sp = result.state_pension;
+                            console.log('🏛️  ГОСУДАРСТВЕННАЯ ПЕНСИЯ:');
+                            console.log('');
+                            if (sp.age !== undefined) console.log('  Возраст:', sp.age, 'лет');
+                            if (sp.years_to_pension !== undefined) console.log('  Лет до пенсии:', sp.years_to_pension);
+                            if (sp.retirement_age !== undefined) console.log('  Пенсионный возраст:', sp.retirement_age, 'лет');
+                            if (sp.retirement_year !== undefined) console.log('  Год выхода на пенсию:', sp.retirement_year);
+                            if (sp.ipk_est !== undefined) console.log('  Прогнозируемый ИПК:', sp.ipk_est.toFixed(2));
+                            if (sp.state_pension_monthly_current !== undefined) {
+                                console.log('  Гос. пенсия (текущие цены):', sp.state_pension_monthly_current.toLocaleString('ru-RU'), 'руб/мес');
+                            }
+                            if (sp.state_pension_monthly_future !== undefined) {
+                                console.log('  Гос. пенсия (будущие цены):', sp.state_pension_monthly_future.toLocaleString('ru-RU'), 'руб/мес');
+                            }
+                            console.log('');
+                        }
+
+                        if (result.desired_pension) {
+                            const dp = result.desired_pension;
+                            console.log('💭 ЖЕЛАЕМАЯ ПЕНСИЯ:');
+                            console.log('');
+                            if (dp.desired_monthly_income_initial !== undefined) {
+                                console.log('  Желаемая пенсия (начальная):', dp.desired_monthly_income_initial.toLocaleString('ru-RU'), 'руб/мес');
+                            }
+                            if (dp.desired_monthly_income_with_inflation !== undefined) {
+                                console.log('  Желаемая пенсия (с инфляцией):', dp.desired_monthly_income_with_inflation.toLocaleString('ru-RU'), 'руб/мес');
+                            }
+                            console.log('');
+                        }
+
+                        if (result.pension_gap) {
+                            const pg = result.pension_gap;
+                            console.log('📊 ДЕФИЦИТ ПЕНСИИ:');
+                            console.log('');
+                            if (pg.gap_monthly_current !== undefined) {
+                                console.log('  Дефицит (текущие цены):', pg.gap_monthly_current.toLocaleString('ru-RU'), 'руб/мес');
+                            }
+                            if (pg.gap_monthly_future !== undefined) {
+                                console.log('  Дефицит (будущие цены):', pg.gap_monthly_future.toLocaleString('ru-RU'), 'руб/мес');
+                            }
+                            if (pg.has_gap !== undefined) {
+                                console.log('  Есть дефицит:', pg.has_gap ? 'Да' : 'Нет');
+                            }
+                            console.log('');
+                        }
 
                         if (result.financials) {
                             const fin = result.financials;
-                            console.log('📊 ФИНАНСОВЫЕ ПОКАЗАТЕЛИ:');
+                            console.log('💰 ФИНАНСОВЫЕ ПОКАЗАТЕЛИ:');
                             console.log('');
-                            if (fin.cost_initial !== undefined) {
-                                console.log('  Стоимость (начальная):', fin.cost_initial.toLocaleString('ru-RU'), 'руб.');
-                            }
-                            if (fin.cost_with_inflation !== undefined) {
-                                console.log('  Стоимость (с инфляцией):', fin.cost_with_inflation.toLocaleString('ru-RU'), 'руб.');
-                            }
                             if (fin.initial_capital !== undefined) {
                                 console.log('  Первоначальный капитал:', fin.initial_capital.toLocaleString('ru-RU'), 'руб.');
                             }
@@ -127,9 +160,6 @@ const req = https.request(options, (res) => {
                             }
                             if (fin.recommended_replenishment !== undefined) {
                                 console.log('  Рекомендуемое пополнение:', fin.recommended_replenishment.toLocaleString('ru-RU'), 'руб/мес');
-                            }
-                            if (fin.final_amount !== undefined) {
-                                console.log('  Итоговая сумма:', fin.final_amount.toLocaleString('ru-RU'), 'руб.');
                             }
                             if (fin.portfolio_yield_annual_percent !== undefined) {
                                 console.log('  Доходность портфеля:', fin.portfolio_yield_annual_percent, '% годовых');
@@ -151,28 +181,10 @@ const req = https.request(options, (res) => {
                             if (summary.total_capital_at_end !== undefined) {
                                 console.log('  Итоговый капитал:', summary.total_capital_at_end.toLocaleString('ru-RU'), 'руб.');
                             }
-                            if (summary.target_achieved !== undefined) {
-                                console.log('  Цель достигнута:', summary.target_achieved ? 'Да' : 'Нет');
+                            if (summary.state_benefit !== undefined) {
+                                console.log('  Государственная поддержка:', summary.state_benefit.toLocaleString('ru-RU'), 'руб.');
                             }
                             console.log('');
-                        }
-
-                        if (result.portfolio_structure && result.portfolio_structure.portfolio_composition) {
-                            const comp = result.portfolio_structure.portfolio_composition;
-                            console.log('📦 СОСТАВ ПОРТФЕЛЯ:');
-                            console.log('');
-                            if (comp.monthly_topup_allocation && comp.monthly_topup_allocation.length > 0) {
-                                console.log('  Ежемесячные пополнения:');
-                                comp.monthly_topup_allocation.forEach((product, index) => {
-                                    console.log(`    ${index + 1}. ${product.product_name || 'N/A'}`);
-                                    console.log(`       Доля: ${product.share_percent}%`);
-                                    console.log(`       Сумма: ${product.amount?.toLocaleString('ru-RU') || 'N/A'} руб/мес`);
-                                    if (product.yield_percent) {
-                                        console.log(`       Доходность: ${product.yield_percent}% годовых`);
-                                    }
-                                });
-                                console.log('');
-                            }
                         }
 
                         console.log('─'.repeat(80));
@@ -221,6 +233,3 @@ req.on('error', (e) => {
 
 req.write(postData);
 req.end();
-
-
-
