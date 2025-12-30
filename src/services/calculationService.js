@@ -261,7 +261,7 @@ class CalculationService {
         const { goals, client } = data;
         const clientData = client || {};
 
-        this._calculateLifeInsuranceNeed(clientData, goals);
+        // this._calculateLifeInsuranceNeed(clientData, goals); // Disabled by user request (30.12.2025)
 
         // 1. COLLECT ASSETS AND POOL
         let poolBalance = Number(clientData.total_liquid_capital || 0);
