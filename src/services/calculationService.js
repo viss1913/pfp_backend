@@ -1401,7 +1401,7 @@ class CalculationService {
                         targetAmountFuture: targetCapitalPension,
                         termMonths: termMonthsPensionAccum,
                         monthlyYieldRate: yieldMonthlyPension,
-                        monthlyInflationRate: inflationMonthlyPension,
+                        monthlyInflationRate: m_month_percent / 100, // Use system indexation (0.33%)
                         inflows: allInflows
                     });
 
@@ -1415,8 +1415,8 @@ class CalculationService {
                     const CapitalGap = Math.max(0, CostWithInflation - (InitialCapital * Math.pow(1 + d_month_decimal, Month)));
                     const recommendedReplenishmentRaw = recommendedReplenishment;
 
-                    const m_month_percent = inflationAnnualUsed; // Use inflation for PDS replenishment growth
-                    const m_month_decimal = infl_month_decimal; // Use calculated decimal
+                    // Use system setting for monthly indexation (from investment_expense_growth_monthly, e.g. 0.33)
+                    const m_month_decimal = m_month_percent / 100;
                     const Cost = (targetCapitalPension / Math.pow(1 + infl_month_decimal, Month));
 
                     const sharedInitial = sharedInflowsTaken
