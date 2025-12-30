@@ -582,6 +582,15 @@ components:
                   percentage_income:
                     type: number
                     description: Процентный доход за год (₽)
+                  tax_refund_received:
+                    type: number
+                    description: Полученный налоговый вычет (в апреле, за прошлый год)
+                  tax_refund_projected:
+                    type: number
+                    description: Прогноз налогового вычета (за взносы этого года)
+                  roi_immediate:
+                    type: integer
+                    description: Мгновенная доходность (ROI) в % (Софинансирование + Налоговый вычет / Взносы)
         summary:
           $ref: '#/components/schemas/GoalCalculationSummary'
         error:
