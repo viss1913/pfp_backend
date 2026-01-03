@@ -43,8 +43,9 @@ class InvestmentCalculator extends BaseCalculator {
             if (profile.initial_capital) {
                 allBuckets.push(...profile.initial_capital.map(i => ({ ...i, bucket_type: 'INITIAL_CAPITAL' })));
             }
-            if (profile.monthly_savings) {
-                allBuckets.push(...profile.monthly_savings.map(i => ({ ...i, bucket_type: 'MONTHLY_SAVINGS' })));
+            const replenishment = profile.initial_replenishment || profile.top_up || profile.monthly_savings;
+            if (replenishment) {
+                allBuckets.push(...replenishment.map(i => ({ ...i, bucket_type: 'TOP_UP' })));
             }
         }
 
@@ -73,11 +74,11 @@ class InvestmentCalculator extends BaseCalculator {
                 yield: productYield
             };
 
-            const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase();
+            const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();
             if (bType === 'INITIAL_CAPITAL') {
                 initial_instruments.push(instrumentData);
                 weightedYieldAnnual += (productYield * (item.share_percent / 100));
-            } else if (bType === 'MONTHLY_SAVINGS') {
+            } else if (bType === 'MONTHLY_SAVINGS' || bType === 'TOP_UP') {
                 monthly_instruments.push(instrumentData);
             }
         }
