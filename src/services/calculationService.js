@@ -518,8 +518,9 @@ class CalculationService {
                         accumulatedOwnCapital += currentReplenishment;
                         totalOwnContributions += currentReplenishment;
 
-                        // 4. Index Replenishment
-                        currentReplenishment *= (1 + inflationMonthly);
+                        // 4. Index Replenishment (Using indexation from admin settings)
+                        const replenishmentIndexationRate = (m_month_percent || 0.1) / 100;
+                        currentReplenishment *= (1 + replenishmentIndexationRate);
 
                         if (m % 12 === 0) {
                             yearlyBreakdownOwn.push({
@@ -592,7 +593,7 @@ class CalculationService {
                             termMonths: termMonths,
                             avgMonthlyIncome: avgMonthlyIncome,
                             startDate: startDate,
-                            monthlyGrowthRate: inflationMonthly, // Indexation
+                            monthlyGrowthRate: (m_month_percent || 0.1) / 100, // Use admin indexation rate
                             portfolioYieldMonthly: yieldMonthly,
                             usedCofinancingPerYear
                         });
