@@ -241,8 +241,8 @@ class CalculationService {
         return {
             summary: {
                 goals_count: goals.length,
-                total_capital: results.reduce((sum, r) => sum + (r.summary?.total_capital_at_end || 0), 0),
-                total_state_benefit: results.reduce((sum, r) => sum + (r.summary?.state_benefit || 0), 0)
+                total_capital: Math.round(results.reduce((sum, r) => sum + (r.summary?.total_capital_at_end || 0), 0) * 100) / 100,
+                total_state_benefit: Math.round(results.reduce((sum, r) => sum + (r.summary?.state_benefit || 0), 0) * 100) / 100
             },
             goals: results
         };

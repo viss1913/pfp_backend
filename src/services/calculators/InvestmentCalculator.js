@@ -35,6 +35,7 @@ class InvestmentCalculator extends BaseCalculator {
         const initial_instruments = [];
         const monthly_instruments = [];
         let pdsProductId = null;
+        let weightedYieldAnnual = 0;
 
         let allBuckets = [];
         if (profile.instruments && profile.instruments.length > 0) {
@@ -116,21 +117,21 @@ class InvestmentCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'INVESTMENT',
                 status: (totalCapital >= targetAmountFuture * 0.999) ? 'OK' : 'GAP',
-                initial_capital: goal.initial_capital || 0,
-                monthly_replenishment: monthlyReplenishment,
-                total_capital_at_end: Math.round(totalCapital),
+                initial_capital: Math.round((goal.initial_capital || 0) * 100) / 100,
+                monthly_replenishment: Math.round(monthlyReplenishment * 100) / 100,
+                total_capital_at_end: Math.round(totalCapital * 100) / 100,
                 target_achieved: (totalCapital >= targetAmountFuture * 0.999),
-                state_benefit: Math.round(simResult.totalStateBenefit)
+                state_benefit: Math.round(simResult.totalStateBenefit * 100) / 100
             },
             details: {
                 portfolio_name: portfolio.name,
                 term_months: goal.term_months,
                 initial_capital_instruments: initial_instruments,
                 monthly_savings_instruments: monthly_instruments,
-                total_investment_income: Math.round(totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
-                total_client_investment: Math.round(simResult.totalClientInvestment),
-                total_cofinancing: Math.round(simResult.totalCofinancing),
-                total_tax_refund: Math.round(simResult.totalTaxRefund),
+                total_investment_income: Math.round((totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit) * 100) / 100,
+                total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
+                total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
+                total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
                 portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100
             }
         };

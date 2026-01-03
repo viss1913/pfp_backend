@@ -100,8 +100,8 @@ class PensionCalculator extends BaseCalculator {
                 goal_type: 'PENSION',
                 state_pension: statePensionResult,
                 desired_pension: {
-                    desired_monthly_income_initial: Math.round(goal.target_amount),
-                    desired_monthly_income_with_inflation: Math.round(desiredPensionMonthlyFuture)
+                    desired_monthly_income_initial: Math.round(goal.target_amount * 100) / 100,
+                    desired_monthly_income_with_inflation: Math.round(desiredPensionMonthlyFuture * 100) / 100
                 },
                 pension_gap: { gap_monthly_future: 0, has_gap: false },
                 message: 'Госпенсия покрывает желаемую пенсию'
@@ -136,6 +136,7 @@ class PensionCalculator extends BaseCalculator {
         const initial_instruments = [];
         const monthly_instruments = [];
         let pdsProductId = null;
+        let weightedYieldAnnual = 0; // FIXED Initialization
 
         let allBuckets = [];
         if (profile.instruments && profile.instruments.length > 0) {
@@ -222,25 +223,25 @@ class PensionCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'PENSION',
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                initial_capital: goal.initial_capital || 0,
-                monthly_replenishment: Math.round(recommendedReplenishment),
-                total_capital_at_end: Math.round(simResult.totalCapital),
+                initial_capital: Math.round((goal.initial_capital || 0) * 100) / 100,
+                monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                total_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
                 target_achieved: simResult.totalCapital >= requiredCapitalFuture * 0.999,
-                state_benefit: Math.round(simResult.totalStateBenefit)
+                state_benefit: Math.round(simResult.totalStateBenefit * 100) / 100
             },
             details: {
                 portfolio_name: portfolioForAcc.name,
                 term_months: monthsToPension,
                 initial_capital_instruments: initial_instruments,
                 monthly_savings_instruments: monthly_instruments,
-                state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current),
-                pension_from_capital_monthly: Math.round(pensionFromCapitalMonthly),
-                total_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current + pensionFromCapitalMonthly),
-                target_amount_initial: Math.round(goal.target_amount || 0),
-                target_amount_future: Math.round(requiredCapitalFuture),
-                total_client_investment: Math.round(simResult.totalClientInvestment),
-                total_cofinancing: Math.round(simResult.totalCofinancing),
-                total_tax_refund: Math.round(simResult.totalTaxRefund),
+                state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current * 100) / 100,
+                pension_from_capital_monthly: Math.round(pensionFromCapitalMonthly * 100) / 100,
+                total_pension_monthly: Math.round((statePensionResult.state_pension_monthly_future + pensionFromCapitalMonthly) * 100) / 100,
+                target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
+                target_amount_future: Math.round(requiredCapitalFuture * 100) / 100,
+                total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
+                total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
+                total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
                 years_to_pension: statePensionResult.years_to_pension
             }
         };

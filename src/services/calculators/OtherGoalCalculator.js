@@ -119,24 +119,24 @@ class OtherGoalCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'OTHER',
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                initial_capital: goal.initial_capital || 0,
-                monthly_replenishment: Math.round(recommendedReplenishment),
-                total_capital_at_end: Math.round(simResult.totalCapital),
+                initial_capital: Math.round((goal.initial_capital || 0) * 100) / 100,
+                monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                total_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
                 target_achieved: simResult.totalCapital >= targetAmountFuture * 0.999,
-                state_benefit: Math.round(simResult.totalStateBenefit)
+                state_benefit: Math.round(simResult.totalStateBenefit * 100) / 100
             },
             details: {
                 portfolio_name: portfolio.name,
                 portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
                 term_months: termMonths,
-                target_amount_initial: Math.round(goal.target_amount || 0),
-                target_amount_future: Math.round(targetAmountFuture),
+                target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
+                target_amount_future: Math.round(targetAmountFuture * 100) / 100,
                 initial_capital_instruments: initial_instruments,
                 monthly_savings_instruments: monthly_instruments,
-                total_investment_income: Math.round(simResult.totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
-                total_client_investment: Math.round(simResult.totalClientInvestment),
-                total_cofinancing: Math.round(simResult.totalCofinancing),
-                total_tax_refund: Math.round(simResult.totalTaxRefund)
+                total_investment_income: Math.round((simResult.totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit) * 100) / 100,
+                total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
+                total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
+                total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100
             }
         };
     }
