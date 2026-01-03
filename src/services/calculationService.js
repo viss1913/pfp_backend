@@ -3,6 +3,7 @@ const productRepository = require('../repositories/productRepository');
 const settingsService = require('./settingsService');
 const nsjApiService = require('./nsjApiService');
 const pdsCofinancingService = require('./pdsCofinancingService');
+const TaxService = require('./TaxService');
 
 class CalculationService {
     /**
@@ -474,8 +475,8 @@ class CalculationService {
                     );
 
                     // --- NEW: SOLVE FOR RECOMMENDED REPLENISHMENT ---
-                    let recommendedReplenishment = 0;
-                    if (targetAmountFuture > 0) {
+                    let recommendedReplenishment = replenishment || 0;
+                    if (targetAmountFuture > 0 && !replenishment) {
                         recommendedReplenishment = await this._simulateGoal({
                             initialCapital: initialCapital,
                             targetAmountFuture: targetAmountFuture,
@@ -484,8 +485,6 @@ class CalculationService {
                             monthlyInflationRate: inflationMonthly,
                             inflows: allInflows
                         });
-                    } else {
-                        recommendedReplenishment = replenishment || 0;
                     }
 
                     const recommendedReplenishmentRaw = recommendedReplenishment;
@@ -606,7 +605,9 @@ class CalculationService {
                         }
                     }
 
-                    const totalStateCapital = pdsResult ? pdsResult.total_cofinancing_with_investment : 0;
+                    const totalCofinancing = pdsResult ? pdsResult.total_cofinancing_with_investment : 0;
+                    const totalTaxRefunds = pdsResult ? pdsResult.total_tax_deductions_with_investment : 0;
+                    const totalStateCapital = totalCofinancing + totalTaxRefunds;
                     const totalCapital = accumulatedOwnCapital + totalStateCapital;
 
                     resultsIndexed.push({
@@ -1822,12 +1823,9 @@ class CalculationService {
                             const prevYear = year - 1;
                             const prevContrib = yearlyContributions[prevYear] || 0;
                             if (prevContrib > 0) {
-                                // Simplified Tax Logic: 13% refund up to 400k base
-                                // TODO: Use TaxService for precise calculation if needed
-                                const pdsLimit = 400000;
-                                const refundBase = Math.min(prevContrib, pdsLimit);
-                                const taxRate = 0.13;
-                                const refund = refundBase * taxRate;
+                                // Use TaxService for precise calculation (13/15% handling)
+                                const dedRes = await TaxService.calculatePdsRefundDelta(avgMonthlyIncome * 12, prevContrib, prevYear);
+                                const refund = dedRes.refundAmount;
 
                                 if (refund > 0) {
                                     console.log(`[DEBUG] Tax Refund Year ${year}: +${Math.round(refund)}`);

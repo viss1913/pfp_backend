@@ -282,13 +282,7 @@ class PdsCofinancingService {
                 if (yearlyContributions[prevYear] > 0) {
                     try {
                         const estimatedAnnualIncome = avgMonthlyIncome * 12;
-                        const taxCalc = await TaxService.calculateNdfl(estimatedAnnualIncome, prevYear);
-                        const taxProfile = {
-                            annual_income_taxable: estimatedAnnualIncome,
-                            ndfl_amount_without_deductions: taxCalc.taxAmount,
-                            ndfl_rate_value: 0.13 // Simplified
-                        };
-                        const dedRes = await TaxService.calculatePdsDeduction(taxProfile, yearlyContributions[prevYear], prevYear);
+                        const dedRes = await TaxService.calculatePdsRefundDelta(estimatedAnnualIncome, yearlyContributions[prevYear], prevYear);
 
                         const refund = dedRes.refundAmount;
                         if (refund > 0) {

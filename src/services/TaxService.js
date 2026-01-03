@@ -77,28 +77,11 @@ class TaxService {
      * @returns {Promise<{deductionBase: number, refundAmount: number, limitApplied: number, rateUsed: number, taxPaidCap: number}>}
      */
     async calculatePdsDeduction(clientProfile, pdsContributions, year) {
-        // 1. Get rules
-        const rules = await knex('tax_deduction_rules')
-            .where('deduction_type', 'PDS')
-            .where('year_from', '<=', year)
-            .where('year_to', '>=', year)
-            .first();
-
-        const baseLimit = rules ? rules.base_limit : 400000; // Default fallback
-
-        // 2. Calculate Base
-        // Limit base by legal limit (e.g. 400k) and actual contribution
+        // Legacy support / Simplified
+        const baseLimit = 400000;
         const deductionBase = Math.min(pdsContributions, baseLimit);
-
-        // 3. Determine Rate
-        // Use client's effective or marginal rate stored in profile.
-        // Fallback to 13% if missing.
         let rateToUse = clientProfile.ndfl_rate_value || 0.13;
-
-        // 4. Calculate Potential
         const potentialRefund = deductionBase * rateToUse;
-
-        // 5. Cap by Tax Paid
         const taxPaid = clientProfile.ndfl_amount_without_deductions || 0;
         const realRefund = Math.min(potentialRefund, taxPaid);
 
@@ -107,6 +90,27 @@ class TaxService {
             refundAmount: Number(realRefund.toFixed(2)),
             rateUsed: rateToUse,
             taxPaidCap: taxPaid
+        };
+    }
+
+    /**
+     * Calculate PDS Refund using Delta Method (Before vs After)
+     * This is the most accurate way for progressive rates (13/15%)
+     */
+    async calculatePdsRefundDelta(annualIncome, pdsContributions, year) {
+        const baseLimit = 400000;
+        const deductionBase = Math.min(pdsContributions, baseLimit);
+
+        const taxBefore = await this.calculateNdfl(annualIncome, year);
+        const taxAfter = await this.calculateNdfl(Math.max(0, annualIncome - deductionBase), year);
+
+        const refundAmount = Math.round((taxBefore.taxAmount - taxAfter.taxAmount) * 100) / 100;
+
+        return {
+            deductionBase,
+            refundAmount,
+            taxBefore: taxBefore.taxAmount,
+            taxAfter: taxAfter.taxAmount
         };
     }
 
