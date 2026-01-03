@@ -2,14 +2,14 @@
 const axios = require('axios');
 
 async function testPensionApi() {
-    const url = 'https://pfpbackend-production.up.railway.app/api/client/calculate';
+    const url = 'http://localhost:3000/api/client/calculate';
 
+    // Params: Male, 35 (1990), 130k income, 50k capital, 95k desired pension
     const payload = {
         client: {
             sex: 'male',
-            // age: 35, // Not allowed by Joi, derived from birth_date
-            avg_monthly_income: 110000,
-            total_liquid_capital: 50000, // Was current_capital
+            avg_monthly_income: 130000,
+            total_liquid_capital: 50000,
             birth_date: '1990-01-01'
         },
         goals: [
@@ -17,55 +17,24 @@ async function testPensionApi() {
                 goal_type_id: 1, // Pension
                 name: 'Госпенсия',
                 priority: 1,
-                target_amount: 100000,
+                target_amount: 95000,
                 term_months: 0,
                 risk_profile: 'BALANCED',
-                inflation_rate: 5.5 // Moved here
+                inflation_rate: 5.5
             }
         ]
     };
 
-    console.log('Sending API request to:', url);
-    // console.log('Payload:', JSON.stringify(payload, null, 2));
-
     try {
         const response = await axios.post(url, payload);
-        const result = response.data;
-
-        console.log('\n=== API Response ===');
-
-        if (result.goals && result.goals.length > 0) {
-            const pensionGoal = result.goals.find(g => g.goal_type === 'PENSION');
-            if (pensionGoal) {
-                console.log('\n=> Pension Goal Found');
-
-                console.log('\n--- Gap Analysis ---');
-                console.log('Recommended Replenishment (WITH PDS):', Math.round(pensionGoal.financials?.recommended_replenishment || 0));
-                console.log('Recommended Replenishment (WO PDS):', Math.round(pensionGoal.financials?.recommended_replenishment_without_pds || 0));
-
-                if (pensionGoal.pds_cofinancing) {
-                    console.log('\n--- PDS & TAX DETAILS ---');
-                    console.log('State Cofinancing (With Inv):', Math.round(pensionGoal.pds_cofinancing.total_cofinancing_with_investment));
-                    console.log('Tax Deductions (Nominal):', Math.round(pensionGoal.pds_cofinancing.total_tax_deductions_nominal || 0));
-                    console.log('Tax Deductions (With Inv):', Math.round(pensionGoal.pds_cofinancing.total_tax_deductions_with_investment || 0));
-
-                    // Check yearly breakdown
-                    const breakdown = pensionGoal.pds_cofinancing.yearly_breakdown;
-                    if (breakdown && breakdown.length > 0) {
-                        console.log(`Breakdown Years: ${breakdown.length}`);
-                        // Show Year 1, Year 10, Year 20, Last Year
-                        [0, 9, 19, breakdown.length - 1].forEach(idx => {
-                            if (breakdown[idx]) {
-                                const y = breakdown[idx];
-                                console.log(`Year ${y.year}: Refund Received = ${y.tax_refund_received}, Refund Projected = ${y.tax_refund_projected}`);
-                            }
-                        });
-                    }
-                }
-            } else {
-                console.log('No PENSION goal found.');
-            }
-        }
+        // console.log(JSON.stringify(response.data, null, 2));
+        const goals = response.data.goals || [];
+        goals.forEach(g => {
+            console.log(`\n=== ${g.goal_name} ===`);
+            console.log(`Recommended Replenishment: ${g.financials?.recommended_replenishment || 'N/A'}`);
+            console.log(`Without PDS: ${g.financials?.recommended_replenishment_without_pds || 'N/A'}`);
+            console.log(`State Benefit: ${g.summary?.state_benefit || 'N/A'}`);
+        });
     } catch (error) {
         console.error('API Request Failed:', error.message);
         if (error.response) {

@@ -326,7 +326,7 @@ class CalculationService {
             const isPassiveIncomeGoal = goal.goal_type_id === 2 || (goal.name && goal.name.toUpperCase().includes('РАНТЬЕ'));
 
             // INVESTMENT (id=3) - Refactored to use logic at end of loop (Projection)
-            const isInvestmentGoal = false; // goal.goal_type_id === 3 ... DISABLED
+            const isInvestmentGoal = goal.goal_type_id === 3; // Re-enabled for manual calc
 
             // LIFE (id=5) - "Жизнь" / NSJ
             const isLifeGoal = goal.goal_type_id === 5 || goal.name === 'Жизнь';
@@ -1813,6 +1813,27 @@ class CalculationService {
                                 if (benefit > 0) {
                                     currentBalance += benefit;
                                     totalStateBenefit += benefit;
+                                }
+                            }
+                        }
+
+                        // 3.4 Tax Refund Reinvestment (April)
+                        if (pdsProductId && month === 4 && year > startYear) {
+                            const prevYear = year - 1;
+                            const prevContrib = yearlyContributions[prevYear] || 0;
+                            if (prevContrib > 0) {
+                                // Simplified Tax Logic: 13% refund up to 400k base
+                                // TODO: Use TaxService for precise calculation if needed
+                                const pdsLimit = 400000;
+                                const refundBase = Math.min(prevContrib, pdsLimit);
+                                const taxRate = 0.13;
+                                const refund = refundBase * taxRate;
+
+                                if (refund > 0) {
+                                    console.log(`[DEBUG] Tax Refund Year ${year}: +${Math.round(refund)}`);
+                                    currentBalance += refund;
+                                    // Treat Tax Refund as State Benefit for summary
+                                    totalStateBenefit += refund;
                                 }
                             }
                         }

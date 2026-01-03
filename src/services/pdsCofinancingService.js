@@ -93,10 +93,12 @@ class PdsCofinancingService {
         });
 
         const totalCofinancingWithInvestment = firstPass.stateCapital;
+        const totalTaxCapital = firstPass.taxCapital;
 
         let recommendedReplenishment = initialReplenishment;
         if (capitalGap > 0) {
-            const newCapitalGap = capitalGap - totalCofinancingWithInvestment;
+            // Subtract BOTH State Co-financing AND Tax Refunds from the gap
+            const newCapitalGap = capitalGap - (totalCofinancingWithInvestment + totalTaxCapital);
             if (newCapitalGap > 0 && portfolioYieldMonthly !== undefined) {
                 recommendedReplenishment = this._recalculateReplenishment(
                     newCapitalGap,
@@ -127,7 +129,7 @@ class PdsCofinancingService {
 
         let finalNewCapitalGap = 0;
         if (capitalGap > 0) {
-            finalNewCapitalGap = Math.max(0, capitalGap - secondPass.stateCapital);
+            finalNewCapitalGap = Math.max(0, capitalGap - (secondPass.stateCapital + secondPass.taxCapital));
         }
 
         return {

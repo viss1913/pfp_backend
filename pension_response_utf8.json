@@ -1,0 +1,459 @@
+﻿{
+  "summary": {
+    "goals_count": 1,
+    "total_capital": 26403827.24,
+    "total_state_benefit": 5353843.21
+  },
+  "goals": [
+    {
+      "goal_id": 1,
+      "goal_name": "╨У╨╛╤Б╨┐╨╡╨╜╤Б╨╕╤П",
+      "goal_type": "PENSION",
+      "state_pension": {
+        "ipk_est": 227.3,
+        "state_pension_monthly_future": 209437.1,
+        "state_pension_monthly_current": 42022.3,
+        "retirement_age": 65,
+        "retirement_year": 2055,
+        "years_to_pension": 30,
+        "years_of_work": 17,
+        "age": 35
+      },
+      "desired_pension": {
+        "desired_monthly_income_initial": 95000,
+        "desired_monthly_income_with_inflation": 473475.37
+      },
+      "pension_gap": {
+        "gap_monthly_future": 264038.27,
+        "gap_monthly_current": 52977.7,
+        "has_gap": true
+      },
+      "passive_income_calculation": {
+        "desired_monthly_income_initial": 52977.7,
+        "desired_monthly_income_with_inflation": 264038.27,
+        "required_capital": 26403827.24,
+        "yield_percent": 12
+      },
+      "financials": {
+        "cost_initial": 5297769.92,
+        "cost_with_inflation": 26403827.24,
+        "inflation_annual_percent": 5.5,
+        "investment_expense_growth_monthly_percent": 0.45,
+        "investment_expense_growth_annual_percent": 5.5,
+        "initial_capital": 0,
+        "capital_gap": 26403827.24,
+        "recommended_replenishment": 3873.88,
+        "recommended_replenishment_without_pds": 4731.69
+      },
+      "summary": {
+        "goal_type": "PENSION",
+        "status": "GAP",
+        "initial_capital": 50000,
+        "monthly_replenishment": 3873.88,
+        "monthly_replenishment_without_pds": 4731.69,
+        "total_capital_at_end": 26403827.24,
+        "target_achieved": true,
+        "projected_value": 473475.37,
+        "state_benefit": 5353843.21
+      },
+      "portfolio_structure": {
+        "risk_profile": "BALANCED",
+        "portfolio_yield_annual": 13,
+        "inflation_rate_used": 5.5,
+        "portfolio_composition": {
+          "initial_capital_allocation": [
+            {
+              "product_id": 3,
+              "product_name": "╨Я╨Ф╨б ╨Э╨Я╨д (Updated)",
+              "product_type": "PDS",
+              "share_percent": 100,
+              "amount": 1,
+              "yield_percent": 13
+            }
+          ],
+          "monthly_topup_allocation": [
+            {
+              "product_id": 3,
+              "product_name": "╨Я╨Ф╨б ╨Э╨Я╨д (Updated)",
+              "product_type": "PDS",
+              "share_percent": 100,
+              "amount": 4731.69,
+              "yield_percent": null
+            }
+          ]
+        }
+      },
+      "pds_cofinancing": {
+        "cofinancing_next_year": 0,
+        "total_cofinancing_nominal": 284609,
+        "total_cofinancing_with_investment": 5353843.21,
+        "pds_yield_annual_percent": 13,
+        "new_capital_gap": 21049984.03,
+        "total_tax_deductions_nominal": 327676.56,
+        "total_tax_deductions_with_investment": 2342980.83,
+        "yearly_breakdown": [
+          {
+            "year": 2026,
+            "capital_start_of_year": 0,
+            "client_contrib_year": 47339.62,
+            "cofinancing_earned": 23669,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 0,
+            "tax_refund_projected": 6154.15,
+            "capital_end_of_year": 50078.02,
+            "percentage_income": 2738.4,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2027,
+            "capital_start_of_year": 50078.02,
+            "client_contrib_year": 49248.67,
+            "cofinancing_earned": 24624,
+            "cofinancing_paid_in_year": 23669,
+            "tax_refund_received": 6154.15,
+            "tax_refund_projected": 6402.33,
+            "capital_end_of_year": 140015.4,
+            "percentage_income": 10865.56,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2028,
+            "capital_start_of_year": 140015.4,
+            "client_contrib_year": 51234.7,
+            "cofinancing_earned": 25617,
+            "cofinancing_paid_in_year": 24624,
+            "tax_refund_received": 6402.33,
+            "tax_refund_projected": 6660.51,
+            "capital_end_of_year": 245009.52,
+            "percentage_income": 22733.08,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2029,
+            "capital_start_of_year": 245009.52,
+            "client_contrib_year": 53300.83,
+            "cofinancing_earned": 26650,
+            "cofinancing_paid_in_year": 25617,
+            "tax_refund_received": 6660.51,
+            "tax_refund_projected": 6929.11,
+            "capital_end_of_year": 367152.9,
+            "percentage_income": 36565.04,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2030,
+            "capital_start_of_year": 367152.9,
+            "client_contrib_year": 55450.28,
+            "cofinancing_earned": 27725,
+            "cofinancing_paid_in_year": 26650,
+            "tax_refund_received": 6929.11,
+            "tax_refund_projected": 7208.54,
+            "capital_end_of_year": 508816.06,
+            "percentage_income": 52633.77,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2031,
+            "capital_start_of_year": 508816.06,
+            "client_contrib_year": 57686.4,
+            "cofinancing_earned": 28843,
+            "cofinancing_paid_in_year": 27725,
+            "tax_refund_received": 7208.54,
+            "tax_refund_projected": 7499.23,
+            "capital_end_of_year": 672683.76,
+            "percentage_income": 71247.75,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2032,
+            "capital_start_of_year": 672683.76,
+            "client_contrib_year": 60012.71,
+            "cofinancing_earned": 30006,
+            "cofinancing_paid_in_year": 28843,
+            "tax_refund_received": 7499.23,
+            "tax_refund_projected": 7801.65,
+            "capital_end_of_year": 861794.98,
+            "percentage_income": 92756.29,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2033,
+            "capital_start_of_year": 861794.98,
+            "client_contrib_year": 62432.82,
+            "cofinancing_earned": 31216,
+            "cofinancing_paid_in_year": 30006,
+            "tax_refund_received": 7801.65,
+            "tax_refund_projected": 8116.27,
+            "capital_end_of_year": 1079590.22,
+            "percentage_income": 117554.77,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2034,
+            "capital_start_of_year": 1079590.22,
+            "client_contrib_year": 64950.53,
+            "cofinancing_earned": 32475,
+            "cofinancing_paid_in_year": 31216,
+            "tax_refund_received": 8116.27,
+            "tax_refund_projected": 8443.57,
+            "capital_end_of_year": 1329963.83,
+            "percentage_income": 146090.81,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2035,
+            "capital_start_of_year": 1329963.83,
+            "client_contrib_year": 67569.77,
+            "cofinancing_earned": 33784,
+            "cofinancing_paid_in_year": 32475,
+            "tax_refund_received": 8443.57,
+            "tax_refund_projected": 8784.07,
+            "capital_end_of_year": 1617323.2,
+            "percentage_income": 178871.03,
+            "roi_immediate": 63
+          },
+          {
+            "year": 2036,
+            "capital_start_of_year": 1617323.2,
+            "client_contrib_year": 70294.64,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 33784,
+            "tax_refund_received": 8784.07,
+            "tax_refund_projected": 9138.3,
+            "capital_end_of_year": 1946654.61,
+            "percentage_income": 216468.7,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2037,
+            "capital_start_of_year": 1946654.61,
+            "client_contrib_year": 73129.39,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 9138.3,
+            "tax_refund_projected": 9506.82,
+            "capital_end_of_year": 2286993.38,
+            "percentage_income": 258071.08,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2038,
+            "capital_start_of_year": 2286993.38,
+            "client_contrib_year": 76078.46,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 9506.82,
+            "tax_refund_projected": 9890.2,
+            "capital_end_of_year": 2675095.65,
+            "percentage_income": 302516.99,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2039,
+            "capital_start_of_year": 2675095.65,
+            "client_contrib_year": 79146.45,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 9890.2,
+            "tax_refund_projected": 10289.04,
+            "capital_end_of_year": 3117312.6,
+            "percentage_income": 353180.3,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2040,
+            "capital_start_of_year": 3117312.6,
+            "client_contrib_year": 82338.17,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 10289.04,
+            "tax_refund_projected": 10703.96,
+            "capital_end_of_year": 3620826.8,
+            "percentage_income": 410886.99,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2041,
+            "capital_start_of_year": 3620826.8,
+            "client_contrib_year": 85658.59,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 10703.96,
+            "tax_refund_projected": 11135.62,
+            "capital_end_of_year": 4193760.49,
+            "percentage_income": 476571.13,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2042,
+            "capital_start_of_year": 4193760.49,
+            "client_contrib_year": 89112.92,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 11135.62,
+            "tax_refund_projected": 11584.68,
+            "capital_end_of_year": 4845298.01,
+            "percentage_income": 551288.97,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2043,
+            "capital_start_of_year": 4845298.01,
+            "client_contrib_year": 92706.55,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 11584.68,
+            "tax_refund_projected": 12051.85,
+            "capital_end_of_year": 5585824.09,
+            "percentage_income": 636234.85,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2044,
+            "capital_start_of_year": 5585824.09,
+            "client_contrib_year": 96445.1,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 12051.85,
+            "tax_refund_projected": 12537.86,
+            "capital_end_of_year": 6427080.2,
+            "percentage_income": 732759.16,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2045,
+            "capital_start_of_year": 6427080.2,
+            "client_contrib_year": 100334.42,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 12537.86,
+            "tax_refund_projected": 13043.47,
+            "capital_end_of_year": 7382341.16,
+            "percentage_income": 842388.69,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2046,
+            "capital_start_of_year": 7382341.16,
+            "client_contrib_year": 104380.57,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 13043.47,
+            "tax_refund_projected": 13569.47,
+            "capital_end_of_year": 8466614.8,
+            "percentage_income": 966849.59,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2047,
+            "capital_start_of_year": 8466614.8,
+            "client_contrib_year": 108589.9,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 13569.47,
+            "tax_refund_projected": 14116.69,
+            "capital_end_of_year": 9696867.47,
+            "percentage_income": 1108093.31,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2048,
+            "capital_start_of_year": 9696867.47,
+            "client_contrib_year": 112968.97,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 14116.69,
+            "tax_refund_projected": 14685.97,
+            "capital_end_of_year": 11092279.05,
+            "percentage_income": 1268325.92,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2049,
+            "capital_start_of_year": 11092279.05,
+            "client_contrib_year": 117524.64,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 14685.97,
+            "tax_refund_projected": 15278.2,
+            "capital_end_of_year": 12674530.93,
+            "percentage_income": 1450041.27,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2050,
+            "capital_start_of_year": 12674530.93,
+            "client_contrib_year": 122264.02,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 15278.2,
+            "tax_refund_projected": 15894.32,
+            "capital_end_of_year": 14468131.59,
+            "percentage_income": 1656058.45,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2051,
+            "capital_start_of_year": 14468131.59,
+            "client_contrib_year": 127194.52,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 15894.32,
+            "tax_refund_projected": 16535.29,
+            "capital_end_of_year": 16500784.48,
+            "percentage_income": 1889564.05,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2052,
+            "capital_start_of_year": 16500784.48,
+            "client_contrib_year": 132323.86,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 16535.29,
+            "tax_refund_projected": 17202.1,
+            "capital_end_of_year": 18803803.67,
+            "percentage_income": 2154160.04,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2053,
+            "capital_start_of_year": 18803803.67,
+            "client_contrib_year": 137660.04,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 17202.1,
+            "tax_refund_projected": 17895.81,
+            "capital_end_of_year": 21412583.63,
+            "percentage_income": 2453917.82,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2054,
+            "capital_start_of_year": 21412583.63,
+            "client_contrib_year": 143211.42,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 17895.81,
+            "tax_refund_projected": 18617.48,
+            "capital_end_of_year": 24367130.09,
+            "percentage_income": 2793439.23,
+            "roi_immediate": 13
+          },
+          {
+            "year": 2055,
+            "capital_start_of_year": 24367130.09,
+            "client_contrib_year": 136344.9,
+            "cofinancing_earned": 0,
+            "cofinancing_paid_in_year": 0,
+            "tax_refund_received": 18617.48,
+            "tax_refund_projected": 17724.84,
+            "capital_end_of_year": 27700018.08,
+            "percentage_income": 3177925.6,
+            "roi_immediate": 13
+          }
+        ]
+      }
+    }
+  ]
+}
