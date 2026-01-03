@@ -1,8 +1,9 @@
 const BaseCalculator = require('./BaseCalculator');
 
 class LifeInsuranceCalculator extends BaseCalculator {
-    async calculate(goal, client, context, settings) {
-        const { nsjApiService } = settings;
+    async calculate(goal, context) {
+        const { client, services } = context;
+        const { nsjApiService } = services;
 
         try {
             const nsjParams = {

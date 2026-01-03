@@ -2,10 +2,27 @@ const BaseCalculator = require('./BaseCalculator');
 const productRepository = require('../../repositories/productRepository');
 
 class InvestmentCalculator extends BaseCalculator {
-    async calculate(goal, client, context, settings) {
-        const { riskProfiles, m_month_percent, db_inflation_year_percent } = settings;
-        const profile = riskProfiles.find(p => p.risk_profile === (goal.risk_profile || 'BALANCED'));
+    async calculate(goal, context) {
+        const { settings, client, repositories } = context;
+        const { portfolioRepository, productRepository } = repositories;
+        const m_month_percent = settings.investment_expense_growth_monthly || 0;
+        const db_inflation_year_percent = settings.inflation_rate_year || 4.0;
 
+        // 0. Найти портфель
+        const portfolio = await portfolioRepository.findByCriteria({
+            classId: goal.goal_type_id,
+            amount: goal.initial_capital || 0,
+            term: goal.term_months
+        });
+
+        if (!portfolio) {
+            throw new Error(`Investment portfolio not found for class ${goal.goal_type_id}`);
+        }
+
+        let riskProfiles = portfolio.risk_profiles;
+        if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
+
+        const profile = riskProfiles.find(p => p.risk_profile === (goal.risk_profile || 'BALANCED'));
         if (!profile) {
             throw new Error(`Risk profile ${goal.risk_profile} not found`);
         }

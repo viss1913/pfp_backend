@@ -141,17 +141,28 @@ class CalculationService {
         sharedPoolEvents.unshift({ month: 0, amount: poolBalance });
 
         // Fetch System Settings
-        let m_month_percent = 0.0;
-        try {
-            const setting = await settingsService.get('investment_expense_growth_monthly');
-            if (setting && setting.value) m_month_percent = Number(setting.value);
-        } catch (e) { console.warn('Could not fetch investment_expense_growth_monthly, using 0%'); }
+        const settings = {};
+        const allSettingsKeys = [
+            'investment_expense_growth_monthly',
+            'inflation_rate_year',
+            'pension_pfr_contribution_rate_part1',
+            'pension_fixed_payment',
+            'pension_point_cost',
+            'pension_max_salary_limit',
+            'pension_ipk_past_coef'
+        ];
 
-        let db_inflation_year_percent = 4.0;
-        try {
-            const setting = await settingsService.get('inflation_rate_year');
-            if (setting && setting.value) db_inflation_year_percent = Number(setting.value);
-        } catch (e) { console.warn('Could not fetch inflation_rate_year, using 4%'); }
+        for (const key of allSettingsKeys) {
+            try {
+                const s = await settingsService.get(key);
+                settings[key] = s ? s.value : null;
+            } catch (e) {
+                console.warn(`Could not fetch setting ${key}`);
+            }
+        }
+
+        const m_month_percent = settings.investment_expense_growth_monthly || 0.0;
+        const db_inflation_year_percent = settings.inflation_rate_year || 4.0;
 
         return {
             poolBalance,
@@ -161,7 +172,18 @@ class CalculationService {
             inflationYear: db_inflation_year_percent,
             replenishmentIndexationRate: m_month_percent,
             client: clientData,
-            assets: assets
+            assets: assets,
+            settings: settings,
+            services: {
+                settingsService,
+                nsjApiService,
+                pdsCofinancingService,
+                TaxService
+            },
+            repositories: {
+                portfolioRepository,
+                productRepository
+            }
         };
     }
 

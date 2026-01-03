@@ -65,7 +65,10 @@ class PensionCalculator extends BaseCalculator {
         };
     }
 
-    async calculate(goal, client, context, settings) {
+    async calculate(goal, context) {
+        const { client, settings, repositories } = context;
+        const { portfolioRepository, productRepository } = repositories;
+
         if (!client.birth_date) {
             throw new Error('Client birth_date is required for pension calculation');
         }
@@ -76,7 +79,7 @@ class PensionCalculator extends BaseCalculator {
             pension_point_cost: settings.pension_point_cost || 145.69,
             pension_max_salary_limit: settings.pension_max_salary_limit || 2759000,
             pension_ipk_past_coef: settings.pension_ipk_past_coef || 0.6,
-            inflation_rate: goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : settings.db_inflation_year_percent
+            inflation_rate: goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : settings.inflation_rate_year
         };
 
         const clientWithIncome = {
@@ -108,7 +111,7 @@ class PensionCalculator extends BaseCalculator {
         }
 
         // Фаза накопления (Accumulation Phase)
-        const payoutYieldLine = await settings.settingsService.findPassiveIncomeYieldLine(0, monthsToPension, true);
+        const payoutYieldLine = await context.services.settingsService.findPassiveIncomeYieldLine(0, monthsToPension, true);
         if (!payoutYieldLine) throw new Error('Passive income yield line not found');
         const payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
         const requiredCapitalFuture = (pensionGapMonthlyFuture * 12 * 100) / payoutYieldPercent;
@@ -141,14 +144,14 @@ class PensionCalculator extends BaseCalculator {
         }
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
-        const inflowData = this.getGoalInflows(goal, settings.assets, context, monthsToPension, goal.initial_capital, requiredCapitalFuture, yieldMonthly, infl_month_decimal);
+        const inflowData = this.getGoalInflows(goal, context.assets, context, monthsToPension, goal.initial_capital, requiredCapitalFuture, yieldMonthly, infl_month_decimal);
 
         const recommendedReplenishment = await this.simulateGoal({
             initialCapital: goal.initial_capital || 0,
             targetAmountFuture: requiredCapitalFuture,
             termMonths: monthsToPension,
             monthlyYieldRate: yieldMonthly,
-            monthlyInflationRate: (settings.m_month_percent || 0.1) / 100,
+            monthlyInflationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
             inflows: inflowData.allInflows
         });
 

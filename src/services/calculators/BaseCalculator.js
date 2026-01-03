@@ -3,8 +3,14 @@ const settingsService = require('../settingsService');
 
 class BaseCalculator {
     /**
-     * Превращает годовую доходность в месячную
+     * @param {Object} goal - Goal data
+     * @param {Object} context - Unified context (client, settings, services, repo)
      */
+    async calculate(goal, context) {
+        throw new Error('calculate() must be implemented');
+    }
+
+    /**
     getMonthlyYield(annualYieldPercent) {
         return Math.pow(1 + (annualYieldPercent / 100), 1 / 12) - 1;
     }

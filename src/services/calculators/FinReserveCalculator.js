@@ -3,8 +3,8 @@ const productRepository = require('../../repositories/productRepository');
 const portfolioRepository = require('../../repositories/portfolioRepository');
 
 class FinReserveCalculator extends BaseCalculator {
-    async calculate(goal, client, context, settings) {
-        const { m_month_percent, db_inflation_year_percent } = settings;
+    async calculate(goal, context) {
+        const { settings } = context;
 
         const termMonths = goal.term_months || 6; // Финрезерв обычно на полгода
         const yieldMonthly = this.getMonthlyYield(6); // Упрощенная доходность 6%
@@ -12,7 +12,7 @@ class FinReserveCalculator extends BaseCalculator {
         let currentBalance = goal.initial_capital || 0;
         let totalClientInvestment = currentBalance;
         const monthlyReplenishment = goal.monthly_replenishment || 0;
-        const indexationRate = (m_month_percent || 0.1) / 100;
+        const indexationRate = (settings.investment_expense_growth_monthly || 0.1) / 100;
 
         for (let m = 0; m < termMonths; m++) {
             currentBalance *= (1 + yieldMonthly);

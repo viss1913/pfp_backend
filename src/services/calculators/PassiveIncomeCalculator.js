@@ -3,11 +3,13 @@ const productRepository = require('../../repositories/productRepository');
 const portfolioRepository = require('../../repositories/portfolioRepository');
 
 class PassiveIncomeCalculator extends BaseCalculator {
-    async calculate(goal, client, context, settings) {
-        const { settingsService, pdsCofinancingService, db_inflation_year_percent, m_month_percent } = settings;
+    async calculate(goal, context) {
+        const { client, settings, repositories, services, assets } = context;
+        const { portfolioRepository } = repositories;
+        const { settingsService } = services;
 
         // 1. Расчет желаемого дохода в будущем
-        const inflationAnnualUsed = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;
+        const inflationAnnualUsed = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : settings.inflation_rate_year;
         const infl_month_decimal = this.getMonthlyInflation(inflationAnnualUsed);
         const desiredMonthlyIncomeFuture = goal.target_amount * Math.pow(1 + infl_month_decimal, goal.term_months);
 
@@ -28,7 +30,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
         const d_month_decimal = this.getMonthlyYield(d_annual);
 
         // 4. Притоки (вклады, Shared Pool)
-        const inflowData = this.getGoalInflows(goal, settings.assets, context, goal.term_months, goal.initial_capital, requiredCapitalFuture, d_month_decimal, infl_month_decimal);
+        const inflowData = this.getGoalInflows(goal, assets, context, goal.term_months, goal.initial_capital, requiredCapitalFuture, d_month_decimal, infl_month_decimal);
 
         // 5. Поиск пополнения
         let recommendedReplenishment = await this.simulateGoal({
@@ -36,7 +38,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
             targetAmountFuture: requiredCapitalFuture,
             termMonths: goal.term_months,
             monthlyYieldRate: d_month_decimal,
-            monthlyInflationRate: (m_month_percent || 0.1) / 100,
+            monthlyInflationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
             inflows: inflowData.allInflows
         });
 
