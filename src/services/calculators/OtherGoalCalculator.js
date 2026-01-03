@@ -36,18 +36,23 @@ class OtherGoalCalculator extends BaseCalculator {
         const monthly_instruments = [];
         let pdsProductId = null;
 
-        const allBuckets = profile.instruments || [];
-        if (allBuckets.length === 0 && profile.initial_capital) {
-            allBuckets.push(...profile.initial_capital.map(i => ({ ...i, bucket_type: 'INITIAL_CAPITAL' })));
-        }
-        if (allBuckets.length === 0 && profile.monthly_savings) {
-            allBuckets.push(...profile.monthly_savings.map(i => ({ ...i, bucket_type: 'MONTHLY_SAVINGS' })));
+        let allBuckets = [];
+        if (profile.instruments && profile.instruments.length > 0) {
+            allBuckets = profile.instruments;
+        } else {
+            if (profile.initial_capital) {
+                allBuckets.push(...profile.initial_capital.map(i => ({ ...i, bucket_type: 'INITIAL_CAPITAL' })));
+            }
+            if (profile.monthly_savings) {
+                allBuckets.push(...profile.monthly_savings.map(i => ({ ...i, bucket_type: 'MONTHLY_SAVINGS' })));
+            }
         }
 
         for (const item of allBuckets) {
             const product = await repositories.productRepository.findById(item.product_id);
             if (product) {
-                const isPds = product.product_type === 'PDS';
+                const prodType = (product.product_type || '').toUpperCase().trim();
+                const isPds = prodType === 'PDS';
                 if (isPds) pdsProductId = product.id;
 
                 const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
@@ -67,10 +72,11 @@ class OtherGoalCalculator extends BaseCalculator {
                     yield: productYield
                 };
 
-                if (item.bucket_type === 'INITIAL_CAPITAL' || !item.bucket_type) {
+                const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase();
+                if (bType === 'INITIAL_CAPITAL') {
                     initial_instruments.push(instrumentData);
                     weightedYieldAnnual += (productYield * (item.share_percent / 100));
-                } else if (item.bucket_type === 'MONTHLY_SAVINGS') {
+                } else if (bType === 'MONTHLY_SAVINGS') {
                     monthly_instruments.push(instrumentData);
                 }
             }
