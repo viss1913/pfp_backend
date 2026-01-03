@@ -126,7 +126,16 @@ class PensionCalculator extends BaseCalculator {
 
         let riskProfiles = portfolioForAcc.risk_profiles;
         if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
-        const profile = riskProfiles.find(p => p.profile_type === goal.risk_profile || p.risk_profile === goal.risk_profile);
+
+        const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
+        const profile = riskProfiles.find(p => {
+            const pType = (p.risk_profile || p.profile_type || '').toUpperCase();
+            return pType === searchProfile;
+        });
+
+        if (!profile) {
+            throw new Error(`Pension risk profile ${searchProfile} not found in portfolio`);
+        }
 
         // Доходность портфеля
         let weightedYieldAnnual = 0;

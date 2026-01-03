@@ -22,9 +22,14 @@ class InvestmentCalculator extends BaseCalculator {
         let riskProfiles = portfolio.risk_profiles;
         if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
 
-        const profile = riskProfiles.find(p => p.risk_profile === (goal.risk_profile || 'BALANCED'));
+        const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
+        const profile = riskProfiles.find(p => {
+            const pType = (p.risk_profile || p.profile_type || '').toUpperCase();
+            return pType === searchProfile;
+        });
+
         if (!profile) {
-            throw new Error(`Risk profile ${goal.risk_profile} not found`);
+            throw new Error(`Risk profile ${searchProfile} not found in portfolio`);
         }
 
         // 1. Определение доходности
