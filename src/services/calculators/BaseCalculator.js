@@ -11,6 +11,8 @@ class BaseCalculator {
     }
 
     /**
+     * Превращает годовую доходность в месячную
+     */
     getMonthlyYield(annualYieldPercent) {
         return Math.pow(1 + (annualYieldPercent / 100), 1 / 12) - 1;
     }
