@@ -80,25 +80,30 @@ class InvestmentCalculator extends BaseCalculator {
         let currentDate = new Date(startDate);
         const indexationRate = (m_month_percent || 0.1) / 100;
 
+        let totalCofinancing = 0;
+        let totalTaxRefund = 0;
+
         for (let m = 1; m <= goal.term_months; m++) {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
 
-            // 1. Пополнение (как в колонке C в Excel)
+            // 1. Рост капитала (Начисление на баланс прошлого месяца: E2 * (1 + yield))
+            currentBalance *= (1 + portfolioYieldMonthly);
+
+            // 2. Пополнение (как в колонке C в Excel)
             const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m - 1);
             currentBalance += indexedReplenishment;
             totalClientInvestment += indexedReplenishment;
             yearlyContributions[year] = (yearlyContributions[year] || 0) + indexedReplenishment;
 
-            // 2. Рост капитала (как в колонке E в Excel: доп. начисление на сумму с пополнением)
-            currentBalance *= (1 + portfolioYieldMonthly);
-
             // 3. ПДС события (как в колонках F и G)
             if (pdsProductId) {
-                const benefit = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context);
-                // В Excel льготы добавляются в конце месяца и растут только со следующего месяца
-                currentBalance += benefit;
-                totalStateBenefit += benefit;
+                const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context);
+                // ПДС льготы добавляются в конце месяца и растут со следующего
+                currentBalance += (cofin + refund);
+                totalCofinancing += cofin;
+                totalTaxRefund += refund;
+                totalStateBenefit += (cofin + refund);
             }
 
             currentDate.setMonth(currentDate.getMonth() + 1);
@@ -123,6 +128,8 @@ class InvestmentCalculator extends BaseCalculator {
             details: {
                 total_investment_income: Math.round(totalCapital - totalClientInvestment - totalStateBenefit),
                 total_client_investment: Math.round(totalClientInvestment),
+                total_cofinancing: Math.round(totalCofinancing),
+                total_tax_refund: Math.round(totalTaxRefund),
                 portfolio_yield_annual: weightedYieldAnnual
             }
         };

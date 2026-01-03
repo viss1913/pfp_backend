@@ -34,7 +34,8 @@ class BaseCalculator {
      * @param {Object} context - контекст с лимитами
      */
     async handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context) {
-        let totalBenefit = 0;
+        let cofin = 0;
+        let refund = 0;
 
         // 1. Софинансирование (Август)
         if (month === 8 && year > startYear) {
@@ -51,7 +52,7 @@ class BaseCalculator {
                     );
                     const benefit = cofinResult.state_cofin_amount || 0;
                     if (benefit > 0) {
-                        totalBenefit += benefit;
+                        cofin += benefit;
                         context.usedCofinancingPerYear[prevYear] = alreadyUsed + benefit;
                     }
                 }
@@ -73,17 +74,17 @@ class BaseCalculator {
                         alreadyUsedBase,
                         prevYear
                     );
-                    const refund = dedRes.refundAmount;
+                    const refundAmount = dedRes.refundAmount;
 
-                    if (refund > 0) {
-                        totalBenefit += refund;
+                    if (refundAmount > 0) {
+                        refund += refundAmount;
                         context.usedTaxBasePerYear[prevYear] = alreadyUsedBase + dedRes.contributionAdded;
                     }
                 }
             }
         }
 
-        return totalBenefit;
+        return { cofin, refund };
     }
 
     /**

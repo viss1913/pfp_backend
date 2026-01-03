@@ -1,6 +1,4 @@
 const BaseCalculator = require('./BaseCalculator');
-const productRepository = require('../../repositories/productRepository');
-const portfolioRepository = require('../../repositories/portfolioRepository');
 
 class PensionCalculator extends BaseCalculator {
     /**
@@ -110,7 +108,7 @@ class PensionCalculator extends BaseCalculator {
             };
         }
 
-        // Фаза накопления (Accumulation Phase)
+        // Фаза накопления
         const payoutYieldLine = await context.services.settingsService.findPassiveIncomeYieldLine(0, monthsToPension, true);
         if (!payoutYieldLine) throw new Error('Passive income yield line not found');
         const payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
@@ -133,11 +131,8 @@ class PensionCalculator extends BaseCalculator {
             return pType === searchProfile;
         });
 
-        if (!profile) {
-            throw new Error(`Pension risk profile ${searchProfile} not found in portfolio`);
-        }
+        if (!profile) throw new Error(`Pension risk profile ${searchProfile} not found`);
 
-        // Доходность портфеля
         let weightedYieldAnnual = 0;
         let capitalDistribution = profile.instruments ?
             profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL') :
@@ -146,23 +141,60 @@ class PensionCalculator extends BaseCalculator {
         let pdsProductId = null;
         for (const item of capitalDistribution) {
             const product = await productRepository.findById(item.product_id);
-            if (product && product.product_type === 'PDS') pdsProductId = product.id;
-            // Упрощенно берем среднюю доходность продукта (в реальности надо по лоту, но тут для краткости)
-            const y = product.yields && product.yields[0] ? product.yields[0].yield_percent : 0;
-            weightedYieldAnnual += (y * (item.share_percent / 100));
+            if (product) {
+                if (product.product_type === 'PDS') pdsProductId = product.id;
+                const y = product.yields && product.yields[0] ? product.yields[0].yield_percent : 0;
+                weightedYieldAnnual += (y * (item.share_percent / 100));
+            }
         }
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
-        const inflowData = this.getGoalInflows(goal, context.assets, context, monthsToPension, goal.initial_capital, requiredCapitalFuture, yieldMonthly, infl_month_decimal);
+        const indexationRateDecimal = (settings.investment_expense_growth_monthly || 0.1) / 100;
 
         const recommendedReplenishment = await this.simulateGoal({
             initialCapital: goal.initial_capital || 0,
             targetAmountFuture: requiredCapitalFuture,
             termMonths: monthsToPension,
             monthlyYieldRate: yieldMonthly,
-            monthlyInflationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
-            inflows: inflowData.allInflows
+            monthlyInflationRate: indexationRateDecimal
         });
+
+        let currentBalance = goal.initial_capital || 0;
+        let totalClientInvestment = goal.initial_capital || 0;
+        let totalCofinancing = 0;
+        let totalTaxRefund = 0;
+        let totalStateBenefit = 0;
+
+        const startDate = new Date();
+        const startYear = startDate.getFullYear();
+        const yearlyContributions = {};
+
+        for (let m = 1; m <= monthsToPension; m++) {
+            const date = new Date(startDate);
+            date.setMonth(date.getMonth() + m);
+            const year = date.getFullYear();
+            const month = date.getMonth() + 1;
+
+            // 1. Рост (предыдущий баланс)
+            currentBalance *= (1 + yieldMonthly);
+
+            // 2. Пополнение
+            const indexedReplenishment = recommendedReplenishment * Math.pow(1 + indexationRateDecimal, m - 1);
+            currentBalance += indexedReplenishment;
+            totalClientInvestment += indexedReplenishment;
+            yearlyContributions[year] = (yearlyContributions[year] || 0) + indexedReplenishment;
+
+            // 3. ПДС
+            if (pdsProductId) {
+                const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, clientWithIncome.avg_monthly_income, context);
+                currentBalance += (cofin + refund);
+                totalCofinancing += cofin;
+                totalTaxRefund += refund;
+                totalStateBenefit += (cofin + refund);
+            }
+        }
+
+        const pensionFromCapitalMonthly = (currentBalance * (payoutYieldPercent / 100)) / 12;
 
         return {
             goal_id: goal.goal_type_id,
@@ -171,14 +203,20 @@ class PensionCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'PENSION',
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                recommended_replenishment: Math.round(recommendedReplenishment),
-                target_amount_future: Math.round(requiredCapitalFuture),
-                state_benefit: 0 // Will be populated in loop simulation if needed
+                initial_capital: goal.initial_capital || 0,
+                monthly_replenishment: Math.round(recommendedReplenishment),
+                total_capital_at_end: Math.round(currentBalance),
+                target_achieved: currentBalance >= requiredCapitalFuture * 0.999,
+                state_benefit: Math.round(totalStateBenefit)
             },
-            state_pension: statePensionResult,
-            pension_gap: {
-                gap_monthly_future: Math.round(pensionGapMonthlyFuture),
-                has_gap: true
+            details: {
+                state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current),
+                pension_from_capital_monthly: Math.round(pensionFromCapitalMonthly),
+                total_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current + pensionFromCapitalMonthly),
+                total_client_investment: Math.round(totalClientInvestment),
+                total_cofinancing: Math.round(totalCofinancing),
+                total_tax_refund: Math.round(totalTaxRefund),
+                years_to_pension: statePensionResult.years_to_pension
             }
         };
     }
