@@ -88,41 +88,94 @@ class BaseCalculator {
     }
 
     /**
-     * Симуляция накопления для поиска необходимого пополнения
+     * Основное ядро симуляции (Excel-aligned)
      */
-    async simulateGoal(params) {
+    async runSimulation(params, context) {
         const {
             initialCapital,
-            targetAmountFuture,
+            monthlyReplenishment,
             termMonths,
             monthlyYieldRate,
-            monthlyInflationRate,
-            inflows = []
+            indexationRate,
+            pdsProductId,
+            avgMonthlyIncome,
+            startDate = new Date()
         } = params;
 
-        const simulate = (mReplen) => {
-            let balance = initialCapital;
-            let currentReplen = mReplen;
-            const m0Inflows = inflows.filter(i => i.month === 0);
-            for (const inf of m0Inflows) balance += inf.amount;
+        let currentBalance = initialCapital;
+        let totalClientInvestment = initialCapital;
+        let totalCofinancing = 0;
+        let totalTaxRefund = 0;
+        let totalStateBenefit = 0;
 
-            for (let m = 1; m <= termMonths; m++) {
-                balance *= (1 + monthlyYieldRate);
-                balance += currentReplen;
-                const monthInflows = inflows.filter(i => i.month === m);
-                for (const inf of monthInflows) balance += inf.amount;
-                currentReplen *= (1 + monthlyInflationRate);
+        let currentDate = new Date(startDate);
+        // В Excel капитал No 0 фиксируется в 1-й месяц. Рост и пополнения со 2-го.
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        const startYear = startDate.getFullYear();
+        const yearlyContributions = {};
+
+        for (let m = 1; m <= termMonths; m++) {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+
+            // 1. Рост капитала
+            currentBalance *= (1 + monthlyYieldRate);
+
+            // 2. Пополнение
+            const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m - 1);
+            currentBalance += indexedReplenishment;
+            totalClientInvestment += indexedReplenishment;
+            yearlyContributions[year] = (yearlyContributions[year] || 0) + indexedReplenishment;
+
+            // 3. ПДС события
+            if (pdsProductId) {
+                const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context);
+                currentBalance += (cofin + refund);
+                totalCofinancing += cofin;
+                totalTaxRefund += refund;
+                totalStateBenefit += (cofin + refund);
             }
-            return balance;
+
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+
+        return {
+            totalCapital: currentBalance,
+            totalClientInvestment,
+            totalStateBenefit,
+            totalCofinancing,
+            totalTaxRefund,
+            yearlyContributions
+        };
+    }
+
+    /**
+     * Симуляция накопления для поиска необходимого пополнения
+     */
+    async simulateGoal(params, context) {
+        const {
+            targetAmountFuture,
+            ...simParams
+        } = params;
+
+        // Обертка над runSimulation для бинарного поиска
+        const check = async (mReplen) => {
+            const res = await this.runSimulation({
+                ...simParams,
+                monthlyReplenishment: mReplen
+            }, context);
+            return res.totalCapital;
         };
 
-        if (simulate(0) >= targetAmountFuture) return 0;
+        if ((await check(0)) >= targetAmountFuture) return 0;
 
         let low = 0;
         let high = targetAmountFuture;
+        // Бинарный поиск
         for (let i = 0; i < 40; i++) {
             let mid = (low + high) / 2;
-            if (simulate(mid) < targetAmountFuture) {
+            const val = await check(mid);
+            if (val < targetAmountFuture) {
                 low = mid;
             } else {
                 high = mid;

@@ -77,43 +77,19 @@ class InvestmentCalculator extends BaseCalculator {
             yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + goal.initial_capital;
         }
 
-        let currentDate = new Date(startDate);
-        // В Excel начальный капитал (Row 2 / No 0) фиксируется в первый месяц без роста и пополнений
-        // Рост и пополнения начинаются со следующего месяца (Row 3 / No 1)
-        currentDate.setMonth(currentDate.getMonth() + 1);
-
-        const indexationRate = (m_month_percent || 0.1) / 100;
-
-        let totalCofinancing = 0;
-        let totalTaxRefund = 0;
-
-        for (let m = 1; m <= goal.term_months; m++) {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth() + 1;
-
-            // 1. Рост капитала (Начисление на баланс прошлого месяца)
-            currentBalance *= (1 + portfolioYieldMonthly);
-
-            // 2. Пополнение (как в колонке C в Excel)
-            const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m - 1);
-            currentBalance += indexedReplenishment;
-            totalClientInvestment += indexedReplenishment;
-            yearlyContributions[year] = (yearlyContributions[year] || 0) + indexedReplenishment;
-
-            // 3. ПДС события (как в колонках F и G)
-            if (pdsProductId) {
-                const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context);
-                currentBalance += (cofin + refund);
-                totalCofinancing += cofin;
-                totalTaxRefund += refund;
-                totalStateBenefit += (cofin + refund);
-            }
-
-            currentDate.setMonth(currentDate.getMonth() + 1);
-        }
+        const simResult = await this.runSimulation({
+            initialCapital: goal.initial_capital || 0,
+            monthlyReplenishment: monthlyReplenishment,
+            termMonths: goal.term_months,
+            monthlyYieldRate: portfolioYieldMonthly,
+            indexationRate: (m_month_percent || 0.1) / 100,
+            pdsProductId,
+            avgMonthlyIncome,
+            startDate
+        }, context);
 
         const targetAmountFuture = goal.target_amount || 0;
-        const totalCapital = currentBalance;
+        const totalCapital = simResult.totalCapital;
 
         return {
             goal_id: goal.goal_type_id,
@@ -126,13 +102,13 @@ class InvestmentCalculator extends BaseCalculator {
                 monthly_replenishment: monthlyReplenishment,
                 total_capital_at_end: Math.round(totalCapital),
                 target_achieved: (totalCapital >= targetAmountFuture * 0.999),
-                state_benefit: Math.round(totalStateBenefit)
+                state_benefit: Math.round(simResult.totalStateBenefit)
             },
             details: {
-                total_investment_income: Math.round(totalCapital - totalClientInvestment - totalStateBenefit),
-                total_client_investment: Math.round(totalClientInvestment),
-                total_cofinancing: Math.round(totalCofinancing),
-                total_tax_refund: Math.round(totalTaxRefund),
+                total_investment_income: Math.round(totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
+                total_client_investment: Math.round(simResult.totalClientInvestment),
+                total_cofinancing: Math.round(simResult.totalCofinancing),
+                total_tax_refund: Math.round(simResult.totalTaxRefund),
                 portfolio_yield_annual: weightedYieldAnnual
             }
         };
