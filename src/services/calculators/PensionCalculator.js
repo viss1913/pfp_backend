@@ -88,9 +88,11 @@ class PensionCalculator extends BaseCalculator {
         const statePensionResult = await this.calculateStatePension(clientWithIncome, pensionSettings, new Date());
 
         const inflationAnnualUsed = pensionSettings.inflation_rate;
-        const infl_month_decimal = this.getMonthlyInflation(inflationAnnualUsed);
+        const infl_month_decimal = (inflationAnnualUsed / 12) / 100; // Correct monthly decimal
         const monthsToPension = statePensionResult.years_to_pension * 12;
-        const desiredPensionMonthlyFuture = goal.target_amount * Math.pow(1 + infl_month_decimal, monthsToPension);
+
+        // Желаемая пенсия в ценах БУДУЩЕГО (индексируем на инфляцию за весь срок)
+        const desiredPensionMonthlyFuture = (goal.target_amount || 0) * Math.pow(1 + (inflationAnnualUsed / 100), statePensionResult.years_to_pension);
         const pensionGapMonthlyFuture = Math.max(desiredPensionMonthlyFuture - statePensionResult.state_pension_monthly_future, 0);
 
         if (pensionGapMonthlyFuture <= 0) {
@@ -98,13 +100,22 @@ class PensionCalculator extends BaseCalculator {
                 goal_id: goal.goal_type_id,
                 goal_name: goal.name,
                 goal_type: 'PENSION',
+                summary: {
+                    goal_type: 'PENSION',
+                    status: 'OK',
+                    initial_capital: Math.round((goal.initial_capital || 0) * 100) / 100,
+                    monthly_replenishment: 0,
+                    total_capital_at_end: Math.round((goal.initial_capital || 0) * 100) / 100,
+                    target_achieved: true,
+                    state_benefit: 0
+                },
                 state_pension: statePensionResult,
                 desired_pension: {
-                    desired_monthly_income_initial: Math.round(goal.target_amount * 100) / 100,
+                    desired_monthly_income_initial: Math.round((goal.target_amount || 0) * 100) / 100,
                     desired_monthly_income_with_inflation: Math.round(desiredPensionMonthlyFuture * 100) / 100
                 },
                 pension_gap: { gap_monthly_future: 0, has_gap: false },
-                message: 'Госпенсия покрывает желаемую пенсию'
+                message: 'Госпенсия полностью покрывает желаемую пенсию'
             };
         }
 
@@ -112,6 +123,7 @@ class PensionCalculator extends BaseCalculator {
         const payoutYieldLine = await context.services.settingsService.findPassiveIncomeYieldLine(0, monthsToPension, true);
         if (!payoutYieldLine) throw new Error('Passive income yield line not found');
         const payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
+        // Капитал нужен такой, чтобы его доходность (passive yield) покрывала нехватку
         const requiredCapitalFuture = (pensionGapMonthlyFuture * 12 * 100) / payoutYieldPercent;
 
         // Поиск портфеля для накопления
@@ -136,7 +148,7 @@ class PensionCalculator extends BaseCalculator {
         const initial_instruments = [];
         const monthly_instruments = [];
         let pdsProductId = null;
-        let weightedYieldAnnual = 0; // FIXED Initialization
+        let weightedYieldAnnual = 0;
 
         let allBuckets = [];
         if (profile.instruments && profile.instruments.length > 0) {
@@ -195,7 +207,7 @@ class PensionCalculator extends BaseCalculator {
             monthlyYieldRate: yieldMonthly,
             indexationRate: indexationRateDecimal,
             pdsProductId,
-            avgMonthlyIncome: clientWithIncome.avg_monthly_income,
+            avgMonthlyIncome: client.avg_monthly_income,
             startDate: new Date()
         }, context);
 
@@ -210,11 +222,10 @@ class PensionCalculator extends BaseCalculator {
             startDate: new Date()
         }, context);
 
-        // ВАЖНО: Обновляем глобальные лимиты ПДС
         if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
         if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;
 
-        const pensionFromCapitalMonthly = (simResult.totalCapital * (payoutYieldPercent / 100)) / 12;
+        const pensionFromCapitalMonthlyFuture = (simResult.totalCapital * (payoutYieldPercent / 100)) / 12;
 
         return {
             goal_id: goal.goal_type_id,
@@ -234,9 +245,9 @@ class PensionCalculator extends BaseCalculator {
                 term_months: monthsToPension,
                 initial_capital_instruments: initial_instruments,
                 monthly_savings_instruments: monthly_instruments,
-                state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current * 100) / 100,
-                pension_from_capital_monthly: Math.round(pensionFromCapitalMonthly * 100) / 100,
-                total_pension_monthly: Math.round((statePensionResult.state_pension_monthly_future + pensionFromCapitalMonthly) * 100) / 100,
+                state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_future * 100) / 100,
+                pension_from_capital_monthly: Math.round(pensionFromCapitalMonthlyFuture * 100) / 100,
+                total_pension_monthly: Math.round((statePensionResult.state_pension_monthly_future + pensionFromCapitalMonthlyFuture) * 100) / 100,
                 target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
                 target_amount_future: Math.round(requiredCapitalFuture * 100) / 100,
                 total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
