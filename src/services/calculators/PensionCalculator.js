@@ -95,30 +95,6 @@ class PensionCalculator extends BaseCalculator {
         const desiredPensionMonthlyFuture = (goal.target_amount || 0) * Math.pow(1 + (inflationAnnualUsed / 100), statePensionResult.years_to_pension);
         const pensionGapMonthlyFuture = Math.max(desiredPensionMonthlyFuture - statePensionResult.state_pension_monthly_future, 0);
 
-        if (pensionGapMonthlyFuture <= 0) {
-            return {
-                goal_id: goal.goal_type_id,
-                goal_name: goal.name,
-                goal_type: 'PENSION',
-                summary: {
-                    goal_type: 'PENSION',
-                    status: 'OK',
-                    initial_capital: Math.round((goal.initial_capital || 0) * 100) / 100,
-                    monthly_replenishment: 0,
-                    total_capital_at_end: Math.round((goal.initial_capital || 0) * 100) / 100,
-                    target_achieved: true,
-                    state_benefit: 0
-                },
-                state_pension: statePensionResult,
-                desired_pension: {
-                    desired_monthly_income_initial: Math.round((goal.target_amount || 0) * 100) / 100,
-                    desired_monthly_income_with_inflation: Math.round(desiredPensionMonthlyFuture * 100) / 100
-                },
-                pension_gap: { gap_monthly_future: 0, has_gap: false },
-                message: 'Госпенсия полностью покрывает желаемую пенсию'
-            };
-        }
-
         // Фаза накопления
         const payoutYieldLine = await context.services.settingsService.findPassiveIncomeYieldLine(0, monthsToPension, true);
         if (!payoutYieldLine) throw new Error('Passive income yield line not found');
@@ -239,6 +215,14 @@ class PensionCalculator extends BaseCalculator {
                 total_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
                 target_achieved: simResult.totalCapital >= requiredCapitalFuture * 0.999,
                 state_benefit: Math.round(simResult.totalStateBenefit * 100) / 100
+            },
+            desired_pension: {
+                desired_monthly_income_initial: Math.round((goal.target_amount || 0) * 100) / 100,
+                desired_monthly_income_with_inflation: Math.round(desiredPensionMonthlyFuture * 100) / 100
+            },
+            pension_gap: {
+                gap_monthly_future: Math.round(pensionGapMonthlyFuture * 100) / 100,
+                has_gap: pensionGapMonthlyFuture > 0
             },
             details: {
                 portfolio_name: portfolioForAcc.name,
