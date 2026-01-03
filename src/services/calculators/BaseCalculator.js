@@ -113,6 +113,9 @@ class BaseCalculator {
         currentDate.setMonth(currentDate.getMonth() + 1);
         const startYear = startDate.getFullYear();
         const yearlyContributions = {};
+        if (initialCapital > 0) {
+            yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + initialCapital;
+        }
 
         for (let m = 1; m <= termMonths; m++) {
             const year = currentDate.getFullYear();

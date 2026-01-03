@@ -32,20 +32,24 @@ class InvestmentCalculator extends BaseCalculator {
             throw new Error(`Risk profile ${searchProfile} not found in portfolio`);
         }
 
-        // 1. Определение доходности
-        let weightedYieldAnnual = 0;
-        let capitalDistribution = profile.instruments ?
-            profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL') :
-            (profile.initial_capital || []);
-
-        const instruments = [];
+        const initial_instruments = [];
+        const monthly_instruments = [];
         let pdsProductId = null;
 
-        for (const item of capitalDistribution) {
+        const allBuckets = profile.instruments || [];
+        if (allBuckets.length === 0 && profile.initial_capital) {
+            allBuckets.push(...profile.initial_capital.map(i => ({ ...i, bucket_type: 'INITIAL_CAPITAL' })));
+        }
+        if (allBuckets.length === 0 && profile.monthly_savings) {
+            allBuckets.push(...profile.monthly_savings.map(i => ({ ...i, bucket_type: 'MONTHLY_SAVINGS' })));
+        }
+
+        for (const item of allBuckets) {
             const product = await productRepository.findById(item.product_id);
             if (!product) continue;
 
-            if (product.product_type === 'PDS') pdsProductId = product.id;
+            const isPds = product.product_type === 'PDS';
+            if (isPds) pdsProductId = product.id;
 
             const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
             const yields = product.yields || [];
@@ -57,32 +61,28 @@ class InvestmentCalculator extends BaseCalculator {
             ) || yields[0];
 
             const productYield = line ? parseFloat(line.yield_percent) : 0;
-            weightedYieldAnnual += (productYield * (item.share_percent / 100));
 
-            instruments.push({
+            const instrumentData = {
                 name: product.name,
                 share: item.share_percent,
                 yield: productYield
-            });
+            };
+
+            if (item.bucket_type === 'INITIAL_CAPITAL' || !item.bucket_type) {
+                initial_instruments.push(instrumentData);
+                weightedYieldAnnual += (productYield * (item.share_percent / 100));
+            } else if (item.bucket_type === 'MONTHLY_SAVINGS') {
+                monthly_instruments.push(instrumentData);
+            }
         }
 
         const portfolioYieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
         const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;
 
         // 2. Симуляция (по месяцам как в Excel)
-        let currentBalance = goal.initial_capital || 0;
-        let totalClientInvestment = goal.initial_capital || 0;
-        let totalStateBenefit = 0;
-
         const monthlyReplenishment = goal.monthly_replenishment || 0;
         const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
-        const startYear = startDate.getFullYear();
         const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
-
-        const yearlyContributions = {};
-        if (goal.initial_capital > 0) {
-            yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + goal.initial_capital;
-        }
 
         const simResult = await this.runSimulation({
             initialCapital: goal.initial_capital || 0,
@@ -114,7 +114,8 @@ class InvestmentCalculator extends BaseCalculator {
             details: {
                 portfolio_name: portfolio.name,
                 term_months: goal.term_months,
-                instruments: instruments,
+                initial_capital_instruments: initial_instruments,
+                monthly_savings_instruments: monthly_instruments,
                 total_investment_income: Math.round(totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
                 total_client_investment: Math.round(simResult.totalClientInvestment),
                 total_cofinancing: Math.round(simResult.totalCofinancing),

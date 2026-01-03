@@ -32,19 +32,23 @@ class OtherGoalCalculator extends BaseCalculator {
             return pType === searchProfile;
         });
 
-        if (!profile) throw new Error(`Risk profile ${searchProfile} not found`);
-
-        let capitalDistribution = profile.instruments ?
-            profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL') :
-            (profile.initial_capital || []);
-
-        const instruments = [];
+        const initial_instruments = [];
+        const monthly_instruments = [];
         let pdsProductId = null;
 
-        for (const item of capitalDistribution) {
+        const allBuckets = profile.instruments || [];
+        if (allBuckets.length === 0 && profile.initial_capital) {
+            allBuckets.push(...profile.initial_capital.map(i => ({ ...i, bucket_type: 'INITIAL_CAPITAL' })));
+        }
+        if (allBuckets.length === 0 && profile.monthly_savings) {
+            allBuckets.push(...profile.monthly_savings.map(i => ({ ...i, bucket_type: 'MONTHLY_SAVINGS' })));
+        }
+
+        for (const item of allBuckets) {
             const product = await repositories.productRepository.findById(item.product_id);
             if (product) {
-                if (product.product_type === 'PDS') pdsProductId = product.id;
+                const isPds = product.product_type === 'PDS';
+                if (isPds) pdsProductId = product.id;
 
                 const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
                 const yields = product.yields || [];
@@ -56,13 +60,19 @@ class OtherGoalCalculator extends BaseCalculator {
                 ) || yields[0];
 
                 const productYield = line ? parseFloat(line.yield_percent) : 0;
-                weightedYieldAnnual += (productYield * (item.share_percent / 100));
 
-                instruments.push({
+                const instrumentData = {
                     name: product.name,
                     share: item.share_percent,
                     yield: productYield
-                });
+                };
+
+                if (item.bucket_type === 'INITIAL_CAPITAL' || !item.bucket_type) {
+                    initial_instruments.push(instrumentData);
+                    weightedYieldAnnual += (productYield * (item.share_percent / 100));
+                } else if (item.bucket_type === 'MONTHLY_SAVINGS') {
+                    monthly_instruments.push(instrumentData);
+                }
             }
         }
 
@@ -106,11 +116,12 @@ class OtherGoalCalculator extends BaseCalculator {
             },
             details: {
                 portfolio_name: portfolio.name,
-                term_months: termMonths,
                 portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
+                term_months: termMonths,
                 target_amount_initial: Math.round(goal.target_amount || 0),
                 target_amount_future: Math.round(targetAmountFuture),
-                instruments: instruments,
+                initial_capital_instruments: initial_instruments,
+                monthly_savings_instruments: monthly_instruments,
                 total_investment_income: Math.round(simResult.totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
                 total_client_investment: Math.round(simResult.totalClientInvestment),
                 total_cofinancing: Math.round(simResult.totalCofinancing),

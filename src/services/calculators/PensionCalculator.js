@@ -133,17 +133,23 @@ class PensionCalculator extends BaseCalculator {
 
         if (!profile) throw new Error(`Pension risk profile ${searchProfile} not found`);
 
-        let weightedYieldAnnual = 0;
-        let capitalDistribution = profile.instruments ?
-            profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL') :
-            (profile.initial_capital || []);
-
-        const instruments = [];
+        const initial_instruments = [];
+        const monthly_instruments = [];
         let pdsProductId = null;
-        for (const item of capitalDistribution) {
+
+        const allBuckets = profile.instruments || [];
+        if (allBuckets.length === 0 && profile.initial_capital) {
+            allBuckets.push(...profile.initial_capital.map(i => ({ ...i, bucket_type: 'INITIAL_CAPITAL' })));
+        }
+        if (allBuckets.length === 0 && profile.monthly_savings) {
+            allBuckets.push(...profile.monthly_savings.map(i => ({ ...i, bucket_type: 'MONTHLY_SAVINGS' })));
+        }
+
+        for (const item of allBuckets) {
             const product = await productRepository.findById(item.product_id);
             if (product) {
-                if (product.product_type === 'PDS') pdsProductId = product.id;
+                const isPds = product.product_type === 'PDS';
+                if (isPds) pdsProductId = product.id;
 
                 const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
                 const yields = product.yields || [];
@@ -155,13 +161,19 @@ class PensionCalculator extends BaseCalculator {
                 ) || yields[0];
 
                 const productYield = line ? parseFloat(line.yield_percent) : (product.yields?.[0]?.yield_percent || 0);
-                weightedYieldAnnual += (productYield * (item.share_percent / 100));
 
-                instruments.push({
+                const instrumentData = {
                     name: product.name,
                     share: item.share_percent,
                     yield: productYield
-                });
+                };
+
+                if (item.bucket_type === 'INITIAL_CAPITAL' || !item.bucket_type) {
+                    initial_instruments.push(instrumentData);
+                    weightedYieldAnnual += (productYield * (item.share_percent / 100));
+                } else if (item.bucket_type === 'MONTHLY_SAVINGS') {
+                    monthly_instruments.push(instrumentData);
+                }
             }
         }
 
@@ -208,7 +220,8 @@ class PensionCalculator extends BaseCalculator {
             details: {
                 portfolio_name: portfolioForAcc.name,
                 term_months: monthsToPension,
-                instruments: instruments,
+                initial_capital_instruments: initial_instruments,
+                monthly_savings_instruments: monthly_instruments,
                 state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current),
                 pension_from_capital_monthly: Math.round(pensionFromCapitalMonthly),
                 total_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current + pensionFromCapitalMonthly),
