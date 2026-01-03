@@ -97,17 +97,23 @@ class TaxService {
      * Calculate PDS Refund using Delta Method (Before vs After)
      * This is the most accurate way for progressive rates (13/15%)
      */
-    async calculatePdsRefundDelta(annualIncome, pdsContributions, year) {
+    async calculatePdsRefundDelta(annualIncome, newContribution, totalPreviousContributions = 0, year) {
         const baseLimit = 400000;
-        const deductionBase = Math.min(pdsContributions, baseLimit);
 
-        const taxBefore = await this.calculateNdfl(annualIncome, year);
-        const taxAfter = await this.calculateNdfl(Math.max(0, annualIncome - deductionBase), year);
+        // Суммарный лимит базы
+        const currentTotal = totalPreviousContributions;
+        const newTotal = Math.min(currentTotal + newContribution, baseLimit);
+
+        // Фактически учитываемый новый взнос (с учетом лимита 400к)
+        const effectiveNewContribution = Math.max(0, newTotal - currentTotal);
+
+        const taxBefore = await this.calculateNdfl(Math.max(0, annualIncome - currentTotal), year);
+        const taxAfter = await this.calculateNdfl(Math.max(0, annualIncome - newTotal), year);
 
         const refundAmount = Math.round((taxBefore.taxAmount - taxAfter.taxAmount) * 100) / 100;
 
         return {
-            deductionBase,
+            contributionAdded: effectiveNewContribution,
             refundAmount,
             taxBefore: taxBefore.taxAmount,
             taxAfter: taxAfter.taxAmount
