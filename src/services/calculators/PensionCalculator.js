@@ -171,7 +171,7 @@ class PensionCalculator extends BaseCalculator {
 
         for (let m = 1; m <= monthsToPension; m++) {
             const date = new Date(startDate);
-            date.setMonth(date.getMonth() + m);
+            date.setMonth(date.getMonth() + m); // Это как раз следующий месяц (Февраль, если сейчас Январь)
             const year = date.getFullYear();
             const month = date.getMonth() + 1;
 

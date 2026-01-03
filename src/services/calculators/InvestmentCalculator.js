@@ -78,6 +78,10 @@ class InvestmentCalculator extends BaseCalculator {
         }
 
         let currentDate = new Date(startDate);
+        // В Excel начальный капитал (Row 2 / No 0) фиксируется в первый месяц без роста и пополнений
+        // Рост и пополнения начинаются со следующего месяца (Row 3 / No 1)
+        currentDate.setMonth(currentDate.getMonth() + 1);
+
         const indexationRate = (m_month_percent || 0.1) / 100;
 
         let totalCofinancing = 0;
@@ -87,7 +91,7 @@ class InvestmentCalculator extends BaseCalculator {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
 
-            // 1. Рост капитала (Начисление на баланс прошлого месяца: E2 * (1 + yield))
+            // 1. Рост капитала (Начисление на баланс прошлого месяца)
             currentBalance *= (1 + portfolioYieldMonthly);
 
             // 2. Пополнение (как в колонке C в Excel)
@@ -99,7 +103,6 @@ class InvestmentCalculator extends BaseCalculator {
             // 3. ПДС события (как в колонках F и G)
             if (pdsProductId) {
                 const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context);
-                // ПДС льготы добавляются в конце месяца и растут со следующего
                 currentBalance += (cofin + refund);
                 totalCofinancing += cofin;
                 totalTaxRefund += refund;
