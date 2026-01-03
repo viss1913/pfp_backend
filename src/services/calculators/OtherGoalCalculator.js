@@ -107,6 +107,10 @@ class OtherGoalCalculator extends BaseCalculator {
             startDate: new Date()
         }, context);
 
+        // ВАЖНО: После финального расчета по цели обновляем глобальные лимиты ПДС в контексте
+        if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
+        if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;
+
         return {
             goal_id: goal.goal_type_id,
             goal_name: goal.name,

@@ -108,6 +108,10 @@ class BaseCalculator {
         let totalTaxRefund = 0;
         let totalStateBenefit = 0;
 
+        // Клонируем лимиты, чтобы не "загрязнять" контекст при бинарном поиске
+        const localUsedCofinancing = { ...(context.usedCofinancingPerYear || {}) };
+        const localUsedTaxBase = { ...(context.usedTaxBasePerYear || {}) };
+
         let currentDate = new Date(startDate);
         // В Excel капитал No 0 фиксируется в 1-й месяц. Рост и пополнения со 2-го.
         currentDate.setMonth(currentDate.getMonth() + 1);
@@ -132,7 +136,13 @@ class BaseCalculator {
 
             // 3. ПДС события
             if (pdsProductId) {
-                const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context);
+                // Создаем временный контекст для handlePdsEvents
+                const tempContext = {
+                    ...context,
+                    usedCofinancingPerYear: localUsedCofinancing,
+                    usedTaxBasePerYear: localUsedTaxBase
+                };
+                const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, tempContext);
                 currentBalance += (cofin + refund);
                 totalCofinancing += cofin;
                 totalTaxRefund += refund;
@@ -148,7 +158,10 @@ class BaseCalculator {
             totalStateBenefit,
             totalCofinancing,
             totalTaxRefund,
-            yearlyContributions
+            yearlyContributions,
+            // Возвращаем обновленные лимиты, чтобы CalculationService мог их применить ПОСЛЕ финального расчета
+            usedCofinancingPerYear: localUsedCofinancing,
+            usedTaxBasePerYear: localUsedTaxBase
         };
     }
 

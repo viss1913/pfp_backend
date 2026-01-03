@@ -101,6 +101,10 @@ class InvestmentCalculator extends BaseCalculator {
             startDate
         }, context);
 
+        // ВАЖНО: Обновляем глобальные лимиты ПДС
+        if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
+        if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;
+
         const targetAmountFuture = goal.target_amount || 0;
         const totalCapital = simResult.totalCapital;
 

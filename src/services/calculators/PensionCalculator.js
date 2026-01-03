@@ -204,9 +204,13 @@ class PensionCalculator extends BaseCalculator {
             monthlyYieldRate: yieldMonthly,
             indexationRate: indexationRateDecimal,
             pdsProductId,
-            avgMonthlyIncome: clientWithIncome.avg_monthly_income,
+            avgMonthlyIncome: client.avg_monthly_income,
             startDate: new Date()
         }, context);
+
+        // ВАЖНО: Обновляем глобальные лимиты ПДС
+        if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
+        if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;
 
         const pensionFromCapitalMonthly = (simResult.totalCapital * (payoutYieldPercent / 100)) / 12;
 
