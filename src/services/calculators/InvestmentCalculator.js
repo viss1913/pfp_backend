@@ -62,7 +62,7 @@ class InvestmentCalculator extends BaseCalculator {
         const portfolioYieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
         const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;
 
-        // 2. Симуляция
+        // 2. Симуляция (по месяцам как в Excel)
         let currentBalance = goal.initial_capital || 0;
         let totalClientInvestment = goal.initial_capital || 0;
         let totalStateBenefit = 0;
@@ -80,22 +80,23 @@ class InvestmentCalculator extends BaseCalculator {
         let currentDate = new Date(startDate);
         const indexationRate = (m_month_percent || 0.1) / 100;
 
-        for (let m = 0; m < goal.term_months; m++) {
+        for (let m = 1; m <= goal.term_months; m++) {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
 
-            // Рост капитала
-            currentBalance *= (1 + portfolioYieldMonthly);
-
-            // Пополнение и индексация
-            const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m);
+            // 1. Пополнение (как в колонке C в Excel)
+            const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m - 1);
             currentBalance += indexedReplenishment;
             totalClientInvestment += indexedReplenishment;
             yearlyContributions[year] = (yearlyContributions[year] || 0) + indexedReplenishment;
 
-            // ПДС события (через базу)
+            // 2. Рост капитала (как в колонке E в Excel: доп. начисление на сумму с пополнением)
+            currentBalance *= (1 + portfolioYieldMonthly);
+
+            // 3. ПДС события (как в колонках F и G)
             if (pdsProductId) {
                 const benefit = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context);
+                // В Excel льготы добавляются в конце месяца и растут только со следующего месяца
                 currentBalance += benefit;
                 totalStateBenefit += benefit;
             }
@@ -103,7 +104,7 @@ class InvestmentCalculator extends BaseCalculator {
             currentDate.setMonth(currentDate.getMonth() + 1);
         }
 
-        const targetAmountFuture = goal.target_amount || 0; // В текущей логике INVESTMENT цель часто без таргета или он информационный
+        const targetAmountFuture = goal.target_amount || 0;
         const totalCapital = currentBalance;
 
         return {
