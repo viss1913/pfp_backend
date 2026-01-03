@@ -138,13 +138,30 @@ class PensionCalculator extends BaseCalculator {
             profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL') :
             (profile.initial_capital || []);
 
+        const instruments = [];
         let pdsProductId = null;
         for (const item of capitalDistribution) {
             const product = await productRepository.findById(item.product_id);
             if (product) {
                 if (product.product_type === 'PDS') pdsProductId = product.id;
-                const y = product.yields && product.yields[0] ? product.yields[0].yield_percent : 0;
-                weightedYieldAnnual += (y * (item.share_percent / 100));
+
+                const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
+                const yields = product.yields || [];
+                const line = yields.find(l =>
+                    monthsToPension >= l.term_from_months &&
+                    monthsToPension <= l.term_to_months &&
+                    allocatedAmount >= parseFloat(l.amount_from) &&
+                    allocatedAmount <= parseFloat(l.amount_to)
+                ) || yields[0];
+
+                const productYield = line ? parseFloat(line.yield_percent) : (product.yields?.[0]?.yield_percent || 0);
+                weightedYieldAnnual += (productYield * (item.share_percent / 100));
+
+                instruments.push({
+                    name: product.name,
+                    share: item.share_percent,
+                    yield: productYield
+                });
             }
         }
 
@@ -191,6 +208,7 @@ class PensionCalculator extends BaseCalculator {
             details: {
                 portfolio_name: portfolioForAcc.name,
                 term_months: monthsToPension,
+                instruments: instruments,
                 state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current),
                 pension_from_capital_monthly: Math.round(pensionFromCapitalMonthly),
                 total_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current + pensionFromCapitalMonthly),

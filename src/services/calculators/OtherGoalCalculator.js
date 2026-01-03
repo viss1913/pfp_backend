@@ -8,7 +8,7 @@ class OtherGoalCalculator extends BaseCalculator {
         const { portfolioRepository } = repositories;
 
         const termMonths = goal.term_months || 120;
-        const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : settings.inflation_rate_year;
+        const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : (context.inflationYear || 4.0);
         const inflationMonthly = this.getMonthlyInflation(inflationRate);
         const targetAmountFuture = (goal.target_amount || 0) * Math.pow(1 + inflationMonthly, termMonths);
 
@@ -38,13 +38,31 @@ class OtherGoalCalculator extends BaseCalculator {
             profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL') :
             (profile.initial_capital || []);
 
+        const instruments = [];
         let pdsProductId = null;
+
         for (const item of capitalDistribution) {
             const product = await repositories.productRepository.findById(item.product_id);
             if (product) {
                 if (product.product_type === 'PDS') pdsProductId = product.id;
-                const y = product.yields && product.yields[0] ? product.yields[0].yield_percent : 0;
-                weightedYieldAnnual += (y * (item.share_percent / 100));
+
+                const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
+                const yields = product.yields || [];
+                const line = yields.find(l =>
+                    termMonths >= l.term_from_months &&
+                    termMonths <= l.term_to_months &&
+                    allocatedAmount >= parseFloat(l.amount_from) &&
+                    allocatedAmount <= parseFloat(l.amount_to)
+                ) || yields[0];
+
+                const productYield = line ? parseFloat(line.yield_percent) : 0;
+                weightedYieldAnnual += (productYield * (item.share_percent / 100));
+
+                instruments.push({
+                    name: product.name,
+                    share: item.share_percent,
+                    yield: productYield
+                });
             }
         }
 
@@ -92,6 +110,7 @@ class OtherGoalCalculator extends BaseCalculator {
                 portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
                 target_amount_initial: Math.round(goal.target_amount || 0),
                 target_amount_future: Math.round(targetAmountFuture),
+                instruments: instruments,
                 total_investment_income: Math.round(simResult.totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
                 total_client_investment: Math.round(simResult.totalClientInvestment),
                 total_cofinancing: Math.round(simResult.totalCofinancing),

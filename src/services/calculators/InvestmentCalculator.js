@@ -38,6 +38,7 @@ class InvestmentCalculator extends BaseCalculator {
             profile.instruments.filter(i => i.bucket_type === 'INITIAL_CAPITAL') :
             (profile.initial_capital || []);
 
+        const instruments = [];
         let pdsProductId = null;
 
         for (const item of capitalDistribution) {
@@ -57,6 +58,12 @@ class InvestmentCalculator extends BaseCalculator {
 
             const productYield = line ? parseFloat(line.yield_percent) : 0;
             weightedYieldAnnual += (productYield * (item.share_percent / 100));
+
+            instruments.push({
+                name: product.name,
+                share: item.share_percent,
+                yield: productYield
+            });
         }
 
         const portfolioYieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
@@ -107,11 +114,12 @@ class InvestmentCalculator extends BaseCalculator {
             details: {
                 portfolio_name: portfolio.name,
                 term_months: goal.term_months,
+                instruments: instruments,
                 total_investment_income: Math.round(totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
                 total_client_investment: Math.round(simResult.totalClientInvestment),
                 total_cofinancing: Math.round(simResult.totalCofinancing),
                 total_tax_refund: Math.round(simResult.totalTaxRefund),
-                portfolio_yield_annual: weightedYieldAnnual
+                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100
             }
         };
     }
