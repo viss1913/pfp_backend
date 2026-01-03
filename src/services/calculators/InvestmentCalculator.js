@@ -105,6 +105,8 @@ class InvestmentCalculator extends BaseCalculator {
                 state_benefit: Math.round(simResult.totalStateBenefit)
             },
             details: {
+                portfolio_name: portfolio.name,
+                term_months: goal.term_months,
                 total_investment_income: Math.round(totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
                 total_client_investment: Math.round(simResult.totalClientInvestment),
                 total_cofinancing: Math.round(simResult.totalCofinancing),

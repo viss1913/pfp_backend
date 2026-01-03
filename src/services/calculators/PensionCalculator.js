@@ -189,9 +189,13 @@ class PensionCalculator extends BaseCalculator {
                 state_benefit: Math.round(simResult.totalStateBenefit)
             },
             details: {
+                portfolio_name: portfolioForAcc.name,
+                term_months: monthsToPension,
                 state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current),
                 pension_from_capital_monthly: Math.round(pensionFromCapitalMonthly),
                 total_pension_monthly: Math.round(statePensionResult.state_pension_monthly_current + pensionFromCapitalMonthly),
+                target_amount_initial: Math.round(goal.target_amount || 0),
+                target_amount_future: Math.round(requiredCapitalFuture),
                 total_client_investment: Math.round(simResult.totalClientInvestment),
                 total_cofinancing: Math.round(simResult.totalCofinancing),
                 total_tax_refund: Math.round(simResult.totalTaxRefund),

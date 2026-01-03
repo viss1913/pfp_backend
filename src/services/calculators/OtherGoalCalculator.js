@@ -87,11 +87,15 @@ class OtherGoalCalculator extends BaseCalculator {
                 state_benefit: Math.round(simResult.totalStateBenefit)
             },
             details: {
+                portfolio_name: portfolio.name,
+                term_months: termMonths,
+                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
+                target_amount_initial: Math.round(goal.target_amount || 0),
+                target_amount_future: Math.round(targetAmountFuture),
                 total_investment_income: Math.round(simResult.totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit),
                 total_client_investment: Math.round(simResult.totalClientInvestment),
                 total_cofinancing: Math.round(simResult.totalCofinancing),
-                total_tax_refund: Math.round(simResult.totalTaxRefund),
-                target_amount_future: Math.round(targetAmountFuture)
+                total_tax_refund: Math.round(simResult.totalTaxRefund)
             }
         };
     }
