@@ -114,32 +114,45 @@ class ClientRepository {
     }
 
     async findAllByAgent(agentId, options = {}) {
-        const { limit = 20, page = 1, sort = 'created_at', order = 'desc' } = options;
-        const offset = (page - 1) * limit;
+        const { limit = null, page = 1, sort = 'created_at', order = 'desc', search = '' } = options;
+        const offset = limit ? (page - 1) * limit : 0;
 
         // Base query
-        const query = knex('clients')
-            .where({ agent_id: agentId });
+        let query = knex('clients').where({ agent_id: agentId });
+
+        // Apply search filter if provided
+        if (search) {
+            query = query.where(function () {
+                this.where('first_name', 'like', `%${search}%`)
+                    .orWhere('last_name', 'like', `%${search}%`)
+                    .orWhere('middle_name', 'like', `%${search}%`)
+                    .orWhere('phone', 'like', `%${search}%`)
+                    .orWhere('email', 'like', `%${search}%`)
+                    .orWhere('external_uuid', 'like', `%${search}%`);
+            });
+        }
 
         // Count total for pagination
         const countQuery = query.clone().count('id as total').first();
         const totalResult = await countQuery;
         const total = totalResult ? parseInt(totalResult.total) : 0;
 
-        // Fetch paginated data
-        const data = await query
-            .select('*')
-            .orderBy(sort, order)
-            .limit(limit)
-            .offset(offset);
+        // Fetch data
+        let finalQuery = query.select('*').orderBy(sort, order);
+
+        if (limit) {
+            finalQuery = finalQuery.limit(limit).offset(offset);
+        }
+
+        const data = await finalQuery;
 
         return {
             data,
             pagination: {
                 total,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                totalPages: Math.ceil(total / limit)
+                page: limit ? parseInt(page) : 1,
+                limit: limit ? parseInt(limit) : total,
+                totalPages: limit ? Math.ceil(total / limit) : 1
             }
         };
     }

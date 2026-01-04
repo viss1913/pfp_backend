@@ -169,9 +169,9 @@ class ClientController {
             }
 
             // Extract query params for pagination/sorting if needed
-            const { page, limit, sort, order } = req.query;
+            const { page, limit, sort, order, search } = req.query;
 
-            const clients = await clientService.getClientsByAgent(agentId, { page, limit, sort, order });
+            const clients = await clientService.getClientsByAgent(agentId, { page, limit, sort, order, search });
             res.json(clients);
         } catch (err) {
             next(err);
@@ -193,8 +193,18 @@ class ClientController {
 
     async update(req, res, next) {
         try {
-            // TODO: Implement update logic in service
-            res.status(501).json({ message: 'Not implemented yet' });
+            const { id } = req.params;
+            const agentId = req.user.agentId;
+
+            // Optional: check if client belongs to agent
+            const existing = await clientService.getFullClient(id);
+            if (!existing || existing.agent_id != agentId) {
+                return res.status(404).json({ error: 'Client not found or access denied' });
+            }
+
+            await clientService.updateFullClient(id, req.body);
+            const updated = await clientService.getFullClient(id);
+            res.json(updated);
         } catch (err) {
             next(err);
         }

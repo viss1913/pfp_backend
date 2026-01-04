@@ -26,6 +26,11 @@ class ClientService {
                 clientData.gender = clientData.sex;
             }
 
+            // Map external UUID if provided
+            if (clientData.uuid && !clientData.external_uuid) {
+                clientData.external_uuid = clientData.uuid;
+            }
+
             // Ensure required fields for DB
             clientData.first_name = clientData.first_name || ' ';
             clientData.last_name = clientData.last_name || ' ';
@@ -33,6 +38,7 @@ class ClientService {
             // Remove non-DB fields
             delete clientData.fio;
             delete clientData.sex;
+            delete clientData.uuid;
 
 
             // 1. Check if client exists by email (Upsert logic)
@@ -138,8 +144,100 @@ class ClientService {
         return { assetsTotal, liabilitiesTotal, netWorth };
     }
 
+    async updateFullClient(clientId, data) {
+        // Reuse createFullClient logic but forced for specific ID
+        // Simplified version: delete and recreate related entities, update profile
+        return await knex.transaction(async (trx) => {
+            const clientData = { ...data.client };
+
+            // Apply name parsing and mappings if present
+            if (clientData.fio && (!clientData.first_name || !clientData.last_name)) {
+                const parts = clientData.fio.trim().split(/\s+/);
+                if (parts.length >= 2) {
+                    clientData.last_name = clientData.last_name || parts[0];
+                    clientData.first_name = clientData.first_name || parts[1];
+                    clientData.middle_name = clientData.middle_name || parts.slice(2).join(' ') || null;
+                } else if (parts.length === 1) {
+                    clientData.first_name = clientData.first_name || parts[0];
+                }
+            }
+
+            if (clientData.sex && !clientData.gender) clientData.gender = clientData.sex;
+            if (clientData.uuid && !clientData.external_uuid) clientData.external_uuid = clientData.uuid;
+
+            delete clientData.fio;
+            delete clientData.sex;
+            delete clientData.uuid;
+            delete clientData.id;
+
+            // 1. Update Profile
+            await clientRepository.update(clientId, clientData, trx);
+
+            // 2. Refresh Related Data (Clear and add new ones)
+            if (data.assets) {
+                await clientRepository.deleteAssets(clientId, trx);
+                if (data.assets.length > 0) {
+                    const assets = data.assets.map(a => ({ ...a, client_id: clientId }));
+                    await clientRepository.addAssets(assets, trx);
+                }
+            }
+
+            if (data.liabilities) {
+                await clientRepository.deleteLiabilities(clientId, trx);
+                if (data.liabilities.length > 0) {
+                    const liabilities = data.liabilities.map(l => ({ ...l, client_id: clientId }));
+                    await clientRepository.addLiabilities(liabilities, trx);
+                }
+            }
+
+            if (data.expenses) {
+                await clientRepository.deleteExpenses(clientId, trx);
+                if (data.expenses.length > 0) {
+                    const expenses = data.expenses.map(e => ({ ...e, client_id: clientId }));
+                    await clientRepository.addExpenses(expenses, trx);
+                }
+            }
+
+            if (data.goals) {
+                await clientRepository.deleteGoals(clientId, trx);
+                if (data.goals.length > 0) {
+                    const goalColumns = [
+                        'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
+                        'term_months', 'end_date', 'initial_capital', 'inflation_rate', 'risk_profile'
+                    ];
+
+                    const goals = data.goals.map(g => {
+                        const goalRecord = { client_id: clientId };
+                        const params = {};
+
+                        Object.keys(g).forEach(key => {
+                            if (goalColumns.includes(key)) {
+                                goalRecord[key] = g[key];
+                            } else if (key !== 'client_id' && key !== 'id') {
+                                params[key] = g[key];
+                            }
+                        });
+
+                        if (Object.keys(params).length > 0) {
+                            goalRecord.params = JSON.stringify(params);
+                        }
+
+                        return goalRecord;
+                    });
+                    await clientRepository.addGoals(goals, trx);
+                }
+            }
+
+            // 3. Recalculate Aggregates
+            await this.updateFinancialAggregates(clientId, trx);
+
+            return clientId;
+        });
+    }
+
     async getClientsByAgent(agentId, options = {}) {
         return await clientRepository.findAllByAgent(agentId, options);
     }
 }
+
 module.exports = new ClientService();
