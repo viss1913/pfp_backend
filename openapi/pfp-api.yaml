@@ -818,6 +818,13 @@ components:
           type: string
         tax_mode:
           type: string
+        external_uuid:
+          type: string
+          description: External ID provided by frontend (optional)
+        uuid:
+          type: string
+          description: Alias for external_uuid (write-only)
+          writeOnly: true
         assets_total:
           type: number
           readOnly: true
@@ -1396,6 +1403,53 @@ paths:
         '400':
           description: Validation error
 
+  /client/agent-clients:
+    get:
+      summary: List agent clients
+      tags:
+        - Client API
+      security: []
+      description: |
+        Returns a list of clients belonging to the current agent.
+        Supports filtering by search query (FIO, phone, email, UUID).
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search query (matches first_name, last_name, middle_name, phone, email, external_uuid)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            description: Items per page. If 0 or omitted, returns all records.
+      responses:
+        '200':
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Client'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+
   /client/{id}:
     get:
       summary: Get full client profile
@@ -1442,8 +1496,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FullClientResponse'
-        '501':
-          description: Not implemented yet
+        '404':
+           description: Client not found
 
   /client/first-run:
     post:
