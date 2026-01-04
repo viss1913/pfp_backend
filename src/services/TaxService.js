@@ -39,18 +39,22 @@ class TaxService {
         let totalTax = 0;
         const usedBrackets = [];
 
+        let previousLimit = 0;
         for (const bracket of rates) {
             if (remainingIncome <= 0) break;
 
-            // Bracket logic: 
-            // Range is [bracket.income_from, bracket.income_to]
-            // "Part of income falling into this bracket":
-            // max(0, min(annualIncome, bracket.income_to) - bracket.income_from)
+            // Ensure continuity by using the previous bracket's limit as the start of the current one
+            // If it's the first bracket, start is 0.
+            // DB has 2,400,001, effectively means > 2,400,000.
+            const effectiveFrom = previousLimit;
+            const effectiveTo = bracket.income_to;
 
-            const incomeInBracket = Math.max(0, Math.min(annualIncome, bracket.income_to) - bracket.income_from);
+            // "Part of income falling into this bracket":
+            // max(0, min(annualIncome, effectiveTo) - effectiveFrom)
+            const incomeInBracket = Math.max(0, Math.min(annualIncome, effectiveTo) - effectiveFrom);
 
             if (incomeInBracket > 0) {
-                const taxForBracket = incomeInBracket * (bracket.rate / 100); // rate is in percent e.g. 13
+                const taxForBracket = incomeInBracket * (bracket.rate / 100);
                 totalTax += taxForBracket;
                 usedBrackets.push({
                     rate: bracket.rate,
@@ -58,6 +62,7 @@ class TaxService {
                     tax: taxForBracket
                 });
             }
+            previousLimit = effectiveTo;
         }
 
         const effectiveRate = annualIncome > 0 ? (totalTax / annualIncome) : 0;
