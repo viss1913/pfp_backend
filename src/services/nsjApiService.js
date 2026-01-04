@@ -21,7 +21,7 @@ class NSJApiService {
         console.log('API URL:', this.apiUrl);
         console.log('API Key:', this.apiKey ? `${this.apiKey.substring(0, 10)}...` : 'NOT SET');
         console.log('Operation:', operation);
-        
+
         return new Promise((resolve, reject) => {
             const requestData = JSON.stringify({
                 operation,
@@ -49,7 +49,7 @@ class NSJApiService {
                     'Content-Length': Buffer.byteLength(requestData)
                 }
             };
-            
+
             console.log('Request options:', JSON.stringify({
                 hostname: options.hostname,
                 port: options.port,
@@ -66,7 +66,7 @@ class NSJApiService {
             const req = client.request(options, (res) => {
                 console.log('Response received. Status:', res.statusCode, res.statusMessage);
                 console.log('Response headers:', JSON.stringify(res.headers, null, 2));
-                
+
                 let responseData = '';
 
                 res.on('data', (chunk) => {
@@ -83,7 +83,7 @@ class NSJApiService {
                         if (jsonStart > 0) {
                             jsonData = responseData.substring(jsonStart);
                         }
-                        
+
                         const parsed = JSON.parse(jsonData);
                         if (res.statusCode >= 200 && res.statusCode < 300) {
                             resolve(parsed);
@@ -137,7 +137,7 @@ class NSJApiService {
         console.log('Params:', JSON.stringify(params, null, 2));
         console.log('API URL from env:', process.env.NSJ_API_URL || 'NOT SET (using default)');
         console.log('API Key from env:', process.env.NSJ_API_KEY ? `${process.env.NSJ_API_KEY.substring(0, 10)}...` : 'NOT SET (using default)');
-        
+
         const {
             target_amount,
             term_months,
@@ -232,9 +232,9 @@ class NSJApiService {
         try {
             // Логируем запрос для отладки
             console.log('NSJ API Request:', JSON.stringify(requestData, null, 2));
-            
+
             const response = await this.callApi('Contract.LifeEndowment.calculate', requestData);
-            
+
             // Логируем ответ для отладки
             console.log('NSJ API Response:', JSON.stringify(response, null, 2));
 
@@ -251,7 +251,7 @@ class NSJApiService {
             if (response.data && response.data.results) {
                 results = response.data.results;
             }
-            
+
             if (!results) {
                 throw {
                     status: 500,
@@ -265,7 +265,7 @@ class NSJApiService {
                 // Логируем детали ошибки
                 console.error('NSJ calculation failed. Results:', JSON.stringify(results, null, 2));
                 console.error('Response data:', JSON.stringify(response.data, null, 2));
-                
+
                 throw {
                     status: 400,
                     message: 'NSJ calculation failed',
@@ -274,7 +274,7 @@ class NSJApiService {
                     full_response: response.data // Полный ответ для отладки
                 };
             }
-            
+
             // Если success не указан, но есть данные - считаем успешным
             if (!results.success && hasData) {
                 console.log('NSJ API returned data without success field, treating as successful');

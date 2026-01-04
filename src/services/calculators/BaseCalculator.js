@@ -201,6 +201,28 @@ class BaseCalculator {
     }
 
     /**
+     * Deducts a specific amount from the shared pool events (waterfall).
+     * Modifies context.sharedPoolEvents in place.
+     * @returns {number} The actual amount deducted.
+     */
+    deductFromSharedPool(amountNeeded, context) {
+        let remaining = amountNeeded;
+        let takenTotal = 0;
+
+        for (const event of context.sharedPoolEvents) {
+            if (remaining <= 0) break;
+            if (event.amount <= 0) continue;
+
+            const take = Math.min(event.amount, remaining);
+            event.amount -= take;
+            remaining -= take;
+            takenTotal += take;
+        }
+
+        return takenTotal;
+    }
+
+    /**
      * Распределение свободных активов (Shared Pool) по целям
      */
     getGoalInflows(goal, assets, context, termMonths, initialCapital, targetAmountFuture, yieldMonthly, inflationMonthly, replenishment = 0) {

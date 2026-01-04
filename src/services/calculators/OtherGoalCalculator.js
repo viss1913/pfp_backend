@@ -86,26 +86,48 @@ class OtherGoalCalculator extends BaseCalculator {
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual || 10);
         const indexationRate = (settings.investment_expense_growth_monthly || 0.1) / 100;
 
+        // Calculate inflows (Capital Distribution from Shared Pool)
+        // This will pick up remaining capital after Life Insurance (because sharedPoolEvents is mutated by previous goals)
+        const inflowData = this.getGoalInflows(
+            goal,
+            assets,
+            context,
+            termMonths,
+            goal.initial_capital || 0,
+            targetAmountFuture,
+            yieldMonthly,
+            inflationMonthly,
+            0 // Initial replenishment guess
+        );
+
+        const allocatedInitialCapital = inflowData.allInflows
+            .filter(i => i.month === 0)
+            .reduce((sum, i) => sum + i.amount, 0);
+
+        const effectiveInitialCapital = (goal.initial_capital || 0) + allocatedInitialCapital;
+
         const recommendedReplenishment = await this.simulateGoal({
-            initialCapital: goal.initial_capital || 0,
+            initialCapital: effectiveInitialCapital,
             targetAmountFuture: targetAmountFuture,
             termMonths: termMonths,
             monthlyYieldRate: yieldMonthly,
             indexationRate: indexationRate,
             pdsProductId,
             avgMonthlyIncome: client.avg_monthly_income,
-            startDate: new Date()
+            startDate: new Date(),
+            inflows: inflowData.allInflows
         }, context);
 
         const simResult = await this.runSimulation({
-            initialCapital: goal.initial_capital || 0,
+            initialCapital: effectiveInitialCapital,
             monthlyReplenishment: recommendedReplenishment,
             termMonths: termMonths,
             monthlyYieldRate: yieldMonthly,
             indexationRate: indexationRate,
             pdsProductId,
             avgMonthlyIncome: client.avg_monthly_income,
-            startDate: new Date()
+            startDate: new Date(),
+            inflows: inflowData.allInflows
         }, context);
 
         // ВАЖНО: После финального расчета по цели обновляем глобальные лимиты ПДС в контексте
@@ -119,7 +141,7 @@ class OtherGoalCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'OTHER',
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                initial_capital: Math.round((goal.initial_capital || 0) * 100) / 100,
+                initial_capital: Math.round(effectiveInitialCapital * 100) / 100,
                 monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                 total_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
                 target_achieved: simResult.totalCapital >= targetAmountFuture * 0.999,

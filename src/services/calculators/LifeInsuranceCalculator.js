@@ -2,68 +2,90 @@ const BaseCalculator = require('./BaseCalculator');
 
 class LifeInsuranceCalculator extends BaseCalculator {
     async calculate(goal, context) {
-        const { client, services } = context;
+        const { client, services, assets, settings } = context;
         const { nsjApiService } = services;
 
+        // 1. Calculate NSJ Parameters first (we need the premium amount)
+        const termMonths = goal.term_months || 120;
+        const targetAmount = goal.target_amount || 0;
+
+        let nsjResult;
+        let apiError = null;
+
+        const nsjParams = {
+            target_amount: targetAmount,
+            term_months: termMonths,
+            client: client || {},
+            payment_variant: goal.payment_variant || 12, // Default monthly
+            program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
+        };
+
         try {
-            const nsjParams = {
-                target_amount: goal.target_amount,
-                term_months: goal.term_months,
-                client: client || {},
-                payment_variant: goal.payment_variant || 12,
-                program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
+            nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
+        } catch (err) {
+            console.warn('NSJ API Error, using fallback:', err.message);
+            apiError = err;
+            // Always fallback if API fails to prevent white screen
+            // Create fallback result structure
+            const termY = Math.ceil(termMonths / 12);
+            nsjResult = {
+                success: true,
+                warnings: ['Calculated by Smart Engine (Fallback Mode) - API Unavailable'],
+                total_premium: targetAmount, // Simplification: Premium = Target for fallback
+                term_years: termY,
+                total_limit: targetAmount
             };
-
-            let nsjResult;
-            try {
-                nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
-            } catch (apiError) {
-                if (goal.is_policymaker) {
-                    throw { is_smart_fallback: true };
-                }
-                throw apiError;
-            }
-
-            return {
-                goal_id: goal.goal_type_id,
-                goal_name: goal.name,
-                goal_type: 'LIFE',
-                summary: {
-                    goal_type: 'LIFE',
-                    status: 'OK',
-                    initial_capital: 0,
-                    monthly_replenishment: Math.round((nsjResult.total_premium || 0) / (nsjResult.term_years ? nsjResult.term_years * 12 : 1)),
-                    total_capital_at_end: nsjResult.total_limit || 0,
-                    target_achieved: true,
-                    projected_value: nsjResult.total_limit || 0,
-                    state_benefit: 0
-                },
-                nsj_calculation: nsjResult
-            };
-        } catch (error) {
-            if (goal.is_policymaker || error.is_smart_fallback) {
-                return {
-                    goal_id: goal.goal_type_id,
-                    goal_name: goal.name,
-                    goal_type: 'LIFE',
-                    summary: {
-                        goal_type: 'LIFE',
-                        status: 'OK',
-                        initial_capital: 0,
-                        monthly_replenishment: Math.round(goal.monthly_replenishment || 0),
-                        total_capital_at_end: Math.round(goal.target_amount || 0),
-                        target_achieved: true,
-                        projected_value: Math.round(goal.target_amount || 0),
-                        state_benefit: 0
-                    },
-                    nsj_calculation: {
-                        success: true,
-                        warnings: ['Calculated by Smart Engine (Fallback Mode)']
-                    }
-                };
-            }
-            throw error;
         }
+
+        // 2. Determine how much to deduct from Capital NOW
+        // If Payment Variant is 0 (Single), we deduct the FULL Premium.
+        // If Monthly (12), we deduct the FIRST MONTH Premium.
+        const isSinglePremium = (goal.payment_variant === 0);
+
+        let costNow = 0;
+        let monthlyReplenishment = 0;
+
+        if (nsjResult) {
+            const totalPremium = nsjResult.total_premium || targetAmount;
+            const termYears = nsjResult.term_years || Math.ceil(termMonths / 12);
+            const totalMonths = termYears * 12;
+
+            if (isSinglePremium) {
+                costNow = totalPremium;
+                monthlyReplenishment = 0;
+            } else {
+                // Monthly premium estimate
+                monthlyReplenishment = Math.round(totalPremium / totalMonths);
+                costNow = monthlyReplenishment; // First installment
+            }
+        }
+
+        // 3. Deduct from Shared Pool (Waterfall) using the new BaseCalculator method
+        const deductedCapital = this.deductFromSharedPool(costNow, context);
+
+        // 4. Construct Result
+        const result = {
+            goal_id: goal.goal_type_id,
+            goal_name: goal.name,
+            goal_type: 'LIFE',
+            summary: {
+                goal_type: 'LIFE',
+                status: 'OK',
+                initial_capital: Math.round(deductedCapital), // Shows what we paid NOW
+                monthly_replenishment: Math.round(monthlyReplenishment),
+                total_capital_at_end: Math.round(nsjResult.total_limit || targetAmount),
+                target_achieved: true,
+                projected_value: Math.round(nsjResult.total_limit || targetAmount),
+                state_benefit: 0
+            },
+            nsj_calculation: nsjResult
+        };
+
+        if (apiError) {
+            result.error = apiError.originalError ? apiError.originalError.message : apiError.message;
+        }
+
+        return result;
     }
 }
 
