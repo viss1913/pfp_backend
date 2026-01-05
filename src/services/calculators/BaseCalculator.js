@@ -206,6 +206,14 @@ class BaseCalculator {
      * @returns {number} The actual amount deducted.
      */
     deductFromSharedPool(amountNeeded, context) {
+        // Use Smart Allocation suggestion if available (this overrides amountNeeded from user input)
+        // Check if the goal object has smart_initial_capital attached (we need access to goal object here? 
+        // Wait, calculate(goal, context) calls this using 'amountNeeded' derived from goal.initial_capital.
+        // We should change the CALLER, or pass the goal here.
+        // But amountNeeded is usually 'goal.initial_capital'.
+        // Actually, let's change the pattern: The Calculator should look at smart_initial_capital FIRST.
+
+
         let remaining = amountNeeded;
         let takenTotal = 0;
 

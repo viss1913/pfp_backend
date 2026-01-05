@@ -118,8 +118,9 @@ class CalculationService {
         const map = {
             7: 1, // FinReserve (First Priority)
             5: 2, // Life Insurance (Second Priority)
-            1: 3, // Pension
-            2: 4  // Passive Income
+            3: 3, // Investment (Third - Critical for 60% Rule)
+            1: 4, // Pension
+            2: 5  // Passive Income
         };
         return map[goal.goal_type_id] || 5;
     }
@@ -190,6 +191,105 @@ class CalculationService {
     }
 
     /**
+     * Smart Capital Allocation (Burden-Based)
+     * Distributes poolBalance among goals based on their "monthly savings burden".
+     * Goals with higher required monthly savings get more capital to reduce that burden.
+     */
+    _calculateSmartAllocation(indexedGoals, context) {
+        let pool = context.poolBalance || 0;
+        if (pool <= 0) return;
+
+        // 1. Reserve High Priority (FinReserve/Life) needs first
+        // These are "Hard Constraints" - we must satisfy them if possible.
+        // We use a temporary pool tracking for this phase.
+        let tempPool = pool;
+        const burdenGoals = [];
+
+        for (const { goal } of indexedGoals) {
+            const priority = this._getPriority(goal);
+
+            // Priority 1 & 2 (Reserve & Life) -> Take what they need (Target or Initial)
+            if (priority <= 2) {
+                // Determine need: For reserve it's target, for Life it's initial premium
+                // Since calculators logic is complex, we assume:
+                // If initial_capital is set, use it. If not, try target_amount for Reserve.
+                let needed = goal.initial_capital || 0;
+                if (priority === 1 && needed === 0) needed = goal.target_amount || 0;
+
+                // Allow "Life" to be treated as burden-based if no initial set? 
+                // Currently strictly priority.
+                const take = Math.min(tempPool, needed);
+                goal.smart_initial_capital = take;
+                tempPool -= take;
+            }
+            // Phase 2 & 3 handled after this loop
+        }
+
+        // Check if there are "Other" goals (Priority > 2 and NOT Investment)
+        // We need this to decide if Investment takes 60% or 100% of remainder.
+        const hasOtherGoals = indexedGoals.some(i => {
+            const p = this._getPriority(i.goal);
+            return p > 2 && i.goal.goal_type_id !== 3; // Not Safety, Not Investment
+        });
+
+        // 2. Investment Special Rule (ID 3)
+        // Allocates 60% of REMAINING free capital (after safety) if other goals exist.
+        // If NO other goals, allocates 100% of remainder.
+        const investmentGoalObj = indexedGoals.find(i => i.goal.goal_type_id === 3);
+        if (investmentGoalObj && tempPool > 0) {
+            const ratio = hasOtherGoals ? 0.60 : 1.0;
+            const ruleAmount = tempPool * ratio; // 60% of Remainder
+
+            const take = ruleAmount; // It's derived from tempPool, so always available
+
+            // Add to any existing initial (though unlikely for auto-algo)
+            const currentInit = investmentGoalObj.goal.smart_initial_capital || 0;
+            investmentGoalObj.goal.smart_initial_capital = currentInit + take;
+
+            tempPool -= take;
+        }
+
+        // 3. Distribute Remaining Pool weighted by Burden (Other Goals)
+        // Filter out goals already processed (Safety & Investment)
+
+        for (const { goal } of indexedGoals) {
+            const p = this._getPriority(goal);
+            if (p <= 2 || goal.goal_type_id === 3) continue;
+
+            // Calculate Burden
+            const term = goal.term_months || 120;
+            let target = goal.target_amount || 0;
+
+            if (goal.goal_type_id === 2 && target > 0 && target < 10000000) target = target * 150;
+            if (goal.goal_type_id === 1 && target > 0 && target < 5000000) target = target * 150;
+
+            const burden = target / term;
+            burdenGoals.push({ goal, burden, target });
+        }
+
+        if (tempPool > 0 && burdenGoals.length > 0) {
+            const totalBurden = burdenGoals.reduce((sum, item) => sum + item.burden, 0);
+
+            if (totalBurden > 0) {
+                for (const item of burdenGoals) {
+                    const weight = item.burden / totalBurden;
+                    const allocation = Math.min(item.target, tempPool * weight);
+                    const currentInit = item.goal.smart_initial_capital || 0; // Use smart_initial_capital if already set
+                    item.goal.smart_initial_capital = currentInit + allocation;
+                }
+            } else {
+                // If no burden target, dump to last
+                const last = burdenGoals[burdenGoals.length - 1];
+                last.goal.smart_initial_capital = (last.goal.smart_initial_capital || 0) + tempPool; // Use smart_initial_capital if already set
+            }
+        }
+
+        // Note: we do NOT update context.poolBalance here. 
+        // Real deduction happens in calculators via deductFromSharedPool.
+        // We just set a "suggestion" (smart_initial_capital) which deductFromSharedPool will respect.
+    }
+
+    /**
      * Perform First Run calculation for a client request
      * @param {Object} data - CalculationRequest data
      */
@@ -208,6 +308,10 @@ class CalculationService {
                 if (pA !== pB) return pA - pB;
                 return (a.goal.term_months || 0) - (b.goal.term_months || 0);
             });
+
+        // 2.1. Smart Allocation (Burden-Based)
+        console.log('[CalculationService] Running Smart Allocation...');
+        this._calculateSmartAllocation(indexedGoals, context);
 
         const resultsIndexed = [];
 

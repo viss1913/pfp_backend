@@ -61,7 +61,9 @@ class LifeInsuranceCalculator extends BaseCalculator {
         }
 
         // 3. Deduct from Shared Pool (Waterfall) using the new BaseCalculator method
-        const deductedCapital = this.deductFromSharedPool(costNow, context);
+        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use costNow
+        let amountToDeduct = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : costNow;
+        const deductedCapital = this.deductFromSharedPool(amountToDeduct, context);
 
         // 4. Construct Result
         const result = {

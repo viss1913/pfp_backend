@@ -88,7 +88,8 @@ class PensionCalculator extends BaseCalculator {
         const statePensionResult = await this.calculateStatePension(clientWithIncome, pensionSettings, new Date());
 
         // DEDUCT FROM POOL
-        let initialCapital = goal.initial_capital || 0;
+        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
+        let initialCapital = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : (goal.initial_capital || 0);
         initialCapital = this.deductFromSharedPool(initialCapital, context);
 
         const inflationAnnualUsed = pensionSettings.inflation_rate;

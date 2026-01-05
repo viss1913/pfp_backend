@@ -104,7 +104,12 @@ class OtherGoalCalculator extends BaseCalculator {
             .filter(i => i.month === 0)
             .reduce((sum, i) => sum + i.amount, 0);
 
-        const effectiveInitialCapital = (goal.initial_capital || 0) + allocatedInitialCapital;
+        // DEDUCT FROM POOL
+        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
+        let initialCapital = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : (goal.initial_capital || 0);
+        initialCapital = this.deductFromSharedPool(initialCapital, context);
+
+        const effectiveInitialCapital = initialCapital + allocatedInitialCapital;
 
         const recommendedReplenishment = await this.simulateGoal({
             initialCapital: effectiveInitialCapital,

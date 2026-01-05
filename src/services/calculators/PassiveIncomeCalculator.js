@@ -23,7 +23,8 @@ class PassiveIncomeCalculator extends BaseCalculator {
         const requiredCapitalFuture = (desiredMonthlyIncomeFuture * 12 * 100) / payoutYieldPercent;
 
         // DEDUCT FROM POOL
-        let initialCapital = goal.initial_capital || 0;
+        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
+        let initialCapital = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : (goal.initial_capital || 0);
         initialCapital = this.deductFromSharedPool(initialCapital, context);
 
         // 3. Подбор портфеля и расчет доходности накопления
@@ -48,8 +49,9 @@ class PassiveIncomeCalculator extends BaseCalculator {
             termMonths: goal.term_months,
             monthlyYieldRate: d_month_decimal,
             monthlyInflationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
+            monthlyInflationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
             inflows: inflowData.allInflows
-        });
+        }, context);
 
         let recommendedReplenishmentRaw = recommendedReplenishment;
         let totalStateBenefit = 0;
