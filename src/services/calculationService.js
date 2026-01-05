@@ -10,6 +10,7 @@ const passiveIncomeCalculator = require('./calculators/PassiveIncomeCalculator')
 const lifeInsuranceCalculator = require('./calculators/LifeInsuranceCalculator');
 const finReserveCalculator = require('./calculators/FinReserveCalculator');
 const otherGoalCalculator = require('./calculators/OtherGoalCalculator');
+const rentCalculator = require('./calculators/RentCalculator');
 
 const CALCULATORS = {
     1: pensionCalculator,     // PENSION
@@ -17,7 +18,8 @@ const CALCULATORS = {
     3: investmentCalculator,    // INVESTMENT
     4: otherGoalCalculator,    // HOUSE, CAR, etc.
     5: lifeInsuranceCalculator, // LIFE_INSURANCE
-    7: finReserveCalculator    // FIN_RESERVE
+    7: finReserveCalculator,    // FIN_RESERVE
+    8: rentCalculator          // RENT
 };
 
 class CalculationService {

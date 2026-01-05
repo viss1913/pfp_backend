@@ -271,6 +271,90 @@ class BaseCalculator {
         }
         return { fixedInflows, sharedInflowsTaken, allInflows: [...fixedInflows, ...sharedInflowsTaken] };
     }
+
+
+    /**
+     * Calculates the weighted annual yield of a portfolio based on goal duration and capital.
+     * Shared logic for Investment, FinReserve, and Rent.
+     * @param {Object} portfolio - The portfolio object with riskProfiles.
+     * @param {Object} goal - The goal object (needs initial_capital and term_months).
+     * @param {Object} productRepository - Repository to fetch products.
+     * @returns {Promise<number>} Weighted annual yield percentage (e.g. 0.15 for 15%).
+     */
+    async calculateWeightedYield(portfolio, goal, productRepository) {
+        let riskProfiles = portfolio.risk_profiles;
+        if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
+
+        const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
+        const profile = riskProfiles.find(p => {
+            const pType = (p.risk_profile || p.profile_type || '').toUpperCase();
+            return pType === searchProfile;
+        });
+
+        if (!profile) {
+            throw new Error(`Risk profile ${searchProfile} not found in portfolio`);
+        }
+
+        let weightedYieldAnnual = 0;
+        let allBuckets = [];
+
+        if (profile.instruments && profile.instruments.length > 0) {
+            allBuckets = profile.instruments;
+        } else {
+            // Legacy format support
+            if (profile.initial_capital) {
+                allBuckets.push(...profile.initial_capital.map(i => ({ ...i, bucket_type: 'INITIAL_CAPITAL' })));
+            }
+            const replenishment = profile.initial_replenishment || profile.top_up || profile.monthly_savings;
+            if (replenishment) {
+                allBuckets.push(...replenishment.map(i => ({ ...i, bucket_type: 'TOP_UP' })));
+            }
+        }
+
+        const initial_instruments = [];
+        const monthly_instruments = [];
+        let pdsProductId = null;
+
+        for (const item of allBuckets) {
+            const product = await productRepository.findById(item.product_id);
+            if (!product) continue;
+
+            const prodType = (product.product_type || '').toUpperCase().trim();
+            if (prodType === 'PDS') pdsProductId = product.id;
+
+            const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
+            const yields = product.yields || [];
+            const line = yields.find(l =>
+                goal.term_months >= l.term_from_months &&
+                goal.term_months <= l.term_to_months &&
+                allocatedAmount >= parseFloat(l.amount_from) &&
+                allocatedAmount <= parseFloat(l.amount_to)
+            ) || yields[0];
+
+            const productYield = line ? parseFloat(line.yield_percent) : 0;
+
+            const instrumentData = {
+                name: product.name,
+                share: item.share_percent,
+                yield: productYield
+            };
+
+            const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();
+            if (bType === 'INITIAL_CAPITAL') {
+                initial_instruments.push(instrumentData);
+                weightedYieldAnnual += (productYield * (item.share_percent / 100));
+            } else if (bType === 'MONTHLY_SAVINGS' || bType === 'TOP_UP') {
+                monthly_instruments.push(instrumentData);
+            }
+        }
+
+        return {
+            weightedYieldAnnual: weightedYieldAnnual,
+            initial_instruments,
+            monthly_instruments,
+            pdsProductId
+        };
+    }
 }
 
 module.exports = BaseCalculator;

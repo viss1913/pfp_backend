@@ -4,19 +4,45 @@ const portfolioRepository = require('../../repositories/portfolioRepository');
 
 class FinReserveCalculator extends BaseCalculator {
     async calculate(goal, context) {
-        const { settings } = context;
+        const { settings, repositories } = context;
+        const { productRepository, portfolioRepository } = repositories;
 
-        const termMonths = goal.term_months || 6; // Финрезерв обычно на полгода
-        const yieldMonthly = this.getMonthlyYield(6); // Упрощенная доходность 6%
+        // 1. Get Portfolio & Yield
+        let portfolio;
+        try {
+            portfolio = await portfolioRepository.findByCriteria({
+                classId: goal.goal_type_id,
+                amount: goal.initial_capital || 0,
+                term: 12 // Fixed term for FinReserve
+            });
+        } catch (e) {
+            console.warn('Portfolio not found for FinReserve, using default yield logic if possible or throwing error');
+        }
 
-        let currentBalance = goal.initial_capital || 0;
-        let totalClientInvestment = currentBalance;
+        if (!portfolio) {
+            throw new Error(`FinReserve portfolio not found for class ${goal.goal_type_id} and amount ${goal.initial_capital}`);
+        }
+
+        const { weightedYieldAnnual } = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository);
+        const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
+
+        // 2. Simulation Parameters
+        const termMonths = 12;
+        const initialCapital = goal.initial_capital || 0;
         const monthlyReplenishment = goal.monthly_replenishment || 0;
         const indexationRate = (settings.investment_expense_growth_monthly || 0.1) / 100;
 
-        for (let m = 0; m < termMonths; m++) {
+        let currentBalance = initialCapital;
+        let totalClientInvestment = initialCapital;
+
+        // 3. Simulation Loop (12 months)
+        for (let m = 1; m <= termMonths; m++) {
+            // Growth
             currentBalance *= (1 + yieldMonthly);
-            const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m);
+
+            // Replenishment (at end of month, or start of next - aligning with InvestmentCalculator logic)
+            // InvestmentCalculator applies growth then adds indexed replenishment
+            const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m - 1);
             currentBalance += indexedReplenishment;
             totalClientInvestment += indexedReplenishment;
         }
@@ -28,11 +54,11 @@ class FinReserveCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'FIN_RESERVE',
                 status: 'OK',
-                initial_capital: goal.initial_capital || 0,
-                monthly_replenishment: monthlyReplenishment,
-                total_capital_at_end: Math.round(currentBalance),
+                initial_capital: Math.round(initialCapital * 100) / 100,
+                monthly_replenishment: Math.round(monthlyReplenishment * 100) / 100,
+                total_capital_at_end: Math.round(currentBalance * 100) / 100,
                 target_achieved: true,
-                projected_value: Math.round(currentBalance),
+                projected_value: Math.round(currentBalance * 100) / 100,
                 state_benefit: 0
             }
         };
