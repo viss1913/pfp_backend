@@ -54,8 +54,28 @@ class InvestmentCalculator extends BaseCalculator {
         if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
         if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;
 
+        // Update instrument amounts with actual allocations
+        if (initial_instruments && initial_instruments.length > 0 && initialCapital > 0) {
+            initial_instruments.forEach(inst => {
+                inst.amount = initialCapital * (inst.share / 100);
+            });
+        }
+        if (monthly_instruments && monthly_instruments.length > 0 && monthlyReplenishment > 0) {
+            monthly_instruments.forEach(inst => {
+                inst.amount = monthlyReplenishment * (inst.share / 100);
+            });
+        }
+
         const targetAmountFuture = goal.target_amount || 0;
         const totalCapital = simResult.totalCapital;
+
+        // Fallback for instruments if missing (for Consolidated View)
+        if (!initial_instruments || initial_instruments.length === 0) {
+            initial_instruments.push({ name: `Инструменты портфеля "${portfolio.name}"`, share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100, amount: initialCapital });
+        }
+        if (monthlyReplenishment > 0 && (!monthly_instruments || monthly_instruments.length === 0)) {
+            monthly_instruments.push({ name: `Инструменты портфеля "${portfolio.name}"`, share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100, amount: monthlyReplenishment });
+        }
 
         return {
             goal_id: goal.goal_type_id,

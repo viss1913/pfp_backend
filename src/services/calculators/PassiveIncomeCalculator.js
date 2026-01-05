@@ -75,6 +75,19 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 total_capital_at_end: Math.round(requiredCapitalFuture),
                 projected_value: Math.round(desiredMonthlyIncomeFuture),
                 state_benefit: Math.round(totalStateBenefit)
+            },
+            details: {
+                term_months: goal.term_months,
+                target_amount_initial: initialDesiredIncome, // Monthly Income Goal
+                target_capital_required: Math.round(requiredCapitalFuture), // Capital needed
+                yield_percent: payoutYieldPercent,
+                portfolio: portfolio ? {
+                    id: portfolio.id,
+                    name: portfolio.name,
+                    instruments: (portfolio.instruments && portfolio.instruments.length > 0)
+                        ? portfolio.instruments
+                        : [{ name: portfolio.name || 'Портфель пассивного дохода', share: 100, yield: payoutYieldPercent }]
+                } : null
             }
         };
     }

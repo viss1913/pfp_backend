@@ -77,10 +77,27 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 monthly_replenishment: Math.round(monthlyReplenishment),
                 total_capital_at_end: Math.round(nsjResult.total_limit || targetAmount),
                 target_achieved: true,
-                projected_value: Math.round(nsjResult.total_limit || targetAmount),
                 state_benefit: 0
             },
-            nsj_calculation: nsjResult
+            nsj_calculation: nsjResult,
+            details: {
+                term_months: termMonths,
+                target_amount_initial: targetAmount,
+                target_capital_required: Math.round(nsjResult.total_limit || targetAmount),
+                payment_variant: goal.payment_variant,
+                program: nsjResult.program,
+                portfolio: {
+                    name: 'Life Insurance Contract',
+                    instruments: [
+                        {
+                            name: `NSJ Program: ${nsjResult.program || 'Standard'}`,
+                            share: 100,
+                            yield: 0, // Yield is implicit in the target amount/limit
+                            amount: Math.round(deductedCapital)
+                        }
+                    ]
+                }
+            }
         };
 
         if (apiError) {

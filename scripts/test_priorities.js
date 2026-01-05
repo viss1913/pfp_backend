@@ -97,6 +97,7 @@ async function testPriorities() {
                 Math.abs(inv.summary.initial_capital - 390000) < 1 &&
                 Math.abs(pas.summary.initial_capital - 260000) < 1) {
                 console.log('✅ Smart Allocation Logic (60% of Remainder) verified successfully!');
+
             } else {
                 console.error('❌ Allocation logic failed.');
             }

@@ -344,13 +344,122 @@ class CalculationService {
             .sort((a, b) => a.index - b.index)
             .map(item => item.result);
 
+        const consolidated = this._generateConsolidatedPortfolio(results);
+
         return {
             summary: {
                 goals_count: goals.length,
                 total_capital: Math.round(results.reduce((sum, r) => sum + (r.summary?.total_capital_at_end || 0), 0) * 100) / 100,
-                total_state_benefit: Math.round(results.reduce((sum, r) => sum + (r.summary?.state_benefit || 0), 0) * 100) / 100
+                total_state_benefit: Math.round(results.reduce((sum, r) => sum + (r.summary?.state_benefit || 0), 0) * 100) / 100,
+                consolidated_portfolio: consolidated
             },
             goals: results
+        };
+    }
+
+    _generateConsolidatedPortfolio(results) {
+        const assetsMap = {};
+        const flowsMap = {};
+        let totalInitial = 0;
+        let totalMonthly = 0;
+
+        results.forEach(res => {
+            if (!res.details) return;
+
+            // Normalize portfolio instruments to an array
+            let instruments = [];
+
+            // Some calculators return portfolio object, others return flat instruments
+            if (res.details.portfolio) {
+                const p = res.details.portfolio;
+                if (Array.isArray(p.instruments)) {
+                    instruments = p.instruments;
+                } else if (p.instruments && Array.isArray(p.instruments)) {
+                    instruments = p.instruments;
+                }
+            }
+
+            // Special handling for calculators that return logic differently (e.g. Pension)
+            // Pension returns `initial_instruments` and `monthly_instruments` in details root
+            // But let's try to stick to what we standardized if possible. 
+            // PensionCalculator returns `initial_instruments` in details.
+
+            let initialInstrs = [];
+            let monthlyInstrs = [];
+
+            if (res.details.initial_capital_instruments) {
+                initialInstrs = res.details.initial_capital_instruments;
+            } else if (res.details.initial_instruments) { // Fallback/Legacy
+                initialInstrs = res.details.initial_instruments;
+            } else if (instruments.length > 0) {
+                // Assume proportional split if specific buckets not defined?
+                // Or just use the instruments for initial if they have 'amount' or 'share'
+                // This is tricky. Let's simplify:
+                // Use `summary.initial_capital` as total for this goal.
+                // Distribute by share in instruments.
+                const goalInitial = res.summary.initial_capital || 0;
+                initialInstrs = instruments.map(i => ({ ...i, amount: (i.amount || (goalInitial * (i.share / 100))) }));
+            }
+
+            if (res.details.monthly_savings_instruments) {
+                monthlyInstrs = res.details.monthly_savings_instruments;
+            } else if (res.details.monthly_instruments) { // Fallback/Legacy
+                monthlyInstrs = res.details.monthly_instruments;
+            } else if (instruments.length > 0) {
+                const goalMonthly = res.summary.monthly_replenishment || 0;
+                monthlyInstrs = instruments.map(i => ({ ...i, amount: (i.amount || (goalMonthly * (i.share / 100))) }));
+            }
+
+            // Aggregate Assets
+            initialInstrs.forEach(inst => {
+                const name = inst.name || 'Unknown';
+                const amt = inst.amount || 0;
+                const yieldP = inst.yield || 0;
+
+                if (!assetsMap[name]) assetsMap[name] = { amount: 0, weightedYieldSum: 0 };
+                assetsMap[name].amount += amt;
+                assetsMap[name].weightedYieldSum += (amt * yieldP);
+                totalInitial += amt;
+            });
+
+            // Aggregate Flows
+            monthlyInstrs.forEach(inst => {
+                const name = inst.name || 'Unknown';
+                const amt = inst.amount || 0; // Monthly amount
+                const yieldP = inst.yield || 0;
+
+                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0 };
+                flowsMap[name].amount += amt;
+                flowsMap[name].weightedYieldSum += (amt * yieldP);
+                totalMonthly += amt;
+            });
+        });
+
+        const assetsAllocation = Object.keys(assetsMap).map(name => {
+            const data = assetsMap[name];
+            return {
+                name,
+                amount: Math.round(data.amount * 100) / 100,
+                share: totalInitial > 0 ? Math.round((data.amount / totalInitial) * 100) : 0,
+                yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0
+            };
+        }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);
+
+        const cashFlowAllocation = Object.keys(flowsMap).map(name => {
+            const data = flowsMap[name];
+            return {
+                name,
+                amount: Math.round(data.amount * 100) / 100,
+                share: totalMonthly > 0 ? Math.round((data.amount / totalMonthly) * 100) : 0,
+                yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0
+            };
+        }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);
+
+        return {
+            total_initial_capital: Math.round(totalInitial * 100) / 100,
+            total_monthly_replenishment: Math.round(totalMonthly * 100) / 100,
+            assets_allocation: assetsAllocation,
+            cash_flow_allocation: cashFlowAllocation
         };
     }
 }

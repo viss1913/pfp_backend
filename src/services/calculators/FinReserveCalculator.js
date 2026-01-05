@@ -58,6 +58,11 @@ class FinReserveCalculator extends BaseCalculator {
             totalClientInvestment += indexedReplenishment;
         }
 
+        // Ensure instruments exist for Consolidated Portfolio
+        const instruments = (portfolio.instruments && portfolio.instruments.length > 0)
+            ? portfolio.instruments
+            : [{ name: 'Бнаковский депозит / Накопительный счет', share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100 }];
+
         return {
             goal_id: goal.goal_type_id,
             goal_name: goal.name,
@@ -71,6 +76,17 @@ class FinReserveCalculator extends BaseCalculator {
                 target_achieved: true,
                 projected_value: Math.round(currentBalance * 100) / 100,
                 state_benefit: 0
+            },
+            details: {
+                term_months: termMonths,
+                target_amount_initial: initialCapital, // It's usually small, match initial
+                target_capital_required: Math.round(currentBalance),
+                yield_percent: weightedYieldAnnual,
+                portfolio: {
+                    id: portfolio.id,
+                    name: portfolio.name,
+                    instruments: instruments
+                }
             }
         };
     }
