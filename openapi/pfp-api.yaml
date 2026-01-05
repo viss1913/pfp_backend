@@ -155,7 +155,7 @@ components:
       properties:
         goal_type_id:
           type: integer
-          description: Portfolio class ID (from portfolio_classes). Use 5 for LIFE goals
+          description: Portfolio class ID (from portfolio_classes). Use 5 for LIFE goals, 7 for FIN_RESERVE, 8 for RENT
           example: 5
         name:
           type: string
@@ -462,6 +462,47 @@ components:
               - $ref: '#/components/schemas/LifeCalculationResult'
               - $ref: '#/components/schemas/PassiveIncomeCalculationResult'
               - $ref: '#/components/schemas/PensionCalculationResult'
+              - $ref: '#/components/schemas/FinReserveCalculationResult'
+              - $ref: '#/components/schemas/RentCalculationResult'
+    FinReserveCalculationResult:
+      type: object
+      properties:
+        goal_id:
+          type: integer
+        goal_name:
+          type: string
+        goal_type:
+          type: string
+          enum: [FIN_RESERVE]
+        summary:
+          allOf:
+            - $ref: '#/components/schemas/GoalCalculationSummary'
+            - type: object
+              properties:
+                total_capital_at_end:
+                  type: number
+                  description: Accumulated capital at end of term
+    RentCalculationResult:
+      type: object
+      properties:
+        goal_id:
+          type: integer
+        goal_name:
+          type: string
+        goal_type:
+          type: string
+          enum: [RENT]
+        summary:
+          allOf:
+            - $ref: '#/components/schemas/GoalCalculationSummary'
+            - type: object
+              properties:
+                monthlyIncomeRent:
+                  type: number
+                  description: Monthly income generated from capital
+                portfolio_yield_annual:
+                  type: number
+                  description: Portfolio annual yield percent
     PortfolioCalculationResult:
       type: object
       properties:

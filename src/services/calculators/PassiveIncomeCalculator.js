@@ -19,10 +19,14 @@ class PassiveIncomeCalculator extends BaseCalculator {
         const payoutYieldPercent = parseFloat(yieldLine.yield_percent);
         const requiredCapitalFuture = (desiredMonthlyIncomeFuture * 12 * 100) / payoutYieldPercent;
 
+        // DEDUCT FROM POOL
+        let initialCapital = goal.initial_capital || 0;
+        initialCapital = this.deductFromSharedPool(initialCapital, context);
+
         // 3. Подбор портфеля и расчет доходности накопления
         const portfolio = await portfolioRepository.findByCriteria({
             classId: goal.goal_type_id,
-            amount: goal.initial_capital || 0,
+            amount: initialCapital, // Use deducted
             term: goal.term_months
         });
 
@@ -30,11 +34,13 @@ class PassiveIncomeCalculator extends BaseCalculator {
         const d_month_decimal = this.getMonthlyYield(d_annual);
 
         // 4. Притоки (вклады, Shared Pool)
-        const inflowData = this.getGoalInflows(goal, assets, context, goal.term_months, goal.initial_capital, requiredCapitalFuture, d_month_decimal, infl_month_decimal);
+        // Note: deductFromSharedPool already updated current poolBalance. 
+        // getGoalInflows might look at assets for OTHER inflows, but liquid capital is managed by context.poolBalance
+        const inflowData = this.getGoalInflows(goal, assets, context, goal.term_months, initialCapital, requiredCapitalFuture, d_month_decimal, infl_month_decimal);
 
         // 5. Поиск пополнения
         let recommendedReplenishment = await this.simulateGoal({
-            initialCapital: goal.initial_capital || 0,
+            initialCapital: initialCapital,
             targetAmountFuture: requiredCapitalFuture,
             termMonths: goal.term_months,
             monthlyYieldRate: d_month_decimal,
@@ -42,7 +48,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
             inflows: inflowData.allInflows
         });
 
-        let recommendedReplenishmentRaw = recommendedReplenishment;
+        const recommendedReplenishmentRaw = recommendedReplenishment;
         let totalStateBenefit = 0;
 
         // 6. ПДС Проверка (если есть портфель)
@@ -58,7 +64,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'PASSIVE_INCOME',
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                initial_capital: goal.initial_capital || 0,
+                initial_capital: initialCapital,
                 monthly_replenishment: Math.round(recommendedReplenishment),
                 monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw),
                 total_capital_at_end: Math.round(requiredCapitalFuture),

@@ -116,12 +116,12 @@ class CalculationService {
         if (name.includes('РЕЗЕРВ') || name.includes('RESERVOIR')) return 1;
 
         const map = {
-            7: 1, // FinReserve
-            1: 2, // Pension
-            2: 3, // Passive Income
-            5: 3  // Life
+            7: 1, // FinReserve (First Priority)
+            5: 2, // Life Insurance (Second Priority)
+            1: 3, // Pension
+            2: 4  // Passive Income
         };
-        return map[goal.goal_type_id] || 4;
+        return map[goal.goal_type_id] || 5;
     }
 
 

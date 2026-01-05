@@ -87,6 +87,10 @@ class PensionCalculator extends BaseCalculator {
 
         const statePensionResult = await this.calculateStatePension(clientWithIncome, pensionSettings, new Date());
 
+        // DEDUCT FROM POOL
+        let initialCapital = goal.initial_capital || 0;
+        initialCapital = this.deductFromSharedPool(initialCapital, context);
+
         const inflationAnnualUsed = pensionSettings.inflation_rate;
         const infl_month_decimal = (inflationAnnualUsed / 12) / 100; // Correct monthly decimal
         const monthsToPension = statePensionResult.years_to_pension * 12;
@@ -105,7 +109,7 @@ class PensionCalculator extends BaseCalculator {
         // Поиск портфеля для накопления
         const portfolioForAcc = await portfolioRepository.findByCriteria({
             classId: 1,
-            amount: goal.initial_capital || 0,
+            amount: initialCapital, // Use deducted capital
             term: monthsToPension
         });
         if (!portfolioForAcc) throw new Error('Pension portfolio not found');
@@ -146,7 +150,7 @@ class PensionCalculator extends BaseCalculator {
                 const isPds = prodType === 'PDS';
                 if (isPds) pdsProductId = product.id;
 
-                const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
+                const allocatedAmount = Math.max(initialCapital * (item.share_percent / 100), 1);
                 const yields = product.yields || [];
                 const line = yields.find(l =>
                     monthsToPension >= l.term_from_months &&
@@ -177,7 +181,7 @@ class PensionCalculator extends BaseCalculator {
         const indexationRateDecimal = (settings.investment_expense_growth_monthly || 0.1) / 100;
 
         const recommendedReplenishment = await this.simulateGoal({
-            initialCapital: goal.initial_capital || 0,
+            initialCapital: initialCapital,
             targetAmountFuture: requiredCapitalFuture,
             termMonths: monthsToPension,
             monthlyYieldRate: yieldMonthly,
@@ -188,7 +192,7 @@ class PensionCalculator extends BaseCalculator {
         }, context);
 
         const simResult = await this.runSimulation({
-            initialCapital: goal.initial_capital || 0,
+            initialCapital: initialCapital,
             monthlyReplenishment: recommendedReplenishment,
             termMonths: monthsToPension,
             monthlyYieldRate: yieldMonthly,
@@ -210,7 +214,7 @@ class PensionCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'PENSION',
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                initial_capital: Math.round((goal.initial_capital || 0) * 100) / 100,
+                initial_capital: Math.round(initialCapital * 100) / 100,
                 monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                 total_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
                 target_achieved: simResult.totalCapital >= requiredCapitalFuture * 0.999,

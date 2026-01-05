@@ -34,8 +34,12 @@ class InvestmentCalculator extends BaseCalculator {
         const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
         const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
 
+        // DEDUCT FROM POOL
+        let initialCapitalInvest = goal.initial_capital || 0;
+        initialCapitalInvest = this.deductFromSharedPool(initialCapitalInvest, context);
+
         const simResult = await this.runSimulation({
-            initialCapital: goal.initial_capital || 0,
+            initialCapital: initialCapitalInvest,
             monthlyReplenishment: monthlyReplenishment,
             termMonths: goal.term_months,
             monthlyYieldRate: portfolioYieldMonthly,
@@ -59,7 +63,7 @@ class InvestmentCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'INVESTMENT',
                 status: (totalCapital >= targetAmountFuture * 0.999) ? 'OK' : 'GAP',
-                initial_capital: Math.round((goal.initial_capital || 0) * 100) / 100,
+                initial_capital: Math.round(initialCapitalInvest * 100) / 100,
                 monthly_replenishment: Math.round(monthlyReplenishment * 100) / 100,
                 total_capital_at_end: Math.round(totalCapital * 100) / 100,
                 target_achieved: (totalCapital >= targetAmountFuture * 0.999),

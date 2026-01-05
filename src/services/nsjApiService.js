@@ -47,7 +47,8 @@ class NSJApiService {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiKey}`,
                     'Content-Length': Buffer.byteLength(requestData)
-                }
+                },
+                timeout: 3000 // 3 seconds timeout for outbound request
             };
 
             console.log('Request options:', JSON.stringify({
@@ -59,7 +60,8 @@ class NSJApiService {
                     'Content-Type': options.headers['Content-Type'],
                     'Authorization': options.headers['Authorization'] ? 'Bearer ***' : 'NOT SET',
                     'Content-Length': options.headers['Content-Length']
-                }
+                },
+                timeout: 3000 // 3 seconds timeout
             }, null, 2));
 
             console.log('Sending HTTP request...');
@@ -101,6 +103,15 @@ class NSJApiService {
                             rawResponse: responseData
                         });
                     }
+                });
+            });
+
+            req.on('timeout', () => {
+                console.error('=== NSJ API REQUEST TIMEOUT ===');
+                req.destroy();
+                reject({
+                    status: 408,
+                    message: 'NSJ API request timed out (3000ms limit)'
                 });
             });
 

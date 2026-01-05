@@ -140,7 +140,7 @@ class OtherGoalCalculator extends BaseCalculator {
             goal_type: 'OTHER',
             summary: {
                 goal_type: 'OTHER',
-                status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
+                status: (simResult.totalCapital >= targetAmountFuture * 0.999) ? 'OK' : 'GAP',
                 initial_capital: Math.round(effectiveInitialCapital * 100) / 100,
                 monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                 total_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
