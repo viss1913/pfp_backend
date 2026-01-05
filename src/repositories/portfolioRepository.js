@@ -1,77 +1,10 @@
 const db = require('../config/database');
 
 class PortfolioRepository {
-    async findAll({ agentId, filters = {}, includeDefaults = true }) {
-        const query = db('portfolios').select('*');
-
-        query.where((builder) => {
-            builder.where('agent_id', agentId);
-            if (includeDefaults) {
-                builder.orWhereNull('agent_id');
-            }
-        });
-
-        if (filters.amount_from) query.where('amount_from', '>=', filters.amount_from);
-        // ... Implement other filters as needed
-
-        const portfolios = await query;
-
-        // Конвертируем risk_profiles в riskProfiles для единообразия API
-        portfolios.forEach(portfolio => {
-            if (portfolio.risk_profiles) {
-                try {
-                    const profiles = typeof portfolio.risk_profiles === 'string'
-                        ? JSON.parse(portfolio.risk_profiles)
-                        : portfolio.risk_profiles;
-
-                    // Конвертируем в формат с instruments
-                    portfolio.riskProfiles = profiles.map(profile => {
-                        if (profile.instruments !== undefined) {
-                            return profile; // Уже в новом формате
-                        }
-                        // Конвертируем старый формат
-                        const instruments = [];
-                        if (profile.initial_capital) {
-                            profile.initial_capital.forEach(item => {
-                                instruments.push({
-                                    product_id: item.product_id,
-                                    bucket_type: 'INITIAL_CAPITAL',
-                                    share_percent: item.share_percent,
-                                    order_index: item.order_index || null
-                                });
-                            });
-                        }
-                        if (profile.initial_replenishment || profile.top_up) {
-                            (profile.initial_replenishment || profile.top_up).forEach(item => {
-                                instruments.push({
-                                    product_id: item.product_id,
-                                    bucket_type: 'TOP_UP',
-                                    share_percent: item.share_percent,
-                                    order_index: item.order_index || null
-                                });
-                            });
-                        }
-                        return {
-                            profile_type: profile.profile_type,
-                            potential_yield_percent: profile.potential_yield_percent || null,
-                            instruments
-                        };
-                    });
-                } catch (e) {
-                    console.warn('Could not parse risk_profiles:', e.message);
-                    portfolio.riskProfiles = [];
-                }
-            } else {
-                portfolio.riskProfiles = [];
-            }
-            delete portfolio.risk_profiles; // Удаляем старое поле
-        });
-
-        return portfolios;
-    }
-
-    async findById(id) {
-        const portfolio = await db('portfolios').where({ id }).first();
+    /**
+     * Helper to transform raw DB portfolio row into API format with parsed instruments
+     */
+    async _transformPortfolio(portfolio, db) {
         if (!portfolio) return null;
 
         // Fetch Classes - ПРИОРИТЕТ: читаем из JSON поля portfolios.classes (основное хранилище)
@@ -87,7 +20,6 @@ class PortfolioRepository {
                         classes = await db('portfolio_classes')
                             .whereIn('id', classIds)
                             .select('*');
-                        console.log(`[PortfolioRepository] Loaded ${classes.length} classes from JSON field for portfolio ${id}`);
                     }
                 } catch (e) {
                     console.warn('Could not parse classes from JSON field:', e.message);
@@ -100,16 +32,12 @@ class PortfolioRepository {
                 if (tableExists) {
                     classes = await db('portfolio_class_links')
                         .join('portfolio_classes', 'portfolio_class_links.class_id', 'portfolio_classes.id')
-                        .where('portfolio_class_links.portfolio_id', id)
+                        .where('portfolio_class_links.portfolio_id', portfolio.id)
                         .select('portfolio_classes.*');
-                    if (classes.length > 0) {
-                        console.log(`[PortfolioRepository] Loaded ${classes.length} classes from portfolio_class_links (fallback) for portfolio ${id}`);
-                    }
                 }
             }
         } catch (error) {
             console.error('Error fetching classes:', error.message);
-            // Continue without classes if error
         }
 
         // Используем ТОЛЬКО JSON поле risk_profiles - просто и понятно
@@ -125,17 +53,11 @@ class PortfolioRepository {
         }
 
         // Конвертируем старый формат (initial_capital/initial_replenishment) в новый (instruments)
-        // для единообразия в ответе API
         profiles = profiles.map(profile => {
-            // Если уже в новом формате (есть instruments), возвращаем как есть
-            if (profile.instruments !== undefined) {
-                return profile;
-            }
+            if (profile.instruments !== undefined) return profile;
 
-            // Конвертируем старый формат в новый
             const instruments = [];
-
-            // initial_capital -> instruments с bucket_type: INITIAL_CAPITAL
+            // initial_capital -> instruments with bucket_type: INITIAL_CAPITAL
             if (profile.initial_capital && Array.isArray(profile.initial_capital)) {
                 profile.initial_capital.forEach(item => {
                     instruments.push({
@@ -146,8 +68,7 @@ class PortfolioRepository {
                     });
                 });
             }
-
-            // initial_replenishment или top_up -> instruments с bucket_type: TOP_UP
+            // initial_replenishment or top_up -> instruments with bucket_type: TOP_UP
             const replenishment = profile.initial_replenishment || profile.top_up;
             if (replenishment && Array.isArray(replenishment)) {
                 replenishment.forEach(item => {
@@ -160,7 +81,6 @@ class PortfolioRepository {
                 });
             }
 
-            // Возвращаем профиль в новом формате
             return {
                 profile_type: profile.profile_type,
                 potential_yield_percent: profile.potential_yield_percent || null,
@@ -168,15 +88,35 @@ class PortfolioRepository {
             };
         });
 
-        // Build result object
         const result = { ...portfolio };
         result.classes = classes;
         result.riskProfiles = profiles;
-
-        // Удаляем старое поле, чтобы не было путаницы
         delete result.risk_profiles;
-
         return result;
+    }
+
+    async findAll({ agentId, filters = {}, includeDefaults = true }) {
+        const query = db('portfolios').select('*');
+
+        query.where((builder) => {
+            builder.where('agent_id', agentId);
+            if (includeDefaults) {
+                builder.orWhereNull('agent_id');
+            }
+        });
+
+        if (filters.amount_from) query.where('amount_from', '>=', filters.amount_from);
+
+        const portfolios = await query;
+        // Parallel async transformation is okay structurally but _transform relies on db calls for classes
+        // Ideally we should batch class fetching but for 2-3 portfolios it's fine.
+        return Promise.all(portfolios.map(p => this._transformPortfolio(p, db)));
+    }
+
+    async findById(id) {
+        const portfolio = await db('portfolios').where({ id }).first();
+        if (!portfolio) return null;
+        return this._transformPortfolio(portfolio, db);
     }
 
     async create(portfolioData, classIds, riskProfilesData) {
@@ -302,11 +242,13 @@ class PortfolioRepository {
                 .where('term_to_months', '>=', term);
         }
         const candidates = await query;
-        return candidates.find(p => {
+        const found = candidates.find(p => {
             const classes = typeof p.classes === 'string' ? JSON.parse(p.classes) : p.classes;
             if (!Array.isArray(classes)) return false;
             return classes.includes(Number(classId));
-        }) || null;
+        });
+
+        return found ? this._transformPortfolio(found, db) : null;
     }
 }
 

@@ -134,6 +134,15 @@ class BaseCalculator {
             totalClientInvestment += indexedReplenishment;
             yearlyContributions[year] = (yearlyContributions[year] || 0) + indexedReplenishment;
 
+            // 2.1 Inflows (Additional Liquidity)
+            if (params.inflows && params.inflows.length > 0) {
+                const monthInflows = params.inflows.filter(i => i.month === m);
+                for (const inf of monthInflows) {
+                    currentBalance += inf.amount;
+                    // Note: We do NOT add to totalClientInvestment as this is transfer of existing assets
+                }
+            }
+
             // 3. ПДС события
             if (pdsProductId) {
                 // Создаем временный контекст для handlePdsEvents

@@ -48,8 +48,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
             targetAmountFuture: requiredCapitalFuture,
             termMonths: goal.term_months,
             monthlyYieldRate: d_month_decimal,
-            monthlyInflationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
-            monthlyInflationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
+            indexationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
             inflows: inflowData.allInflows
         }, context);
 
@@ -72,7 +71,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 initial_capital: initialCapital,
                 monthly_replenishment: Math.round(recommendedReplenishment),
                 monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw),
-                total_capital_at_end: Math.round(requiredCapitalFuture),
+                total_capital_at_end: Math.round(requiredCapitalFuture), // Target
                 projected_value: Math.round(desiredMonthlyIncomeFuture),
                 state_benefit: Math.round(totalStateBenefit)
             },
