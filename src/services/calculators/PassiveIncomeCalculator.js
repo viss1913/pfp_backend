@@ -11,7 +11,10 @@ class PassiveIncomeCalculator extends BaseCalculator {
         // 1. Расчет желаемого дохода в будущем
         const inflationAnnualUsed = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : settings.inflation_rate_year;
         const infl_month_decimal = this.getMonthlyInflation(inflationAnnualUsed);
-        const desiredMonthlyIncomeFuture = goal.target_amount * Math.pow(1 + infl_month_decimal, goal.term_months);
+
+        // Use desired_monthly_income if provided (frontend convention), otherwise target_amount
+        const initialDesiredIncome = goal.desired_monthly_income || goal.target_amount || 0;
+        const desiredMonthlyIncomeFuture = initialDesiredIncome * Math.pow(1 + infl_month_decimal, goal.term_months);
 
         // 2. Определение целевого капитала для выплат
         const yieldLine = await settingsService.findPassiveIncomeYieldLine(0, goal.term_months, true);
@@ -48,7 +51,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
             inflows: inflowData.allInflows
         });
 
-        const recommendedReplenishmentRaw = recommendedReplenishment;
+        let recommendedReplenishmentRaw = recommendedReplenishment;
         let totalStateBenefit = 0;
 
         // 6. ПДС Проверка (если есть портфель)

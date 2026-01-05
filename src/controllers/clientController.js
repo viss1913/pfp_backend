@@ -8,8 +8,8 @@ const calculationRequestSchema = Joi.object({
             .description('ID класса портфеля (из portfolio_classes). Для LIFE используйте 5'),
         name: Joi.string().required()
             .description('Название цели'),
-        target_amount: Joi.number().positive().optional()
-            .description('Целевая сумма (опционально для INVESTMENT, обязательно для других целей типа ПОКУПКА)'),
+        target_amount: Joi.number().min(0).optional()
+            .description('Целевая сумма (опционально для INVESTMENT/PASSIVE_INCOME, обязательно для других целей типа ПОКУПКА)'),
         term_months: Joi.number().integer().min(0).optional()
             .description('Срок достижения цели в месяцах. Для PENSION можно не указывать (будет рассчитан автоматически до выхода на пенсию)'),
         risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required()
