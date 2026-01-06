@@ -23,7 +23,7 @@ class OtherGoalCalculator extends BaseCalculator {
 
         // Доходность
         let weightedYieldAnnual = 0;
-        let riskProfiles = portfolio.risk_profiles;
+        let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles;
         if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
 
         const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();

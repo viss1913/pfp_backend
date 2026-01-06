@@ -115,7 +115,7 @@ class PensionCalculator extends BaseCalculator {
         });
         if (!portfolioForAcc) throw new Error('Pension portfolio not found');
 
-        let riskProfiles = portfolioForAcc.risk_profiles;
+        let riskProfiles = portfolioForAcc.riskProfiles || portfolioForAcc.risk_profiles;
         if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
 
         const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();

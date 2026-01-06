@@ -299,7 +299,7 @@ class BaseCalculator {
      * @returns {Promise<number>} Weighted annual yield percentage (e.g. 0.15 for 15%).
      */
     async calculateWeightedYield(portfolio, goal, productRepository) {
-        let riskProfiles = portfolio.risk_profiles;
+        let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles;
         if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
 
         const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
