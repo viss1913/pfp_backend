@@ -116,6 +116,12 @@ class PensionCalculator extends BaseCalculator {
         if (!portfolioForAcc) throw new Error('Pension portfolio not found');
 
         let riskProfiles = portfolioForAcc.riskProfiles || portfolioForAcc.risk_profiles;
+        // DEBUG LOGGING
+        if (!riskProfiles) {
+            console.error('CRITICAL ERROR: riskProfiles is undefined in PensionCalculator!');
+            console.error('Portfolio object keys:', Object.keys(portfolioForAcc));
+            console.error('Portfolio object:', JSON.stringify(portfolioForAcc, null, 2));
+        }
         if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
 
         const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();

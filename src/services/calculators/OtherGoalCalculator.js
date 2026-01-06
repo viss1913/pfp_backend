@@ -24,6 +24,12 @@ class OtherGoalCalculator extends BaseCalculator {
         // Доходность
         let weightedYieldAnnual = 0;
         let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles;
+        // DEBUG LOGGING
+        if (!riskProfiles) {
+            console.error('CRITICAL ERROR: riskProfiles is undefined in OtherGoalCalculator!');
+            console.error('Portfolio object keys:', Object.keys(portfolio));
+            console.error('Portfolio object:', JSON.stringify(portfolio, null, 2));
+        }
         if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
 
         const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
