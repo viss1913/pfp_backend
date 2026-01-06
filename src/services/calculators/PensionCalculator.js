@@ -115,14 +115,25 @@ class PensionCalculator extends BaseCalculator {
         });
         if (!portfolioForAcc) throw new Error('Pension portfolio not found');
 
-        let riskProfiles = portfolioForAcc.riskProfiles || portfolioForAcc.risk_profiles;
-        // DEBUG LOGGING
-        if (!riskProfiles) {
-            console.error('CRITICAL ERROR: riskProfiles is undefined in PensionCalculator!');
-            console.error('Portfolio object keys:', Object.keys(portfolioForAcc));
-            console.error('Portfolio object:', JSON.stringify(portfolioForAcc, null, 2));
+        let riskProfiles = portfolioForAcc.riskProfiles || portfolioForAcc.risk_profiles || [];
+
+        if (typeof riskProfiles === 'string') {
+            try {
+                riskProfiles = JSON.parse(riskProfiles);
+            } catch (e) {
+                // ignore
+            }
         }
-        if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
+
+        if (!Array.isArray(riskProfiles)) {
+            console.error('CRITICAL ERROR: riskProfiles is not an array in PensionCalculator!');
+            console.error('Portfolio ID:', portfolioForAcc.id);
+            throw new Error(`Invalid riskProfiles format for portfolio ${portfolioForAcc.id}`);
+        }
+
+        if (riskProfiles.length === 0) {
+            throw new Error('No risk profiles found for pension portfolio');
+        }
 
         const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
         const profile = riskProfiles.find(p => {

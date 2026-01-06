@@ -23,14 +23,25 @@ class OtherGoalCalculator extends BaseCalculator {
 
         // Доходность
         let weightedYieldAnnual = 0;
-        let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles;
-        // DEBUG LOGGING
-        if (!riskProfiles) {
-            console.error('CRITICAL ERROR: riskProfiles is undefined in OtherGoalCalculator!');
-            console.error('Portfolio object keys:', Object.keys(portfolio));
-            console.error('Portfolio object:', JSON.stringify(portfolio, null, 2));
+        let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles || [];
+
+        if (typeof riskProfiles === 'string') {
+            try {
+                riskProfiles = JSON.parse(riskProfiles);
+            } catch (e) {
+                // ignore
+            }
         }
-        if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
+
+        if (!Array.isArray(riskProfiles)) {
+            console.error('CRITICAL ERROR: riskProfiles is not an array in OtherGoalCalculator!');
+            console.error('Portfolio ID:', portfolio.id);
+            throw new Error(`Invalid riskProfiles format for portfolio ${portfolio.id}`);
+        }
+
+        if (riskProfiles.length === 0) {
+            throw new Error('No risk profiles found for other goal portfolio');
+        }
 
         const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
         const profile = riskProfiles.find(p => {

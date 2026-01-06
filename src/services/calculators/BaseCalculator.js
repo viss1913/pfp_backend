@@ -299,14 +299,28 @@ class BaseCalculator {
      * @returns {Promise<number>} Weighted annual yield percentage (e.g. 0.15 for 15%).
      */
     async calculateWeightedYield(portfolio, goal, productRepository) {
-        let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles;
-        // DEBUG LOGGING
-        if (!riskProfiles) {
-            console.error('CRITICAL ERROR: riskProfiles is undefined in calculateWeightedYield!');
-            console.error('Portfolio object keys:', Object.keys(portfolio));
-            console.error('Portfolio object:', JSON.stringify(portfolio, null, 2));
+        let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles || [];
+
+        if (typeof riskProfiles === 'string') {
+            try {
+                riskProfiles = JSON.parse(riskProfiles);
+            } catch (e) {
+                // ignore, remains string/invalid
+            }
         }
-        if (typeof riskProfiles === 'string') riskProfiles = JSON.parse(riskProfiles);
+
+        if (!Array.isArray(riskProfiles)) {
+            // Log for debugging before throwing
+            console.error('CRITICAL ERROR: riskProfiles is not an array in calculateWeightedYield!');
+            console.error('Portfolio ID:', portfolio.id);
+            throw new Error(`Invalid riskProfiles format for portfolio ${portfolio.id}`);
+        }
+
+        if (riskProfiles.length === 0) {
+            console.warn(`Warning: No risk profiles found for portfolio ${portfolio.id}`);
+            // We can throw or return a default. User requested throwing specific error.
+            throw new Error('No risk profiles found for portfolio');
+        }
 
         const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
         const profile = riskProfiles.find(p => {
