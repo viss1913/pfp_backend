@@ -99,7 +99,10 @@ class InvestmentCalculator extends BaseCalculator {
                 total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
                 total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
                 total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
-                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100
+                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
+                target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100, // Assuming input is consistent
+                target_amount_future: Math.round(targetAmountFuture * 100) / 100,
+                inflation_rate: Math.round(inflationRate * 100) / 100
             }
         };
     }

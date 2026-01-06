@@ -180,7 +180,8 @@ class OtherGoalCalculator extends BaseCalculator {
                 total_investment_income: Math.round((simResult.totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit) * 100) / 100,
                 total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
                 total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
-                total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100
+                total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
+                inflation_rate: Math.round(inflationRate * 100) / 100
             }
         };
     }

@@ -259,6 +259,7 @@ class PensionCalculator extends BaseCalculator {
                 total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
                 total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
                 total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
+                inflation_rate: Math.round(pensionSettings.inflation_rate * 100) / 100,
                 years_to_pension: statePensionResult.years_to_pension
             }
         };

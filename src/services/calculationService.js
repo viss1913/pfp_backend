@@ -351,6 +351,8 @@ class CalculationService {
                 goals_count: goals.length,
                 total_capital: Math.round(results.reduce((sum, r) => sum + (r.summary?.total_capital_at_end || 0), 0) * 100) / 100,
                 total_state_benefit: Math.round(results.reduce((sum, r) => sum + (r.summary?.state_benefit || 0), 0) * 100) / 100,
+                total_target_amount_initial: Math.round(results.reduce((sum, r) => sum + (r.details?.target_amount_initial || 0), 0) * 100) / 100,
+                total_target_amount_future: Math.round(results.reduce((sum, r) => sum + (r.details?.target_amount_future || 0), 0) * 100) / 100,
                 consolidated_portfolio: consolidated
             },
             goals: results

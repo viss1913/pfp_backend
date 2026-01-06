@@ -23,7 +23,8 @@ class FinReserveCalculator extends BaseCalculator {
             throw new Error(`FinReserve portfolio not found for class ${goal.goal_type_id} and amount ${goal.initial_capital}`);
         }
 
-        const { weightedYieldAnnual } = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository);
+        const yieldResult = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository);
+        const weightedYieldAnnual = yieldResult.weightedYieldAnnual;
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
 
         // 2. Simulation Parameters
@@ -59,9 +60,16 @@ class FinReserveCalculator extends BaseCalculator {
         }
 
         // Ensure instruments exist for Consolidated Portfolio
-        const instruments = (portfolio.instruments && portfolio.instruments.length > 0)
-            ? portfolio.instruments
-            : [{ name: 'Бнаковский депозит / Накопительный счет', share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100 }];
+        let instruments = [];
+        // reusable calculation result from start of method
+        if (yieldResult.initial_instruments && yieldResult.initial_instruments.length > 0) {
+            instruments = yieldResult.initial_instruments;
+        } else if (portfolio.instruments && portfolio.instruments.length > 0) {
+            instruments = portfolio.instruments;
+        } else {
+            // Fallback
+            instruments = [{ name: 'Банковский депозит / Накопительный счет', share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100 }];
+        }
 
         return {
             goal_id: goal.goal_type_id,
@@ -80,6 +88,8 @@ class FinReserveCalculator extends BaseCalculator {
             details: {
                 term_months: termMonths,
                 target_amount_initial: initialCapital, // It's usually small, match initial
+                target_amount_future: Math.round(currentBalance), // For reserve, target is what we grew to? Or user goal? User goal is usually defined by "expenses * months".
+                inflation_rate: Math.round((goal.inflation_rate || 0) * 100) / 100, // Pass through
                 target_capital_required: Math.round(currentBalance),
                 yield_percent: weightedYieldAnnual,
                 portfolio: {
