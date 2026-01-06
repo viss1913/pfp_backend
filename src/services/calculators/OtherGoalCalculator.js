@@ -156,6 +156,17 @@ class OtherGoalCalculator extends BaseCalculator {
         if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
         if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;
 
+        if (initial_instruments && initial_instruments.length > 0 && effectiveInitialCapital > 0) {
+            initial_instruments.forEach(inst => {
+                inst.amount = effectiveInitialCapital * (inst.share / 100);
+            });
+        }
+        if (monthly_instruments && monthly_instruments.length > 0 && recommendedReplenishment > 0) {
+            monthly_instruments.forEach(inst => {
+                inst.amount = recommendedReplenishment * (inst.share / 100);
+            });
+        }
+
         return {
             goal_id: goal.goal_type_id,
             goal_name: goal.name,
@@ -175,6 +186,7 @@ class OtherGoalCalculator extends BaseCalculator {
                 term_months: termMonths,
                 target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
                 target_amount_future: Math.round(targetAmountFuture * 100) / 100,
+                target_capital_required: Math.round(targetAmountFuture * 100) / 100,
                 initial_capital_instruments: initial_instruments,
                 monthly_savings_instruments: monthly_instruments,
                 total_investment_income: Math.round((simResult.totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit) * 100) / 100,

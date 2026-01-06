@@ -71,6 +71,12 @@ class FinReserveCalculator extends BaseCalculator {
             instruments = [{ name: 'Банковский депозит / Накопительный счет', share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100 }];
         }
 
+        if (instruments && instruments.length > 0 && initialCapital > 0) {
+            instruments.forEach(inst => {
+                inst.amount = initialCapital * (inst.share / 100);
+            });
+        }
+
         return {
             goal_id: goal.goal_type_id,
             goal_name: goal.name,

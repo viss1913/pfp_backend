@@ -225,6 +225,17 @@ class PensionCalculator extends BaseCalculator {
 
         const pensionFromCapitalMonthlyFuture = (simResult.totalCapital * (payoutYieldPercent / 100)) / 12;
 
+        if (initial_instruments && initial_instruments.length > 0 && initialCapital > 0) {
+            initial_instruments.forEach(inst => {
+                inst.amount = initialCapital * (inst.share / 100);
+            });
+        }
+        if (monthly_instruments && monthly_instruments.length > 0 && recommendedReplenishment > 0) {
+            monthly_instruments.forEach(inst => {
+                inst.amount = recommendedReplenishment * (inst.share / 100);
+            });
+        }
+
         return {
             goal_id: goal.goal_type_id,
             goal_name: goal.name,
@@ -256,6 +267,7 @@ class PensionCalculator extends BaseCalculator {
                 total_pension_monthly: Math.round((statePensionResult.state_pension_monthly_future + pensionFromCapitalMonthlyFuture) * 100) / 100,
                 target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
                 target_amount_future: Math.round(requiredCapitalFuture * 100) / 100,
+                target_capital_required: Math.round(requiredCapitalFuture * 100) / 100,
                 total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
                 total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
                 total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
