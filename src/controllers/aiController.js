@@ -33,6 +33,7 @@ class AiController {
 
     async chatStream(req, res) {
         try {
+            console.log('[AiController] chatStream called. Body:', JSON.stringify(req.body, null, 2));
             const { assistant_id, message } = req.body;
             const agent = req.user;
 
@@ -74,7 +75,7 @@ class AiController {
             console.error('Chat Error:', err);
             // If headers sent, we can't send 500 JSON, maybe send SSE error
             if (!res.headersSent) {
-                res.status(500).json({ error: 'Chat failed' });
+                res.status(500).json({ error: 'Chat failed', details: err.message });
             } else {
                 res.write(`data: {"error": "Internal Error"}\n\n`);
                 res.end();
