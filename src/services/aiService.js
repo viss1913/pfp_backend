@@ -27,7 +27,7 @@ class AiService {
             const response = await axios.post(
                 `${this.baseUrl}/chat/completions`,
                 {
-                    model: model || 'google/gemini-2.0-flash-exp:free',
+                    model: model || 'google/gemini-2.0-flash-001',
                     messages: messages,
                     stream: true
                 },

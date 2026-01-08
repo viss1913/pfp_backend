@@ -7,20 +7,27 @@ class TaxService {
      * @param {number} year - Tax year
      * @returns {Promise<{taxAmount: number, effectiveRate: number, brackets: Array}>}
      */
-    async calculateNdfl(annualIncome, year) {
-        // 1. Try to find Year-Specific Rates (New System)
-        let rates = await knex('tax_income_rates')
-            .where('tax_year', year)
-            .orderBy('order_index', 'asc');
 
-        // 2. Fallback: Use "Standard/Current" Rates from Admin Panel Table (tax_2ndfl_brackets)
-        // This takes whatever is configured in the admin panel as the default rule for unknown years.
-        if (!rates || rates.length === 0) {
-            try {
-                rates = await knex('tax_2ndfl_brackets')
-                    .orderBy('order_index', 'asc');
-            } catch (e) {
-                console.warn('TaxService: Failed to fetch from tax_2ndfl_brackets', e.message);
+    async calculateNdfl(annualIncome, year, cachedTaxBrackets = null) {
+        // 1. Try to use Cached Rates if provided
+        let rates;
+        if (cachedTaxBrackets && Array.isArray(cachedTaxBrackets) && cachedTaxBrackets.length > 0) {
+            // Assuming cachedTaxBrackets are sorted
+            rates = cachedTaxBrackets;
+        } else {
+            // 1b. Try to find Year-Specific Rates (New System)
+            rates = await knex('tax_income_rates')
+                .where('tax_year', year)
+                .orderBy('order_index', 'asc');
+
+            // 2. Fallback: Use "Standard/Current" Rates
+            if (!rates || rates.length === 0) {
+                try {
+                    rates = await knex('tax_2ndfl_brackets')
+                        .orderBy('order_index', 'asc');
+                } catch (e) {
+                    console.warn('TaxService: Failed to fetch from tax_2ndfl_brackets', e.message);
+                }
             }
         }
 
@@ -102,7 +109,7 @@ class TaxService {
      * Calculate PDS Refund using Delta Method (Before vs After)
      * This is the most accurate way for progressive rates (13/15%)
      */
-    async calculatePdsRefundDelta(annualIncome, newContribution, totalPreviousContributions = 0, year) {
+    async calculatePdsRefundDelta(annualIncome, newContribution, totalPreviousContributions = 0, year, cachedTaxBrackets = null) {
         const baseLimit = 400000;
 
         // Суммарный лимит базы
@@ -112,8 +119,8 @@ class TaxService {
         // Фактически учитываемый новый взнос (с учетом лимита 400к)
         const effectiveNewContribution = Math.max(0, newTotal - currentTotal);
 
-        const taxBefore = await this.calculateNdfl(Math.max(0, annualIncome - currentTotal), year);
-        const taxAfter = await this.calculateNdfl(Math.max(0, annualIncome - newTotal), year);
+        const taxBefore = await this.calculateNdfl(Math.max(0, annualIncome - currentTotal), year, cachedTaxBrackets);
+        const taxAfter = await this.calculateNdfl(Math.max(0, annualIncome - newTotal), year, cachedTaxBrackets);
 
         const refundAmount = Math.round((taxBefore.taxAmount - taxAfter.taxAmount) * 100) / 100;
 

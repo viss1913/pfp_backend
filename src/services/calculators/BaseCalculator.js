@@ -48,7 +48,8 @@ class BaseCalculator {
                     const cofinResult = await settingsService.calculatePdsCofinancing(
                         yearlyContributions[prevYear],
                         avgMonthlyIncome,
-                        remainingLimit
+                        remainingLimit,
+                        context.cachedData // Pass cached data
                     );
                     const benefit = cofinResult.state_cofin_amount || 0;
                     if (benefit > 0) {
@@ -72,7 +73,8 @@ class BaseCalculator {
                         avgMonthlyIncome * 12,
                         prevContrib,
                         alreadyUsedBase,
-                        prevYear
+                        prevYear,
+                        context.cachedData ? context.cachedData.taxBrackets : null // Pass cached tax brackets
                     );
                     const refundAmount = dedRes.refundAmount;
 

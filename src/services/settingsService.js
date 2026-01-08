@@ -759,9 +759,15 @@ class SettingsService {
         return line || null;
     }
 
-    async calculatePdsCofinancing(yearlyContribution, avgMonthlyIncome, overrideMaxAmount = null) {
-        // Получаем настройки
-        const settings = await pdsSettingsRepository.find();
+    async calculatePdsCofinancing(yearlyContribution, avgMonthlyIncome, overrideMaxAmount = null, cachedData = null) {
+        // 1. Получаем настройки (из кэша или БД)
+        let settings;
+        if (cachedData && cachedData.pdsSettings) {
+            settings = cachedData.pdsSettings;
+        } else {
+            settings = await pdsSettingsRepository.find();
+        }
+
         if (!settings) {
             throw {
                 status: 500,
@@ -770,7 +776,7 @@ class SettingsService {
             };
         }
 
-        // Проверяем минимальный взнос
+        // 2. Проверяем минимальный взнос
         if (yearlyContribution < settings.min_contribution_for_support_per_year) {
             return {
                 bracket_id: null,
@@ -780,9 +786,23 @@ class SettingsService {
             };
         }
 
-        // Находим подходящий диапазон дохода
-        const bracket = await pdsCofinIncomeBracketsRepository.findByIncome(avgMonthlyIncome);
+        // 3. Находим подходящий диапазон дохода (из кэша или БД)
+        let bracket;
+        if (cachedData && cachedData.pdsBrackets) {
+            // Имитация логики репозитория findByIncome
+            // brackets должны быть отсортированы или мы просто ищем первый попавшийся
+            // Обычно в БД ищет where income_from <= X and (income_to >= X or income_to is null)
+            bracket = cachedData.pdsBrackets.find(b => {
+                const upLimit = (b.income_to === null) ? Infinity : b.income_to;
+                return avgMonthlyIncome >= b.income_from && avgMonthlyIncome <= upLimit;
+            });
+        } else {
+            bracket = await pdsCofinIncomeBracketsRepository.findByIncome(avgMonthlyIncome);
+        }
+
         if (!bracket) {
+            // Если диапазон не найден, это штатная ситуация (нет софинансирования для такого дохода?)
+            // Или ошибка конфигурации. Считаем что ошибка, т.к. диапазоны должны покрывать всё.
             throw {
                 status: 404,
                 message: `No income bracket found for monthly income ${avgMonthlyIncome} ₽`,
@@ -804,9 +824,7 @@ class SettingsService {
         return {
             bracket_id: bracket.id,
             cofin_coef: cofinCoef,
-            state_cofin_amount: stateCofinAmount,
-            yearly_contribution: yearlyContribution,
-            avg_monthly_income: avgMonthlyIncome
+            state_cofin_amount: stateCofinAmount
         };
     }
 }

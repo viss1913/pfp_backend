@@ -167,6 +167,27 @@ class CalculationService {
         const m_month_percent = settings.investment_expense_growth_monthly || 0.0;
         const db_inflation_year_percent = settings.inflation_rate_year || 4.0;
 
+
+        // Pre-fetch Optimization Data (Cached Settings)
+        let pdsSettings = null;
+        let pdsBrackets = [];
+        let taxBrackets = [];
+
+        try {
+            console.log('[CalculationService] Pre-fetching optimization settings...');
+            const [pdsSet, pdsBr, taxBr] = await Promise.all([
+                settingsService.getPdsCofinSettings().catch(e => { console.warn('Failed to pre-fetch PDS settings:', e.message); return null; }),
+                settingsService.getAllPdsCofinIncomeBrackets().catch(e => { console.warn('Failed to pre-fetch PDS brackets:', e.message); return []; }),
+                settingsService.getAllTaxBrackets().catch(e => { console.warn('Failed to pre-fetch Tax brackets:', e.message); return []; })
+            ]);
+            pdsSettings = pdsSet;
+            pdsBrackets = pdsBr || [];
+            taxBrackets = taxBr || [];
+            console.log(`[CalculationService] Pre-fetched: PDS Settings (${!!pdsSettings}), PDS Brackets (${pdsBrackets.length}), Tax Brackets (${taxBrackets.length})`);
+        } catch (e) {
+            console.error('[CalculationService] Error pre-fetching settings:', e);
+        }
+
         return {
             poolBalance,
             sharedPoolEvents,
@@ -177,6 +198,11 @@ class CalculationService {
             client: clientData,
             assets: assets,
             settings: settings,
+            cachedData: {
+                pdsSettings,
+                pdsBrackets,
+                taxBrackets
+            },
             services: {
                 settingsService,
                 nsjApiService,

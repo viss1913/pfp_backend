@@ -26,5 +26,9 @@ router.use('/admin/ai-assistants', authMiddleware, adminAiRoutes);
 // Agent AI Routes
 const aiRoutes = require('./aiRoutes');
 router.use('/pfp/ai', authMiddleware, aiRoutes);
+// Alias for potentially mismatched frontend path:
+router.use('/ai', authMiddleware, aiRoutes);
+// Alias for direct /chat/stream path (mapping /api/chat/stream):
+router.use('/', authMiddleware, aiRoutes);
 
 module.exports = router;
