@@ -19,4 +19,12 @@ router.use('/pfp/product-types', authMiddleware, productTypeRoutes);
 router.use('/pfp/portfolios', authMiddleware, portfolioRoutes);
 router.use('/pfp/settings', authMiddleware, settingsRoutes);
 
+// Admin Routes (reusing authMiddleware for now, should add admin check later)
+const adminAiRoutes = require('./adminAiRoutes');
+router.use('/admin/ai-assistants', authMiddleware, adminAiRoutes);
+
+// Agent AI Routes
+const aiRoutes = require('./aiRoutes');
+router.use('/pfp/ai', authMiddleware, aiRoutes);
+
 module.exports = router;

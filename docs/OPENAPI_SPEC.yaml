@@ -661,11 +661,68 @@ components:
           description: Массив линий доходности
           items:
             $ref: '#/components/schemas/PassiveIncomeYieldLine'
-
+    AiAssistant:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        context_template:
+          type: string
+        model:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AiAssistantCreate:
+      type: object
+      required:
+        - name
+        - slug
+        - context_template
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        context_template:
+          type: string
+        model:
+          type: string
+        is_active:
+          type: boolean
+    AiAssistantUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        context_template:
+          type: string
+        model:
+          type: string
+        is_active:
+          type: boolean
 
 security:
   - bearerAuth: []
   - apiKeyAuth: []
+
+tags:
+  - name: Authentication
+  - name: Products
+  - name: Portfolios
+  - name: Clients
+  - name: AiAssistants
+    description: Management of AI Assistants (Admin only)
+
 
 paths:
   /auth/login:
@@ -1561,3 +1618,72 @@ paths:
           description: Forbidden (admin only)
         '404':
           description: Passive income yield settings not found
+  /admin/ai-assistants:
+    get:
+      summary: List all AI assistants
+      tags:
+        - AiAssistants
+      responses:
+        '200':
+          description: List of assistants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AiAssistant'
+    post:
+      summary: Create new AI assistant
+      tags:
+        - AiAssistants
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiAssistantCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiAssistant'
+
+  /admin/ai-assistants/{id}:
+    put:
+      summary: Update AI assistant
+      tags:
+        - AiAssistants
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiAssistantUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiAssistant'
+    delete:
+      summary: Delete AI assistant
+      tags:
+        - AiAssistants
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        '204':
+          description: Deleted

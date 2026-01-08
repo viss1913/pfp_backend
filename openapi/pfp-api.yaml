@@ -1633,3 +1633,60 @@ paths:
                           type: string
         '500':
           description: Internal server error
+
+  /ai/assistants:
+    get:
+      summary: List available AI assistants
+      tags:
+        - Ai
+      responses:
+        '200':
+          description: List of assistants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AiAssistantShort'
+  
+  /ai/history/{assistant_id}:
+    get:
+      summary: Get chat history with assistant
+      tags:
+        - Ai
+      parameters:
+        - in: path
+          name: assistant_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Chat history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AiChatMessage'
+
+  /ai/chat/stream:
+    post:
+      summary: Chat with AI (Streaming)
+      tags:
+        - Ai
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiChatRequest'
+      responses:
+        '200':
+          description: Streaming response (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+

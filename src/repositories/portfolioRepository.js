@@ -5,6 +5,7 @@ class PortfolioRepository {
      * Helper to transform raw DB portfolio row into API format with parsed instruments
      */
     async _transformPortfolio(portfolio, db) {
+        console.log('[PortfolioRepo] _transformPortfolio called for id:', portfolio ? portfolio.id : 'null');
         if (!portfolio) return null;
 
         // Fetch Classes - ПРИОРИТЕТ: читаем из JSON поля portfolios.classes (основное хранилище)
@@ -17,9 +18,11 @@ class PortfolioRepository {
                         ? JSON.parse(portfolio.classes)
                         : portfolio.classes;
                     if (Array.isArray(classIds) && classIds.length > 0) {
+                        console.log('[PortfolioRepo] Fetching classes for portfolio', portfolio.id, 'ids:', classIds);
                         classes = await db('portfolio_classes')
                             .whereIn('id', classIds)
                             .select('*');
+                        console.log('[PortfolioRepo] Fetched classes:', classes.length);
                     }
                 } catch (e) {
                     console.warn('Could not parse classes from JSON field:', e.message);
@@ -241,7 +244,15 @@ class PortfolioRepository {
             query.where('term_from_months', '<=', term)
                 .where('term_to_months', '>=', term);
         }
-        const candidates = await query;
+        console.log('[PortfolioRepo] Executing query...');
+        let candidates;
+        try {
+            candidates = await query;
+            console.log(`[PortfolioRepo] Query finished. Found ${candidates.length} candidates.`);
+        } catch (e) {
+            console.error('[PortfolioRepo] Query failed:', e);
+            throw e;
+        }
         const found = candidates.find(p => {
             const classes = typeof p.classes === 'string' ? JSON.parse(p.classes) : p.classes;
             if (!Array.isArray(classes)) return false;
