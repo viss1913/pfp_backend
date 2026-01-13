@@ -6,6 +6,7 @@ const productTypeRoutes = require('./productTypeRoutes');
 const portfolioRoutes = require('./portfolioRoutes');
 const settingsRoutes = require('./settingsRoutes');
 const clientRoutes = require('./clientRoutes');
+const agentRoutes = require('./agentRoutes');
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.use('/pfp/products', authMiddleware, productRoutes);
 router.use('/pfp/product-types', authMiddleware, productTypeRoutes);
 router.use('/pfp/portfolios', authMiddleware, portfolioRoutes);
 router.use('/pfp/settings', authMiddleware, settingsRoutes);
+router.use('/pfp/agents', authMiddleware, agentRoutes);
 
 // Admin Routes (reusing authMiddleware for now, should add admin check later)
 const adminAiRoutes = require('./adminAiRoutes');

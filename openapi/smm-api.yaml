@@ -1,0 +1,163 @@
+openapi: 3.0.0
+info:
+  title: SMM Service API
+  version: 1.0.0
+  description: API для SMM-сервиса, управляющего ИИ-ботами и публикациями в каналы агентов. Синхронизируется с бэкендом ПФП.
+
+servers:
+  - url: https://pfpbackend-production.up.railway.app/api
+    description: Основной сервер (Production)
+  - url: http://localhost:3000/api
+    description: Локальный сервер разработки
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Internal-API-Key
+      description: API-ключ для межсервисного взаимодействия (например, от ПФП)
+
+  schemas:
+    Agent:
+      type: object
+      required:
+        - external_agent_id
+        - first_name
+        - last_name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Внутренний ID в системе SMM
+        external_agent_id:
+          type: integer
+          format: int64
+          description: Мастер-ID агента из системы ПФП (external_agent_id)
+        first_name:
+          type: string
+          description: Имя агента
+        last_name:
+          type: string
+          description: Фамилия агента
+        middle_name:
+          type: string
+          nullable: true
+          description: Отчество агента (при наличии)
+        phone:
+          type: string
+          description: Основной рабочий телефон
+        email:
+          type: string
+          format: email
+          description: Рабочая электронная почта
+        website_url:
+          type: string
+          format: uri
+          description: Персональный сайт или лэндинг агента
+        region:
+          type: string
+          description: Регион работы
+        city:
+          type: string
+          description: Город работы
+        timezone:
+          type: string
+          description: Часовой пояс (например, Europe/Moscow)
+        office_address:
+          type: string
+          nullable: true
+          description: Адрес офиса
+        position_title:
+          type: string
+          description: Должность / Ролевое описание (например, «финансовый консультант»)
+        specialization:
+          type: string
+          description: Ключевые специализации (например, «пенсии, инвестиции»)
+        consultation_price:
+          type: number
+          format: float
+          description: Базовая стоимость консультации
+        currency:
+          type: string
+          default: RUB
+          description: Валюта стоимости услуг
+        target_customer_segment:
+          type: string
+          description: Типовой клиентский сегмент
+        about_text:
+          type: string
+          description: Описание «О себе»
+        experience_years:
+          type: integer
+          description: Стаж работы (лет)
+        is_active:
+          type: boolean
+          default: true
+          description: Статус активности агента
+        date_joined:
+          type: string
+          format: date-time
+          description: Дата подключения агента к системе
+        updated_at:
+          type: string
+          format: date-time
+          description: Дата последнего обновления данных
+
+paths:
+  /internal/webhooks/agent-updated:
+    post:
+      summary: Вебхук для обновления данных агента из ПФП
+      tags:
+        - Webhooks
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        description: Данные агента для обновления или создания (upsert)
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Agent'
+      responses:
+        '200':
+          description: Вебхук успешно обработан
+        '401':
+          description: Ошибка авторизации
+        '400':
+          description: Некорректные данные в запросе
+
+  /agents:
+    get:
+      summary: Список агентов в системе SMM
+      tags:
+        - Agents
+      parameters:
+        - name: external_id
+          in: query
+          description: Фильтр по Master ID из ПФП
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешный возврат списка
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+
+# Внешние зависимости (API ПФП, которые нужны для SMM)
+x-pfp-integration:
+  poll_endpoint: GET /api/pfp/agents?updated_since={iso_date}
+  auth: Заголовок X-API-Key
+  description: Сервис SMM будет периодически опрашивать ПФП для синхронизации данных.

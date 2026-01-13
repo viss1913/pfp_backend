@@ -1,0 +1,170 @@
+openapi: 3.0.0
+info:
+  title: Agent Management API
+  version: 1.0.0
+  description: API для управления агентами в системе ПФП (создание, обновление, просмотр).
+
+servers:
+  - url: https://pfpbackend-production.up.railway.app/api
+    description: Основной сервер (Production)
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    AgentInput:
+      type: object
+      required:
+        - first_name
+        - last_name
+      properties:
+        first_name:
+          type: string
+          description: Имя агента
+        last_name:
+          type: string
+          description: Фамилия агента
+        middle_name:
+          type: string
+          description: Отчество
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        website_url:
+          type: string
+        region:
+          type: string
+        city:
+          type: string
+        timezone:
+          type: string
+        office_address:
+          type: string
+        position_title:
+          type: string
+        specialization:
+          type: string
+        consultation_price:
+          type: number
+        currency:
+          type: string
+          default: RUB
+        target_customer_segment:
+          type: string
+        about_text:
+          type: string
+        experience_years:
+          type: integer
+        is_active:
+          type: boolean
+          default: true
+
+    Agent:
+      allOf:
+        - type: object
+          properties:
+            id:
+              type: integer
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+        - $ref: '#/components/schemas/AgentInput'
+
+paths:
+  /pfp/agents:
+    post:
+      summary: Создать нового агента
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentInput'
+      responses:
+        '201':
+          description: Агент успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '403':
+          description: Доступ запрещен (нужны права администратора)
+
+    get:
+      summary: Список агентов (синхронизация)
+      tags:
+        - Agents
+      parameters:
+        - name: updated_since
+          in: query
+          description: Фильтр по дате обновления (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+
+  /pfp/agents/{id}:
+    get:
+      summary: Получить данные агента по ID
+      tags:
+        - Agents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+
+    patch:
+      summary: Обновить данные агента
+      tags:
+        - Agents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentInput'
+      responses:
+        '200':
+          description: Успешно обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
