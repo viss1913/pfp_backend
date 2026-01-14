@@ -37,10 +37,19 @@ components:
         email:
           type: string
           format: email
+        password:
+          type: string
+          description: Пароль (только для записи/обновления)
         phone:
           type: string
         website_url:
           type: string
+        telegram_bot:
+          type: string
+          description: Username или токен телеграм-бота агента
+        telegram_channel:
+          type: string
+          description: Ссылка или username телеграм-канала агента
         region:
           type: string
         city:
@@ -67,6 +76,7 @@ components:
         is_active:
           type: boolean
           default: true
+          description: Статус активности агента
 
     Agent:
       allOf:
@@ -81,6 +91,7 @@ components:
               type: string
               format: date-time
         - $ref: '#/components/schemas/AgentInput'
+
 
 paths:
   /pfp/agents:

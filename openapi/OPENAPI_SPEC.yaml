@@ -710,6 +710,116 @@ components:
           type: string
         is_active:
           type: boolean
+    
+    Agent:
+      type: object
+      properties:
+        id:
+          type: integer
+        first_name:
+          type: string
+        last_name:
+          type: string
+        middle_name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        website_url:
+          type: string
+        telegram_bot:
+          type: string
+        telegram_channel:
+          type: string
+        is_active:
+          type: boolean
+        region:
+          type: string
+        city:
+          type: string
+        position_title:
+          type: string
+        specialization:
+          type: string
+        experience_years:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AgentCreate:
+      type: object
+      required:
+        - first_name
+        - last_name
+        - email
+        - password
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        middle_name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phone:
+          type: string
+        telegram_bot:
+          type: string
+        telegram_channel:
+          type: string
+        is_active:
+          type: boolean
+          default: true
+        region:
+          type: string
+        city:
+          type: string
+        position_title:
+          type: string
+        specialization:
+          type: string
+        experience_years:
+          type: integer
+
+    AgentUpdate:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        middle_name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phone:
+          type: string
+        telegram_bot:
+          type: string
+        telegram_channel:
+          type: string
+        is_active:
+          type: boolean
+        region:
+          type: string
+        city:
+          type: string
+        position_title:
+          type: string
+        specialization:
+          type: string
+        experience_years:
+          type: integer
 
 security:
   - bearerAuth: []
@@ -722,6 +832,8 @@ tags:
   - name: Clients
   - name: AiAssistants
     description: Management of AI Assistants (Admin only)
+  - name: Agents
+    description: Management of Agents (Consultants)
 
 
 paths:
@@ -1687,3 +1799,86 @@ paths:
       responses:
         '204':
           description: Deleted
+
+  /pfp/agents:
+    get:
+      summary: List all agents
+      tags:
+        - Agents
+      parameters:
+        - in: query
+          name: is_active
+          schema:
+            type: boolean
+        - in: query
+          name: updated_since
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agent'
+    post:
+      summary: Create new agent
+      tags:
+        - Agents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+
+  /pfp/agents/{id}:
+    get:
+      summary: Get agent by ID
+      tags:
+        - Agents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+    patch:
+      summary: Update agent
+      tags:
+        - Agents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
