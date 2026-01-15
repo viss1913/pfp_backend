@@ -1,0 +1,31 @@
+﻿
+=== ╨в╨Х╨б╨в API ╨а╨Р╨б╨з╨Х╨в╨Р ╨Э╨б╨Ц ===
+
+ЁЯУд ╨Ю╤В╨┐╤А╨░╨▓╨╗╤П╨╡╨╝ ╨╖╨░╨┐╤А╨╛╤Б:
+{
+  "operation": "Contract.LifeEndowment.calculate",
+  "data": {
+    "beginDate": "15.01.2026 00:00:00",
+    "insConditions": {
+      "program": "test",
+      "currency": "RUR",
+      "paymentVariant": 1,
+      "term": 15
+    },
+    "policyHolder": {
+      "age": 45,
+      "sex": "male"
+    },
+    "insuredPerson": {
+      "isPolicyHolder": true
+    },
+    "calcData": {
+      "valuationType": "byLimit",
+      "limit": 2000000
+    }
+  }
+}
+
+
+тЬЕ ╨Ю╤В╨▓╨╡╤В ╨┐╨╛╨╗╤Г╤З╨╡╨╜:
+"<br />\n<b>Warning</b>:  Array to string conversion in <b>/home/resolute/Resolute/instances/www/main/assets/system/os/classes/Resolute/Customer/Products/Calculation/lifeAccumulate.php</b> on line <b>414</b><br />\n<br />\n<b>Warning</b>:  Array to string conversion in <b>/home/resolute/Resolute/instances/www/main/assets/system/os/classes/Resolute/Customer/Products/Calculation/lifeAccumulate.php</b> on line <b>419</b><br />\n<br />\n<b>Warning</b>:  Array to string conversion in <b>/home/resolute/Resolute/instances/www/main/assets/system/os/classes/Resolute/Customer/Products/Calculation/lifeAccumulate.php</b> on line <b>414</b><br />\n<br />\n<b>Warning</b>:  Array to string conversion in <b>/home/resolute/Resolute/instances/www/main/assets/system/os/classes/Resolute/Customer/Products/Calculation/lifeAccumulate.php</b> on line <b>419</b><br />\n<br />\n<b>Warning</b>:  Array to string conversion in <b>/home/resolute/Resolute/instances/www/main/assets/system/os/classes/Resolute/Customer/Products/Calculation/lifeAccumulate.php</b> on line <b>414</b><br />\n<br />\n<b>Warning</b>:  Array to string conversion in <b>/home/resolute/Resolute/instances/www/main/assets/system/os/classes/Resolute/Customer/Products/Calculation/lifeAccumulate.php</b> on line <b>419</b><br />\n{\"success\":true,\"data\":{\"term\":15,\"garantProfit\":0.609,\"risks\":[{\"code\":\"testdozhitie\",\"name\":\"╨Ф╨╛╨╢╨╕╤В╨╕╨╡\",\"type\":\"endowment\",\"participant\":\"insuredPerson\",\"term\":15,\"tariff\":0.9341463,\"limit\":2000000,\"premium\":124552.84,\"limitRUR\":2000000,\"premiumRUR\":124552.84},{\"code\":\"deathAnyCase\",\"name\":\"╨б╨╝╨╡╤А╤В╤М ╨┐╨╛ ╨╗╤О╨▒╨╛╨╣ ╨┐╤А╨╕╤З╨╕╨╜╨╡\",\"type\":\"death\",\"participant\":\"insuredPerson\",\"term\":15,\"tariff\":0.075,\"limit\":2000000,\"premium\":1500,\"limitRUR\":2000000,\"premiumRUR\":1500},{\"code\":\"invalid\",\"name\":\"╨Ш╨╜╨▓╨░╨╗╨╕╨┤╨╜╨╛╤Б╤В╤М ╨Ы╨Я\",\"type\":\"other\",\"participant\":\"insuredPerson\",\"term\":15,\"tariff\":0.05427,\"limit\":2000000,\"premium\":1085.4,\"limitRUR\":2000000,\"premiumRUR\":1085.4}],\"premium\":127138.24,\"limit\":2000000,\"payTerm\":15,\"payEndDate\":2241820799999,\"premiumRUR\":127138.24,\"comission\":{\"percent\":4,\"amount\":5086},\"rvd\":null,\"cashSurrenderValues\":null,\"paymentsList\":[{\"i\":1,\"date\":1768435200000,\"endDate\":1799971199999,\"premium\":127138.24,\"dueDate\":1768435200000},{\"i\":2,\"date\":1799971200000,\"endDate\":1831507199999,\"premium\":127138.24,\"dueDate\":1799971200000},{\"i\":3,\"date\":1831507200000,\"endDate\":1863129599999,\"premium\":127138.24,\"dueDate\":1831507200000},{\"i\":4,\"date\":1863129600000,\"endDate\":1894665599999,\"premium\":127138.24,\"dueDate\":1863129600000},{\"i\":5,\"date\":1894665600000,\"endDate\":1926201599999,\"premium\":127138.24,\"dueDate\":1894665600000},{\"i\":6,\"date\":1926201600000,\"endDate\":1957737599999,\"premium\":127138.24,\"dueDate\":1926201600000},{\"i\":7,\"date\":1957737600000,\"endDate\":1989359999999,\"premium\":127138.24,\"dueDate\":1957737600000},{\"i\":8,\"date\":1989360000000,\"endDate\":2020895999999,\"premium\":127138.24,\"dueDate\":1989360000000},{\"i\":9,\"date\":2020896000000,\"endDate\":2052431999999,\"premium\":127138.24,\"dueDate\":2020896000000},{\"i\":10,\"date\":2052432000000,\"endDate\":2083967999999,\"premium\":127138.24,\"dueDate\":2052432000000},{\"i\":11,\"date\":2083968000000,\"endDate\":2115590399999,\"premium\":127138.24,\"dueDate\":2083968000000},{\"i\":12,\"date\":2115590400000,\"endDate\":2147126399999,\"premium\":127138.24,\"dueDate\":2115590400000},{\"i\":13,\"date\":2147126400000,\"endDate\":2178662399999,\"premium\":127138.24,\"dueDate\":2147126400000},{\"i\":14,\"date\":2178662400000,\"endDate\":2210198399999,\"premium\":127138.24,\"dueDate\":2178662400000},{\"i\":15,\"date\":2210198400000,\"endDate\":2241820799999,\"premium\":127138.24,\"dueDate\":2210198400000}]}}"

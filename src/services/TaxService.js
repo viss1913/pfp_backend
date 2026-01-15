@@ -133,6 +133,28 @@ class TaxService {
     }
 
     /**
+     * Calculate Life Insurance (НСЖ) Tax Deduction
+     * @param {Object} clientProfile - { annual_income_taxable, ndfl_rate_value }
+     * @param {number} annualPremium - Annual life insurance premium
+     * @param {number} year - Tax year
+     * @returns {Promise<{deductionBase: number, refundAmount: number, limitApplied: number, rateUsed: number}>}
+     */
+    async calculateLifeInsuranceDeduction(clientProfile, annualPremium, year) {
+        const BASE_LIMIT = 150000; // Max 150K RUB premium for deduction (per year)
+
+        const deductionBase = Math.min(annualPremium, BASE_LIMIT);
+        const rateToUse = clientProfile.ndfl_rate_value || 0.13;
+        const refundAmount = deductionBase * rateToUse;
+
+        return {
+            deductionBase: deductionBase,
+            refundAmount: Number(refundAmount.toFixed(2)),
+            limitApplied: BASE_LIMIT,
+            rateUsed: rateToUse
+        };
+    }
+
+    /**
      * Store calculation results in DB (optional helper)
      */
     async saveClientTaxProfile(clientId, year, profileData) {

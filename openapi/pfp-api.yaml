@@ -453,6 +453,8 @@ components:
               type: number
               format: double
               description: Total state benefit (NSJ + PDS) accumulated across all goals (₽)
+            tax_benefits_summary:
+              $ref: '#/components/schemas/TaxBenefitsSummary'
         goals:
           type: array
           description: List of goals with calculation results, in the original request order
@@ -820,13 +822,109 @@ components:
                   type: string
               calculation_date:
                 type: integer
+        details:
+          type: object
+          description: Detailed Life Insurance calculation results
+          properties:
+            term_months:
+              type: integer
+              description: Insurance term in months
+            target_amount_initial:
+              type: number
+              description: Initial target amount (insurance sum)
+            target_capital_required:
+              type: number
+              description: Required capital (same as insurance sum)
+            payment_variant:
+              type: integer
+              description: Payment frequency (0=once, 1=annual, 12=monthly)
+            program:
+              type: string
+              description: NSJ program code
+            annual_premium:
+              type: number
+              description: Annual insurance premium (RUB/year)
+            tax_deduction_2026:
+              type: number
+              description: Tax deduction for 2026 (first year, RUB)
+            total_tax_deductions:
+              type: number
+              description: Total tax deductions over all years (RUB)
+            portfolio:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Portfolio name (e.g. "Life Insurance Contract")
+                instruments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      share:
+                        type: number
+                      yield:
+                        type: number
+                      amount:
+                        type: number
         summary:
-          $ref: '#/components/schemas/GoalCalculationSummary'
+          allOf:
+            - $ref: '#/components/schemas/GoalCalculationSummary'
+            - type: object
+              properties:
+                state_benefit:
+                  type: number
+                  description: Total tax deductions over all years (НСЖ вычеты, RUB)
         error:
           type: string
           description: Error message if NSJ calculation failed
 
 
+    TaxBenefitsSummary:
+      type: object
+      description: Summary of all tax benefits (PDS cofinancing + tax deductions from all goals)
+      properties:
+        pds_benefits:
+          type: object
+          description: PDS (Program of State Cofinancing) benefits from all goals
+          properties:
+            deduction_2026:
+              type: number
+              description: PDS tax deduction for 2026 (first year, RUB)
+            total_deductions:
+              type: number
+              description: Total PDS tax deductions over all years (RUB)
+            total_cofinancing:
+              type: number
+              description: Total PDS cofinancing over all years (RUB)
+        nsj_benefits:
+          type: object
+          description: NSJ (Life Insurance) benefits
+          properties:
+            annual_premium:
+              type: number
+              description: Annual NSJ insurance premium (RUB/year)
+            deduction_2026:
+              type: number
+              description: NSJ tax deduction for 2026 (first year, RUB)
+            total_deductions:
+              type: number
+              description: Total NSJ tax deductions over all years (RUB)
+        totals:
+          type: object
+          description: Total benefits (PDS + NSJ)
+          properties:
+            deduction_2026:
+              type: number
+              description: Total tax deductions for 2026 (PDS + NSJ, RUB)
+            total_deductions:
+              type: number
+              description: Total tax deductions over all years (PDS + NSJ, RUB)
+            total_state_benefits:
+              type: number
+              description: Total state benefits including cofinancing and deductions (RUB)
     Client:
       type: object
       required:

@@ -44,10 +44,11 @@ class LifeInsuranceCalculator extends BaseCalculator {
 
         let costNow = 0;
         let monthlyReplenishment = 0;
+        let termYears = Math.ceil(termMonths / 12); // Default term in years
 
         if (nsjResult) {
             const totalPremium = nsjResult.total_premium || targetAmount;
-            const termYears = nsjResult.term_years || Math.ceil(termMonths / 12);
+            termYears = nsjResult.term_years || Math.ceil(termMonths / 12); // Update from NSJ if available
             const totalMonths = termYears * 12;
 
             if (isSinglePremium) {
@@ -60,12 +61,43 @@ class LifeInsuranceCalculator extends BaseCalculator {
             }
         }
 
-        // 3. Deduct from Shared Pool (Waterfall) using the new BaseCalculator method
+        // 3. Calculate Tax Deduction for Life Insurance
+        const annualPremium = isSinglePremium
+            ? totalPremium
+            : (nsjResult.total_premium_rur || nsjResult.total_premium || 0) * 12;
+
+        let taxDeduction2026 = 0;
+        let totalTaxDeductions = 0;
+
+        if (client && client.avg_monthly_income && annualPremium > 0) {
+            try {
+                const annualIncome = client.avg_monthly_income * 12;
+                const taxCalc = await context.services.TaxService.calculateNdfl(annualIncome, 2026, context.cachedData.taxBrackets);
+
+                const clientProfile = {
+                    annual_income_taxable: annualIncome,
+                    ndfl_rate_value: taxCalc.effectiveRate
+                };
+
+                const deduction = await context.services.TaxService.calculateLifeInsuranceDeduction(
+                    clientProfile,
+                    annualPremium,
+                    2026
+                );
+
+                taxDeduction2026 = deduction.refundAmount;
+                totalTaxDeductions = taxDeduction2026 * termYears;
+            } catch (err) {
+                console.warn('[LifeInsuranceCalculator] Tax deduction calculation failed:', err.message);
+            }
+        }
+
+        // 4. Deduct from Shared Pool (Waterfall) using the new BaseCalculator method
         // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use costNow
         let amountToDeduct = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : costNow;
         const deductedCapital = this.deductFromSharedPool(amountToDeduct, context);
 
-        // 4. Construct Result
+        // 5. Construct Result
         const result = {
             goal_id: goal.goal_type_id,
             goal_name: goal.name,
@@ -77,7 +109,7 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 monthly_replenishment: Math.round(monthlyReplenishment),
                 total_capital_at_end: Math.round(nsjResult.total_limit || targetAmount),
                 target_achieved: true,
-                state_benefit: 0
+                state_benefit: Math.round(totalTaxDeductions * 100) / 100 // Total tax deductions over all years
             },
             nsj_calculation: nsjResult,
             details: {
@@ -86,6 +118,9 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 target_capital_required: Math.round(nsjResult.total_limit || targetAmount),
                 payment_variant: goal.payment_variant,
                 program: nsjResult.program,
+                annual_premium: Math.round(annualPremium * 100) / 100,
+                tax_deduction_2026: Math.round(taxDeduction2026 * 100) / 100,
+                total_tax_deductions: Math.round(totalTaxDeductions * 100) / 100,
                 portfolio: {
                     name: 'Life Insurance Contract',
                     instruments: [

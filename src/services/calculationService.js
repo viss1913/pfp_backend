@@ -125,6 +125,43 @@ class CalculationService {
         return map[goal.goal_type_id] || 5;
     }
 
+    /**
+     * Calculate Life Insurance needed capital via NSJ API
+     * @param {Object} goal - Life Insurance goal
+     * @param {Object} context - Calculation context
+     * @returns {Promise<number>} Required initial capital
+     */
+    async _calculateLifeInsuranceNeeded(goal, context) {
+        const { client, services } = context;
+        const { nsjApiService } = services;
+
+        const nsjParams = {
+            target_amount: goal.target_amount || 0,
+            term_months: goal.term_months || 120,
+            client: client || {},
+            payment_variant: goal.payment_variant || 12,
+            program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
+        };
+
+        try {
+            console.log('[CalculationService] Calling NSJ API for Life goal:', goal.name);
+            const result = await nsjApiService.calculateLifeInsurance(nsjParams);
+            const isSinglePremium = (goal.payment_variant === 0);
+
+            if (isSinglePremium) {
+                console.log('[CalculationService] Life goal needs (single premium):', result.total_premium);
+                return result.total_premium || 0;
+            } else {
+                // For monthly/annual payments, total_premium_rur already represents the periodic premium
+                const monthlyPremium = result.total_premium_rur || result.total_premium || 0;
+                console.log('[CalculationService] Life goal needs (monthly premium):', monthlyPremium);
+                return monthlyPremium;
+            }
+        } catch (err) {
+            console.warn('[CalculationService] NSJ API failed for Life goal, using initial_capital fallback:', err.message);
+            return goal.initial_capital || 0;
+        }
+    }
 
     async _prepareContext(clientData) {
         // Collect assets and pool
@@ -221,7 +258,7 @@ class CalculationService {
      * Distributes poolBalance among goals based on their "monthly savings burden".
      * Goals with higher required monthly savings get more capital to reduce that burden.
      */
-    _calculateSmartAllocation(indexedGoals, context) {
+    async _calculateSmartAllocation(indexedGoals, context) {
         let pool = context.poolBalance || 0;
         if (pool <= 0) return;
 
@@ -236,17 +273,21 @@ class CalculationService {
 
             // Priority 1 & 2 (Reserve & Life) -> Take what they need (Target or Initial)
             if (priority <= 2) {
-                // Determine need: For reserve it's target, for Life it's initial premium
-                // Since calculators logic is complex, we assume:
-                // If initial_capital is set, use it. If not, try target_amount for Reserve.
-                let needed = goal.initial_capital || 0;
-                if (priority === 1 && needed === 0) needed = goal.target_amount || 0;
+                let needed = 0;
 
-                // Allow "Life" to be treated as burden-based if no initial set? 
-                // Currently strictly priority.
+                // For Life Insurance (id=5), calculate via NSJ API
+                if (goal.goal_type_id === 5) {
+                    needed = await this._calculateLifeInsuranceNeeded(goal, context);
+                } else {
+                    // For FinReserve or others
+                    needed = goal.initial_capital || 0;
+                    if (priority === 1 && needed === 0) needed = goal.target_amount || 0;
+                }
+
                 const take = Math.min(tempPool, needed);
                 goal.smart_initial_capital = take;
                 tempPool -= take;
+                console.log(`[CalculationService] Allocated ${take} to ${goal.name} (Priority ${priority})`);
             }
             // Phase 2 & 3 handled after this loop
         }
@@ -337,7 +378,7 @@ class CalculationService {
 
         // 2.1. Smart Allocation (Burden-Based)
         console.log('[CalculationService] Running Smart Allocation...');
-        this._calculateSmartAllocation(indexedGoals, context);
+        await this._calculateSmartAllocation(indexedGoals, context);
 
         const resultsIndexed = [];
 
@@ -379,9 +420,90 @@ class CalculationService {
                 total_state_benefit: Math.round(results.reduce((sum, r) => sum + (r.summary?.state_benefit || 0), 0) * 100) / 100,
                 total_target_amount_initial: Math.round(results.reduce((sum, r) => sum + (r.details?.target_amount_initial || 0), 0) * 100) / 100,
                 total_target_amount_future: Math.round(results.reduce((sum, r) => sum + (r.details?.target_amount_future || 0), 0) * 100) / 100,
-                consolidated_portfolio: consolidated
+                consolidated_portfolio: consolidated,
+                tax_benefits_summary: this._generateTaxBenefitsSummary(results)
             },
             goals: results
+        };
+    }
+
+    /**
+     * Generate Tax Benefits Summary (PDS + NSJ)
+     * Aggregates tax deductions and cofinancing from all goals for frontend display
+     */
+    _generateTaxBenefitsSummary(results) {
+        let pdsTotalDeductions = 0;
+        let pdsTotalCofinancing = 0;
+
+        let nsjAnnualPremium = 0;
+        let nsjDeduction2026 = 0;
+        let nsjTotalDeductions = 0;
+
+        let pdsDeduction2026 = 0;
+        let pdsCofinancing2026 = 0;
+
+        // Collect from all goals
+        results.forEach(result => {
+            if (result.details) {
+                // PDS tax refunds (from Pension, Passive Income, Investment goals)
+                if (result.details.total_tax_deductions_nominal) {
+                    pdsTotalDeductions += result.details.total_tax_deductions_nominal;
+                } else if (result.details.total_tax_refund) { // Fallback
+                    pdsTotalDeductions += result.details.total_tax_refund;
+                }
+
+                // PDS cofinancing
+                if (result.details.total_cofinancing_nominal) {
+                    pdsTotalCofinancing += result.details.total_cofinancing_nominal;
+                } else if (result.details.total_cofinancing) { // Fallback
+                    pdsTotalCofinancing += result.details.total_cofinancing;
+                }
+
+                // NSJ from Life goal
+                if (result.goal_id === 5 || result.goal_type === 'LIFE') {
+                    nsjAnnualPremium = result.details.annual_premium || 0;
+                    nsjDeduction2026 = result.details.tax_deduction_2026 || 0;
+                    nsjTotalDeductions = result.details.total_tax_deductions || 0;
+                }
+
+                // Breakdown for 2026 (PDS)
+                if (result.details.yearly_breakdown && Array.isArray(result.details.yearly_breakdown)) {
+                    const year2026 = result.details.yearly_breakdown.find(y => y.year === 2026);
+                    if (year2026) {
+                        pdsDeduction2026 += (year2026.tax_refund_received || 0);
+                        pdsCofinancing2026 += (year2026.cofinancing_paid_in_year || 0);
+                    }
+                }
+            }
+        });
+
+        const totalDeduction2026 = Math.round((pdsDeduction2026 + nsjDeduction2026) * 100) / 100;
+        const totalCofinancing2026 = Math.round(pdsCofinancing2026 * 100) / 100;
+
+        const totalDeductionsAll = Math.round((pdsTotalDeductions + nsjTotalDeductions) * 100) / 100;
+        const totalCofinancingAll = Math.round(pdsTotalCofinancing * 100) / 100;
+
+        return {
+            pds_benefits: {
+                deduction_2026: Math.round(pdsDeduction2026 * 100) / 100,
+                cofinancing_2026: Math.round(pdsCofinancing2026 * 100) / 100,
+                total_deductions: Math.round(pdsTotalDeductions * 100) / 100,
+                total_cofinancing: Math.round(pdsTotalCofinancing * 100) / 100
+            },
+            nsj_benefits: {
+                annual_premium: Math.round(nsjAnnualPremium * 100) / 100,
+                deduction_2026: Math.round(nsjDeduction2026 * 100) / 100,
+                total_deductions: Math.round(nsjTotalDeductions * 100) / 100
+            },
+            totals: {
+                deduction_2026: totalDeduction2026,
+                cofinancing_2026: totalCofinancing2026,
+
+                total_deductions: totalDeductionsAll,
+                total_cofinancing: totalCofinancingAll,
+
+                total_state_benefits: Math.round((totalDeductionsAll + totalCofinancingAll) * 100) / 100
+            }
         };
     }
 
