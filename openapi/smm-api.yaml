@@ -63,6 +63,15 @@ components:
           type: string
           format: uri
           description: Персональный сайт или лэндинг агента
+        telegram_bot:
+          type: string
+          description: Username или токен телеграм-бота агента
+        telegram_channel:
+          type: string
+          description: Ссылка или username телеграм-канала агента
+        telegram_channel_id:
+          type: string
+          description: ID телеграм-канала агента
         region:
           type: string
           description: Регион работы
