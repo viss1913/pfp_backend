@@ -50,6 +50,9 @@ components:
         telegram_channel:
           type: string
           description: Ссылка или username телеграм-канала агента
+        telegram_channel_id:
+          type: string
+          description: ID телеграм-канала агента
         region:
           type: string
         city:

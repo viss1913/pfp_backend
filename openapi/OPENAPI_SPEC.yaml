@@ -732,6 +732,8 @@ components:
           type: string
         telegram_channel:
           type: string
+        telegram_channel_id:
+          type: string
         is_active:
           type: boolean
         region:
@@ -775,6 +777,8 @@ components:
           type: string
         telegram_channel:
           type: string
+        telegram_channel_id:
+          type: string
         is_active:
           type: boolean
           default: true
@@ -807,6 +811,8 @@ components:
         telegram_bot:
           type: string
         telegram_channel:
+          type: string
+        telegram_channel_id:
           type: string
         is_active:
           type: boolean
