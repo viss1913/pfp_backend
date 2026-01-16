@@ -126,7 +126,7 @@ class NSJService {
                         if (jsonStart > 0) {
                             jsonData = data.substring(jsonStart);
                         }
-                        
+
                         const parsed = JSON.parse(jsonData);
                         if (res.statusCode >= 200 && res.statusCode < 300) {
                             resolve(parsed);
@@ -265,7 +265,7 @@ class NSJService {
             if (response.data && response.data.results) {
                 results = response.data.results;
             }
-            
+
             if (!results || !results.success) {
                 throw new Error(`NSJ calculation failed. Warnings: ${JSON.stringify(response.data?.warnings || [])}`);
             }
@@ -276,11 +276,7 @@ class NSJService {
                 risks: results.risks || [],
                 total_premium: results.premium || results.premiumRUR || 0,
                 total_premium_rur: results.premiumRUR || results.premium || 0,
-                total_limit: results.limit || 0,
-                payments_list: results.paymentsList || results.payments_list || [],
-                warnings: response.data?.warnings || [],
-                calculation_date: response.data?.date || Date.now(),
-                raw_response: response.data // Полный ответ для отладки
+                total_limit: results.limit || 0
             };
         } catch (error) {
             console.error('NSJ API Error:', error);

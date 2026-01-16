@@ -144,11 +144,6 @@ class NSJApiService {
      * @returns {Promise<Object>} Результат расчета
      */
     async calculateLifeInsurance(params) {
-        console.log('=== calculateLifeInsurance called ===');
-        console.log('Params:', JSON.stringify(params, null, 2));
-        console.log('API URL from env:', process.env.NSJ_API_URL || 'NOT SET (using default)');
-        console.log('API Key from env:', process.env.NSJ_API_KEY ? `${process.env.NSJ_API_KEY.substring(0, 10)}...` : 'NOT SET (using default)');
-
         const {
             target_amount,
             term_months,
@@ -223,7 +218,7 @@ class NSJApiService {
             if (client.insured_person.is_policy_holder === false) {
                 requestData.insuredPerson.isPolicyHolder = false;
                 if (client.insured_person.birth_date) {
-                    requestData.insuredPerson.dob = this.formatDateOnly(new Date(client.insured_person.birth_date)); // Для dob нужен формат без времени
+                    requestData.insuredPerson.dob = this.formatDateOnly(new Date(client.insured_person.birth_date));
                     requestData.insuredPerson.age = this.calculateAge(client.insured_person.birth_date);
                 }
                 if (client.insured_person.sex) {
@@ -241,13 +236,10 @@ class NSJApiService {
         }
 
         try {
-            // Логируем запрос для отладки
+            // Логируем только запрос, ответ не логируем из-за большого payments_list
             console.log('NSJ API Request:', JSON.stringify(requestData, null, 2));
 
             const response = await this.callApi('Contract.LifeEndowment.calculate', requestData);
-
-            // Логируем ответ для отладки
-            console.log('NSJ API Response:', JSON.stringify(response, null, 2));
 
             if (!response.success) {
                 throw {
@@ -257,7 +249,6 @@ class NSJApiService {
                 };
             }
 
-            // В новой версии API структура ответа может быть другой - data содержит результаты напрямую
             let results = response.data;
             if (response.data && response.data.results) {
                 results = response.data.results;
@@ -270,28 +261,15 @@ class NSJApiService {
                 };
             }
 
-            // Проверяем успешность: либо есть поле success=true, либо есть данные (risks или premium)
-            const hasData = results.risks && results.risks.length > 0 || results.premium !== undefined;
+            const hasData = (results.risks && results.risks.length > 0) || results.premium !== undefined;
             if (results.success === false || (!results.success && !hasData)) {
-                // Логируем детали ошибки
-                console.error('NSJ calculation failed. Results:', JSON.stringify(results, null, 2));
-                console.error('Response data:', JSON.stringify(response.data, null, 2));
-
                 throw {
                     status: 400,
                     message: 'NSJ calculation failed',
-                    warnings: results.warnings || [],
-                    errors: response.data?.errors || [],
-                    full_response: response.data // Полный ответ для отладки
+                    warnings: results.warnings || []
                 };
             }
 
-            // Если success не указан, но есть данные - считаем успешным
-            if (!results.success && hasData) {
-                console.log('NSJ API returned data without success field, treating as successful');
-            }
-
-            // Форматируем ответ для нашего API со всеми данными из NSJ API
             return {
                 success: true,
                 term: results.term,
@@ -303,14 +281,7 @@ class NSJApiService {
                 total_limit: results.limit,
                 payTerm: results.payTerm,
                 payEndDate: results.payEndDate,
-                comission: results.comission || null,
-                rvd: results.rvd || null,
-                cashSurrenderValues: results.cashSurrenderValues || null,
-                payments_list: results.paymentsList || results.payments_list || [],
-                warnings: response.data?.warnings || [],
-                calculation_date: response.data?.date || Date.now(),
-                // Полный ответ для отладки
-                raw_response: response.data
+                comission: results.comission || null
             };
         } catch (error) {
             console.error('NSJ API error:', error);
