@@ -318,20 +318,30 @@ class CalculationService {
 
         // 3. Distribute Remaining Pool weighted by Burden (Other Goals)
         // Filter out goals already processed (Safety & Investment)
-
         for (const { goal } of indexedGoals) {
             const p = this._getPriority(goal);
             if (p <= 2 || goal.goal_type_id === 3) continue;
 
-            // Calculate Burden
-            const term = goal.term_months || 120;
+            // Calculate burden-ready params
+            let term = goal.term_months || 120;
             let target = goal.target_amount || 0;
 
-            if (goal.goal_type_id === 2 && target > 0 && target < 10000000) target = target * 150;
-            if (goal.goal_type_id === 1 && target > 0 && target < 5000000) target = target * 150;
+            // SPECIAL HANDLING FOR PENSION/PASSIVE INCOME
+            if (goal.goal_type_id === 1) { // PENSION
+                const birthYear = context.client.birth_date ? new Date(context.client.birth_date).getFullYear() : 1980;
+                const sex = context.client.sex || 'male';
+                const isMale = sex === 'male' || sex === 'M' || sex === 'мужской';
+                const retAge = isMale ? 65 : 60;
+                const yearsToRet = Math.max(retAge - (new Date().getFullYear() - birthYear), 0.5);
+                term = Math.round(yearsToRet * 12);
+
+                if (target > 0 && target < 5000000) target = target * 150;
+            } else if (goal.goal_type_id === 2) { // PASSIVE_INCOME
+                if (target > 0 && target < 10000000) target = target * 150;
+            }
 
             const burden = target / term;
-            burdenGoals.push({ goal, burden, target });
+            burdenGoals.push({ goal, burden, target, term });
         }
 
         if (tempPool > 0 && burdenGoals.length > 0) {
@@ -340,14 +350,24 @@ class CalculationService {
             if (totalBurden > 0) {
                 for (const item of burdenGoals) {
                     const weight = item.burden / totalBurden;
-                    const allocation = Math.min(item.target, tempPool * weight);
-                    const currentInit = item.goal.smart_initial_capital || 0; // Use smart_initial_capital if already set
+                    let allocation = tempPool * weight;
+
+                    // CAPPING & DISCOUNTING for long terms
+                    const years = item.term / 12;
+                    if (years > 5) {
+                        const discount = 1 / Math.pow(1.07, years); // 7% expected yield discount
+                        allocation = Math.min(allocation, item.target * discount);
+                    } else {
+                        allocation = Math.min(allocation, item.target);
+                    }
+
+                    const currentInit = item.goal.smart_initial_capital || 0;
                     item.goal.smart_initial_capital = currentInit + allocation;
                 }
             } else {
                 // If no burden target, dump to last
                 const last = burdenGoals[burdenGoals.length - 1];
-                last.goal.smart_initial_capital = (last.goal.smart_initial_capital || 0) + tempPool; // Use smart_initial_capital if already set
+                last.goal.smart_initial_capital = (last.goal.smart_initial_capital || 0) + tempPool;
             }
         }
 
@@ -577,10 +597,15 @@ class CalculationService {
                 const name = inst.name || 'Unknown';
                 const amt = inst.amount || 0; // Monthly amount
                 const yieldP = inst.yield || 0;
+                const freq = inst.payment_frequency || 'monthly'; // Track frequency
 
-                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0 };
+                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
                 flowsMap[name].amount += amt;
                 flowsMap[name].weightedYieldSum += (amt * yieldP);
+                // Keep the payment_frequency from instrument (prefer non-monthly if specified)
+                if (freq !== 'monthly' && flowsMap[name].payment_frequency === 'monthly') {
+                    flowsMap[name].payment_frequency = freq;
+                }
                 totalMonthly += amt;
             });
         });
@@ -601,7 +626,8 @@ class CalculationService {
                 name,
                 amount: Math.round(data.amount * 100) / 100,
                 share: totalMonthly > 0 ? Math.round((data.amount / totalMonthly) * 100) : 0,
-                yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0
+                yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0,
+                payment_frequency: data.payment_frequency || 'monthly' // Default to monthly if not specified
             };
         }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);
 

@@ -37,34 +37,49 @@ class LifeInsuranceCalculator extends BaseCalculator {
             };
         }
 
-        // 2. Determine how much to deduct from Capital NOW
-        // If Payment Variant is 0 (Single), we deduct the FULL Premium.
-        // If Monthly (12), we deduct the FIRST MONTH Premium.
-        const isSinglePremium = (goal.payment_variant === 0);
+        // 2. Determine payment frequency and premium distribution
+        // Logic: FIRST premium goes to initial_capital (costNow)
+        // Subsequent premiums go to replenishment with payment_frequency indicator
 
-        let costNow = 0;
-        let monthlyReplenishment = 0;
-        let termYears = Math.ceil(termMonths / 12); // Default term in years
+        const isSinglePremium = (goal.payment_variant === 0);
+        const isMonthlyPayment = (goal.payment_variant === 1 || goal.payment_variant === 12); // 12 может означать ежемесячный
+        const isAnnualPayment = (goal.payment_variant === 'annual' || goal.payment_variant === 'yearly');
+
+        let costNow = 0; // First premium (goes to initial_capital)
+        let replenishmentAmount = 0; // Subsequent premiums
+        let paymentFrequency = 'once'; // 'once', 'monthly', 'annual'
+        let totalPremium = targetAmount;
+        let termYears = Math.ceil(termMonths / 12);
 
         if (nsjResult) {
-            const totalPremium = nsjResult.total_premium || targetAmount;
-            termYears = nsjResult.term_years || Math.ceil(termMonths / 12); // Update from NSJ if available
-            const totalMonths = termYears * 12;
+            totalPremium = nsjResult.total_premium || targetAmount;
+            termYears = nsjResult.term_years || Math.ceil(termMonths / 12);
 
             if (isSinglePremium) {
+                // Single payment: all premium goes to initial capital
                 costNow = totalPremium;
-                monthlyReplenishment = 0;
+                replenishmentAmount = 0;
+                paymentFrequency = 'once';
+            } else if (isAnnualPayment || goal.payment_variant === 12) {
+                // Annual payment: totalPremium is annual premium
+                // First year premium goes to initial capital
+                costNow = totalPremium;
+                // Subsequent years - same annual amount
+                replenishmentAmount = totalPremium;
+                paymentFrequency = 'annual';
             } else {
-                // Monthly premium estimate
-                monthlyReplenishment = Math.round(totalPremium / totalMonths);
-                costNow = monthlyReplenishment; // First installment
+                // Monthly payment: totalPremium is annual, so monthly is /12
+                const monthlyPremium = Math.round(totalPremium / 12);
+                // First month goes to initial capital
+                costNow = monthlyPremium;
+                // Subsequent months
+                replenishmentAmount = monthlyPremium;
+                paymentFrequency = 'monthly';
             }
         }
 
         // 3. Calculate Tax Deduction for Life Insurance
-        const annualPremium = isSinglePremium
-            ? totalPremium
-            : (nsjResult.total_premium_rur || nsjResult.total_premium || 0) * 12;
+        const annualPremium = totalPremium;
 
         let taxDeduction2026 = 0;
         let totalTaxDeductions = 0;
@@ -97,7 +112,7 @@ class LifeInsuranceCalculator extends BaseCalculator {
         let amountToDeduct = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : costNow;
         const deductedCapital = this.deductFromSharedPool(amountToDeduct, context);
 
-        // 5. Construct Result
+        // 5. Construct Result with Payment Frequency
         const result = {
             goal_id: goal.goal_type_id,
             goal_name: goal.name,
@@ -105,11 +120,12 @@ class LifeInsuranceCalculator extends BaseCalculator {
             summary: {
                 goal_type: 'LIFE',
                 status: 'OK',
-                initial_capital: Math.round(deductedCapital), // Shows what we paid NOW
-                monthly_replenishment: Math.round(monthlyReplenishment),
+                initial_capital: Math.round(deductedCapital), // First premium
+                monthly_replenishment: paymentFrequency === 'monthly' ? Math.round(replenishmentAmount) : 0,
                 total_capital_at_end: Math.round(nsjResult.total_limit || targetAmount),
                 target_achieved: true,
-                state_benefit: Math.round(totalTaxDeductions * 100) / 100 // Total tax deductions over all years
+                state_benefit: Math.round(totalTaxDeductions * 100) / 100, // Total tax deductions over all years
+                payment_frequency: paymentFrequency // 'once', 'monthly', 'annual'
             },
             nsj_calculation: nsjResult,
             details: {
@@ -121,13 +137,38 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 annual_premium: Math.round(annualPremium * 100) / 100,
                 tax_deduction_2026: Math.round(taxDeduction2026 * 100) / 100,
                 total_tax_deductions: Math.round(totalTaxDeductions * 100) / 100,
+                payment_frequency: paymentFrequency,
+                replenishment_amount: Math.round(replenishmentAmount * 100) / 100,
+
+                // Portfolio instruments for consolidated portfolio
+                initial_capital_instruments: [
+                    {
+                        name: `НСЖ: ${nsjResult.program || 'Standard'} (Первый взнос)`,
+                        share: 100,
+                        yield: 0,
+                        amount: Math.round(deductedCapital)
+                    }
+                ],
+
+                // Replenishment instruments (if not single payment)
+                monthly_savings_instruments: paymentFrequency !== 'once' ? [
+                    {
+                        name: `НСЖ: ${nsjResult.program || 'Standard'} (Пополнения)`,
+                        share: 100,
+                        yield: 0,
+                        amount: Math.round(replenishmentAmount * 100) / 100,
+                        payment_frequency: paymentFrequency // 'monthly' or 'annual'
+                    }
+                ] : [],
+
+                // Legacy portfolio field for backward compatibility
                 portfolio: {
                     name: 'Life Insurance Contract',
                     instruments: [
                         {
                             name: `NSJ Program: ${nsjResult.program || 'Standard'}`,
                             share: 100,
-                            yield: 0, // Yield is implicit in the target amount/limit
+                            yield: 0,
                             amount: Math.round(deductedCapital)
                         }
                     ]
