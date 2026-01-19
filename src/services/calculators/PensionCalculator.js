@@ -71,13 +71,17 @@ class PensionCalculator extends BaseCalculator {
             throw new Error('Client birth_date is required for pension calculation');
         }
 
+        const inflationRate = (goal.inflation_rate !== undefined && goal.inflation_rate !== null)
+            ? Number(goal.inflation_rate)
+            : (settings.inflation_rate_year || context.inflationYear || 4.0);
+
         const pensionSettings = {
             pension_pfr_contribution_rate_part1: settings.pension_pfr_contribution_rate_part1 || 22,
             pension_fixed_payment: settings.pension_fixed_payment || 8907,
             pension_point_cost: settings.pension_point_cost || 145.69,
             pension_max_salary_limit: settings.pension_max_salary_limit || 2759000,
             pension_ipk_past_coef: settings.pension_ipk_past_coef || 0.6,
-            inflation_rate: goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : settings.inflation_rate_year
+            inflation_rate: inflationRate
         };
 
         const clientWithIncome = {
@@ -272,7 +276,13 @@ class PensionCalculator extends BaseCalculator {
                 total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
                 total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
                 inflation_rate: Math.round(pensionSettings.inflation_rate * 100) / 100,
-                years_to_pension: statePensionResult.years_to_pension
+                yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
+                payout_yield_percent: payoutYieldPercent,
+                years_to_pension: statePensionResult.years_to_pension,
+                current_state_pension: statePensionResult.state_pension_monthly_current,
+                estimated_ipk_total: statePensionResult.ipk_est,
+                retirement_age: statePensionResult.retirement_age,
+                yearly_breakdown: simResult.yearlyData // Detailed PDS/Tax breakdown for summary aggregation
             }
         };
     }
