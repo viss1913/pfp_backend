@@ -119,10 +119,6 @@ class BaseCalculator {
         currentDate.setMonth(currentDate.getMonth() + 1);
         const startYear = startDate.getFullYear();
         const yearlyContributions = {};
-        const yearlyData = []; // Store breakdown
-        let currentTotalTaxRefund = 0;
-        let currentTotalCofin = 0;
-
         if (initialCapital > 0) {
             yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + initialCapital;
         }
@@ -150,9 +146,6 @@ class BaseCalculator {
             }
 
             // 3. ПДС события
-            let cofinForYear = 0;
-            let refundForYear = 0;
-
             if (pdsProductId) {
                 // Создаем временный контекст для handlePdsEvents
                 const tempContext = {
@@ -165,88 +158,6 @@ class BaseCalculator {
                 totalCofinancing += cofin;
                 totalTaxRefund += refund;
                 totalStateBenefit += (cofin + refund);
-
-                // Track for yearly reporting
-                currentTotalCofin = totalCofinancing;
-                currentTotalTaxRefund = totalTaxRefund;
-
-                cofinForYear = cofin;
-                refundForYear = refund;
-            }
-
-            // --- YEARLY BREAKDOWN REPORTING (New) ---
-            // Report at the END of each year (month 12) or loop end?
-            // Better: PdsCofinancingService logic tracks "Year Shift".
-            // Here we can just track by calendar year.
-            if (month === 12 || m === termMonths) {
-                // Calculate projected tax refund for THIS year contributions (to be received next year)
-                let projectedTaxRefund = 0;
-                if (pdsProductId) {
-                    try {
-                        // Re-use logic from PdsCofinancingService
-                        // This allows showing "Accrued" benefit for the current year
-                        const annualContrib = yearlyContributions[year] || 0;
-                        if (annualContrib > 0) {
-                            const estIncome = (avgMonthlyIncome || 0) * 12;
-                            const taxProfile = {
-                                annual_income_taxable: estIncome,
-                                ndfl_amount_without_deductions: (estIncome * 0.13), // Simplified approximation for BaseCalculator
-                                ndfl_rate_value: 0.13
-                            };
-                            const dedRes = await TaxService.calculatePdsDeduction(taxProfile, annualContrib, year);
-                            projectedTaxRefund = dedRes.refundAmount;
-
-                            // Fallback for 0 income
-                            if (projectedTaxRefund === 0 && (!avgMonthlyIncome || avgMonthlyIncome === 0)) {
-                                projectedTaxRefund = Math.min(annualContrib, 400000) * 0.13;
-                            }
-                        }
-                    } catch (e) { }
-                }
-
-                // How to get accrued co-financing? 
-                // It's checked in August of NEXT year. 
-                // PdsCofinancingService has logic to check "limit remaining".
-                // Here we simplify: if PDS active, standard logic.
-                let projectedCofin = 0;
-                if (pdsProductId && year - startYear < 10) {
-                    // Approximate: min(contrib, 36000)
-                    // But we must respect used limit.
-                    // It's hard to respect shared limit here without complexity. 
-                    // We will rely on PdsCofinancingService for strictness, but here providing data for aggregation.
-                    // Actually, if we just want to fill "cofinancing_for_year" (accrued), we can estimate.
-                    // But CalculationService aggregates this.
-                    // Let's use a safe estimate:
-                    const annualContrib = yearlyContributions[year] || 0;
-                    if (annualContrib >= 2000) {
-                        projectedCofin = Math.min(annualContrib, 36000);
-                        // Note: This ignores the global 36k limit if shared across multiple goals!
-                        // But for dashboard "Accrued" it might be acceptable if inaccurate.
-                        // OR we can leave it 0 and only rely on PdsCofinancingService for PENSION goal.
-                        // But User sees 0 for Investment goal too...
-                        // Let's try to be smart.
-                        const alreadyUsed = localUsedCofinancing[year] || 0; // This is accrued for THIS year? NO, localUsed maps year -> amount PAID in that year?
-                        // handlePdsEvents updates usedCofinancingPerYear[prevYear].
-                        // So checking localUsedCofinancing[year] gives what was paid IN this year (for prev year).
-
-                        // We want to know available limit for THIS year.
-                        // It is NOT yet in localUsedCofinancing (will be next year).
-                        // So we assume full limit available? 
-                        projectedCofin = Math.min(annualContrib, 36000);
-                    }
-                }
-
-                yearlyData.push({
-                    year: year,
-                    tax_refund_projected: Math.round(projectedTaxRefund * 100) / 100,
-                    cofinancing_for_year: Math.round(projectedCofin * 100) / 100,
-
-                    // Also track realized
-                    tax_refund_received: Math.round((currentTotalTaxRefund - (yearlyData.lastTotalRefund || 0)) * 100) / 100,
-                    cofinancing_paid_in_year: Math.round((currentTotalCofin - (yearlyData.lastTotalCofin || 0)) * 100) / 100
-                });
-                yearlyData.lastTotalRefund = currentTotalTaxRefund;
-                yearlyData.lastTotalCofin = currentTotalCofin;
             }
 
             currentDate.setMonth(currentDate.getMonth() + 1);
@@ -259,7 +170,6 @@ class BaseCalculator {
             totalCofinancing,
             totalTaxRefund,
             yearlyContributions,
-            yearlyData,
             // Возвращаем обновленные лимиты, чтобы CalculationService мог их применить ПОСЛЕ финального расчета
             usedCofinancingPerYear: localUsedCofinancing,
             usedTaxBasePerYear: localUsedTaxBase

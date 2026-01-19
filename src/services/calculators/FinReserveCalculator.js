@@ -28,7 +28,7 @@ class FinReserveCalculator extends BaseCalculator {
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
 
         // 2. Simulation Parameters
-        const termMonths = 12;
+        const termMonths = goal.term_months || 12;
         let initialCapital = goal.initial_capital || 0;
 
         // DEDUCT FROM POOL: FinReserve consumes liquid capital first!

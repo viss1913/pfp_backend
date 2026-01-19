@@ -1,0 +1,99 @@
+{
+  "summary": {
+    "goals_count": 1,
+    "total_capital": 25296296.74,
+    "total_state_benefit": 88000,
+    "total_target_amount_initial": 100000,
+    "total_target_amount_future": 15083297.85,
+    "consolidated_portfolio": {
+      "total_initial_capital": 595692,
+      "total_monthly_replenishment": 0,
+      "assets_allocation": [
+        {
+          "name": "ПДС НПФ (Updated)",
+          "amount": 595692,
+          "share": 100,
+          "yield": 15
+        }
+      ],
+      "cash_flow_allocation": []
+    },
+    "tax_benefits_summary": {
+      "pds_benefits": {
+        "deduction_2026": 0,
+        "cofinancing_2026": 0,
+        "total_deductions": 52000,
+        "total_cofinancing": 36000
+      },
+      "nsj_benefits": {
+        "annual_premium": 0,
+        "deduction_2026": 0,
+        "total_deductions": 0
+      },
+      "totals": {
+        "deduction_2026": 0,
+        "cofinancing_2026": 0,
+        "total_deductions": 52000,
+        "total_cofinancing": 36000,
+        "total_state_benefits": 88000
+      }
+    }
+  },
+  "goals": [
+    {
+      "goal_id": 1,
+      "goal_name": "ГосПенсия",
+      "goal_type": "PENSION",
+      "summary": {
+        "goal_type": "PENSION",
+        "status": "OK",
+        "initial_capital": 595692,
+        "monthly_replenishment": 0,
+        "total_capital_at_end": 25296296.74,
+        "target_achieved": true,
+        "state_benefit": 88000
+      },
+      "desired_pension": {
+        "desired_monthly_income_initial": 100000,
+        "desired_monthly_income_with_inflation": 277246.98
+      },
+      "pension_gap": {
+        "gap_monthly_future": 150832.98,
+        "has_gap": true
+      },
+      "details": {
+        "portfolio_name": "Пенсия",
+        "term_months": 312,
+        "initial_capital_instruments": [
+          {
+            "name": "ПДС НПФ (Updated)",
+            "share": 100,
+            "yield": 15,
+            "amount": 595692
+          }
+        ],
+        "monthly_savings_instruments": [
+          {
+            "name": "ПДС НПФ (Updated)",
+            "share": 100,
+            "yield": 15
+          }
+        ],
+        "state_pension_monthly": 126414,
+        "pension_from_capital_monthly": 252962.97,
+        "total_pension_monthly": 379376.97,
+        "target_amount_initial": 100000,
+        "target_amount_future": 15083297.85,
+        "target_capital_required": 15083297.85,
+        "total_client_investment": 595692,
+        "total_cofinancing": 36000,
+        "total_tax_refund": 52000,
+        "inflation_rate": 4,
+        "years_to_pension": 26,
+        "current_state_pension": 45596.17,
+        "estimated_ipk_total": 251.83,
+        "retirement_age": 65
+      }
+    }
+  ]
+}
