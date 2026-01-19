@@ -490,8 +490,10 @@ class CalculationService {
                 if (result.details.yearly_breakdown && Array.isArray(result.details.yearly_breakdown)) {
                     const year2026 = result.details.yearly_breakdown.find(y => y.year === 2026);
                     if (year2026) {
-                        pdsDeduction2026 += (year2026.tax_refund_received || 0);
-                        pdsCofinancing2026 += (year2026.cofinancing_paid_in_year || 0);
+                        // Use PROJECTED/EARNED values for the current year to show potential benefit
+                        // instead of cash-flow received (which is 0 in the first year)
+                        pdsDeduction2026 += (year2026.tax_refund_projected || 0);
+                        pdsCofinancing2026 += (year2026.cofinancing_for_year || 0);
                     }
                 }
             }
