@@ -17,5 +17,6 @@ router.get('/agent-clients', authMiddleware, clientController.listByAgent.bind(c
 router.post('/', authMiddleware, clientController.create.bind(clientController));
 router.get('/:id', authMiddleware, clientController.get.bind(clientController)); // Usually should check agent ownership
 router.put('/:id', authMiddleware, clientController.update.bind(clientController));
+router.post('/:id/recalculate', authMiddleware, clientController.recalculate.bind(clientController));
 
 module.exports = router;

@@ -60,20 +60,35 @@ class FinReserveCalculator extends BaseCalculator {
         }
 
         // Ensure instruments exist for Consolidated Portfolio
-        let instruments = [];
+        let baseInstruments = [];
         // reusable calculation result from start of method
         if (yieldResult.initial_instruments && yieldResult.initial_instruments.length > 0) {
-            instruments = yieldResult.initial_instruments;
+            baseInstruments = yieldResult.initial_instruments;
         } else if (portfolio.instruments && portfolio.instruments.length > 0) {
-            instruments = portfolio.instruments;
+            baseInstruments = portfolio.instruments;
         } else {
             // Fallback
-            instruments = [{ name: 'Банковский депозит / Накопительный счет', share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100 }];
+            baseInstruments = [{ name: 'Банковский депозит / Накопительный счет', share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100 }];
         }
 
-        if (instruments && instruments.length > 0 && initialCapital > 0) {
-            instruments.forEach(inst => {
-                inst.amount = initialCapital * (inst.share / 100);
+        const initial_capital_instruments = [];
+        if (initialCapital > 0) {
+            baseInstruments.forEach(inst => {
+                initial_capital_instruments.push({
+                    ...inst,
+                    amount: initialCapital * (inst.share / 100)
+                });
+            });
+        }
+
+        const monthly_savings_instruments = [];
+        if (monthlyReplenishment > 0) {
+            baseInstruments.forEach(inst => {
+                monthly_savings_instruments.push({
+                    ...inst,
+                    amount: monthlyReplenishment * (inst.share / 100),
+                    payment_frequency: 'monthly'
+                });
             });
         }
 
@@ -98,10 +113,12 @@ class FinReserveCalculator extends BaseCalculator {
                 inflation_rate: Math.round((goal.inflation_rate || 0) * 100) / 100, // Pass through
                 target_capital_required: Math.round(currentBalance),
                 yield_percent: weightedYieldAnnual,
+                initial_capital_instruments: initial_capital_instruments,
+                monthly_savings_instruments: monthly_savings_instruments,
                 portfolio: {
                     id: portfolio.id,
                     name: portfolio.name,
-                    instruments: instruments
+                    instruments: baseInstruments
                 }
             }
         };

@@ -209,6 +209,95 @@ class ClientController {
             next(err);
         }
     }
+
+    async recalculate(req, res, next) {
+        try {
+            const { id } = req.params;
+            const agentId = req.user.agentId;
+
+            // 1. Fetch Existing Client Data
+            const existingClient = await clientService.getFullClient(id);
+            if (!existingClient) {
+                return res.status(404).json({ error: 'Client not found' });
+            }
+            if (existingClient.agent_id && existingClient.agent_id != agentId) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+
+            // 2. Merge Updates from Request Body
+            // Allow updating goals, assets, or basic client info (income, etc)
+
+            // Goals: If provided, replace/update. If not, use existing.
+            // Note: clientService.getFullClient returns goals in 'goals' property.
+            let goalsToCalculate = req.body.goals || existingClient.goals;
+
+            // Client/Assets: Merge
+            // We construct the 'client' object expected by calculateFirstRun
+            const clientForCalc = {
+                ...existingClient, // base properties
+                ...req.body.client, // overrides (e.g. new avg_monthly_income)
+                assets: req.body.client?.assets || existingClient.assets || [], // explicit assets override or existing
+                birth_date: existingClient.birth_date, // ensure critical fields preserved if not overridden
+                sex: existingClient.gender || existingClient.sex,
+                total_liquid_capital: req.body.client?.total_liquid_capital !== undefined
+                    ? req.body.client.total_liquid_capital
+                    : (existingClient.assets_total || 0) // fallback if not sent, though calculationService usually sums assets
+            };
+
+            // 3. Prepare Calculation Request
+            const calcRequest = {
+                client: clientForCalc,
+                goals: goalsToCalculate
+            };
+
+            // 4. Run Calculation
+            // This will re-run Smart Allocation with the (potentially new) pool and goals
+            const calculation = await calculationService.calculateFirstRun(calcRequest);
+
+            // 5. Update Client Record with New Summary
+            // We intentionally do NOT save the full merge back to DB yet, unless we want "Auto-Save".
+            // Usually "Recalculate" is a preview. But the prompt says "Change parameters... we recalculate".
+            // Let's SAVE the result 'goals_summary' so the chart on frontend updates permanently if this was an edit.
+            // BUT: Do we save the changes to Goals/Assets tables? 
+            // The User said: "Method Change Goal... method that allows 'falling into' a financial plan".
+            // Typically "Recalculate" = Preview, "Save" = Commit. 
+            // However, to keep it simple and consistent with "First Run", let's update the JSON snapshot. 
+            // If the user wants to *persist* the changed Goal parameters (e.g. new target amount), we should probably update the DB entities too.
+            // For now, let's assume this endpoint is "Update & Recalculate".
+
+            // If request contained real updates, save them.
+            if (req.body.goals || req.body.client) {
+                // Construct full update payload for updateFullClient
+                const updatePayload = {
+                    client: { ...clientForCalc }, // normalized
+                    goals: goalsToCalculate,
+                    assets: clientForCalc.assets
+                };
+                // Remove calculated fields or fields not for update
+                delete updatePayload.client.goals_summary;
+                // We might need to map 'gender' back to 'sex' or similar if updateFullClient is picky, 
+                // but it seems robust.
+
+                // However, doing a full DB update is heavy. 
+                // For now, let's just update the goals_summary snapshot so the dashboard reflects the new numbers.
+                await clientService.updateClient(id, {
+                    goals_summary: JSON.stringify(calculation)
+                });
+
+                // If we strictly follow REST, PUT /api/client/:id updates DB, then we might call recalculate internally.
+                // But here we want a specific action.
+                // Let's proceed with just updating the snapshot for visualization.
+            }
+
+            res.json({
+                client_id: id,
+                calculation: calculation
+            });
+
+        } catch (err) {
+            next(err);
+        }
+    }
 }
 
 module.exports = new ClientController();
