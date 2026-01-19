@@ -86,7 +86,9 @@ class PensionCalculator extends BaseCalculator {
 
         const clientWithIncome = {
             ...client,
-            avg_monthly_income: client.avg_monthly_income || goal.avg_monthly_income || 0
+            avg_monthly_income: client.avg_monthly_income || goal.avg_monthly_income || 0,
+            ipk_current: goal.ipk_current !== undefined ? goal.ipk_current : (client.ipk_current || 0),
+            ops_capital: goal.ops_capital !== undefined ? goal.ops_capital : (client.ops_capital || 0)
         };
 
         const statePensionResult = await this.calculateStatePension(clientWithIncome, pensionSettings, new Date());
@@ -94,6 +96,11 @@ class PensionCalculator extends BaseCalculator {
         // DEDUCT FROM POOL
         // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
         let initialCapital = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : (goal.initial_capital || 0);
+
+        // ADD OPS CAPITAL (накопительная часть пенсии, которую можно инвестировать)
+        const opsCapital = goal.ops_capital || clientWithIncome.ops_capital || 0;
+        initialCapital += opsCapital;
+
         initialCapital = this.deductFromSharedPool(initialCapital, context);
 
         const inflationAnnualUsed = pensionSettings.inflation_rate;
@@ -281,8 +288,7 @@ class PensionCalculator extends BaseCalculator {
                 years_to_pension: statePensionResult.years_to_pension,
                 current_state_pension: statePensionResult.state_pension_monthly_current,
                 estimated_ipk_total: statePensionResult.ipk_est,
-                retirement_age: statePensionResult.retirement_age,
-                yearly_breakdown: simResult.yearlyData // Detailed PDS/Tax breakdown for summary aggregation
+                retirement_age: statePensionResult.retirement_age
             }
         };
     }

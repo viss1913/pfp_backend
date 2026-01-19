@@ -239,6 +239,11 @@ class PdsCofinancingService {
                     };
                     const dedRes = await TaxService.calculatePdsDeduction(taxProfile, yearlyContributions[currentYear] || 0, currentYear);
                     projectedTaxRefund = dedRes.refundAmount;
+
+                    // FALLBACK: Potential refund if income is missing
+                    if (projectedTaxRefund === 0 && yearlyContributions[currentYear] > 0 && (!avgMonthlyIncome || avgMonthlyIncome === 0)) {
+                        projectedTaxRefund = Math.min(yearlyContributions[currentYear], 400000) * 0.13;
+                    }
                 } catch (e) { }
 
                 yearlyData.push({
@@ -357,6 +362,12 @@ class PdsCofinancingService {
             };
             const dedRes = await TaxService.calculatePdsDeduction(taxProfile, yearlyContributions[currentYear] || 0, currentYear);
             projectedTaxRefund = dedRes.refundAmount;
+
+            // FALLBACK: If tax refund is 0 (due to 0 income/tax paid) but we have contributions,
+            // calculate "Potential" refund at 13% to align with NSJ logic and show benefit opportunity.
+            if (projectedTaxRefund === 0 && yearlyContributions[currentYear] > 0 && (!avgMonthlyIncome || avgMonthlyIncome === 0)) {
+                projectedTaxRefund = Math.min(yearlyContributions[currentYear], 400000) * 0.13;
+            }
         } catch (e) { }
 
         yearlyData.push({
