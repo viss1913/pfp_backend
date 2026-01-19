@@ -19,4 +19,8 @@ router.get('/:id', authMiddleware, clientController.get.bind(clientController));
 router.put('/:id', authMiddleware, clientController.update.bind(clientController));
 router.post('/:id/recalculate', authMiddleware, clientController.recalculate.bind(clientController));
 
+// Goal Management
+router.post('/:id/goals', authMiddleware, clientController.addGoal.bind(clientController));
+router.delete('/:id/goals/:goalId', authMiddleware, clientController.deleteGoal.bind(clientController));
+
 module.exports = router;

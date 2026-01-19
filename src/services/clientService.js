@@ -238,6 +238,36 @@ class ClientService {
     async getClientsByAgent(agentId, options = {}) {
         return await clientRepository.findAllByAgent(agentId, options);
     }
+
+    async addGoal(clientId, goalData) {
+        const goalColumns = [
+            'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
+            'term_months', 'end_date', 'initial_capital', 'inflation_rate', 'risk_profile'
+        ];
+
+        const goalRecord = { client_id: clientId };
+        const params = {};
+
+        Object.keys(goalData).forEach(key => {
+            if (goalColumns.includes(key)) {
+                goalRecord[key] = goalData[key];
+            } else if (key !== 'client_id' && key !== 'id') {
+                params[key] = goalData[key];
+            }
+        });
+
+        if (Object.keys(params).length > 0) {
+            goalRecord.params = JSON.stringify(params);
+        }
+
+        await clientRepository.addGoals([goalRecord]);
+        return true;
+    }
+
+    async deleteGoal(clientId, goalId) {
+        await clientRepository.deleteGoal(clientId, goalId);
+        return true;
+    }
 }
 
 module.exports = new ClientService();

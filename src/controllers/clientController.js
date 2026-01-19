@@ -298,6 +298,41 @@ class ClientController {
             next(err);
         }
     }
+
+    async addGoal(req, res, next) {
+        try {
+            const { id } = req.params;
+            const agentId = req.user.agentId;
+
+            // 1. Add Goal to DB
+            await clientService.addGoal(id, req.body);
+
+            // 2. Trigger Recalculate (effectively same as recalculate method but with fresh DB state)
+            // We can just call recalculate but we need to ensure it doesn't try to merge from req.body 
+            // if we already updated the DB. 
+            // Actually, calling recalculate without goal overrides will fetch fresh from DB.
+            req.body.goals = null;
+            return this.recalculate(req, res, next);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async deleteGoal(req, res, next) {
+        try {
+            const { id, goalId } = req.params;
+            const agentId = req.user.agentId;
+
+            // 1. Delete Goal from DB
+            await clientService.deleteGoal(id, goalId);
+
+            // 2. Trigger Recalculate
+            req.body.goals = null;
+            return this.recalculate(req, res, next);
+        } catch (err) {
+            next(err);
+        }
+    }
 }
 
 module.exports = new ClientController();

@@ -86,6 +86,12 @@ class ClientRepository {
         return knex('goals').where({ client_id: clientId });
     }
 
+    async deleteGoal(clientId, goalId, trx = null) {
+        const query = knex('goals').where({ id: goalId, client_id: clientId }).del();
+        if (trx) query.transacting(trx);
+        return query;
+    }
+
     async deleteGoals(clientId, trx = null) {
         const query = knex('goals').where({ client_id: clientId }).del();
         if (trx) query.transacting(trx);
