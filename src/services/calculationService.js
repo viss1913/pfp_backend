@@ -436,10 +436,34 @@ class CalculationService {
         return {
             summary: {
                 goals_count: goals.length,
-                total_capital: Math.round(results.reduce((sum, r) => sum + (r.summary?.total_capital_at_end || 0), 0) * 100) / 100,
-                total_state_benefit: Math.round(results.reduce((sum, r) => sum + (r.summary?.state_benefit || 0), 0) * 100) / 100,
-                total_target_amount_initial: Math.round(results.reduce((sum, r) => sum + (r.details?.target_amount_initial || 0), 0) * 100) / 100,
-                total_target_amount_future: Math.round(results.reduce((sum, r) => sum + (r.details?.target_amount_future || 0), 0) * 100) / 100,
+                total_capital: Math.round(results.reduce((sum, r) => {
+                    const cap = r.summary?.projected_capital_at_end
+                        || r.summary?.total_capital_at_end
+                        || r.summary?.projected_capital_at_retirement
+                        || r.summary?.expected_cash_value
+                        || r.summary?.initial_capital // For RENT/Rentier where capital is preserved
+                        || 0;
+                    return sum + cap;
+                }, 0) * 100) / 100,
+
+                total_state_benefit: Math.round(results.reduce((sum, r) => {
+                    // New format: distinct generic fields
+                    const tax = r.summary?.total_tax_benefit || 0;
+                    const cofin = r.summary?.total_cofinancing || 0;
+                    // Legacy format: single field
+                    const legacy = r.summary?.state_benefit || 0;
+                    // Use max to avoid double counting if both exist (though usually one set exists)
+                    return sum + Math.max(tax + cofin, legacy);
+                }, 0) * 100) / 100,
+
+                total_target_amount_initial: Math.round(results.reduce((sum, r) => {
+                    return sum + (r.summary?.target_amount_initial || r.details?.target_amount_initial || 0);
+                }, 0) * 100) / 100,
+
+                total_target_amount_future: Math.round(results.reduce((sum, r) => {
+                    return sum + (r.summary?.target_amount_future || r.details?.target_amount_future || 0);
+                }, 0) * 100) / 100,
+
                 consolidated_portfolio: consolidated,
                 tax_benefits_summary: this._generateTaxBenefitsSummary(results)
             },
@@ -466,32 +490,35 @@ class CalculationService {
         results.forEach(result => {
             if (result.details) {
                 // PDS tax refunds (from Pension, Passive Income, Investment goals)
-                if (result.details.total_tax_deductions_nominal) {
-                    pdsTotalDeductions += result.details.total_tax_deductions_nominal;
-                } else if (result.details.total_tax_refund) { // Fallback
-                    pdsTotalDeductions += result.details.total_tax_refund;
+                const taxRef = result.details.total_tax_deductions_nominal || result.details.total_tax_refund || result.summary?.total_tax_benefit || 0;
+                // Avoid double counting if using summary (which includes NSJ for LIFE, but here we want PDS? No, summary is total per goal)
+                // Actually, strict logic:
+                // If goal is LIFE, tax benefit is NSJ.
+                // If goal is NOT LIFE, tax benefit is likely PDS/IIS.
+
+                if (result.goal_id === 5 || result.goal_type === 'LIFE') {
+                    // NSJ Logic handled below
+                } else {
+                    pdsTotalDeductions += taxRef;
                 }
 
                 // PDS cofinancing
-                if (result.details.total_cofinancing_nominal) {
-                    pdsTotalCofinancing += result.details.total_cofinancing_nominal;
-                } else if (result.details.total_cofinancing) { // Fallback
-                    pdsTotalCofinancing += result.details.total_cofinancing;
-                }
+                const cofin = result.details.total_cofinancing_nominal || result.details.total_cofinancing || result.summary?.total_cofinancing || 0;
+                pdsTotalCofinancing += cofin;
 
                 // NSJ from Life goal
                 if (result.goal_id === 5 || result.goal_type === 'LIFE') {
                     nsjAnnualPremium = result.details.annual_premium || 0;
                     nsjDeduction2026 = result.details.tax_deduction_2026 || 0;
-                    nsjTotalDeductions = result.details.total_tax_deductions || 0;
+                    // Check summary if details missing
+                    nsjTotalDeductions = result.details.total_tax_deductions || result.summary?.total_tax_benefit || 0;
                 }
 
-                // Breakdown for 2026 (PDS)
+                // 'yearly_breakdown' might be missing in new Unified Calc. 
+                // If so, 2026 prediction will be 0. This is a known limitation of the simplified output.
                 if (result.details.yearly_breakdown && Array.isArray(result.details.yearly_breakdown)) {
                     const year2026 = result.details.yearly_breakdown.find(y => y.year === 2026);
                     if (year2026) {
-                        // Use PROJECTED/EARNED values for the current year to show potential benefit
-                        // instead of cash-flow received (which is 0 in the first year)
                         pdsDeduction2026 += (year2026.tax_refund_projected || 0);
                         pdsCofinancing2026 += (year2026.cofinancing_for_year || 0);
                     }
@@ -538,48 +565,53 @@ class CalculationService {
         results.forEach(res => {
             if (!res.details) return;
 
-            // Normalize portfolio instruments to an array
-            let instruments = [];
-
-            // Some calculators return portfolio object, others return flat instruments
-            if (res.details.portfolio) {
-                const p = res.details.portfolio;
-                if (Array.isArray(p.instruments)) {
-                    instruments = p.instruments;
-                } else if (p.instruments && Array.isArray(p.instruments)) {
-                    instruments = p.instruments;
-                }
-            }
-
-            // Special handling for calculators that return logic differently (e.g. Pension)
-            // Pension returns `initial_instruments` and `monthly_instruments` in details root
-            // But let's try to stick to what we standardized if possible. 
-            // PensionCalculator returns `initial_instruments` in details.
+            // Strategy to find instruments:
+            // 1. details.instruments (Unified standard for Investment, Other, Rent, FinReserve)
+            // 2. details.portfolio_structure.initial_instruments (Pension)
+            // 3. details.initial_capital_instruments (Legacy / Life)
+            // 4. details.portfolio.instruments (Legacy)
 
             let initialInstrs = [];
             let monthlyInstrs = [];
 
-            if (res.details.initial_capital_instruments) {
+            // Try to find Initial Capital Instruments
+            if (res.details.portfolio_structure && Array.isArray(res.details.portfolio_structure.initial_instruments)) {
+                initialInstrs = res.details.portfolio_structure.initial_instruments;
+            } else if (res.details.initial_capital_instruments) {
                 initialInstrs = res.details.initial_capital_instruments;
-            } else if (res.details.initial_instruments) { // Fallback/Legacy
+            } else if (res.details.initial_instruments) {
                 initialInstrs = res.details.initial_instruments;
-            } else if (instruments.length > 0) {
-                // Assume proportional split if specific buckets not defined?
-                // Or just use the instruments for initial if they have 'amount' or 'share'
-                // This is tricky. Let's simplify:
-                // Use `summary.initial_capital` as total for this goal.
-                // Distribute by share in instruments.
-                const goalInitial = res.summary.initial_capital || 0;
-                initialInstrs = instruments.map(i => ({ ...i, amount: (i.amount || (goalInitial * (i.share / 100))) }));
+            } else if (Array.isArray(res.details.instruments)) {
+                // Use summary.initial_capital to determine amount if needed, or use instrument amount
+                // If instruments are generic, we assume they apply to initial capital proportional to share?
+                // Or we look for specific bucket?
+                // Better: use instruments as is, but check if they have 'amount'
+                const goalInitial = res.summary?.initial_capital || 0;
+                initialInstrs = res.details.instruments.map(i => ({
+                    ...i,
+                    amount: (i.amount !== undefined) ? i.amount : (goalInitial * (i.share / 100))
+                }));
+            } else if (res.details.portfolio && Array.isArray(res.details.portfolio.instruments)) {
+                const goalInitial = res.summary?.initial_capital || 0;
+                initialInstrs = res.details.portfolio.instruments.map(i => ({
+                    ...i,
+                    amount: (i.amount !== undefined) ? i.amount : (goalInitial * (i.share / 100))
+                }));
             }
 
-            if (res.details.monthly_savings_instruments) {
+            // Try to find Monthly Instruments
+            if (res.details.portfolio_structure && Array.isArray(res.details.portfolio_structure.monthly_instruments)) {
+                monthlyInstrs = res.details.portfolio_structure.monthly_instruments;
+            } else if (res.details.monthly_savings_instruments) {
                 monthlyInstrs = res.details.monthly_savings_instruments;
-            } else if (res.details.monthly_instruments) { // Fallback/Legacy
+            } else if (res.details.monthly_instruments) {
                 monthlyInstrs = res.details.monthly_instruments;
-            } else if (instruments.length > 0) {
-                const goalMonthly = res.summary.monthly_replenishment || 0;
-                monthlyInstrs = instruments.map(i => ({ ...i, amount: (i.amount || (goalMonthly * (i.share / 100))) }));
+            } else if (Array.isArray(res.details.instruments) && (res.summary?.monthly_replenishment > 0)) {
+                const goalMonthly = res.summary.monthly_replenishment;
+                monthlyInstrs = res.details.instruments.map(i => ({
+                    ...i,
+                    amount: (goalMonthly * (i.share / 100)) // Re-calculate for monthly flow
+                }));
             }
 
             // Aggregate Assets

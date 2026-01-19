@@ -93,33 +93,24 @@ class FinReserveCalculator extends BaseCalculator {
         }
 
         return {
-            goal_id: goal.goal_type_id,
-            goal_name: goal.name,
+            goal_id: goal.id,
+            goal_type_id: 7,
             goal_type: 'FIN_RESERVE',
             summary: {
-                goal_type: 'FIN_RESERVE',
                 status: 'OK',
                 initial_capital: Math.round(initialCapital * 100) / 100,
                 monthly_replenishment: Math.round(monthlyReplenishment * 100) / 100,
-                total_capital_at_end: Math.round(currentBalance * 100) / 100,
-                target_achieved: true,
-                projected_value: Math.round(currentBalance * 100) / 100,
-                state_benefit: 0
+                target_months: termMonths,
+
+                projected_capital_at_end: Math.round(currentBalance * 100) / 100,
+
+                accumulation_yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
+                total_tax_benefit: 0 // Usually 0 for Reserve
             },
             details: {
-                term_months: termMonths,
-                target_amount_initial: initialCapital, // It's usually small, match initial
-                target_amount_future: Math.round(currentBalance), // For reserve, target is what we grew to? Or user goal? User goal is usually defined by "expenses * months".
-                inflation_rate: Math.round((goal.inflation_rate || 0) * 100) / 100, // Pass through
-                target_capital_required: Math.round(currentBalance),
-                yield_percent: weightedYieldAnnual,
-                initial_capital_instruments: initial_capital_instruments,
-                monthly_savings_instruments: monthly_savings_instruments,
-                portfolio: {
-                    id: portfolio.id,
-                    name: portfolio.name,
-                    instruments: baseInstruments
-                }
+                portfolio_id: portfolio.id,
+                portfolio_name: portfolio.name,
+                instruments: initial_capital_instruments.length > 0 ? initial_capital_instruments : monthly_savings_instruments
             }
         };
     }

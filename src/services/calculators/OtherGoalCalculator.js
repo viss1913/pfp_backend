@@ -168,32 +168,30 @@ class OtherGoalCalculator extends BaseCalculator {
         }
 
         return {
-            goal_id: goal.goal_type_id,
-            goal_name: goal.name,
+            goal_id: goal.id,
+            goal_type_id: 4,
             goal_type: 'OTHER',
             summary: {
-                goal_type: 'OTHER',
                 status: (simResult.totalCapital >= targetAmountFuture * 0.999) ? 'OK' : 'GAP',
-                initial_capital: Math.round(effectiveInitialCapital * 100) / 100,
-                monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
-                total_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
-                target_achieved: simResult.totalCapital >= targetAmountFuture * 0.999,
-                state_benefit: Math.round(simResult.totalStateBenefit * 100) / 100
-            },
-            details: {
-                portfolio_name: portfolio.name,
-                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
-                term_months: termMonths,
                 target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
                 target_amount_future: Math.round(targetAmountFuture * 100) / 100,
-                target_capital_required: Math.round(targetAmountFuture * 100) / 100,
-                initial_capital_instruments: initial_instruments,
-                monthly_savings_instruments: monthly_instruments,
-                total_investment_income: Math.round((simResult.totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit) * 100) / 100,
-                total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
+                inflation_rate: Math.round(inflationRate * 100) / 100,
+
+                initial_capital: Math.round(effectiveInitialCapital * 100) / 100,
+                monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                target_months: termMonths,
+
+                projected_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
+
+                total_tax_benefit: Math.round(simResult.totalTaxRefund * 100) / 100,
                 total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
-                total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
-                inflation_rate: Math.round(inflationRate * 100) / 100
+
+                accumulation_yield_percent: Math.round(weightedYieldAnnual * 100) / 100
+            },
+            details: {
+                portfolio_id: portfolio.id,
+                portfolio_name: portfolio.name,
+                instruments: initial_instruments.length > 0 ? initial_instruments : monthly_instruments
             }
         };
     }

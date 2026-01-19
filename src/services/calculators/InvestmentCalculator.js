@@ -78,31 +78,26 @@ class InvestmentCalculator extends BaseCalculator {
         }
 
         return {
-            goal_id: goal.goal_type_id,
-            goal_name: goal.name,
+            goal_id: goal.id,
+            goal_type_id: 3,
             goal_type: 'INVESTMENT',
             summary: {
-                goal_type: 'INVESTMENT',
-                status: (totalCapital >= targetAmountFuture * 0.999) ? 'OK' : 'GAP',
+                status: 'OK',
                 initial_capital: Math.round(initialCapital * 100) / 100,
                 monthly_replenishment: Math.round(monthlyReplenishment * 100) / 100,
-                total_capital_at_end: Math.round(totalCapital * 100) / 100,
-                target_achieved: (totalCapital >= targetAmountFuture * 0.999),
-                state_benefit: Math.round(simResult.totalStateBenefit * 100) / 100
+                target_months: goal.term_months,
+
+                projected_capital_at_end: Math.round(totalCapital * 100) / 100,
+
+                total_tax_benefit: Math.round(simResult.totalTaxRefund * 100) / 100,
+                total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
+
+                accumulation_yield_percent: Math.round(weightedYieldAnnual * 100) / 100
             },
             details: {
+                portfolio_id: portfolio.id,
                 portfolio_name: portfolio.name,
-                term_months: goal.term_months,
-                initial_capital_instruments: initial_instruments,
-                monthly_savings_instruments: monthly_instruments,
-                total_investment_income: Math.round((totalCapital - simResult.totalClientInvestment - simResult.totalStateBenefit) * 100) / 100,
-                total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
-                total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
-                total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
-                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
-                target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100, // Assuming input is consistent
-                target_amount_future: Math.round(targetAmountFuture * 100) / 100,
-                inflation_rate: Math.round(inflationRate * 100) / 100
+                instruments: initial_instruments.length > 0 ? initial_instruments : monthly_instruments
             }
         };
     }

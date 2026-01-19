@@ -113,66 +113,35 @@ class LifeInsuranceCalculator extends BaseCalculator {
         const deductedCapital = this.deductFromSharedPool(amountToDeduct, context);
 
         // 5. Construct Result with Payment Frequency
+        const risks = (nsjResult && nsjResult.risks && Array.isArray(nsjResult.risks) && nsjResult.risks.length > 0)
+            ? nsjResult.risks
+            : [
+                { risk_name: 'Уход из жизни (любая причина)', limit_amount: Math.round(targetAmount) },
+                { risk_name: 'Телесные повреждения (Травма)', limit_amount: Math.round(targetAmount * 0.5) }, // Example default
+                { risk_name: 'Инвалидность I-II гр.', limit_amount: Math.round(targetAmount) }
+            ];
+
         const result = {
-            goal_id: goal.goal_type_id,
-            goal_name: goal.name,
+            goal_id: goal.id || goal.goal_type_id,
+            goal_type_id: 5,
             goal_type: 'LIFE',
             summary: {
-                goal_type: 'LIFE',
                 status: 'OK',
-                initial_capital: Math.round(deductedCapital), // First premium
-                monthly_replenishment: paymentFrequency === 'monthly' ? Math.round(replenishmentAmount) : 0,
-                total_capital_at_end: Math.round(nsjResult.total_limit || targetAmount),
-                target_achieved: true,
-                state_benefit: Math.round(totalTaxDeductions * 100) / 100, // Total tax deductions over all years
-                payment_frequency: paymentFrequency // 'once', 'monthly', 'annual'
+                target_coverage: Math.round(targetAmount * 100) / 100,
+
+                initial_capital: Math.round(deductedCapital * 100) / 100,
+                premium_frequency: paymentFrequency,
+
+                target_months: termMonths,
+
+                expected_cash_value: Math.round((nsjResult.total_limit || targetAmount) * 100) / 100,
+
+                investment_yield_percent: 5.0, // Default or from API if available
+                total_tax_benefit: Math.round(totalTaxDeductions * 100) / 100
             },
-            nsj_calculation: nsjResult,
             details: {
-                term_months: termMonths,
-                target_amount_initial: targetAmount,
-                target_capital_required: Math.round(nsjResult.total_limit || targetAmount),
-                payment_variant: goal.payment_variant,
-                program: nsjResult.program,
-                annual_premium: Math.round(annualPremium * 100) / 100,
-                tax_deduction_2026: Math.round(taxDeduction2026 * 100) / 100,
-                total_tax_deductions: Math.round(totalTaxDeductions * 100) / 100,
-                payment_frequency: paymentFrequency,
-                replenishment_amount: Math.round(replenishmentAmount * 100) / 100,
-
-                // Portfolio instruments for consolidated portfolio
-                initial_capital_instruments: [
-                    {
-                        name: `НСЖ: ${nsjResult.program || 'Standard'} (Первый взнос)`,
-                        share: 100,
-                        yield: 0,
-                        amount: Math.round(deductedCapital)
-                    }
-                ],
-
-                // Replenishment instruments (if not single payment)
-                monthly_savings_instruments: paymentFrequency !== 'once' ? [
-                    {
-                        name: `НСЖ: ${nsjResult.program || 'Standard'} (Пополнения)`,
-                        share: 100,
-                        yield: 0,
-                        amount: Math.round(replenishmentAmount * 100) / 100,
-                        payment_frequency: paymentFrequency // 'monthly' or 'annual'
-                    }
-                ] : [],
-
-                // Legacy portfolio field for backward compatibility
-                portfolio: {
-                    name: 'Life Insurance Contract',
-                    instruments: [
-                        {
-                            name: `NSJ Program: ${nsjResult.program || 'Standard'}`,
-                            share: 100,
-                            yield: 0,
-                            amount: Math.round(deductedCapital)
-                        }
-                    ]
-                }
+                program_name: nsjResult.program || goal.program || 'Страхование жизни',
+                risks: risks
             }
         };
 

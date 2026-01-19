@@ -52,7 +52,13 @@ class PensionCalculator extends BaseCalculator {
         const statePensionMonthlyFuture = ipkEst * pensionPointCostFuture + pensionFixedPaymentFuture;
 
         return {
-            ipk_est: Math.round(ipkEst * 100) / 100,
+            ipk_total: Math.round(ipkEst * 100) / 100,
+            ipk_current: Math.round(ipkSoFar * 100) / 100,
+            ipk_forecast: Math.round(ipkFuture * 100) / 100,
+            point_cost_today: pensionPointCost,
+            point_cost_future: Math.round(pensionPointCostFuture * 100) / 100,
+            fixed_payment_today: pensionFixedPayment,
+            fixed_payment_future: Math.round(pensionFixedPaymentFuture * 100) / 100,
             state_pension_monthly_future: Math.round(statePensionMonthlyFuture * 100) / 100,
             state_pension_monthly_current: Math.round(statePensionMonthlyFuture / Math.pow(1 + (inflationRate / 100), yearsToPension) * 100) / 100,
             retirement_age: retirementAge,
@@ -247,48 +253,55 @@ class PensionCalculator extends BaseCalculator {
             });
         }
 
+        // Separate Own and OPS capital for display
+        const displayedInitialCapitalOwn = Math.max(initialCapital - opsCapital, 0);
+
         return {
-            goal_id: goal.goal_type_id,
-            goal_name: goal.name,
+            goal_id: goal.id,
+            goal_type_id: 1,
             goal_type: 'PENSION',
             summary: {
-                goal_type: 'PENSION',
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                initial_capital: Math.round(initialCapital * 100) / 100,
+                target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
+                target_amount_future: Math.round(desiredPensionMonthlyFuture * 100) / 100,
+                inflation_rate: Math.round(pensionSettings.inflation_rate * 100) / 100,
+
+                initial_capital: Math.round(displayedInitialCapitalOwn * 100) / 100,
+                initial_capital_ops: Math.round(opsCapital * 100) / 100,
+
                 monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
-                total_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
-                target_achieved: simResult.totalCapital >= requiredCapitalFuture * 0.999,
-                state_benefit: Math.round(simResult.totalStateBenefit * 100) / 100
-            },
-            desired_pension: {
-                desired_monthly_income_initial: Math.round((goal.target_amount || 0) * 100) / 100,
-                desired_monthly_income_with_inflation: Math.round(desiredPensionMonthlyFuture * 100) / 100
-            },
-            pension_gap: {
-                gap_monthly_future: Math.round(pensionGapMonthlyFuture * 100) / 100,
-                has_gap: pensionGapMonthlyFuture > 0
+                pension_gap_future: Math.round(pensionGapMonthlyFuture * 100) / 100,
+                target_months: monthsToPension,
+
+                projected_capital_at_retirement: Math.round(simResult.totalCapital * 100) / 100,
+                required_capital_at_retirement: Math.round(requiredCapitalFuture * 100) / 100,
+
+                total_tax_benefit: Math.round(simResult.totalTaxRefund * 100) / 100,
+                total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
+
+                accumulation_yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
+                payout_yield_percent: payoutYieldPercent,
+
+                state_pension_monthly_future: Math.round(statePensionResult.state_pension_monthly_future * 100) / 100,
+                state_pension_monthly_today: Math.round(statePensionResult.state_pension_monthly_current * 100) / 100
             },
             details: {
-                portfolio_name: portfolioForAcc.name,
-                term_months: monthsToPension,
-                initial_capital_instruments: initial_instruments,
-                monthly_savings_instruments: monthly_instruments,
-                state_pension_monthly: Math.round(statePensionResult.state_pension_monthly_future * 100) / 100,
-                pension_from_capital_monthly: Math.round(pensionFromCapitalMonthlyFuture * 100) / 100,
-                total_pension_monthly: Math.round((statePensionResult.state_pension_monthly_future + pensionFromCapitalMonthlyFuture) * 100) / 100,
-                target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
-                target_amount_future: Math.round(requiredCapitalFuture * 100) / 100,
-                target_capital_required: Math.round(requiredCapitalFuture * 100) / 100,
-                total_client_investment: Math.round(simResult.totalClientInvestment * 100) / 100,
-                total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
-                total_tax_refund: Math.round(simResult.totalTaxRefund * 100) / 100,
-                inflation_rate: Math.round(pensionSettings.inflation_rate * 100) / 100,
-                yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
-                payout_yield_percent: payoutYieldPercent,
-                years_to_pension: statePensionResult.years_to_pension,
-                current_state_pension: statePensionResult.state_pension_monthly_current,
-                estimated_ipk_total: statePensionResult.ipk_est,
-                retirement_age: statePensionResult.retirement_age
+                state_pension: {
+                    ipk_total: statePensionResult.ipk_total,
+                    ipk_current: statePensionResult.ipk_current,
+                    ipk_forecast: statePensionResult.ipk_forecast,
+                    point_cost_today: statePensionResult.point_cost_today,
+                    point_cost_future: statePensionResult.point_cost_future,
+                    fixed_payment_today: statePensionResult.fixed_payment_today,
+                    fixed_payment_future: statePensionResult.fixed_payment_future,
+                    retirement_age: statePensionResult.retirement_age,
+                    retirement_year: statePensionResult.retirement_year,
+                    years_to_pension: statePensionResult.years_to_pension
+                },
+                portfolio_structure: {
+                    initial_instruments: initial_instruments,
+                    monthly_instruments: monthly_instruments
+                }
             }
         };
     }

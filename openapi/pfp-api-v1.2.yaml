@@ -1,0 +1,235 @@
+openapi: 3.0.0
+info:
+  title: PFP Service API (Updated)
+  version: 1.2.0
+  description: API for managing Products & Portfolios, including new Financial Goal response structures.
+servers:
+  - url: /api
+    description: Main API server
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: API Key for server-to-server integration
+  schemas:
+    # --- SHARED ---
+    GoalSummary:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [OK, GAP]
+    
+    # --- 1. PENSION ---
+    PensionCalculationResult:
+      type: object
+      properties:
+        goal_id: { type: integer }
+        goal_type_id: { type: integer, example: 1 }
+        goal_type: { type: string, example: "PENSION" }
+        summary:
+          type: object
+          properties:
+            status: { type: string, enum: [OK, GAP] }
+            target_amount_initial: { type: number, description: "Desired monthly income (now)" }
+            target_amount_future: { type: number, description: "Desired monthly income (future)" }
+            initial_capital: { type: number, description: "Client's own capital" }
+            initial_capital_ops: { type: number, description: "OPS Capital" }
+            monthly_replenishment: { type: number }
+            pension_gap_future: { type: number }
+            target_months: { type: integer }
+            projected_capital_at_retirement: { type: number }
+            required_capital_at_retirement: { type: number }
+            total_tax_benefit: { type: number }
+            total_cofinancing: { type: number }
+            accumulation_yield_percent: { type: number }
+            payout_yield_percent: { type: number }
+            state_pension_monthly_future: { type: number }
+            state_pension_monthly_today: { type: number }
+        details:
+          type: object
+          properties:
+             state_pension:
+               type: object
+               properties:
+                 ipk_total: { type: number }
+                 ipk_current: { type: number }
+                 ipk_forecast: { type: number }
+                 point_cost_today: { type: number }
+                 point_cost_future: { type: number }
+                 fixed_payment_today: { type: number }
+                 fixed_payment_future: { type: number }
+                 retirement_age: { type: integer }
+                 years_to_pension: { type: integer }
+
+    # --- 2. PASSIVE INCOME ---
+    PassiveIncomeCalculationResult:
+       type: object
+       properties:
+         goal_id: { type: integer }
+         goal_type_id: { type: integer, example: 2 }
+         goal_type: { type: string, example: "PASSIVE_INCOME" }
+         summary:
+           type: object
+           properties:
+             status: { type: string }
+             target_amount_initial: { type: number }
+             target_amount_future: { type: number }
+             projected_amount_future: { type: number }
+             inflation_rate: { type: number }
+             initial_capital: { type: number }
+             monthly_replenishment: { type: number }
+             target_months: { type: integer }
+             required_capital_at_end: { type: number }
+             accumulation_yield_percent: { type: number }
+             payout_yield_percent: { type: number }
+
+    # --- 3. INVESTMENT ---
+    InvestmentCalculationResult:
+       type: object
+       properties:
+         goal_id: { type: integer }
+         goal_type_id: { type: integer, example: 3 }
+         goal_type: { type: string, example: "INVESTMENT" }
+         summary:
+           type: object
+           properties:
+             status: { type: string, example: "OK" }
+             initial_capital: { type: number }
+             monthly_replenishment: { type: number }
+             target_months: { type: integer }
+             projected_capital_at_end: { type: number }
+             total_tax_benefit: { type: number }
+             accumulation_yield_percent: { type: number }
+
+    # --- 4. OTHER ---
+    OtherGoalCalculationResult:
+       type: object
+       properties:
+         goal_id: { type: integer }
+         goal_type_id: { type: integer, example: 4 }
+         goal_type: { type: string, example: "OTHER" }
+         summary:
+           type: object
+           properties:
+             status: { type: string }
+             target_amount_initial: { type: number }
+             target_amount_future: { type: number }
+             initial_capital: { type: number }
+             monthly_replenishment: { type: number }
+             target_months: { type: integer }
+             projected_capital_at_end: { type: number }
+             accumulation_yield_percent: { type: number }
+
+    # --- 5. LIFE ---
+    LifeCalculationResult:
+       type: object
+       properties:
+         goal_id: { type: integer }
+         goal_type_id: { type: integer, example: 5 }
+         goal_type: { type: string, example: "LIFE" }
+         summary:
+           type: object
+           properties:
+             status: { type: string }
+             target_coverage: { type: number }
+             initial_capital: { type: number }
+             premium_frequency: { type: string }
+             target_months: { type: integer }
+             expected_cash_value: { type: number }
+             investment_yield_percent: { type: number }
+             total_tax_benefit: { type: number }
+         details:
+           type: object
+           properties:
+             program_name: { type: string }
+             risks:
+               type: array
+               items:
+                 type: object
+                 properties: 
+                   risk_name: { type: string }
+                   limit_amount: { type: number }
+
+    # --- 7. FIN RESERVE ---
+    FinReserveCalculationResult:
+       type: object
+       properties:
+         goal_id: { type: integer }
+         goal_type_id: { type: integer, example: 7 }
+         goal_type: { type: string, example: "FIN_RESERVE" }
+         summary:
+           type: object
+           properties:
+             status: { type: string }
+             initial_capital: { type: number }
+             monthly_replenishment: { type: number }
+             target_months: { type: integer }
+             projected_capital_at_end: { type: number }
+             accumulation_yield_percent: { type: number }
+
+    # --- 8. RENT ---
+    RentCalculationResult:
+       type: object
+       properties:
+         goal_id: { type: integer }
+         goal_type_id: { type: integer, example: 8 }
+         goal_type: { type: string, example: "RENT" }
+         summary:
+           type: object
+           properties:
+             status: { type: string }
+             initial_capital: { type: number }
+             projected_monthly_income: { type: number }
+             payout_yield_percent: { type: number }
+
+    # --- CALCULATE RESPONSE ---
+    CalculationResponse:
+       type: object
+       properties:
+         summary:
+           type: object
+           properties:
+             goals_count: { type: integer }
+             total_capital: { type: number }
+         goals:
+           type: array
+           items:
+             oneOf:
+               - $ref: '#/components/schemas/PensionCalculationResult'
+               - $ref: '#/components/schemas/PassiveIncomeCalculationResult'
+               - $ref: '#/components/schemas/InvestmentCalculationResult'
+               - $ref: '#/components/schemas/OtherGoalCalculationResult'
+               - $ref: '#/components/schemas/LifeCalculationResult'
+               - $ref: '#/components/schemas/FinReserveCalculationResult'
+               - $ref: '#/components/schemas/RentCalculationResult'
+
+paths:
+  /calculate:
+    post:
+      summary: Calculate all financial goals
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object # Placeholder for input request schema
+      responses:
+        '200':
+          description: Successful calculation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResponse'

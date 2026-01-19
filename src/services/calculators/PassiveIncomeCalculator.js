@@ -62,31 +62,32 @@ class PassiveIncomeCalculator extends BaseCalculator {
         }
 
         return {
-            goal_id: goal.goal_type_id,
-            goal_name: goal.name,
+            goal_id: goal.id,
+            goal_type_id: 2,
             goal_type: 'PASSIVE_INCOME',
             summary: {
-                goal_type: 'PASSIVE_INCOME',
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                initial_capital: initialCapital,
-                monthly_replenishment: Math.round(recommendedReplenishment),
-                monthly_replenishment_without_pds: Math.round(recommendedReplenishmentRaw),
-                total_capital_at_end: Math.round(requiredCapitalFuture), // Target
-                projected_value: Math.round(desiredMonthlyIncomeFuture),
-                state_benefit: Math.round(totalStateBenefit)
+                target_amount_initial: Math.round(initialDesiredIncome * 100) / 100,
+                target_amount_future: Math.round(desiredMonthlyIncomeFuture * 100) / 100,
+                projected_amount_future: Math.round(desiredMonthlyIncomeFuture * 100) / 100, // Assuming target met if replenishment found
+                inflation_rate: Math.round(inflationAnnualUsed * 100) / 100,
+
+                initial_capital: Math.round(initialCapital * 100) / 100,
+                monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
+                target_months: goal.term_months,
+
+                required_capital_at_end: Math.round(requiredCapitalFuture * 100) / 100,
+
+                total_tax_benefit: Math.round(totalStateBenefit * 100) / 100, // Logic for benefit calculation needs enabling if portfolio exists
+                total_cofinancing: 0, // Placeholder as currently logic is not fully active
+
+                accumulation_yield_percent: Math.round(payoutYieldPercent * 100) / 100, // Using p.y. as d_annual is p.y.
+                payout_yield_percent: Math.round(payoutYieldPercent * 100) / 100
             },
             details: {
-                term_months: goal.term_months,
-                target_amount_initial: initialDesiredIncome, // Monthly Income Goal
-                target_capital_required: Math.round(requiredCapitalFuture), // Capital needed
-                yield_percent: payoutYieldPercent,
-                portfolio: portfolio ? {
-                    id: portfolio.id,
-                    name: portfolio.name,
-                    instruments: (portfolio.instruments && portfolio.instruments.length > 0)
-                        ? portfolio.instruments
-                        : [{ name: portfolio.name || 'Портфель пассивного дохода', share: 100, yield: payoutYieldPercent }]
-                } : null
+                portfolio_id: portfolio ? portfolio.id : null,
+                portfolio_name: portfolio ? portfolio.name : null,
+                instruments: portfolio ? (portfolio.instruments || []) : []
             }
         };
     }

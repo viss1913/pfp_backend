@@ -28,19 +28,22 @@ class RentCalculator extends BaseCalculator {
         const monthlyIncomeRent = (initialCapital * (weightedYieldAnnual / 100)) / 12;
 
         return {
-            goal_id: goal.goal_type_id,
-            goal_name: goal.name,
+            goal_id: goal.id,
+            goal_type_id: 8,
             goal_type: 'RENT',
             summary: {
-                goal_type: 'RENT',
                 status: 'OK',
                 initial_capital: Math.round(initialCapital * 100) / 100,
-                monthlyIncomeRent: Math.round(monthlyIncomeRent * 100) / 100,
-                portfolio_yield_annual: Math.round(weightedYieldAnnual * 100) / 100,
-                // Rent assumes capital is preserved or just generating income, so total capital remains?
-                // Or should we return initial capital as total? Let's return initial.
-                total_capital_at_end: Math.round(initialCapital * 100) / 100,
-                state_benefit: 0
+
+                projected_monthly_income: Math.round(monthlyIncomeRent * 100) / 100,
+
+                payout_yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
+                total_tax_benefit: 0
+            },
+            details: {
+                portfolio_id: portfolio.id,
+                portfolio_name: portfolio.name,
+                instruments: portfolio.instruments || []
             }
         };
     }
