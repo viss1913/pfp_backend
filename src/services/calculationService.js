@@ -487,244 +487,245 @@ class CalculationService {
                     tax_benefits_summary: this._generateTaxBenefitsSummary(results)
                 },
                 goals: results
-            };
-        }
-
-        /**
-         * Generate Tax Benefits Summary (PDS + NSJ)
-         * Aggregates tax deductions and cofinancing from all goals for frontend display
-         */
-        _generateTaxBenefitsSummary(results) {
-            let pdsTotalDeductions = 0;
-            let pdsTotalCofinancing = 0;
-
-            let nsjAnnualPremium = 0;
-            let nsjDeduction2026 = 0;
-            let nsjTotalDeductions = 0;
-
-            let pdsDeduction2026 = 0;
-            let pdsCofinancing2026 = 0;
-
-            // Collect from all goals
-            results.forEach(result => {
-                if (result.details) {
-                    // PDS tax refunds (from Pension, Passive Income, Investment goals)
-                    const taxRef = result.details.total_tax_deductions_nominal || result.details.total_tax_refund || result.summary?.total_tax_benefit || 0;
-                    // Avoid double counting if using summary (which includes NSJ for LIFE, but here we want PDS? No, summary is total per goal)
-                    // Actually, strict logic:
-                    // If goal is LIFE, tax benefit is NSJ.
-                    // If goal is NOT LIFE, tax benefit is likely PDS/IIS.
-
-                    if (result.goal_id === 5 || result.goal_type === 'LIFE') {
-                        // NSJ Logic handled below
-                    } else {
-                        pdsTotalDeductions += taxRef;
-                    }
-
-                    // PDS cofinancing
-                    const cofin = result.details.total_cofinancing_nominal || result.details.total_cofinancing || result.summary?.total_cofinancing || 0;
-                    pdsTotalCofinancing += cofin;
-
-                    // NSJ from Life goal
-                    if (result.goal_id === 5 || result.goal_type === 'LIFE') {
-                        nsjAnnualPremium = result.details.annual_premium || 0;
-                        nsjDeduction2026 = result.details.tax_deduction_2026 || 0;
-                        // Check summary if details missing
-                        nsjTotalDeductions = result.details.total_tax_deductions || result.summary?.total_tax_benefit || 0;
-                    }
-
-                    // 'yearly_breakdown' might be missing in new Unified Calc. 
-                    // If so, 2026 prediction will be 0. This is a known limitation of the simplified output.
-                    if (result.details.yearly_breakdown && Array.isArray(result.details.yearly_breakdown)) {
-                        // PDS benefits for Year X are received in Year X+1.
-                        // To show "Benefits for 2026", we look at cash flows in 2027.
-                        const year2027 = result.details.yearly_breakdown.find(y => y.year === 2027);
-                        if (year2027) {
-                            pdsDeduction2026 += (year2027.tax_refund_projected || 0);
-                            pdsCofinancing2026 += (year2027.cofinancing_for_year || 0);
-                        }
-                    }
-                }
-            });
-
-            const totalDeduction2026 = Math.round((pdsDeduction2026 + nsjDeduction2026) * 100) / 100;
-            const totalCofinancing2026 = Math.round(pdsCofinancing2026 * 100) / 100;
-
-            const totalDeductionsAll = Math.round((pdsTotalDeductions + nsjTotalDeductions) * 100) / 100;
-            const totalCofinancingAll = Math.round(pdsTotalCofinancing * 100) / 100;
-
-            return {
-                pds_benefits: {
-                    deduction_2026: Math.round(pdsDeduction2026 * 100) / 100,
-                    cofinancing_2026: Math.round(pdsCofinancing2026 * 100) / 100,
-                    total_deductions: Math.round(pdsTotalDeductions * 100) / 100,
-                    total_cofinancing: Math.round(pdsTotalCofinancing * 100) / 100
-                },
-                nsj_benefits: {
-                    annual_premium: Math.round(nsjAnnualPremium * 100) / 100,
-                    deduction_2026: Math.round(nsjDeduction2026 * 100) / 100,
-                    total_deductions: Math.round(nsjTotalDeductions * 100) / 100
-                },
-                totals: {
-                    deduction_2026: totalDeduction2026,
-                    cofinancing_2026: totalCofinancing2026,
-
-                    total_deductions: totalDeductionsAll,
-                    total_cofinancing: totalCofinancingAll,
-
-                    total_state_benefits: Math.round((totalDeductionsAll + totalCofinancingAll) * 100) / 100
-                }
-            };
-        }
-
-        _generateConsolidatedPortfolio(results) {
-            const assetsMap = {};
-            const flowsMap = {};
-            let totalInitial = 0;
-            let totalMonthly = 0;
-
-            results.forEach(res => {
-                if (!res.details) return;
-
-                // Special handling for LIFE goals (NSJ/ISJ) which don't have standard instruments
-                if (res.goal_type === 'LIFE' || res.goal_id === 5) {
-                    const programName = res.details.program_name || res.goal_name || 'Страхование жизни';
-
-                    // Asset (Initial Capital)
-                    const initialCap = res.summary?.initial_capital || 0;
-                    if (initialCap > 0) {
-                        if (!assetsMap[programName]) assetsMap[programName] = { amount: 0, weightedYieldSum: 0 };
-                        assetsMap[programName].amount += initialCap;
-                        const yieldP = res.summary?.investment_yield_percent || 0;
-                        assetsMap[programName].weightedYieldSum += (initialCap * yieldP);
-                        totalInitial += initialCap;
-                    }
-
-                    // Cash Flow (Monthly allocation)
-                    const annualPrem = res.details?.annual_premium || 0;
-                    if (annualPrem > 0) {
-                        // User requested: divide by period. Since this is "Consolidated Portfolio" (usually monthly view),
-                        // we convert annual premium to monthly burden: / 12.
-                        const monthlyAmount = annualPrem / 12;
-                        const freq = res.summary?.premium_frequency || 'monthly';
-
-                        if (!flowsMap[programName]) flowsMap[programName] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
-                        flowsMap[programName].amount += monthlyAmount;
-                        const yieldP = res.summary?.investment_yield_percent || 0;
-                        flowsMap[programName].weightedYieldSum += (monthlyAmount * yieldP);
-                        totalMonthly += monthlyAmount;
-                    }
-
-                    return; // Skip standard instrument logic for this goal
-                }
-
-                // Strategy to find instruments:
-                // 1. details.instruments (Unified standard for Investment, Other, Rent, FinReserve)
-                // 2. details.portfolio_structure.initial_instruments (Pension)
-                // 3. details.initial_capital_instruments (Legacy / Life)
-                // 4. details.portfolio.instruments (Legacy)
-
-                let initialInstrs = [];
-                let monthlyInstrs = [];
-
-                // Try to find Initial Capital Instruments
-                if (res.details.portfolio_structure && Array.isArray(res.details.portfolio_structure.initial_instruments)) {
-                    initialInstrs = res.details.portfolio_structure.initial_instruments;
-                } else if (res.details.initial_capital_instruments) {
-                    initialInstrs = res.details.initial_capital_instruments;
-                } else if (res.details.initial_instruments) {
-                    initialInstrs = res.details.initial_instruments;
-                } else if (Array.isArray(res.details.instruments)) {
-                    // Use summary.initial_capital to determine amount if needed, or use instrument amount
-                    // If instruments are generic, we assume they apply to initial capital proportional to share?
-                    // Or we look for specific bucket?
-                    // Better: use instruments as is, but check if they have 'amount'
-                    const goalInitial = res.summary?.initial_capital || 0;
-                    initialInstrs = res.details.instruments.map(i => ({
-                        ...i,
-                        amount: (i.amount !== undefined) ? i.amount : (goalInitial * (i.share / 100))
-                    }));
-                } else if (res.details.portfolio && Array.isArray(res.details.portfolio.instruments)) {
-                    const goalInitial = res.summary?.initial_capital || 0;
-                    initialInstrs = res.details.portfolio.instruments.map(i => ({
-                        ...i,
-                        amount: (i.amount !== undefined) ? i.amount : (goalInitial * (i.share / 100))
-                    }));
-                }
-
-                // Try to find Monthly Instruments
-                if (res.details.portfolio_structure && Array.isArray(res.details.portfolio_structure.monthly_instruments)) {
-                    monthlyInstrs = res.details.portfolio_structure.monthly_instruments;
-                } else if (res.details.monthly_savings_instruments) {
-                    monthlyInstrs = res.details.monthly_savings_instruments;
-                } else if (res.details.monthly_instruments) {
-                    monthlyInstrs = res.details.monthly_instruments;
-                } else if (Array.isArray(res.details.instruments) && (res.summary?.monthly_replenishment > 0)) {
-                    const goalMonthly = res.summary.monthly_replenishment;
-                    monthlyInstrs = res.details.instruments.map(i => ({
-                        ...i,
-                        amount: (goalMonthly * (i.share / 100)) // Re-calculate for monthly flow
-                    }));
-                }
-
-                // Aggregate Assets
-                initialInstrs.forEach(inst => {
-                    const name = inst.name || 'Unknown';
-                    const amt = inst.amount || 0;
-                    const yieldP = inst.yield || 0;
-
-                    if (!assetsMap[name]) assetsMap[name] = { amount: 0, weightedYieldSum: 0 };
-                    assetsMap[name].amount += amt;
-                    assetsMap[name].weightedYieldSum += (amt * yieldP);
-                    totalInitial += amt;
-                });
-
-                // Aggregate Flows
-                monthlyInstrs.forEach(inst => {
-                    const name = inst.name || 'Unknown';
-                    const amt = inst.amount || 0; // Monthly amount
-                    const yieldP = inst.yield || 0;
-                    const freq = inst.payment_frequency || 'monthly'; // Track frequency
-
-                    if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
-                    flowsMap[name].amount += amt;
-                    flowsMap[name].weightedYieldSum += (amt * yieldP);
-                    // Keep the payment_frequency from instrument (prefer non-monthly if specified)
-                    if (freq !== 'monthly' && flowsMap[name].payment_frequency === 'monthly') {
-                        flowsMap[name].payment_frequency = freq;
-                    }
-                    totalMonthly += amt;
-                });
-            });
-
-            const assetsAllocation = Object.keys(assetsMap).map(name => {
-                const data = assetsMap[name];
-                return {
-                    name,
-                    amount: Math.round(data.amount * 100) / 100,
-                    share: totalInitial > 0 ? Math.round((data.amount / totalInitial) * 100) : 0,
-                    yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0
-                };
-            }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);
-
-            const cashFlowAllocation = Object.keys(flowsMap).map(name => {
-                const data = flowsMap[name];
-                return {
-                    name,
-                    amount: Math.round(data.amount * 100) / 100,
-                    share: totalMonthly > 0 ? Math.round((data.amount / totalMonthly) * 100) : 0,
-                    yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0,
-                    payment_frequency: data.payment_frequency || 'monthly' // Default to monthly if not specified
-                };
-            }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);
-
-            return {
-                total_initial_capital: Math.round(totalInitial * 100) / 100,
-                total_monthly_replenishment: Math.round(totalMonthly * 100) / 100,
-                assets_allocation: assetsAllocation,
-                cash_flow_allocation: cashFlowAllocation
-            };
-        }
+            }
+        };
     }
+
+    /**
+     * Generate Tax Benefits Summary (PDS + NSJ)
+     * Aggregates tax deductions and cofinancing from all goals for frontend display
+     */
+    _generateTaxBenefitsSummary(results) {
+        let pdsTotalDeductions = 0;
+        let pdsTotalCofinancing = 0;
+
+        let nsjAnnualPremium = 0;
+        let nsjDeduction2026 = 0;
+        let nsjTotalDeductions = 0;
+
+        let pdsDeduction2026 = 0;
+        let pdsCofinancing2026 = 0;
+
+        // Collect from all goals
+        results.forEach(result => {
+            if (result.details) {
+                // PDS tax refunds (from Pension, Passive Income, Investment goals)
+                const taxRef = result.details.total_tax_deductions_nominal || result.details.total_tax_refund || result.summary?.total_tax_benefit || 0;
+                // Avoid double counting if using summary (which includes NSJ for LIFE, but here we want PDS? No, summary is total per goal)
+                // Actually, strict logic:
+                // If goal is LIFE, tax benefit is NSJ.
+                // If goal is NOT LIFE, tax benefit is likely PDS/IIS.
+
+                if (result.goal_id === 5 || result.goal_type === 'LIFE') {
+                    // NSJ Logic handled below
+                } else {
+                    pdsTotalDeductions += taxRef;
+                }
+
+                // PDS cofinancing
+                const cofin = result.details.total_cofinancing_nominal || result.details.total_cofinancing || result.summary?.total_cofinancing || 0;
+                pdsTotalCofinancing += cofin;
+
+                // NSJ from Life goal
+                if (result.goal_id === 5 || result.goal_type === 'LIFE') {
+                    nsjAnnualPremium = result.details.annual_premium || 0;
+                    nsjDeduction2026 = result.details.tax_deduction_2026 || 0;
+                    // Check summary if details missing
+                    nsjTotalDeductions = result.details.total_tax_deductions || result.summary?.total_tax_benefit || 0;
+                }
+
+                // 'yearly_breakdown' might be missing in new Unified Calc. 
+                // If so, 2026 prediction will be 0. This is a known limitation of the simplified output.
+                if (result.details.yearly_breakdown && Array.isArray(result.details.yearly_breakdown)) {
+                    // PDS benefits for Year X are received in Year X+1.
+                    // To show "Benefits for 2026", we look at cash flows in 2027.
+                    const year2027 = result.details.yearly_breakdown.find(y => y.year === 2027);
+                    if (year2027) {
+                        pdsDeduction2026 += (year2027.tax_refund_projected || 0);
+                        pdsCofinancing2026 += (year2027.cofinancing_for_year || 0);
+                    }
+                }
+            }
+        });
+
+        const totalDeduction2026 = Math.round((pdsDeduction2026 + nsjDeduction2026) * 100) / 100;
+        const totalCofinancing2026 = Math.round(pdsCofinancing2026 * 100) / 100;
+
+        const totalDeductionsAll = Math.round((pdsTotalDeductions + nsjTotalDeductions) * 100) / 100;
+        const totalCofinancingAll = Math.round(pdsTotalCofinancing * 100) / 100;
+
+        return {
+            pds_benefits: {
+                deduction_2026: Math.round(pdsDeduction2026 * 100) / 100,
+                cofinancing_2026: Math.round(pdsCofinancing2026 * 100) / 100,
+                total_deductions: Math.round(pdsTotalDeductions * 100) / 100,
+                total_cofinancing: Math.round(pdsTotalCofinancing * 100) / 100
+            },
+            nsj_benefits: {
+                annual_premium: Math.round(nsjAnnualPremium * 100) / 100,
+                deduction_2026: Math.round(nsjDeduction2026 * 100) / 100,
+                total_deductions: Math.round(nsjTotalDeductions * 100) / 100
+            },
+            totals: {
+                deduction_2026: totalDeduction2026,
+                cofinancing_2026: totalCofinancing2026,
+
+                total_deductions: totalDeductionsAll,
+                total_cofinancing: totalCofinancingAll,
+
+                total_state_benefits: Math.round((totalDeductionsAll + totalCofinancingAll) * 100) / 100
+            }
+        };
+    }
+
+    _generateConsolidatedPortfolio(results) {
+        const assetsMap = {};
+        const flowsMap = {};
+        let totalInitial = 0;
+        let totalMonthly = 0;
+
+        results.forEach(res => {
+            if (!res.details) return;
+
+            // Special handling for LIFE goals (NSJ/ISJ) which don't have standard instruments
+            if (res.goal_type === 'LIFE' || res.goal_id === 5) {
+                const programName = res.details.program_name || res.goal_name || 'Страхование жизни';
+
+                // Asset (Initial Capital)
+                const initialCap = res.summary?.initial_capital || 0;
+                if (initialCap > 0) {
+                    if (!assetsMap[programName]) assetsMap[programName] = { amount: 0, weightedYieldSum: 0 };
+                    assetsMap[programName].amount += initialCap;
+                    const yieldP = res.summary?.investment_yield_percent || 0;
+                    assetsMap[programName].weightedYieldSum += (initialCap * yieldP);
+                    totalInitial += initialCap;
+                }
+
+                // Cash Flow (Monthly allocation)
+                const annualPrem = res.details?.annual_premium || 0;
+                if (annualPrem > 0) {
+                    // User requested: divide by period. Since this is "Consolidated Portfolio" (usually monthly view),
+                    // we convert annual premium to monthly burden: / 12.
+                    const monthlyAmount = annualPrem / 12;
+                    const freq = res.summary?.premium_frequency || 'monthly';
+
+                    if (!flowsMap[programName]) flowsMap[programName] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
+                    flowsMap[programName].amount += monthlyAmount;
+                    const yieldP = res.summary?.investment_yield_percent || 0;
+                    flowsMap[programName].weightedYieldSum += (monthlyAmount * yieldP);
+                    totalMonthly += monthlyAmount;
+                }
+
+                return; // Skip standard instrument logic for this goal
+            }
+
+            // Strategy to find instruments:
+            // 1. details.instruments (Unified standard for Investment, Other, Rent, FinReserve)
+            // 2. details.portfolio_structure.initial_instruments (Pension)
+            // 3. details.initial_capital_instruments (Legacy / Life)
+            // 4. details.portfolio.instruments (Legacy)
+
+            let initialInstrs = [];
+            let monthlyInstrs = [];
+
+            // Try to find Initial Capital Instruments
+            if (res.details.portfolio_structure && Array.isArray(res.details.portfolio_structure.initial_instruments)) {
+                initialInstrs = res.details.portfolio_structure.initial_instruments;
+            } else if (res.details.initial_capital_instruments) {
+                initialInstrs = res.details.initial_capital_instruments;
+            } else if (res.details.initial_instruments) {
+                initialInstrs = res.details.initial_instruments;
+            } else if (Array.isArray(res.details.instruments)) {
+                // Use summary.initial_capital to determine amount if needed, or use instrument amount
+                // If instruments are generic, we assume they apply to initial capital proportional to share?
+                // Or we look for specific bucket?
+                // Better: use instruments as is, but check if they have 'amount'
+                const goalInitial = res.summary?.initial_capital || 0;
+                initialInstrs = res.details.instruments.map(i => ({
+                    ...i,
+                    amount: (i.amount !== undefined) ? i.amount : (goalInitial * (i.share / 100))
+                }));
+            } else if (res.details.portfolio && Array.isArray(res.details.portfolio.instruments)) {
+                const goalInitial = res.summary?.initial_capital || 0;
+                initialInstrs = res.details.portfolio.instruments.map(i => ({
+                    ...i,
+                    amount: (i.amount !== undefined) ? i.amount : (goalInitial * (i.share / 100))
+                }));
+            }
+
+            // Try to find Monthly Instruments
+            if (res.details.portfolio_structure && Array.isArray(res.details.portfolio_structure.monthly_instruments)) {
+                monthlyInstrs = res.details.portfolio_structure.monthly_instruments;
+            } else if (res.details.monthly_savings_instruments) {
+                monthlyInstrs = res.details.monthly_savings_instruments;
+            } else if (res.details.monthly_instruments) {
+                monthlyInstrs = res.details.monthly_instruments;
+            } else if (Array.isArray(res.details.instruments) && (res.summary?.monthly_replenishment > 0)) {
+                const goalMonthly = res.summary.monthly_replenishment;
+                monthlyInstrs = res.details.instruments.map(i => ({
+                    ...i,
+                    amount: (goalMonthly * (i.share / 100)) // Re-calculate for monthly flow
+                }));
+            }
+
+            // Aggregate Assets
+            initialInstrs.forEach(inst => {
+                const name = inst.name || 'Unknown';
+                const amt = inst.amount || 0;
+                const yieldP = inst.yield || 0;
+
+                if (!assetsMap[name]) assetsMap[name] = { amount: 0, weightedYieldSum: 0 };
+                assetsMap[name].amount += amt;
+                assetsMap[name].weightedYieldSum += (amt * yieldP);
+                totalInitial += amt;
+            });
+
+            // Aggregate Flows
+            monthlyInstrs.forEach(inst => {
+                const name = inst.name || 'Unknown';
+                const amt = inst.amount || 0; // Monthly amount
+                const yieldP = inst.yield || 0;
+                const freq = inst.payment_frequency || 'monthly'; // Track frequency
+
+                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
+                flowsMap[name].amount += amt;
+                flowsMap[name].weightedYieldSum += (amt * yieldP);
+                // Keep the payment_frequency from instrument (prefer non-monthly if specified)
+                if (freq !== 'monthly' && flowsMap[name].payment_frequency === 'monthly') {
+                    flowsMap[name].payment_frequency = freq;
+                }
+                totalMonthly += amt;
+            });
+        });
+
+        const assetsAllocation = Object.keys(assetsMap).map(name => {
+            const data = assetsMap[name];
+            return {
+                name,
+                amount: Math.round(data.amount * 100) / 100,
+                share: totalInitial > 0 ? Math.round((data.amount / totalInitial) * 100) : 0,
+                yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0
+            };
+        }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);
+
+        const cashFlowAllocation = Object.keys(flowsMap).map(name => {
+            const data = flowsMap[name];
+            return {
+                name,
+                amount: Math.round(data.amount * 100) / 100,
+                share: totalMonthly > 0 ? Math.round((data.amount / totalMonthly) * 100) : 0,
+                yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0,
+                payment_frequency: data.payment_frequency || 'monthly' // Default to monthly if not specified
+            };
+        }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);
+
+        return {
+            total_initial_capital: Math.round(totalInitial * 100) / 100,
+            total_monthly_replenishment: Math.round(totalMonthly * 100) / 100,
+            assets_allocation: assetsAllocation,
+            cash_flow_allocation: cashFlowAllocation
+        };
+    }
+}
 
 module.exports = new CalculationService();
