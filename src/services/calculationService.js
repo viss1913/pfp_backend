@@ -517,10 +517,12 @@ class CalculationService {
                 // 'yearly_breakdown' might be missing in new Unified Calc. 
                 // If so, 2026 prediction will be 0. This is a known limitation of the simplified output.
                 if (result.details.yearly_breakdown && Array.isArray(result.details.yearly_breakdown)) {
-                    const year2026 = result.details.yearly_breakdown.find(y => y.year === 2026);
-                    if (year2026) {
-                        pdsDeduction2026 += (year2026.tax_refund_projected || 0);
-                        pdsCofinancing2026 += (year2026.cofinancing_for_year || 0);
+                    // PDS benefits for Year X are received in Year X+1.
+                    // To show "Benefits for 2026", we look at cash flows in 2027.
+                    const year2027 = result.details.yearly_breakdown.find(y => y.year === 2027);
+                    if (year2027) {
+                        pdsDeduction2026 += (year2027.tax_refund_projected || 0);
+                        pdsCofinancing2026 += (year2027.cofinancing_for_year || 0);
                     }
                 }
             }

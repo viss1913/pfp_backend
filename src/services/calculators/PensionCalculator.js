@@ -283,7 +283,8 @@ class PensionCalculator extends BaseCalculator {
                 payout_yield_percent: payoutYieldPercent,
 
                 state_pension_monthly_future: Math.round(statePensionResult.state_pension_monthly_future * 100) / 100,
-                state_pension_monthly_today: Math.round(statePensionResult.state_pension_monthly_current * 100) / 100
+                state_pension_monthly_today: Math.round(statePensionResult.state_pension_monthly_current * 100) / 100,
+                ipk_current: statePensionResult.ipk_current
             },
             details: {
                 state_pension: {
@@ -301,7 +302,8 @@ class PensionCalculator extends BaseCalculator {
                 portfolio_structure: {
                     initial_instruments: initial_instruments,
                     monthly_instruments: monthly_instruments
-                }
+                },
+                yearly_breakdown: simResult.yearlyBreakdown
             }
         };
     }
