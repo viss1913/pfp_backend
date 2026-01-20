@@ -1,5 +1,11 @@
 {
     "client_id": 67,
+    "client_profile": {
+        "age": 35,
+        "sex": "male",
+        "avg_monthly_income": 100000,
+        "assets": []
+    },
     "calculation": {
         "summary": {
             "goals_count": 4,

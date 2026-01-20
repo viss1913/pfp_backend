@@ -32,7 +32,7 @@ class PensionCalculator extends BaseCalculator {
         }
 
         let ipkSoFar = 0;
-        if (client.ipk_current !== null && client.ipk_current !== undefined) {
+        if (client.ipk_current !== null && client.ipk_current !== undefined && Number(client.ipk_current) > 0) {
             ipkSoFar = Number(client.ipk_current);
         } else {
             const pensionIpkPastCoef = systemSettings.pension_ipk_past_coef || 0.6;
