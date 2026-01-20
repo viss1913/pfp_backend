@@ -412,6 +412,11 @@ class CalculationService {
                 const calculator = (typeof CalculatorClass === 'function') ? new CalculatorClass() : CalculatorClass;
 
                 const result = await calculator.calculate(goal, context);
+
+                // Inject common fields if missing
+                if (!result.goal_name && goal.name) result.goal_name = goal.name;
+                if (!result.goal_id && goal.id) result.goal_id = goal.id;
+
                 resultsIndexed.push({ index, result });
             } catch (err) {
                 console.error(`Calculation error for goal ${goal.name}:`, err);

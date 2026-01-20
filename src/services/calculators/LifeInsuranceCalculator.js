@@ -141,6 +141,9 @@ class LifeInsuranceCalculator extends BaseCalculator {
             },
             details: {
                 program_name: nsjResult.program || goal.program || 'Страхование жизни',
+                annual_premium: annualPremium,
+                tax_deduction_2026: Math.round(taxDeduction2026 * 100) / 100,
+                total_tax_deductions: Math.round(totalTaxDeductions * 100) / 100,
                 risks: risks
             }
         };
