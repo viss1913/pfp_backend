@@ -287,6 +287,11 @@ class PensionCalculator extends BaseCalculator {
         if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;
 
         const pensionFromCapitalMonthlyFuture = (simResult.totalCapital * (payoutYieldPercent / 100)) / 12;
+        const totalPensionMonthlyFuture = pensionFromCapitalMonthlyFuture + statePensionResult.state_pension_monthly_future;
+
+        // Discount to Present Value (Today's buying power)
+        const inflationFactor = Math.pow(1 + (inflationAnnualUsed / 100), statePensionResult.years_to_pension);
+        const totalPensionMonthlyPresent = totalPensionMonthlyFuture / inflationFactor;
 
         if (initial_instruments && initial_instruments.length > 0 && initialCapital > 0) {
             initial_instruments.forEach(inst => {
@@ -308,8 +313,12 @@ class PensionCalculator extends BaseCalculator {
             goal_type: 'PENSION',
             summary: {
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
-                target_amount_future: Math.round(desiredPensionMonthlyFuture * 100) / 100,
+                target_amount_initial: Math.round((goal.target_amount || totalPensionMonthlyPresent) * 100) / 100,
+                target_amount_future: Math.round((desiredPensionMonthlyFuture || totalPensionMonthlyFuture) * 100) / 100,
+
+                projected_pension_monthly_future: Math.round(totalPensionMonthlyFuture * 100) / 100,
+                projected_pension_monthly_present: Math.round(totalPensionMonthlyPresent * 100) / 100,
+
                 inflation_rate: Math.round(pensionSettings.inflation_rate * 100) / 100,
 
                 initial_capital: Math.round(displayedInitialCapitalOwn * 100) / 100,
