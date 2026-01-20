@@ -1,0 +1,193 @@
+openapi: 3.0.0
+info:
+  title: PFP Recalculation API
+  version: 1.0.0
+  description: |
+    API for recalculating the user's financial plan when goals or client parameters change.
+    
+    # API Пересчета Финансового Плана (ПФП)
+    Этот метод используется, когда пользователь меняет параметры цели (например, хочет дом подешевле) или свои данные (изменился доход).
+    
+    **Ключевые особенности:**
+    *   **Умное слияние:** Можно прислать только измененные поля. Остальное возьмется из базы.
+    *   **Smart Allocation:** После изменения любой цели запускается алгоритм перераспределения свободных денег. Изменение одной цели может повлиять на достижимость других!
+    *   **Формат ответа:** Абсолютно такой же, как при первом расчете (`firstRun`).
+
+servers:
+  - url: /api
+paths:
+  /client/{id}/recalculate:
+    post:
+      summary: Recalculate Financial Plan (Пересчитать ПФП)
+      description: |
+        Triggers a full recalculation of the financial plan.
+        
+        **Логика работы:**
+        1.  Берем текущие данные клиента из БД.
+        2.  ОБНОВЛЯЕМ их тем, что пришло в `client` (например, новый доход).
+        3.  Берем текущие цели из БД.
+        4.  ОБНОВЛЯЕМ их списком `goals`. Если ID совпадает — обновляем цель. Если ID нет — создаем новую.
+        5.  Запускаем полный цикл расчета (`calculateFirstRun`).
+        6.  Возвращаем полный обновленный план.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: ID Клиента
+      requestBody:
+        description: |
+          Частичное обновление профиля и списка целей.
+          Пример: "Клиент стал зарабатывать 300к и хочет изменить цель Пенсия".
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client:
+                  type: object
+                  description: Параметры клиента (опционально).
+                  properties:
+                    avg_monthly_income:
+                      type: number
+                      description: "Среднемесячный доход (влияет на ПДС и доступность целей)."
+                    total_liquid_capital:
+                      type: number
+                      description: "Свободный капитал (деньги 'на руках'). Влияет на Smart Allocation."
+                    ipk_current:
+                      type: number
+                      description: "Текущий пенсионный балл (ИПК). Влияет на расчет госпенсии."
+                  example:
+                    avg_monthly_income: 250000
+                    total_liquid_capital: 5000000
+                    ipk_current: 76.2
+                goals:
+                  type: array
+                  description: Список целей для обновления. Можно прислать одну, можно все.
+                  items:
+                    $ref: '#/components/schemas/GoalInput'
+      responses:
+        '200':
+          description: Успешный пересчет. Возвращает полную структуру плана.
+          content:
+            application/json:
+              schema:
+                $ref: './openapi/pfp-api-v1.2.yaml#/components/schemas/CalculationResponse' 
+
+components:
+  schemas:
+    GoalInput:
+      type: object
+      description: "Входные данные цели. Зависят от `goal_type_id`."
+      discriminator:
+        propertyName: goal_type_id
+      oneOf:
+        - $ref: '#/components/schemas/PensionGoalInput'
+        - $ref: '#/components/schemas/PassiveIncomeGoalInput'
+        - $ref: '#/components/schemas/InvestmentGoalInput'
+        - $ref: '#/components/schemas/MajorPurchaseGoalInput'
+        - $ref: '#/components/schemas/LifeInsuranceGoalInput'
+        - $ref: '#/components/schemas/FinReserveGoalInput'
+        - $ref: '#/components/schemas/RentGoalInput'
+
+    # --- 1. PENSION (ID=1) ---
+    PensionGoalInput:
+      type: object
+      description: |
+        **Госпенсия (ID=1)**
+        
+        **РЕЖИМЫ РАСЧЕТА:**
+        1. **Обратный (Standard):** Вы не передаете `monthly_replenishment` (или шлете 0). Мы считаем, сколько НАДО откладывать, чтобы получить `target_amount`.
+        2. **Прямой (Direct):** Вы передаете `monthly_replenishment > 0` (например, 5000р). Мы считаем, какая будет пенсия при таком взносе. Поле `target_amount` игнорируется при расчете, но используется для сравнения (Гап).
+      properties:
+        goal_type_id: { type: integer, enum: [1] }
+        id: { type: integer, description: "ID цели (если обновляем существующую)" }
+        target_amount: { type: number, description: "Желаемая пенсия в месяц (используется как ЦЕЛЬ в Обратном режиме)" }
+        inflation_rate: { type: number, description: "Ожидаемая инфляция (%)" }
+        initial_capital: { type: number, description: "Личный стартовый капитал (руб)" }
+        ops_capital: { type: number, description: "Накопления в ОПС/НПФ (руб)" }
+        risk_profile: { type: string, enum: [CONSERVATIVE, BALANCED, AGGRESSIVE], description: "Риск-профиль стратегии" }
+        monthly_replenishment: { type: number, description: "ВАЖНО: Если > 0, включается ПРЯМОЙ РАСЧЕТ (сколько накопим с этим взносом?). Если 0, включается ОБРАТНЫЙ (сколько надо откладывать?)." }
+
+    # --- 2. PASSIVE INCOME (ID=2) ---
+    PassiveIncomeGoalInput:
+      type: object
+      description: |
+        **Пассивный доход / Рантье (ID=2)**
+        
+        **РЕЖИМЫ РАСЧЕТА:**
+        1. **Обратный:** `monthly_replenishment = 0`. Считаем, сколько надо откладывать, чтобы получать желаемую ренту (`target_amount`).
+        2. **Прямой:** `monthly_replenishment > 0`. Считаем, какой капитал (и какую ренту) мы накопим при таком взносе.
+      properties:
+        goal_type_id: { type: integer, enum: [2] }
+        id: { type: integer }
+        target_amount: { type: number, description: "Желаемый доход (для Обратного режима)" }
+        term_months: { type: integer, description: "Срок" }
+        initial_capital: { type: number }
+        risk_profile: { type: string, enum: [CONSERVATIVE, BALANCED, AGGRESSIVE] }
+        monthly_replenishment: { type: number, description: "Если > 0, включается ПРЯМОЙ РАСЧЕТ." }
+
+    # --- 3. INVESTMENT (ID=3) ---
+    InvestmentGoalInput:
+      type: object
+      description: |
+        **Инвестиции (ID=3)**
+        Всегда работает в Прямом режиме: "Сколько накопим, если будем откладывать Х?".
+      properties:
+        goal_type_id: { type: integer, enum: [3] }
+        id: { type: integer }
+        term_months: { type: integer }
+        initial_capital: { type: number }
+        monthly_replenishment: { type: number, description: "Сумма ежемесячного пополнения" }
+        risk_profile: { type: string }
+
+    # --- 4. MAJOR PURCHASE (ID=4) ---
+    MajorPurchaseGoalInput:
+      type: object
+      description: |
+        **Крупная покупка (ID=4)**
+        
+        **РЕЖИМЫ РАСЧЕТА:**
+        1. **Обратный:** `monthly_replenishment = 0`. Считаем взнос, чтобы купить дом за `target_amount`.
+        2. **Прямой:** `monthly_replenishment > 0`. Считаем, сколько накопим на дом при таком взносе.
+      properties:
+        goal_type_id: { type: integer, enum: [4] }
+        id: { type: integer }
+        target_amount: { type: number, description: "Цена покупки сегодня" }
+        term_months: { type: integer }
+        inflation_rate: { type: number }
+        initial_capital: { type: number }
+        risk_profile: { type: string }
+        monthly_replenishment: { type: number, description: "Если > 0, включается ПРЯМОЙ РАСЧЕТ." }
+
+    # --- 5. LIFE INSURANCE (ID=5) ---
+    LifeInsuranceGoalInput:
+      type: object
+      properties:
+        goal_type_id: { type: integer, enum: [5] }
+        id: { type: integer }
+        target_amount: { type: number }
+        term_months: { type: integer }
+        payment_variant: { type: integer }
+        program: { type: string }
+
+    # --- 7. FINANCIAL RESERVE (ID=7) ---
+    FinReserveGoalInput:
+      type: object
+      properties:
+        goal_type_id: { type: integer, enum: [7] }
+        id: { type: integer }
+        term_months: { type: integer }
+        monthly_replenishment: { type: number }
+        initial_capital: { type: number }
+
+    # --- 8. RENT (ID=8) ---
+    RentGoalInput:
+      type: object
+      properties:
+        goal_type_id: { type: integer, enum: [8] }
+        id: { type: integer }
+        initial_capital: { type: number }
+        risk_profile: { type: string }
