@@ -208,34 +208,80 @@ class PensionCalculator extends BaseCalculator {
                     weightedYieldAnnual += (productYield * (item.share_percent / 100));
                 } else if (bType === 'MONTHLY_SAVINGS' || bType === 'TOP_UP') {
                     monthly_instruments.push(instrumentData);
+                    // monthly_instruments.push(instrumentData); // This will be handled later
                 }
             }
         }
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
         const indexationRateDecimal = (settings.investment_expense_growth_monthly || 0.1) / 100;
+        // SIMULATION
+        let simResult;
+        let recommendedReplenishment = 0;
 
-        const recommendedReplenishment = await this.simulateGoal({
-            initialCapital: initialCapital,
-            targetAmountFuture: requiredCapitalFuture,
-            termMonths: monthsToPension,
-            monthlyYieldRate: yieldMonthly,
-            indexationRate: indexationRateDecimal,
-            pdsProductId,
-            avgMonthlyIncome: client.avg_monthly_income,
-            startDate: new Date()
-        }, context);
+        // Check if user provided a fixed replenishment (Direct Calculation)
+        // We prioritize explicit input over target-based calculation
+        if (goal.monthly_replenishment && goal.monthly_replenishment > 0) {
+            console.log(`[PensionCalculator] using Direct Calculation with monthly_replenishment=${goal.monthly_replenishment}`);
+            recommendedReplenishment = Number(goal.monthly_replenishment);
 
-        const simResult = await this.runSimulation({
-            initialCapital: initialCapital,
-            monthlyReplenishment: recommendedReplenishment,
-            termMonths: monthsToPension,
-            monthlyYieldRate: yieldMonthly,
-            indexationRate: indexationRateDecimal,
-            pdsProductId,
-            avgMonthlyIncome: client.avg_monthly_income,
-            startDate: new Date()
-        }, context);
+            simResult = await this.runSimulation({
+                initialCapital: initialCapital, // After deduction from pool
+                monthlyReplenishment: recommendedReplenishment,
+                termMonths: monthsToPension,
+                monthlyYieldRate: this.getMonthlyYield(weightedYieldAnnual),
+                indexationRate: infl_month_decimal,
+                totalTargetAmount: desiredPensionMonthlyFuture, // Passed for logging/check, not used in direct flow
+                avgMonthlyIncome: clientWithIncome.avg_monthly_income,
+                pdsProductId: pdsProductId
+            }, context);
+
+        } else {
+            // Reverse Calculation: Find required replenishment to meet Target Pension
+            // We need to cover the Gap
+            // const requiredCapitalFuture = (pensionGapMonthlyFuture * 12 * 100) / payoutYieldPercent; // Already calculated above
+
+            recommendedReplenishment = await this.simulateGoal({
+                targetAmountFuture: requiredCapitalFuture,
+                initialCapital: initialCapital,
+                termMonths: monthsToPension,
+                monthlyYieldRate: this.getMonthlyYield(weightedYieldAnnual),
+                indexationRate: infl_month_decimal,
+                pdsProductId: pdsProductId,
+                avgMonthlyIncome: clientWithIncome.avg_monthly_income
+            }, context);
+
+            // Re-run simulation with the found replenishment to get full details (breakdown, tax benefits)
+            simResult = await this.runSimulation({
+                initialCapital: initialCapital,
+                monthlyReplenishment: recommendedReplenishment,
+                termMonths: monthsToPension,
+                monthlyYieldRate: this.getMonthlyYield(weightedYieldAnnual),
+                indexationRate: infl_month_decimal,
+                totalTargetAmount: requiredCapitalFuture,
+                avgMonthlyIncome: clientWithIncome.avg_monthly_income,
+                pdsProductId: pdsProductId
+            }, context);
+        }
+
+        // Fill instruments
+        if (pdsProductId) {
+            // If PDS, it's usually 100% share
+            initial_instruments.push({
+                name: 'ПДС НПФ (Updated)',
+                share: 100,
+                yield: weightedYieldAnnual,
+                amount: initialCapital
+            });
+            if (recommendedReplenishment > 0) {
+                monthly_instruments.push({
+                    name: 'ПДС НПФ (Updated)',
+                    share: 100,
+                    yield: weightedYieldAnnual,
+                    amount: recommendedReplenishment
+                });
+            }
+        }
 
         if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
         if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;

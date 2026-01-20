@@ -47,8 +47,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
         // 5. Simulation logic
         let recommendedReplenishment = 0;
         let finalSimResult;
-        let requiredCapitalFuture = 0; // Will be set if reverse calculation
-        let projectedMonthlyIncomeFuture = 0; // Will be set after simulation
+        let projectedMonthlyIncomeFuture = desiredMonthlyIncomeFuture; // Default: target is met
 
         const termMonths = goal.term_months;
         const yieldMonthly = d_month_decimal;

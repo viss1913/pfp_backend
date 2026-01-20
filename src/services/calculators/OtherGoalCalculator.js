@@ -128,29 +128,54 @@ class OtherGoalCalculator extends BaseCalculator {
 
         const effectiveInitialCapital = initialCapital + allocatedInitialCapital;
 
-        const recommendedReplenishment = await this.simulateGoal({
-            initialCapital: effectiveInitialCapital,
-            targetAmountFuture: targetAmountFuture,
-            termMonths: termMonths,
-            monthlyYieldRate: yieldMonthly,
-            indexationRate: indexationRate,
-            pdsProductId,
-            avgMonthlyIncome: client.avg_monthly_income,
-            startDate: new Date(),
-            inflows: inflowData.allInflows
-        }, context);
+        // 3. Simulation
+        let recommendedReplenishment = 0;
+        let simResult;
 
-        const simResult = await this.runSimulation({
-            initialCapital: effectiveInitialCapital,
-            monthlyReplenishment: recommendedReplenishment,
-            termMonths: termMonths,
-            monthlyYieldRate: yieldMonthly,
-            indexationRate: indexationRate,
-            pdsProductId,
-            avgMonthlyIncome: client.avg_monthly_income,
-            startDate: new Date(),
-            inflows: inflowData.allInflows
-        }, context);
+        // DIRECT CALCULATION (Forward)
+        if (goal.monthly_replenishment && goal.monthly_replenishment > 0) {
+            recommendedReplenishment = Number(goal.monthly_replenishment);
+
+            simResult = await this.runSimulation({
+                initialCapital: effectiveInitialCapital,
+                monthlyReplenishment: recommendedReplenishment,
+                termMonths: termMonths,
+                monthlyYieldRate: yieldMonthly,
+                indexationRate: indexationRate,
+                pdsProductId,
+                avgMonthlyIncome: client.avg_monthly_income,
+                startDate: new Date(),
+                inflows: inflowData.allInflows,
+                totalTargetAmount: targetAmountFuture // Just for reference
+            }, context);
+        }
+        // REVERSE CALCULATION (Backward)
+        else {
+            recommendedReplenishment = await this.simulateGoal({
+                initialCapital: effectiveInitialCapital,
+                targetAmountFuture: targetAmountFuture,
+                termMonths: termMonths,
+                monthlyYieldRate: yieldMonthly,
+                indexationRate: indexationRate,
+                pdsProductId,
+                avgMonthlyIncome: client.avg_monthly_income,
+                startDate: new Date(),
+                inflows: inflowData.allInflows
+            }, context);
+
+            simResult = await this.runSimulation({
+                initialCapital: effectiveInitialCapital,
+                monthlyReplenishment: recommendedReplenishment,
+                termMonths: termMonths,
+                monthlyYieldRate: yieldMonthly,
+                indexationRate: indexationRate,
+                pdsProductId,
+                avgMonthlyIncome: client.avg_monthly_income,
+                startDate: new Date(),
+                inflows: inflowData.allInflows,
+                totalTargetAmount: targetAmountFuture
+            }, context);
+        }
 
         // ВАЖНО: После финального расчета по цели обновляем глобальные лимиты ПДС в контексте
         if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
@@ -191,7 +216,8 @@ class OtherGoalCalculator extends BaseCalculator {
             details: {
                 portfolio_id: portfolio.id,
                 portfolio_name: portfolio.name,
-                instruments: initial_instruments.length > 0 ? initial_instruments : monthly_instruments
+                instruments: initial_instruments.length > 0 ? initial_instruments : monthly_instruments,
+                yearly_breakdown: simResult.yearlyBreakdown
             }
         };
     }
