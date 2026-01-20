@@ -572,6 +572,38 @@ class CalculationService {
         results.forEach(res => {
             if (!res.details) return;
 
+            // Special handling for LIFE goals (NSJ/ISJ) which don't have standard instruments
+            if (res.goal_type === 'LIFE' || res.goal_id === 5) {
+                const programName = res.details.program_name || res.goal_name || 'Страхование жизни';
+
+                // Asset (Initial Capital)
+                const initialCap = res.summary?.initial_capital || 0;
+                if (initialCap > 0) {
+                    if (!assetsMap[programName]) assetsMap[programName] = { amount: 0, weightedYieldSum: 0 };
+                    assetsMap[programName].amount += initialCap;
+                    const yieldP = res.summary?.investment_yield_percent || 0;
+                    assetsMap[programName].weightedYieldSum += (initialCap * yieldP);
+                    totalInitial += initialCap;
+                }
+
+                // Cash Flow (Monthly allocation)
+                const annualPrem = res.details?.annual_premium || 0;
+                if (annualPrem > 0) {
+                    // User requested: divide by period. Since this is "Consolidated Portfolio" (usually monthly view),
+                    // we convert annual premium to monthly burden: / 12.
+                    const monthlyAmount = annualPrem / 12;
+                    const freq = res.summary?.premium_frequency || 'monthly';
+
+                    if (!flowsMap[programName]) flowsMap[programName] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
+                    flowsMap[programName].amount += monthlyAmount;
+                    const yieldP = res.summary?.investment_yield_percent || 0;
+                    flowsMap[programName].weightedYieldSum += (monthlyAmount * yieldP);
+                    totalMonthly += monthlyAmount;
+                }
+
+                return; // Skip standard instrument logic for this goal
+            }
+
             // Strategy to find instruments:
             // 1. details.instruments (Unified standard for Investment, Other, Rent, FinReserve)
             // 2. details.portfolio_structure.initial_instruments (Pension)

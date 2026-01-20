@@ -119,6 +119,9 @@ class BaseCalculator {
         currentDate.setMonth(currentDate.getMonth() + 1);
         const startYear = startDate.getFullYear();
         const yearlyContributions = {};
+        const yearly_breakdown_log = [];
+        const pdsEventsLog = {}; // Track {year: {cofin, refund}}
+
         if (initialCapital > 0) {
             yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + initialCapital;
         }
@@ -158,6 +161,27 @@ class BaseCalculator {
                 totalCofinancing += cofin;
                 totalTaxRefund += refund;
                 totalStateBenefit += (cofin + refund);
+
+                // Log per year
+                if (!pdsEventsLog[year]) pdsEventsLog[year] = { cofin: 0, refund: 0 };
+                pdsEventsLog[year].cofin += cofin;
+                pdsEventsLog[year].refund += refund;
+            }
+
+            // 4. Log for breakdown
+            if (month === 12 || m === termMonths) {
+                // Approximate yearly log at end of year (or end of term)
+                yearly_breakdown_log.push({
+                    year: year,
+                    month: month,
+                    tax_refund_projected: params.pdsProductId ? totalTaxRefund : 0, // Cumulative or yearly? Service expects yearly benefit for check?
+                    // actually CalculationService.js checks `year2026.tax_refund_projected`. 
+                    // To show "for 2026", we need the amount GENERATED in 2026 (received in 2027).
+                    // handlePdsEvents returns {cofin, refund} for that specific event.
+                    // We should track annual amounts.
+                    cofinancing_for_year: (pdsEventsLog[year]?.cofin || 0),
+                    tax_refund_projected: (pdsEventsLog[year]?.refund || 0)
+                });
             }
 
             currentDate.setMonth(currentDate.getMonth() + 1);
@@ -169,10 +193,11 @@ class BaseCalculator {
             totalStateBenefit,
             totalCofinancing,
             totalTaxRefund,
-            yearlyContributions,
-            // Возвращаем обновленные лимиты, чтобы CalculationService мог их применить ПОСЛЕ финального расчета
+            yearlyContributions: yearlyContributions,
+            // Возвращаем обновленные лимиты
             usedCofinancingPerYear: localUsedCofinancing,
-            usedTaxBasePerYear: localUsedTaxBase
+            usedTaxBasePerYear: localUsedTaxBase,
+            yearlyBreakdown: yearly_breakdown_log // Return the log
         };
     }
 
