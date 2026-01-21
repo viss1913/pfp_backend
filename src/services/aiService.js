@@ -20,8 +20,16 @@ class AiService {
      */
     async streamCompletion(messages, model, res) {
         if (!this.apiKey) {
+            console.error('❌ SILICONFLOW_API_KEY is missing');
             throw new Error('SILICONFLOW_API_KEY is not set');
         }
+
+        const effectiveModel = model || 'Qwen/Qwen2.5-7B-Instruct';
+        console.log(`🚀 Starting AI Request`);
+        console.log(`   Provider: SiliconFlow`);
+        console.log(`   Model: ${effectiveModel}`);
+        console.log(`   Key Configured: ${this.apiKey.startsWith('sk-') ? 'Yes (starts with sk-)' : 'WARNING: Key does not start with sk-'}`);
+        console.log(`   Key Length: ${this.apiKey.length}`);
 
         try {
             const response = await axios.post(
@@ -77,7 +85,13 @@ class AiService {
             });
 
         } catch (error) {
-            console.error('SiliconFlow API Error:', error.response?.data || error.message);
+            console.error('❌ SiliconFlow API Error Detail:');
+            if (error.response) {
+                console.error(`   Status: ${error.response.status}`);
+                console.error(`   Data: ${JSON.stringify(error.response.data)}`);
+            } else {
+                console.error(`   Message: ${error.message}`);
+            }
             throw error;
         }
     }
