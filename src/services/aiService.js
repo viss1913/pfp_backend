@@ -94,7 +94,12 @@ class AiService {
             console.error('❌ SiliconFlow API Error Detail:');
             if (error.response) {
                 console.error(`   Status: ${error.response.status}`);
-                console.error(`   Data:`, error.response.data); // Let Node.js handle object printing safely
+                // Try to extract the exact error message safely
+                const errorData = error.response.data;
+                const message = errorData?.error?.message || JSON.stringify(errorData);
+                const code = errorData?.error?.code || 'unknown';
+                console.error(`   SiliconFlow Message: ${message}`);
+                console.error(`   SiliconFlow Code: ${code}`);
             } else {
                 console.error(`   Message: ${error.message}`);
             }
