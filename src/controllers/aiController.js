@@ -46,8 +46,11 @@ class AiController {
             // If this is the CRM Assistant (ID 1) or slug 'ai-crm', inject rich client data
             if (assistant.id == 1 || assistant.slug === 'ai-crm') {
                 try {
+                    const agentIdToUse = agent.agentId || agent.id; // Try agentId first (JWT), then id
+                    console.log(`[AiController] DEBUG AUTH: User ID (agent.id): ${agent.id}, Agent ID Field (agent.agentId): ${agent.agentId}, Final Used ID: ${agentIdToUse}`);
+
                     // Fetch DEEP Summary for all clients
-                    const allClients = await crmService.getDetailedAgentClientsSummary(agent.id);
+                    const allClients = await crmService.getDetailedAgentClientsSummary(agentIdToUse);
                     console.log(`[AiController] Found ${allClients.length} clients for context.`);
 
                     let clientContext = "\n\n=== ПОЛНОЕ ДОСЬЕ НА КЛИЕНТОВ (Только для твоих глаз) ===\n";
