@@ -3,7 +3,10 @@ const router = express.Router();
 const crmController = require('../controllers/crmController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// GET /api/crm/briefing - Get daily AI briefing for the agent
+// GET /api/pfp/crm/briefing - Get daily AI briefing for the agent
 router.get('/briefing', authMiddleware, crmController.getDailyBriefing);
+
+// POST /api/pfp/crm/status - Update client CRM status
+router.post('/status', authMiddleware, crmController.updateClientStatus);
 
 module.exports = router;
