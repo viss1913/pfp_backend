@@ -10,7 +10,8 @@ class AiService {
             key = key.slice(1, -1);
         }
         this.apiKey = key || null;
-        this.baseUrl = process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
+        // Updated to use GLOBAL endpoint (.com) by default as per dev feedback
+        this.baseUrl = process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.com/v1';
     }
 
     injectContext(template, agent) {
