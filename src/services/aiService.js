@@ -131,6 +131,46 @@ class AiService {
             throw error;
         }
     }
+
+    /**
+     * Get simple text completion (non-streaming)
+     * @param {Array} messages 
+     * @param {String} model 
+     * @returns {Promise<String>}
+     */
+    async getCompletion(messages, model) {
+        if (!this.apiKey) throw new Error('SILICONFLOW_API_KEY is not set');
+
+        let effectiveModel = model || 'Qwen/Qwen2.5-7B-Instruct';
+        if (effectiveModel.includes('google') || effectiveModel.includes('gemini')) {
+            effectiveModel = 'Qwen/Qwen2.5-7B-Instruct';
+        }
+
+        try {
+            const response = await axios.post(
+                `${this.baseUrl}/chat/completions`,
+                {
+                    model: effectiveModel,
+                    messages: messages,
+                    stream: false // key difference
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            return response.data.choices[0].message.content;
+        } catch (error) {
+            console.error('❌ SiliconFlow completion error:', error.message);
+            if (error.response) {
+                console.error('   Data:', error.response.data);
+            }
+            // Fallback or rethrow
+            throw error;
+        }
+    }
 }
 
 module.exports = new AiService();
