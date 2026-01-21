@@ -31,6 +31,9 @@ router.use('/pfp/ai', authMiddleware, aiRoutes);
 // CRM Routes
 const crmRoutes = require('./crmRoutes');
 router.use('/pfp/crm', authMiddleware, crmRoutes);
+// Report Routes
+const reportRoutes = require('./reportRoutes');
+router.use('/pfp/reports', authMiddleware, reportRoutes);
 
 // Alias for potentially mismatched frontend path:
 router.use('/ai', authMiddleware, aiRoutes);
