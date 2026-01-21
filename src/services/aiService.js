@@ -92,14 +92,29 @@ class AiService {
 
         } catch (error) {
             console.error('❌ SiliconFlow API Error Detail:');
+
             if (error.response) {
                 console.error(`   Status: ${error.response.status}`);
-                // Try to extract the exact error message safely
-                const errorData = error.response.data;
-                const message = errorData?.error?.message || JSON.stringify(errorData);
-                const code = errorData?.error?.code || 'unknown';
-                console.error(`   SiliconFlow Message: ${message}`);
-                console.error(`   SiliconFlow Code: ${code}`);
+
+                try {
+                    // Since responseType is 'stream', data is a stream, not JSON!
+                    // We must collect the stream content to see the error message.
+                    if (error.response.data && typeof error.response.data.on === 'function') {
+                        const chunks = [];
+                        for await (const chunk of error.response.data) {
+                            chunks.push(chunk);
+                        }
+                        const bodyBuffer = Buffer.concat(chunks);
+                        const bodyText = bodyBuffer.toString('utf8');
+
+                        console.error(`   SiliconFlow Response Body: ${bodyText}`);
+                    } else {
+                        // If it's not a stream (unexpected), try to log it safely
+                        console.error(`   Data (non-stream):`, error.response.data);
+                    }
+                } catch (readError) {
+                    console.error('   Error reading error stream:', readError.message);
+                }
             } else {
                 console.error(`   Message: ${error.message}`);
             }
