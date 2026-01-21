@@ -47,47 +47,32 @@ class AiController {
                 try {
                     // Fetch DEEP Summary for all clients
                     const allClients = await crmService.getDetailedAgentClientsSummary(agent.id);
+                    console.log(`[AiController] Found ${allClients.length} clients for context.`);
 
                     let clientContext = "\n\n=== ПОЛНОЕ ДОСЬЕ НА КЛИЕНТОВ (Только для твоих глаз) ===\n";
 
                     if (allClients.length === 0) {
                         clientContext += "Список клиентов пуст.\n";
                     } else {
-                        // Group by status for readability
-                        const thinking = allClients.filter(c => c.status === 'THINKING');
-                        const bought = allClients.filter(c => c.status === 'BOUGHT');
-                        const others = allClients.filter(c => c.status !== 'THINKING' && c.status !== 'BOUGHT');
+                        // Dump ALL clients with full details
+                        clientContext += `Всего клиентов: ${allClients.length}.\n`;
 
-                        if (thinking.length > 0) {
-                            clientContext += "\n--- 🟡 ЛИДЫ / ДУМАЮТ ---\n";
-                            thinking.forEach(c => {
-                                clientContext += `- ${c.name} (ID: ${c.id}). Капитал: ${c.finance.net_worth}. Цель: ${c.finance.top_goal}. Портфель: ${c.finance.main_asset}.\n`;
-                            });
-                        }
+                        allClients.forEach(c => {
+                            const financeInfo = c.finance.error
+                                ? "Нет финансовых данных"
+                                : `Капитал: ${c.finance.net_worth?.toLocaleString()} ₽. Цель: ${c.finance.top_goal} (${c.finance.target?.toLocaleString()} ₽). Портфель: ${c.finance.main_asset}`;
 
-                        if (bought.length > 0) {
-                            clientContext += "\n--- 🟢 КУПИЛИ (ПЕРЕКРЕСТНЫЕ ПРОДАЖИ) ---\n";
-                            bought.forEach(c => {
-                                clientContext += `- ${c.name}. Капитал: ${c.finance.net_worth}. Цель: ${c.finance.top_goal} (Сумма: ${c.finance.target}).\n`;
-                            });
-                        }
-
-                        // Add brief detail for others
-                        if (others.length > 0) {
-                            clientContext += "\n--- ОСТАЛЬНЫЕ ---\n";
-                            others.slice(0, 5).forEach(c => { // Limit context window
-                                clientContext += `- ${c.name} (${c.status}).\n`;
-                            });
-                        }
+                            clientContext += `- [${c.status}] ${c.name} (ID: ${c.id}). ${financeInfo}.\n`;
+                        });
                     }
 
                     // Add to system prompt
-                    assistant.context_template += clientContext; // Modify assistant's context_template
+                    assistant.context_template += clientContext;
                     assistant.context_template += "\n\nИНСТРУКЦИЯ ПО РАБОТЕ С ДАННЫМИ:\n" +
-                        "- Ты видишь финансовое состояние каждого клиента.\n" +
-                        "- Используй это для советов (например: 'Ивану можно предложить облигации, у него консервативный портфель').\n" +
-                        "- Если спрашивают 'Кто богатый?', смотри на поле Капитал.\n" +
-                        "- НЕ выдумывай цифры, бери их из Досье.";
+                        "- Ты видишь полный список клиентов агента и их финансы.\n" +
+                        "- [THINKING] или [Думает] = Лид, с которым нужно работать.\n" +
+                        "- Используй цифры капитала и целей для точных советов.\n" +
+                        "- НЕ выдумывай данные, которых нет в списке.";
 
                 } catch (ctxErr) {
                     console.error('Failed to inject CRM context:', ctxErr);
