@@ -3,7 +3,13 @@ require('dotenv').config();
 
 class AiService {
     constructor() {
-        this.apiKey = process.env.SILICONFLOW_API_KEY ? process.env.SILICONFLOW_API_KEY.trim() : null;
+        let key = process.env.SILICONFLOW_API_KEY || '';
+        key = key.trim();
+        // Remove surrounding quotes if present (common mistake in env vars)
+        if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+            key = key.slice(1, -1);
+        }
+        this.apiKey = key || null;
         this.baseUrl = 'https://api.siliconflow.cn/v1';
     }
 
@@ -31,10 +37,13 @@ class AiService {
             effectiveModel = 'Qwen/Qwen2.5-7B-Instruct';
         }
 
+        const keyFingerprint = this.apiKey ? `${this.apiKey.substring(0, 6)}...${this.apiKey.substring(this.apiKey.length - 6)}` : 'N/A';
+
         console.log(`🚀 Starting AI Request`);
         console.log(`   Provider: SiliconFlow`);
         console.log(`   Model: ${effectiveModel} (Original: ${model})`);
-        console.log(`   Key Configured: ${this.apiKey.startsWith('sk-') ? 'Yes (starts with sk-)' : 'WARNING: Key does not start with sk-'}`);
+        console.log(`   Key Configured: ${this.apiKey.startsWith('sk-') ? 'Yes' : 'No'}`);
+        console.log(`   Key Fingerprint: ${keyFingerprint}`);
         console.log(`   Key Length: ${this.apiKey.length}`);
 
         try {
