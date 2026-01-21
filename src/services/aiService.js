@@ -3,7 +3,7 @@ require('dotenv').config();
 
 class AiService {
     constructor() {
-        this.apiKey = process.env.SILICONFLOW_API_KEY;
+        this.apiKey = process.env.SILICONFLOW_API_KEY ? process.env.SILICONFLOW_API_KEY.trim() : null;
         this.baseUrl = 'https://api.siliconflow.cn/v1';
     }
 
