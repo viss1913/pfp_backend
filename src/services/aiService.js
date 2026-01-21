@@ -10,7 +10,7 @@ class AiService {
             key = key.slice(1, -1);
         }
         this.apiKey = key || null;
-        this.baseUrl = 'https://api.siliconflow.cn/v1';
+        this.baseUrl = process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
     }
 
     injectContext(template, agent) {
