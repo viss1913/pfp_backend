@@ -227,9 +227,71 @@ class ClientController {
             // 2. Merge Updates from Request Body
             // Allow updating goals, assets, or basic client info (income, etc)
 
-            // Goals: If provided, replace/update. If not, use existing.
-            // Note: clientService.getFullClient returns goals in 'goals' property.
-            let goalsToCalculate = req.body.goals || existingClient.goals;
+            // 2. Merge Updates from Request Body
+            // Goals: Merge logic instead of overwrite
+            let goalsToCalculate = [];
+
+            // Normalize existing goals (unpack params from JSON string/object if needed)
+            // This is crucial because calculationService expects flat properties, but DB stores extra params in a JSON column.
+            const existingGoals = (existingClient.goals || []).map(g => {
+                let parsed = { ...g };
+                if (typeof g.params === 'string') {
+                    try {
+                        const p = JSON.parse(g.params);
+                        parsed = { ...parsed, ...p };
+                    } catch (e) { /* ignore */ }
+                } else if (typeof g.params === 'object' && g.params !== null) {
+                    parsed = { ...parsed, ...g.params };
+                }
+                return parsed;
+            });
+
+            if (!req.body.goals || req.body.goals.length === 0) {
+                // If no goals sent, imply "recalculate current state"
+                goalsToCalculate = existingGoals;
+            } else {
+                // Strategy: Start with existing goals, Apply updates from request
+                // We map by ID for fast lookup.
+                // If incoming goal has no ID, we check for "Singleton" types (Pension, Reserve) to avoid duplication.
+
+                const goalsMap = new Map();
+                existingGoals.forEach(g => {
+                    if (g.id) goalsMap.set(String(g.id), g);
+                });
+
+                req.body.goals.forEach(newGoal => {
+                    let matchFound = false;
+
+                    // 1. Try Match by ID
+                    if (newGoal.id && goalsMap.has(String(newGoal.id))) {
+                        // Merge: Existing takes precedence? No, New takes precedence.
+                        const existing = goalsMap.get(String(newGoal.id));
+                        goalsMap.set(String(newGoal.id), { ...existing, ...newGoal });
+                        matchFound = true;
+                    }
+
+                    // 2. Try Match by Type for Unique Goals (if no ID or ID not found/mismatched)
+                    // Unique Types: 1 (Pension), 7 (FinReserve)
+                    if (!matchFound && !newGoal.id && [1, 7].includes(newGoal.goal_type_id)) {
+                        for (const [key, val] of goalsMap.entries()) {
+                            if (val.goal_type_id === newGoal.goal_type_id) {
+                                goalsMap.set(key, { ...val, ...newGoal });
+                                matchFound = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 3. If still no match, it's a new goal (simulation)
+                    if (!matchFound) {
+                        // Use provided ID or generate temp
+                        const key = newGoal.id ? String(newGoal.id) : `temp_${Date.now()}_${Math.random()}`;
+                        goalsMap.set(key, newGoal);
+                    }
+                });
+
+                goalsToCalculate = Array.from(goalsMap.values());
+            }
 
             // Client/Assets: Merge
             // We construct the 'client' object expected by calculateFirstRun

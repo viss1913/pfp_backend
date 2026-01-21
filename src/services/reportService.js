@@ -1,50 +1,93 @@
 const clientService = require('./clientService');
 const aiService = require('./aiService');
+const calculationService = require('./calculationService');
 
 class ReportService {
     async getClientReportData(clientId) {
-        // 1. Fetch Client & Calculation Data
+        // 1. Fetch Client Data
         const client = await clientService.getFullClient(clientId);
         if (!client) throw new Error('Client not found');
 
-        let calculation = {};
+        // 2. Prepare Goals for Calculation (Unpack params)
+        // DB stores extra fields in 'params' JSON, but calculationService expects flat objects.
+        const rawGoals = client.goals || [];
+        const preparedGoals = rawGoals.map(g => {
+            let params = {};
+            try {
+                if (typeof g.params === 'string') {
+                    params = JSON.parse(g.params);
+                } else if (typeof g.params === 'object' && g.params !== null) {
+                    params = g.params;
+                }
+            } catch (e) {
+                console.warn(`Failed to parse params for goal ${g.id}:`, e);
+            }
+            // Merge params into the goal object, prioritizing goal's direct fields
+            return { ...params, ...g };
+        });
+
+        // 3. Run Calculation (On-the-fly)
+        // This ensures data is always fresh and present, even if 'firstRun' wasn't explicitly saved.
+        let calculationResult;
         try {
-            calculation = (typeof client.goals_summary === 'string')
-                ? JSON.parse(client.goals_summary)
-                : (client.goals_summary || {});
+            calculationResult = await calculationService.calculateFirstRun({
+                client: client,
+                goals: preparedGoals
+            });
         } catch (e) {
-            console.error('Failed to parse goals_summary:', e);
+            console.error('Report Calculation Failed:', e);
+            // Fallback: Try to use stored summary if calculation fails, or return partial data
+            calculationResult = {
+                calculation: {
+                    goals: preparedGoals, // Raw goals as fallback
+                    summary: {}
+                }
+            };
+            try {
+                if (client.goals_summary) {
+                    const stored = typeof client.goals_summary === 'string'
+                        ? JSON.parse(client.goals_summary)
+                        : client.goals_summary;
+                    if (stored.calculation) calculationResult = stored; // If stored was full result
+                    else calculationResult.calculation = stored; // If stored was just calculation part
+                }
+            } catch (parseErr) { /* ignore */ }
         }
 
-        const goals = calculation.goals || [];
-        const summary = calculation.summary || {};
+        const calcData = calculationResult.calculation || {};
+        const goalsReport = calcData.goals || [];
+        const summary = calcData.summary || {};
 
-        // 2. Section: Current Situation (Assets & Net Worth)
+        // 4. Section: Current Situation (Assets & Net Worth)
+        // Recalculating from client data strictly to ensure consistency
+        const assetsTotal = (client.assets || []).reduce((sum, a) => sum + Number(a.current_value || a.amount || 0), 0);
+        const liabilitiesTotal = (client.liabilities || []).reduce((sum, l) => sum + Number(l.remaining_amount || 0), 0);
+
         const currentStats = {
-            assets_total: Number(client.assets_total || 0),
-            liabilities_total: Number(client.liabilities_total || 0),
-            net_worth: Number(client.net_worth || 0),
+            assets_total: assetsTotal,
+            liabilities_total: liabilitiesTotal,
+            net_worth: assetsTotal - liabilitiesTotal,
             assets_breakdown: (client.assets || []).map(a => ({
                 name: a.name || a.type,
                 value: Number(a.current_value || a.amount || 0)
             }))
         };
 
-        // 3. Section: Overall Plan Metrics (Waterfall Data)
-        // We need to sum up flows from all goals
+        // 5. Section: Overall Plan Metrics (Waterfall Data)
+        // Now derived from the FRESH calculation 'goalsReport'
         let totalClientInvested = 0;
         let totalStateSupportNominal = 0;
         let totalProjectedCapital = 0;
 
-        goals.forEach(res => {
-            // Client Investment (Initial + Monthly * Months)
-            const initial = res.summary?.initial_capital || 0; // Own capital used
+        goalsReport.forEach(res => {
+            // Client Investment
+            const initial = res.summary?.initial_capital || res.smart_initial_capital || 0;
             const monthly = res.summary?.monthly_replenishment || 0;
             const months = res.summary?.target_months || res.summary?.term_months || 120; // fallback
 
             totalClientInvested += initial + (monthly * months);
 
-            // State Support (Nominal)
+            // State Support
             const tax = res.summary?.total_tax_benefit || res.details?.totals?.total_deductions || 0;
             const cofin = res.summary?.total_cofinancing || res.details?.totals?.total_cofinancing || 0;
             totalStateSupportNominal += (tax + cofin);
@@ -55,9 +98,11 @@ class ReportService {
                 || res.summary?.total_capital_at_end
                 || res.summary?.expected_cash_value
                 || 0;
+
             totalProjectedCapital += cap;
         });
 
+        // Fix negative income if projection is weirdly low (shouldn't happen with correct calc)
         const investmentIncome = Math.max(0, totalProjectedCapital - totalClientInvested - totalStateSupportNominal);
 
         const overallPlan = {
@@ -71,19 +116,20 @@ class ReportService {
             tax_benefits: summary.tax_benefits_summary || {}
         };
 
-        // 4. Section: AI Executive Summary
-        const aiSummary = await this._generateExecutiveSummary(client, overallPlan, goals);
+        // 6. Section: AI Executive Summary
+        const aiSummary = await this._generateExecutiveSummary(client, overallPlan, goalsReport);
 
         return {
-            client_profile: {
+            client_info: { // FIX: Renamed from client_profile
                 id: client.id,
-                full_name: `${client.last_name} ${client.first_name} ${client.middle_name || ''}`.trim(),
-                age: calculation.client_profile?.age || 0,
-                email: client.email
+                full_name: `${client.last_name || ''} ${client.first_name || ''} ${client.middle_name || ''}`.trim(),
+                age: calcData.client_profile?.age || 0,
+                email: client.email,
+                avatar_url: client.avatar_url // Optional, if backend provides it
             },
             current_situation: currentStats,
             overall_plan: overallPlan,
-            goals_detailed: goals,
+            goals_detailed: goalsReport,
             ai_executive_summary: aiSummary
         };
     }
