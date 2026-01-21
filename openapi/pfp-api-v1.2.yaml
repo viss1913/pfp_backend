@@ -219,6 +219,15 @@ components:
                 - $ref: '#/components/schemas/FinReserveCalculationResult'
                 - $ref: '#/components/schemas/RentCalculationResult'
     
+    # --- AI ---
+    ChatMessage:
+      type: object
+      properties:
+        id: { type: integer }
+        role: { type: string, enum: [user, assistant, system] }
+        content: { type: string }
+        created_at: { type: string, format: date-time }
+
     # --- CRM ---
     CrmBriefingResponse:
       type: object
@@ -228,7 +237,68 @@ components:
           description: AI-generated daily briefing text
           example: "Доброе утро! Сегодня стоит позвонить Ивану (думает 3 дня)..."
 
-paths:
+  # --- AI CHAT ---
+  /pfp/ai/assistants:
+    get:
+      summary: List available AI assistants
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of assistants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                    slug: { type: string }
+                    description: { type: string }
+
+  /pfp/ai/history/{assistant_id}:
+    get:
+      summary: Get chat history
+      description: |
+        Returns the last 20 messages for the specified assistant.
+        **Auto-Briefing:** If the history is empty OR the last message is older than 8 hours (for AI CRM), a new "Daily Briefing" message is automatically generated and injected.
+      parameters:
+        - in: path
+          name: assistant_id
+          schema: { type: integer }
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Chat history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessage'
+
+  /pfp/ai/chat:
+    post:
+      summary: Send message to AI
+      description: Streams the AI response (SSE).
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assistant_id: { type: integer }
+                message: { type: string }
+      responses:
+        '200':
+          description: Streamed response (text/event-stream)
+
   /pfp/crm/briefing:
     get:
       summary: Get daily AI CRM briefing
