@@ -94,7 +94,7 @@ class AiService {
             console.error('❌ SiliconFlow API Error Detail:');
             if (error.response) {
                 console.error(`   Status: ${error.response.status}`);
-                console.error(`   Data: ${JSON.stringify(error.response.data)}`);
+                console.error(`   Data:`, error.response.data); // Let Node.js handle object printing safely
             } else {
                 console.error(`   Message: ${error.message}`);
             }
