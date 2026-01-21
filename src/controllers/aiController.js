@@ -24,7 +24,46 @@ class AiController {
     async getHistory(req, res) {
         try {
             const { assistant_id } = req.params;
-            const history = await aiHistoryService.getHistory(req.user.id, assistant_id);
+            const agentId = req.user.id;
+
+            let history = await aiHistoryService.getHistory(agentId, assistant_id);
+
+            // [NEW] Check for Daily Briefing injection (Empty history OR > 8 hours inactivity)
+            const lastMessage = history.length > 0 ? history[history.length - 1] : null;
+            let shouldInjectBrief = false;
+
+            if (history.length === 0) {
+                shouldInjectBrief = true;
+            } else if (lastMessage) {
+                const lastMsgTime = new Date(lastMessage.created_at);
+                const now = new Date();
+                const diffHours = (now - lastMsgTime) / (1000 * 60 * 60);
+                if (diffHours >= 8) {
+                    shouldInjectBrief = true;
+                }
+            }
+
+            if (shouldInjectBrief) {
+                const assistant = await aiAssistantService.getById(assistant_id);
+                if (assistant && (assistant.id == 1 || assistant.slug === 'ai-crm')) {
+                    console.log(`[AiController] CRM Context Check: Empty=${history.length === 0}, LastMsgAge=${lastMessage ? ((new Date() - new Date(lastMessage.created_at)) / 3600000).toFixed(1) + 'h' : 'N/A'}. Generating Brief...`);
+
+                    try {
+                        const brief = await crmService.generateDailyBriefing(agentId);
+                        if (brief) {
+                            // Save to DB
+                            await aiHistoryService.addMessage(agentId, assistant_id, 'assistant', brief);
+
+                            // Re-fetch history to include the new brief and respect the limit/sorting
+                            // (Or just append it, but re-fetching is safer for ID consistency if we need it)
+                            history = await aiHistoryService.getHistory(agentId, assistant_id);
+                        }
+                    } catch (briefErr) {
+                        console.error('Failed to generate auto-brief:', briefErr);
+                    }
+                }
+            }
+
             res.json(history);
         } catch (err) {
             console.error(err);
