@@ -1,6 +1,7 @@
 const aiAssistantService = require('../services/aiAssistantService');
 const aiHistoryService = require('../services/aiHistoryService');
 const aiService = require('../services/aiService');
+const crmService = require('../services/crmService');
 
 class AiController {
     async listAssistants(req, res) {
