@@ -242,8 +242,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmBriefingResponse'
-  
-  /calculate:
+                
+  /pfp/clients/crm-update:
+    post:
+      summary: Update Client CRM status
+      description: Endpoint for the frontend to update status (e.g. from the dropdown)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCrmUpdate'
+      responses:
+        '200':
+          description: Status updated
+        
+    # --- CRM ---
+    CrmBriefingResponse:
+      type: object
+      properties:
+        briefing:
+          type: string
+          description: AI-generated daily briefing text
+          example: "Доброе утро! Сегодня стоит позвонить Ивану (думает 3 дня)..."
+          
+    ClientCrmUpdate:
+      type: object
+      properties:
+        client_id:
+          type: integer
+        crm_status:
+          type: string
+          enum: [THINKING, BOUGHT, REFUSED, RENEWAL]
+          description: "Status for the dropdown menu"
+        notes:
+          type: string
+          description: "Optional comment from agent"
     post:
       summary: Calculate all financial goals
       security:
