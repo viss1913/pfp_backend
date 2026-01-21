@@ -68,11 +68,14 @@ class AiController {
 
                     // Add to system prompt
                     assistant.context_template += clientContext;
+                    assistant.context_template += `\n\n[SYSTEM DEBUG]: В этом контексте загружено ${allClients.length} клиентов.`;
                     assistant.context_template += "\n\nИНСТРУКЦИЯ ПО РАБОТЕ С ДАННЫМИ:\n" +
                         "- Ты видишь полный список клиентов агента и их финансы.\n" +
                         "- [THINKING] или [Думает] = Лид, с которым нужно работать.\n" +
                         "- Используй цифры капитала и целей для точных советов.\n" +
                         "- НЕ выдумывай данные, которых нет в списке.";
+                    assistant.context_template += "\n- ВАЖНО: Если клиентов > 0, отвечай точно по списку. Если 0 — скажи 'База пуста'.";
+                    // assistant.context_template += "\n- ДЛЯ ОТЛАДКИ: Начни ответ с фразы '(Загружено клиентов: X)', где X - число из SYSTEM DEBUG.";
 
                 } catch (ctxErr) {
                     console.error('Failed to inject CRM context:', ctxErr);
@@ -85,16 +88,18 @@ class AiController {
             // 3. Get History
             const history = await aiHistoryService.getHistory(agent.id, assistant_id);
 
-            // 4. Construct Messages for API
+            // 3. Construct Messages Payload
             const messages = [];
-            if (systemPrompt && systemPrompt.trim()) {
+            if (systemPrompt && systemPrompt.trim().length > 0) {
+                console.log('[AiController] FINAL SYSTEM PROMPT SNIPPET:', systemPrompt.substring(0, 500) + '...');
                 messages.push({ role: 'system', content: systemPrompt });
             }
 
-            messages.push(
-                ...history.map(h => ({ role: h.role, content: h.content })),
-                { role: 'user', content: message }
-            );
+            // Add history
+            history.forEach(msg => {
+                messages.push({ role: msg.role, content: msg.content });
+            });
+            messages.push({ role: 'user', content: message });
 
             // 5. Save USER message to DB
             await aiHistoryService.addMessage(agent.id, assistant_id, 'user', message);
