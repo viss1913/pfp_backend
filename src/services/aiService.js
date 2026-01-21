@@ -24,10 +24,16 @@ class AiService {
             throw new Error('SILICONFLOW_API_KEY is not set');
         }
 
-        const effectiveModel = model || 'Qwen/Qwen2.5-7B-Instruct';
+        // FORCE OVERRIDE: If the DB still has old Gemini models, switch to Qwen
+        let effectiveModel = model || 'Qwen/Qwen2.5-7B-Instruct';
+        if (effectiveModel.includes('google') || effectiveModel.includes('gemini')) {
+            console.warn(`⚠️  Legacy model detected (${effectiveModel}), switching to Qwen/Qwen2.5-7B-Instruct`);
+            effectiveModel = 'Qwen/Qwen2.5-7B-Instruct';
+        }
+
         console.log(`🚀 Starting AI Request`);
         console.log(`   Provider: SiliconFlow`);
-        console.log(`   Model: ${effectiveModel}`);
+        console.log(`   Model: ${effectiveModel} (Original: ${model})`);
         console.log(`   Key Configured: ${this.apiKey.startsWith('sk-') ? 'Yes (starts with sk-)' : 'WARNING: Key does not start with sk-'}`);
         console.log(`   Key Length: ${this.apiKey.length}`);
 
@@ -35,7 +41,7 @@ class AiService {
             const response = await axios.post(
                 `${this.baseUrl}/chat/completions`,
                 {
-                    model: model || 'Qwen/Qwen2.5-7B-Instruct',
+                    model: effectiveModel,
                     messages: messages,
                     stream: true
                 },
