@@ -72,7 +72,7 @@ class AiController {
             }
 
         } catch (err) {
-            console.error('Chat Error:', err);
+            console.error('Chat Error:', err.message); // Log only message to avoid huge dumps
             // If headers sent, we can't send 500 JSON, maybe send SSE error
             if (!res.headersSent) {
                 res.status(500).json({ error: 'Chat failed', details: err.message });
