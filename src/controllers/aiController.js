@@ -48,11 +48,15 @@ class AiController {
             const history = await aiHistoryService.getHistory(agent.id, assistant_id);
 
             // 4. Construct Messages for API
-            const messages = [
-                { role: 'system', content: systemPrompt },
+            const messages = [];
+            if (systemPrompt && systemPrompt.trim()) {
+                messages.push({ role: 'system', content: systemPrompt });
+            }
+
+            messages.push(
                 ...history.map(h => ({ role: h.role, content: h.content })),
                 { role: 'user', content: message }
-            ];
+            );
 
             // 5. Save USER message to DB
             await aiHistoryService.addMessage(agent.id, assistant_id, 'user', message);
