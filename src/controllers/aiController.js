@@ -41,6 +41,59 @@ class AiController {
             const assistant = await aiAssistantService.getById(assistant_id);
             if (!assistant) return res.status(404).json({ error: 'Assistant not found' });
 
+            // [NEW] DYNAMIC CONTEXT INJECTION FOR CRM
+            // If this is the CRM Assistant (ID 1) or slug 'ai-crm', inject rich client data
+            if (assistant.id == 1 || assistant.slug === 'ai-crm') {
+                try {
+                    // Fetch DEEP Summary for all clients
+                    const allClients = await crmService.getDetailedAgentClientsSummary(agent.id);
+
+                    let clientContext = "\n\n=== ПОЛНОЕ ДОСЬЕ НА КЛИЕНТОВ (Только для твоих глаз) ===\n";
+
+                    if (allClients.length === 0) {
+                        clientContext += "Список клиентов пуст.\n";
+                    } else {
+                        // Group by status for readability
+                        const thinking = allClients.filter(c => c.status === 'THINKING');
+                        const bought = allClients.filter(c => c.status === 'BOUGHT');
+                        const others = allClients.filter(c => c.status !== 'THINKING' && c.status !== 'BOUGHT');
+
+                        if (thinking.length > 0) {
+                            clientContext += "\n--- 🟡 ЛИДЫ / ДУМАЮТ ---\n";
+                            thinking.forEach(c => {
+                                clientContext += `- ${c.name} (ID: ${c.id}). Капитал: ${c.finance.net_worth}. Цель: ${c.finance.top_goal}. Портфель: ${c.finance.main_asset}.\n`;
+                            });
+                        }
+
+                        if (bought.length > 0) {
+                            clientContext += "\n--- 🟢 КУПИЛИ (ПЕРЕКРЕСТНЫЕ ПРОДАЖИ) ---\n";
+                            bought.forEach(c => {
+                                clientContext += `- ${c.name}. Капитал: ${c.finance.net_worth}. Цель: ${c.finance.top_goal} (Сумма: ${c.finance.target}).\n`;
+                            });
+                        }
+
+                        // Add brief detail for others
+                        if (others.length > 0) {
+                            clientContext += "\n--- ОСТАЛЬНЫЕ ---\n";
+                            others.slice(0, 5).forEach(c => { // Limit context window
+                                clientContext += `- ${c.name} (${c.status}).\n`;
+                            });
+                        }
+                    }
+
+                    // Add to system prompt
+                    assistant.context_template += clientContext; // Modify assistant's context_template
+                    assistant.context_template += "\n\nИНСТРУКЦИЯ ПО РАБОТЕ С ДАННЫМИ:\n" +
+                        "- Ты видишь финансовое состояние каждого клиента.\n" +
+                        "- Используй это для советов (например: 'Ивану можно предложить облигации, у него консервативный портфель').\n" +
+                        "- Если спрашивают 'Кто богатый?', смотри на поле Капитал.\n" +
+                        "- НЕ выдумывай цифры, бери их из Досье.";
+
+                } catch (ctxErr) {
+                    console.error('Failed to inject CRM context:', ctxErr);
+                }
+            }
+
             // 2. Prepare Context (System Prompt)
             const systemPrompt = aiService.injectContext(assistant.context_template, agent);
 

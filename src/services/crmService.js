@@ -29,6 +29,59 @@ class CrmService {
     }
 
     /**
+     * Get detailed summary of all clients for AI Context
+     * Includes: Financial breakdown, Top Goals, Portfolio Structure
+     */
+    async getDetailedAgentClientsSummary(agentId) {
+        const clients = await db('clients')
+            .where({ agent_id: agentId })
+            .select('*');
+
+        const summary = [];
+
+        for (const client of clients) {
+            let financials = {};
+            try {
+                // Determine financial health
+                const goalsSum = typeof client.goals_summary === 'string' ? JSON.parse(client.goals_summary) : (client.goals_summary || {});
+
+                // Extract key metrics
+                const netWorth = client.net_worth || 0;
+                const assets = client.assets_total || 0;
+                const goalsCount = goalsSum.summary?.goals_count || 0;
+
+                // Find top priority goal
+                const topGoal = goalsSum.calculation?.goals?.[0]?.goal_name || 'Нет целей';
+                const targetAmount = goalsSum.calculation?.goals?.[0]?.summary?.total_target_amount_future || 0;
+
+                // Portfolio Strategy (from Consolidated)
+                const strategy = goalsSum.summary?.consolidated_portfolio?.assets_allocation?.[0]?.name || 'Не сформирован';
+
+                financials = {
+                    net_worth: Math.round(netWorth),
+                    goals_count: goalsCount,
+                    top_goal: topGoal,
+                    target: Math.round(targetAmount),
+                    main_asset: strategy
+                };
+
+            } catch (e) {
+                financials = { error: 'Data parsing failed' };
+            }
+
+            summary.push({
+                id: client.id,
+                name: `${client.last_name} ${client.first_name}`,
+                status: client.crm_status, // THINKING, BOUGHT, etc.
+                next_action: client.next_action_date ? new Date(client.next_action_date).toLocaleDateString() : 'N/A',
+                finance: financials
+            });
+        }
+
+        return summary;
+    }
+
+    /**
      * Generates the daily briefing text using AI
      */
     async generateDailyBriefing(agentId) {
