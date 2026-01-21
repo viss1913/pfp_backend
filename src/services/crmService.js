@@ -69,7 +69,7 @@ class CrmService {
 
         // Execute AI call using the new non-streaming method
         const messages = [{ role: 'system', content: systemPrompt }];
-        return await aiService.getCompletion(messages, 'Qwen/Qwen2.5-7B-Instruct');
+        return await aiService.getCompletion(messages, 'Qwen/Qwen2.5-14B-Instruct');
     }
 
     async updateClientStatus(clientId, status, notes) {

@@ -32,10 +32,10 @@ class AiService {
         }
 
         // FORCE OVERRIDE: If the DB still has old Gemini models, switch to Qwen
-        let effectiveModel = model || 'Qwen/Qwen2.5-7B-Instruct';
+        let effectiveModel = model || 'Qwen/Qwen2.5-14B-Instruct';
         if (effectiveModel.includes('google') || effectiveModel.includes('gemini')) {
-            console.warn(`⚠️  Legacy model detected (${effectiveModel}), switching to Qwen/Qwen2.5-7B-Instruct`);
-            effectiveModel = 'Qwen/Qwen2.5-7B-Instruct';
+            console.warn(`⚠️  Legacy model detected (${effectiveModel}), switching to Qwen/Qwen2.5-14B-Instruct`);
+            effectiveModel = 'Qwen/Qwen2.5-14B-Instruct';
         }
 
         const keyFingerprint = this.apiKey ? `${this.apiKey.substring(0, 6)}...${this.apiKey.substring(this.apiKey.length - 6)}` : 'N/A';
@@ -141,9 +141,9 @@ class AiService {
     async getCompletion(messages, model) {
         if (!this.apiKey) throw new Error('SILICONFLOW_API_KEY is not set');
 
-        let effectiveModel = model || 'Qwen/Qwen2.5-7B-Instruct';
+        let effectiveModel = model || 'Qwen/Qwen2.5-14B-Instruct';
         if (effectiveModel.includes('google') || effectiveModel.includes('gemini')) {
-            effectiveModel = 'Qwen/Qwen2.5-7B-Instruct';
+            effectiveModel = 'Qwen/Qwen2.5-14B-Instruct';
         }
 
         try {

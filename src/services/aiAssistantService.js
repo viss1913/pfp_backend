@@ -18,8 +18,12 @@ class AiAssistantService {
             name: data.name,
             slug: data.slug,
             context_template: data.context_template,
-            model: data.model || 'Qwen/Qwen2.5-7B-Instruct',
-            is_active: data.is_active !== undefined ? data.is_active : true
+            // Default values
+            model: data.model || 'Qwen/Qwen2.5-14B-Instruct',
+            temperature: data.temperature || 0.7,
+            max_tokens: data.max_tokens || 1000,
+            is_active: data.is_active !== undefined ? data.is_active : true,
+            created_at: knex.fn.now()
         });
         return this.getById(id);
     }
