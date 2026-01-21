@@ -1,0 +1,241 @@
+{
+    "client_id": 68,
+    "calculation": {
+        "summary": {
+            "goals_count": 4,
+            "total_capital": 53760227.41,
+            "total_state_benefit": 1260438.63,
+            "total_target_amount_initial": 15200000,
+            "total_target_amount_future": 25680608.94,
+            "consolidated_portfolio": {
+                "total_initial_capital": 1260922.36,
+                "total_monthly_replenishment": 71415.28,
+                "assets_allocation": [
+                    {
+                        "name": "ПДС НПФ (Updated)",
+                        "amount": 1160922.36,
+                        "share": 92,
+                        "yield": 13.61
+                    },
+                    {
+                        "name": "Депозит",
+                        "amount": 100000,
+                        "share": 8,
+                        "yield": 14
+                    }
+                ],
+                "cash_flow_allocation": [
+                    {
+                        "name": "ПДС НПФ (Updated)",
+                        "amount": 66415.28,
+                        "share": 93,
+                        "yield": 13.08,
+                        "payment_frequency": "monthly"
+                    },
+                    {
+                        "name": "Депозит",
+                        "amount": 5000,
+                        "share": 7,
+                        "yield": 14,
+                        "payment_frequency": "monthly"
+                    }
+                ]
+            },
+            "tax_benefits_summary": {
+                "pds_benefits": {
+                    "deduction_2026": 0,
+                    "cofinancing_2026": 0,
+                    "total_deductions": 629237.28,
+                    "total_cofinancing": 360000
+                },
+                "nsj_benefits": {
+                    "annual_premium": 139077.64,
+                    "deduction_2026": 18080.09,
+                    "total_deductions": 271201.35
+                },
+                "totals": {
+                    "deduction_2026": 18080.09,
+                    "cofinancing_2026": 0,
+                    "total_deductions": 900438.63,
+                    "total_cofinancing": 360000,
+                    "total_state_benefits": 1260438.63
+                }
+            }
+        },
+        "goals": [
+            {
+                "goal_type_id": 1,
+                "goal_type": "PENSION",
+                "summary": {
+                    "status": "OK",
+                    "target_amount_initial": 100000,
+                    "target_amount_future": 390479.25,
+                    "inflation_rate": 5.6,
+                    "initial_capital": 353091.59,
+                    "initial_capital_ops": 0,
+                    "monthly_replenishment": 2534.25,
+                    "pension_gap_future": 262911.97,
+                    "target_months": 300,
+                    "projected_capital_at_retirement": 26291196.55,
+                    "required_capital_at_retirement": 26291196.5,
+                    "total_tax_benefit": 203061.25,
+                    "total_cofinancing": 206141,
+                    "accumulation_yield_percent": 15,
+                    "payout_yield_percent": 12,
+                    "state_pension_monthly_future": 127567.28,
+                    "state_pension_monthly_today": 32669.41,
+                    "ipk_current": 0
+                },
+                "details": {
+                    "state_pension": {
+                        "ipk_total": 163.1,
+                        "ipk_current": 0,
+                        "ipk_forecast": 163.1,
+                        "point_cost_today": 145.69,
+                        "point_cost_future": 568.89,
+                        "fixed_payment_today": 8907,
+                        "fixed_payment_future": 34779.99,
+                        "retirement_age": 65,
+                        "retirement_year": 2051,
+                        "years_to_pension": 25
+                    },
+                    "portfolio_structure": {
+                        "initial_instruments": [
+                            {
+                                "name": "ПДС НПФ (Updated)",
+                                "share": 100,
+                                "yield": 15,
+                                "amount": 353091.59336405527
+                            }
+                        ],
+                        "monthly_instruments": [
+                            {
+                                "name": "ПДС НПФ (Updated)",
+                                "share": 100,
+                                "yield": 15,
+                                "amount": 2534.250257070657
+                            }
+                        ]
+                    }
+                },
+                "goal_name": "ГосПенсия"
+            },
+            {
+                "goal_type_id": 4,
+                "goal_type": "OTHER",
+                "summary": {
+                    "status": "OK",
+                    "target_amount_initial": 15100000,
+                    "target_amount_future": 25290129.69,
+                    "inflation_rate": 4.8,
+                    "initial_capital": 807830.77,
+                    "monthly_replenishment": 63881.03,
+                    "target_months": 132,
+                    "projected_capital_at_end": 25290129.69,
+                    "total_tax_benefit": 426176.03,
+                    "total_cofinancing": 153859,
+                    "accumulation_yield_percent": 13
+                },
+                "details": {
+                    "portfolio_id": 1,
+                    "portfolio_name": "Первый портфель",
+                    "instruments": [
+                        {
+                            "name": "ПДС НПФ (Updated)",
+                            "share": 100,
+                            "yield": 13,
+                            "amount": 807830.7666359446
+                        }
+                    ]
+                },
+                "goal_name": "Загородная недвижимость"
+            },
+            {
+                "goal_type_id": 7,
+                "goal_type": "FIN_RESERVE",
+                "summary": {
+                    "status": "OK",
+                    "initial_capital": 100000,
+                    "monthly_replenishment": 5000,
+                    "target_months": 12,
+                    "projected_capital_at_end": 178901.17,
+                    "accumulation_yield_percent": 14,
+                    "total_tax_benefit": 0
+                },
+                "details": {
+                    "portfolio_id": 5,
+                    "portfolio_name": "финрезерв",
+                    "instruments": [
+                        {
+                            "name": "Депозит",
+                            "share": 100,
+                            "yield": 14,
+                            "amount": 100000
+                        }
+                    ]
+                },
+                "goal_name": "Финансовый резерв"
+            },
+            {
+                "goal_id": 5,
+                "goal_type_id": 5,
+                "goal_type": "LIFE",
+                "summary": {
+                    "status": "OK",
+                    "target_coverage": 2000000,
+                    "initial_capital": 139077.64,
+                    "premium_frequency": "monthly",
+                    "target_months": 180,
+                    "expected_cash_value": 2000000,
+                    "investment_yield_percent": 5,
+                    "total_tax_benefit": 271201.35
+                },
+                "details": {
+                    "program_name": "Страхование жизни",
+                    "annual_premium": 139077.64,
+                    "tax_deduction_2026": 18080.09,
+                    "total_tax_deductions": 271201.35,
+                    "risks": [
+                        {
+                            "code": "testdozhitie",
+                            "name": "Дожитие",
+                            "type": "endowment",
+                            "participant": "insuredPerson",
+                            "term": 15,
+                            "tariff": 0.9341463,
+                            "limit": 2000000,
+                            "premium": 124552.83999999998,
+                            "limitRUR": 2000000,
+                            "premiumRUR": 124552.83999999998
+                        },
+                        {
+                            "code": "deathAnyCase",
+                            "name": "Смерть по любой причине",
+                            "type": "death",
+                            "participant": "insuredPerson",
+                            "term": 15,
+                            "tariff": 0.075,
+                            "limit": 2000000,
+                            "premium": 1500,
+                            "limitRUR": 2000000,
+                            "premiumRUR": 1500
+                        },
+                        {
+                            "code": "invalid",
+                            "name": "Инвалидность ЛП",
+                            "type": "other",
+                            "participant": "insuredPerson",
+                            "term": 15,
+                            "tariff": 0.05427,
+                            "limit": 2000000,
+                            "premium": 13024.8,
+                            "limitRUR": 2000000,
+                            "premiumRUR": 13024.8
+                        }
+                    ]
+                },
+                "goal_name": "Защита Жизни"
+            }
+        ]
+    }
+}

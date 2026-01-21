@@ -20,6 +20,7 @@ The ecosystem consists of four pillar components, integrated into a seamless wor
 - **Regulatory Compliance**: Integrated logic for regional tax benefits (PDS, Deductions) and state pension systems.
 - **Scalable API**: Designed for easy integration with existing banking or insurance frontends.
 - **High-Performance Math**: Handles multi-year simulations with monthly granularity in milliseconds.
+- **On-Premise AI**: Open source AI model can be deployed within the client's perimeter.
 
 ---
 *© 2026 Antigravity Technical Team. Confidential and Proprietary.*

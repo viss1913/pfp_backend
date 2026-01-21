@@ -3,8 +3,8 @@ require('dotenv').config();
 
 class AiService {
     constructor() {
-        this.apiKey = process.env.OPENROUTER_API_KEY;
-        this.baseUrl = 'https://openrouter.ai/api/v1';
+        this.apiKey = process.env.SILICONFLOW_API_KEY;
+        this.baseUrl = 'https://api.siliconflow.cn/v1';
     }
 
     injectContext(template, agent) {
@@ -13,30 +13,28 @@ class AiService {
     }
 
     /**
-     * Stream completion from OpenRouter
+     * Stream completion from SiliconFlow
      * @param {Array} messages - Chat history including system prompt
      * @param {String} model - Model ID
      * @param {Object} res - Express response object to stream to
      */
     async streamCompletion(messages, model, res) {
         if (!this.apiKey) {
-            throw new Error('OPENROUTER_API_KEY is not set');
+            throw new Error('SILICONFLOW_API_KEY is not set');
         }
 
         try {
             const response = await axios.post(
                 `${this.baseUrl}/chat/completions`,
                 {
-                    model: model || 'google/gemini-2.0-flash-001',
+                    model: model || 'Qwen/Qwen2.5-7B-Instruct',
                     messages: messages,
                     stream: true
                 },
                 {
                     headers: {
                         'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': 'https://pfp.app', // Required by OpenRouter
-                        'X-Title': 'PFP AI'
+                        'Content-Type': 'application/json'
                     },
                     responseType: 'stream'
                 }
@@ -44,9 +42,7 @@ class AiService {
 
             // Pipe the data directly to the client
             response.data.on('data', (chunk) => {
-                // OpenRouter returns standard SSE format: "data: { ...JSON... }\n\n"
-                // We can just pass it through, or parse/sanitize if needed.
-                // For simplicity/speed, pass through.
+                // SiliconFlow (OpenAI compatible) returns standard SSE format: "data: { ...JSON... }\n\n"
                 res.write(chunk);
             });
 
@@ -59,10 +55,6 @@ class AiService {
                 res.write(`data: {"error": "${err.message}"}\n\n`);
                 res.end();
             });
-
-            // Return a promise that resolves when full text is collected (if specific logic needed)
-            // But for streaming to res, we mostly trust the pipe.
-            // We do need to capture the Full Text to save to history, so we'll implement a collecting listener.
 
             return new Promise((resolve) => {
                 let fullText = '';
@@ -85,7 +77,7 @@ class AiService {
             });
 
         } catch (error) {
-            console.error('OpenRouter API Error:', error.response?.data || error.message);
+            console.error('SiliconFlow API Error:', error.response?.data || error.message);
             throw error;
         }
     }

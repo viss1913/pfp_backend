@@ -97,7 +97,8 @@ class InvestmentCalculator extends BaseCalculator {
             details: {
                 portfolio_id: portfolio.id,
                 portfolio_name: portfolio.name,
-                instruments: initial_instruments.length > 0 ? initial_instruments : monthly_instruments
+                instruments: initial_instruments.length > 0 ? initial_instruments : monthly_instruments,
+                yearly_breakdown: simResult.yearlyBreakdown
             }
         };
     }

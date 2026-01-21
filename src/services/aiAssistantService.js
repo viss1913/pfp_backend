@@ -18,7 +18,7 @@ class AiAssistantService {
             name: data.name,
             slug: data.slug,
             context_template: data.context_template,
-            model: data.model || 'google/gemini-2.0-flash-exp:free',
+            model: data.model || 'Qwen/Qwen2.5-7B-Instruct',
             is_active: data.is_active !== undefined ? data.is_active : true
         });
         return this.getById(id);
