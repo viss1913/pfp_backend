@@ -143,6 +143,21 @@ class ReportService {
         // Efficiency metric: How much 1 ruble of investment brings?
         const multiplier = invested > 0 ? (total / invested).toFixed(2) : 0;
 
+        // Helper to extract insurance info
+        const lifeGoals = goals.filter(g => g.goal_type === 'LIFE' || g.goal_id === 5);
+        let insuranceText = "";
+        if (lifeGoals.length > 0) {
+            insuranceText = "\n        СТРАХОВАЯ ЗАЩИТА (ВАЖНО упомянуть, если есть):";
+            lifeGoals.forEach(g => {
+                if (g.details && g.details.risks && Array.isArray(g.details.risks)) {
+                    insuranceText += `\n        - Программа "${g.details.program_name || g.goal_name}":`;
+                    g.details.risks.forEach(r => {
+                        insuranceText += `\n          * ${r.risk_name}: ${parseInt(r.limit_amount).toLocaleString('ru-RU')} ₽`;
+                    });
+                }
+            });
+        }
+
         const systemPrompt = `Ты — финансовый эксперт. Твоя задача — написать "Резюме для клиента" (Executive Summary) для PDF-отчета.
         
         ВАЖНО: ОТВЕЧАЙ СТРОГО НА РУССКОМ ЯЗЫКЕ. Использование китайских иероглифов или других языков КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО.
@@ -153,12 +168,12 @@ class ReportService {
         - Личные вложения за весь срок: ${invested.toLocaleString('ru-RU')} ₽
         - Помощь государства (вычеты, софинансирование): ${support.toLocaleString('ru-RU')} ₽
         - Инвестиционный доход: ${profit.toLocaleString('ru-RU')} ₽
-        - ИТОГОВЫЙ КАПИТАЛ: ${total.toLocaleString('ru-RU')} ₽ (Рост капитала в ${multiplier} раза)
+        - ИТОГОВЫЙ КАПИТАЛ: ${total.toLocaleString('ru-RU')} ₽ (Рост капитала в ${multiplier} раза)${insuranceText}
         
         ИНСТРУКЦИЯ:
         Напиши 3 коротких абзаца (в формате Markdown, без заголовков "Абзац 1"):
         1. Похвали за начало пути и текущее состояние (или амбициозность плана).
-        2. Подсвети эффективность: упомяни, какую долю составляет помощь государства и сложный процент. (Например: "Государство добавит к вашим вложениям X рублей, что существенно ускорит...").
+        2. Подсвети эффективность: упомяни, какую долю составляет помощь государства и сложный процент. (Например: "Государство добавит к вашим вложениям X рублей, что существенно ускорит..."). Если есть страхование жизни, обязательно упомяни про защиту семьи (лимиты).
         3. Дай одну главную рекомендацию или предостережение (например, про дисциплину пополнений или важность реинвестирования вычетов).
         
         Тон: Профессиональный, ободряющий, но реалистичный. ТОЛЬКО РУССКИЙ ЯЗЫК.`;
