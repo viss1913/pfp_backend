@@ -146,6 +146,8 @@ class ReportService {
         // Helper to extract insurance info
         const lifeGoals = goals.filter(g => g.goal_type === 'LIFE' || g.goal_id === 5);
         let insuranceText = "";
+        let collectedRisks = []; // Array to store all risks for JSON output
+
         if (lifeGoals.length > 0) {
             insuranceText = "\n        СТРАХОВАЯ ЗАЩИТА (ВАЖНО упомянуть, если есть):";
             lifeGoals.forEach(g => {
@@ -153,6 +155,11 @@ class ReportService {
                     insuranceText += `\n        - Программа "${g.details.program_name || g.goal_name}":`;
                     g.details.risks.forEach(r => {
                         insuranceText += `\n          * ${r.risk_name}: ${parseInt(r.limit_amount).toLocaleString('ru-RU')} ₽`;
+                    });
+                    // Collect for JSON response
+                    collectedRisks.push({
+                        program_name: g.details.program_name || g.goal_name,
+                        risks: g.details.risks
                     });
                 }
             });
@@ -178,14 +185,19 @@ class ReportService {
         
         Тон: Профессиональный, ободряющий, но реалистичный. ТОЛЬКО РУССКИЙ ЯЗЫК.`;
 
+        // Generate Summary
+        let aiGeneratedSummary = "Не удалось сгенерировать резюме.";
         try {
-            // Using 14B model via aiService
             const messages = [{ role: 'system', content: systemPrompt }];
-            return await aiService.getCompletion(messages, 'Qwen/Qwen2.5-14B-Instruct');
+            aiGeneratedSummary = await aiService.getCompletion(messages, 'Qwen/Qwen2.5-14B-Instruct');
         } catch (e) {
             console.error('AI Summary generation failed:', e);
-            return "Не удалось сгенерировать резюме. Пожалуйста, обратитесь к консультанту.";
         }
+
+        return {
+            summary_text: aiGeneratedSummary,
+            insurance_protection: collectedRisks // New field for Frontend
+        };
     }
 }
 
