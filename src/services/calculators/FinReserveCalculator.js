@@ -29,7 +29,9 @@ class FinReserveCalculator extends BaseCalculator {
 
         // 2. Simulation Parameters
         const termMonths = Number(goal.term_months || 12);
-        let initialCapital = Number(goal.initial_capital || 0);
+
+        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
+        let initialCapital = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
 
         // DEDUCT FROM POOL: FinReserve consumes liquid capital first!
         // We try to take the full requested amount.

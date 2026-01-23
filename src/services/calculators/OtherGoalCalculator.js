@@ -103,30 +103,31 @@ class OtherGoalCalculator extends BaseCalculator {
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual || 10);
         const indexationRate = (settings.investment_expense_growth_monthly || 0.1) / 100;
 
-        // Calculate inflows (Capital Distribution from Shared Pool)
-        // This will pick up remaining capital after Life Insurance (because sharedPoolEvents is mutated by previous goals)
+        // DEDUCT FROM POOL
+        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
+        let initialCapital = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
+        initialCapital = this.deductFromSharedPool(initialCapital, context);
+
+        // Calculate inflows (Future Capital Distribution from Shared Pool)
+        // We only look for inflows starting from Month 1 to avoid double-counting month 0 liquid capital
         const inflowData = this.getGoalInflows(
             goal,
             assets,
             context,
             termMonths,
-            goal.initial_capital || 0,
+            initialCapital, // After deduction
             targetAmountFuture,
             yieldMonthly,
             inflationMonthly,
             0 // Initial replenishment guess
         );
 
-        const allocatedInitialCapital = inflowData.allInflows
-            .filter(i => i.month === 0)
+        const allocatedFutureCapital = inflowData.allInflows
+            .filter(i => i.month > 0)
             .reduce((sum, i) => sum + i.amount, 0);
 
-        // DEDUCT FROM POOL
-        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
-        let initialCapital = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : (goal.initial_capital || 0);
-        initialCapital = this.deductFromSharedPool(initialCapital, context);
-
-        const effectiveInitialCapital = initialCapital + allocatedInitialCapital;
+        const effectiveInitialCapital = initialCapital;
+        const allInflowsForSimulation = inflowData.allInflows.filter(i => i.month > 0);
 
         // 3. Simulation
         let recommendedReplenishment = 0;
@@ -145,7 +146,7 @@ class OtherGoalCalculator extends BaseCalculator {
                 pdsProductId,
                 avgMonthlyIncome: client.avg_monthly_income,
                 startDate: new Date(),
-                inflows: inflowData.allInflows,
+                inflows: allInflowsForSimulation,
                 totalTargetAmount: targetAmountFuture // Just for reference
             }, context);
         }
@@ -160,7 +161,7 @@ class OtherGoalCalculator extends BaseCalculator {
                 pdsProductId,
                 avgMonthlyIncome: client.avg_monthly_income,
                 startDate: new Date(),
-                inflows: inflowData.allInflows
+                inflows: allInflowsForSimulation
             }, context);
 
             simResult = await this.runSimulation({
@@ -172,7 +173,7 @@ class OtherGoalCalculator extends BaseCalculator {
                 pdsProductId,
                 avgMonthlyIncome: client.avg_monthly_income,
                 startDate: new Date(),
-                inflows: inflowData.allInflows,
+                inflows: allInflowsForSimulation,
                 totalTargetAmount: targetAmountFuture
             }, context);
         }

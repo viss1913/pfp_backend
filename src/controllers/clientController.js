@@ -274,9 +274,12 @@ class ClientController {
 
                 req.body.goals.forEach(newGoal => {
                     // Ensure types for new goal
-                    if (newGoal.target_amount) newGoal.target_amount = Number(newGoal.target_amount);
-                    if (newGoal.initial_capital) newGoal.initial_capital = Number(newGoal.initial_capital);
-                    if (newGoal.term_months) newGoal.term_months = Number(newGoal.term_months);
+                    const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income'];
+                    numericFields.forEach(field => {
+                        if (newGoal[field] !== undefined && newGoal[field] !== null) {
+                            newGoal[field] = Number(newGoal[field]);
+                        }
+                    });
 
                     let matchFound = false;
 

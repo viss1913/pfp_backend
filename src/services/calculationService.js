@@ -393,7 +393,11 @@ class CalculationService {
      */
     async calculateFirstRun(data) {
         const { goals, client } = data;
-        const clientData = client || {};
+        const clientData = client ? {
+            ...client,
+            sex: client.gender || client.sex || 'male',
+            birth_date: client.birth_date || '1985-01-01'
+        } : {};
 
         // 1. Prepare Shared Context
         const context = await this._prepareContext(clientData);

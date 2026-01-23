@@ -24,7 +24,9 @@ class RentCalculator extends BaseCalculator {
         const { weightedYieldAnnual } = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository);
 
         // 2. Calculate Monthly Income
-        const initialCapital = goal.initial_capital || 0;
+        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
+        const initialCapital = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
+
         const monthlyIncomeRent = (initialCapital * (weightedYieldAnnual / 100)) / 12;
 
         return {

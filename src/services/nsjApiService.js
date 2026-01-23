@@ -196,7 +196,7 @@ class NSJApiService {
             },
             calcData: {
                 valuationType: 'byLimit',
-                limit: parseFloat(target_amount.toFixed(2))
+                limit: parseFloat(Number(target_amount).toFixed(2))
             }
         };
 
