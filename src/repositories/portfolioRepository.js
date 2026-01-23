@@ -117,7 +117,7 @@ class PortfolioRepository {
     }
 
     async findById(id) {
-        const portfolio = await db('portfolios').where({ id, is_active: true }).first();
+        const portfolio = await db('portfolios').where({ id }).first();
         if (!portfolio) return null;
         return this._transformPortfolio(portfolio, db);
     }

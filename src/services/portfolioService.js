@@ -16,7 +16,9 @@ class PortfolioService {
     }
 
     async getPortfolioById(id) {
-        return portfolioRepository.findById(id);
+        const portfolio = await portfolioRepository.findById(id);
+        if (!portfolio || !portfolio.is_active) return null;
+        return portfolio;
     }
 
     async createPortfolio(agentId, data) {
@@ -44,13 +46,13 @@ class PortfolioService {
 
     async deletePortfolio(id, agentId, isAdmin) {
         const portfolio = await portfolioRepository.findById(id);
+
+        // If portfolio doesn't exist at all, 404 is appropriate
         if (!portfolio) throw { status: 404, message: 'Portfolio not found' };
 
-        if (portfolio.agent_id === null && !isAdmin) {
-            throw { status: 403, message: 'Only admin can delete default portfolios' };
-        }
-        if (portfolio.agent_id !== null && portfolio.agent_id !== agentId && !isAdmin) {
-            throw { status: 403, message: 'Access denied' };
+        // If already soft-deleted, return success (idempotent)
+        if (portfolio.is_active === false || portfolio.is_active === 0) {
+            return { success: true };
         }
 
         await portfolioRepository.softDelete(id);
