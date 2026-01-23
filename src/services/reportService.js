@@ -8,50 +8,65 @@ class ReportService {
         const client = await clientService.getFullClient(clientId);
         if (!client) throw new Error('Client not found');
 
-        // 2. Prepare Goals for Calculation (Unpack params)
-        // DB stores extra fields in 'params' JSON, but calculationService expects flat objects.
-        const rawGoals = client.goals || [];
-        const preparedGoals = rawGoals.map(g => {
-            let params = {};
+        // 2. Use stored snapshot (goals_summary) for 100% consistency with Dashboard
+        let calculationResult = null;
+        let isFromSnapshot = false;
+
+        if (client.goals_summary) {
             try {
-                if (typeof g.params === 'string') {
-                    params = JSON.parse(g.params);
-                } else if (typeof g.params === 'object' && g.params !== null) {
-                    params = g.params;
+                const stored = typeof client.goals_summary === 'string'
+                    ? JSON.parse(client.goals_summary)
+                    : client.goals_summary;
+
+                // The snapshot might be the full result { client_id, client_profile, calculation }
+                // or just the { goals, summary } part.
+                const calcPart = stored.calculation || ((stored.goals || stored.summary) ? stored : null);
+
+                if (calcPart && calcPart.goals) {
+                    calculationResult = { calculation: calcPart };
+                    console.log(`[ReportService] Using stored snapshot for client ${clientId}`);
+                    isFromSnapshot = true;
                 }
             } catch (e) {
-                console.warn(`Failed to parse params for goal ${g.id}:`, e);
+                console.warn(`[ReportService] Failed to parse goals_summary for client ${clientId}:`, e.message);
             }
-            // Merge params into the goal object, prioritizing goal's direct fields
-            return { ...params, ...g };
-        });
+        }
 
-        // 3. Run Calculation (On-the-fly)
-        // This ensures data is always fresh and present, even if 'firstRun' wasn't explicitly saved.
-        let calculationResult;
-        try {
-            calculationResult = await calculationService.calculateFirstRun({
-                client: client,
-                goals: preparedGoals
-            });
-        } catch (e) {
-            console.error('Report Calculation Failed:', e);
-            // Fallback: Try to use stored summary if calculation fails, or return partial data
-            calculationResult = {
-                calculation: {
-                    goals: preparedGoals, // Raw goals as fallback
-                    summary: {}
-                }
+        // 3. Fallback: Run Calculation only if snapshot is missing
+        if (!isFromSnapshot) {
+            console.log(`[ReportService] Snapshot missing or invalid, running fresh calculation for client ${clientId}`);
+
+            // Normalize client for robust calculation (esp. for NSJ API which needs sex)
+            const clientForCalc = {
+                ...client,
+                sex: client.gender || client.sex || 'male',
+                birth_date: client.birth_date || '1985-01-01'
             };
+
+            const rawGoals = client.goals || [];
+            const preparedGoals = rawGoals.map(g => {
+                let fromParams = {};
+                try {
+                    if (typeof g.params === 'string') fromParams = JSON.parse(g.params);
+                    else if (typeof g.params === 'object' && g.params !== null) fromParams = g.params;
+                } catch (e) { }
+
+                const parsed = { ...fromParams, ...g };
+                // Normalize types for calculation consistency
+                const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id'];
+                numericFields.forEach(f => { if (parsed[f] !== undefined) parsed[f] = Number(parsed[f]); });
+                return parsed;
+            });
+
             try {
-                if (client.goals_summary) {
-                    const stored = typeof client.goals_summary === 'string'
-                        ? JSON.parse(client.goals_summary)
-                        : client.goals_summary;
-                    if (stored.calculation) calculationResult = stored; // If stored was full result
-                    else calculationResult.calculation = stored; // If stored was just calculation part
-                }
-            } catch (parseErr) { /* ignore */ }
+                calculationResult = await calculationService.calculateFirstRun({
+                    client: clientForCalc,
+                    goals: preparedGoals
+                });
+            } catch (e) {
+                console.error('[ReportService] Fallback Calculation Failed:', e);
+                calculationResult = { calculation: { goals: [], summary: {} } };
+            }
         }
 
         const calcData = calculationResult.calculation || {};

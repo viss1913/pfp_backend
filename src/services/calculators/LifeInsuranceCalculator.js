@@ -128,6 +128,8 @@ class LifeInsuranceCalculator extends BaseCalculator {
             summary: {
                 status: 'OK',
                 target_coverage: Math.round(targetAmount * 100) / 100,
+                target_amount_initial: Math.round(targetAmount * 100) / 100,
+                target_amount_future: Math.round(targetAmount * 100) / 100,
 
                 initial_capital: Math.round(deductedCapital * 100) / 100,
                 premium_frequency: paymentFrequency,

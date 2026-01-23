@@ -100,6 +100,8 @@ class FinReserveCalculator extends BaseCalculator {
                 status: 'OK',
                 initial_capital: Math.round(initialCapital * 100) / 100,
                 monthly_replenishment: Math.round(monthlyReplenishment * 100) / 100,
+                target_amount_initial: Math.round(Number(goal.target_amount || 0) * 100) / 100,
+                target_amount_future: Math.round(currentBalance * 100) / 100,
                 target_months: termMonths,
 
                 projected_capital_at_end: Math.round(currentBalance * 100) / 100,
