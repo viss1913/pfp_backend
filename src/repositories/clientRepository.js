@@ -110,13 +110,23 @@ class ClientRepository {
             this.getGoals(clientId)
         ]);
 
-        return {
+        const clientObj = {
             ...client,
             assets,
             liabilities,
             expenses,
             goals
         };
+
+        if (typeof clientObj.goals_summary === 'string') {
+            try {
+                clientObj.goals_summary = JSON.parse(clientObj.goals_summary);
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        return clientObj;
     }
 
     async findAllByAgent(agentId, options = {}) {

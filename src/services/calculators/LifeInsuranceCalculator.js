@@ -6,8 +6,8 @@ class LifeInsuranceCalculator extends BaseCalculator {
         const { nsjApiService } = services;
 
         // 1. Calculate NSJ Parameters first (we need the premium amount)
-        const termMonths = goal.term_months || 120;
-        const targetAmount = goal.target_amount || 0;
+        const termMonths = Number(goal.term_months || 120);
+        const targetAmount = Number(goal.target_amount || 0);
 
         let nsjResult;
         let apiError = null;

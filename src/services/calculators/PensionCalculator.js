@@ -264,23 +264,25 @@ class PensionCalculator extends BaseCalculator {
             }, context);
         }
 
-        // Fill instruments
-        if (pdsProductId) {
-            // If PDS, it's usually 100% share
+        // All instruments should already be in initial_instruments/monthly_instruments 
+        // from the bucket loop above if they were part of the portfolio.
+        // If we want to guarantee PDS is shown even if missing from buckets (legacy), 
+        // we should only add if not already present.
+        if (pdsProductId && initial_instruments.length === 0) {
             initial_instruments.push({
                 name: 'ПДС НПФ (Updated)',
                 share: 100,
                 yield: weightedYieldAnnual,
                 amount: initialCapital
             });
-            if (recommendedReplenishment > 0) {
-                monthly_instruments.push({
-                    name: 'ПДС НПФ (Updated)',
-                    share: 100,
-                    yield: weightedYieldAnnual,
-                    amount: recommendedReplenishment
-                });
-            }
+        }
+        if (pdsProductId && recommendedReplenishment > 0 && monthly_instruments.length === 0) {
+            monthly_instruments.push({
+                name: 'ПДС НПФ (Updated)',
+                share: 100,
+                yield: weightedYieldAnnual,
+                amount: recommendedReplenishment
+            });
         }
 
         if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;

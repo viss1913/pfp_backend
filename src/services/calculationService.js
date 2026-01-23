@@ -19,7 +19,9 @@ const CALCULATORS = {
     4: otherGoalCalculator,    // HOUSE, CAR, etc.
     5: lifeInsuranceCalculator, // LIFE_INSURANCE
     7: finReserveCalculator,    // FIN_RESERVE
-    8: rentCalculator          // RENT
+    8: rentCalculator,          // RENT
+    9: otherGoalCalculator,      // Map 9 to OTHER
+    6: otherGoalCalculator       // Map 6 to OTHER
 };
 
 class CalculationService {
@@ -171,6 +173,15 @@ class CalculationService {
         // Chronological list of shared pool events (unlock_month: 0 is current liquid)
         const sharedPoolEvents = assets
             .filter(a => !a.goal_id)
+            // Prevent double-counting: if it's CASH/DEPOSIT at month 0, we assume it's part of total_liquid_capital
+            .filter(a => {
+                const month = a.unlock_month || a.sell_month || 0;
+                const type = (a.type || '').toUpperCase();
+                if (month === 0 && (type === 'CASH' || type === 'Наличные')) {
+                    return false;
+                }
+                return true;
+            })
             .map(a => ({
                 month: a.unlock_month || a.sell_month || 0,
                 amount: Number(a.amount || a.current_value || 0)
@@ -423,7 +434,7 @@ class CalculationService {
                 resultsIndexed.push({
                     index,
                     result: {
-                        goal_id: goal.goal_type_id,
+                        goal_id: goal.id || goal.goal_type_id,
                         goal_name: goal.name,
                         error: err.message
                     }

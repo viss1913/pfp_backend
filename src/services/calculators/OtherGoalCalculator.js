@@ -194,8 +194,8 @@ class OtherGoalCalculator extends BaseCalculator {
 
         return {
             goal_id: goal.id,
-            goal_type_id: 4,
-            goal_type: 'OTHER',
+            goal_type_id: goal.goal_type_id || 4,
+            goal_type: goal.goal_type || 'OTHER',
             summary: {
                 status: (simResult.totalCapital >= targetAmountFuture * 0.999) ? 'OK' : 'GAP',
                 target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,

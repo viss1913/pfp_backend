@@ -235,20 +235,26 @@ class ClientController {
             // This is crucial because calculationService expects flat properties, but DB stores extra params in a JSON column.
             const existingGoals = (existingClient.goals || []).map(g => {
                 let parsed = { ...g };
+                let fromParams = {};
+
                 if (typeof g.params === 'string') {
                     try {
-                        const p = JSON.parse(g.params);
-                        parsed = { ...parsed, ...p };
+                        fromParams = JSON.parse(g.params);
                     } catch (e) { /* ignore */ }
                 } else if (typeof g.params === 'object' && g.params !== null) {
-                    parsed = { ...parsed, ...g.params };
+                    fromParams = g.params;
                 }
 
-                // Ensure number types for calculation
-                if (parsed.target_amount !== undefined) parsed.target_amount = Number(parsed.target_amount);
-                if (parsed.initial_capital !== undefined) parsed.initial_capital = Number(parsed.initial_capital);
-                if (parsed.term_months !== undefined) parsed.term_months = Number(parsed.term_months);
-                if (parsed.monthly_replenishment !== undefined) parsed.monthly_replenishment = Number(parsed.monthly_replenishment);
+                // Merge: DB columns (g) MUST take precedence over stale params (fromParams)
+                parsed = { ...fromParams, ...g };
+
+                // Ensure number types for calculation from both sources
+                const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id'];
+                numericFields.forEach(field => {
+                    if (parsed[field] !== undefined && parsed[field] !== null) {
+                        parsed[field] = Number(parsed[field]);
+                    }
+                });
 
                 return parsed;
             });
@@ -329,44 +335,13 @@ class ClientController {
             const calculation = await calculationService.calculateFirstRun(calcRequest);
 
             // 5. Update Client Record with New Summary
-            // We intentionally do NOT save the full merge back to DB yet, unless we want "Auto-Save".
-            // Usually "Recalculate" is a preview. But the prompt says "Change parameters... we recalculate".
-            // Let's SAVE the result 'goals_summary' so the chart on frontend updates permanently if this was an edit.
-            // BUT: Do we save the changes to Goals/Assets tables? 
-            // The User said: "Method Change Goal... method that allows 'falling into' a financial plan".
-            // Typically "Recalculate" = Preview, "Save" = Commit. 
-            // However, to keep it simple and consistent with "First Run", let's update the JSON snapshot. 
-            // If the user wants to *persist* the changed Goal parameters (e.g. new target amount), we should probably update the DB entities too.
-            // For now, let's assume this endpoint is "Update & Recalculate".
-
-            // If request contained real updates, save them.
-            if (req.body.goals || req.body.client) {
-                // Construct full update payload for updateFullClient
-                const updatePayload = {
-                    client: { ...clientForCalc }, // normalized
-                    goals: goalsToCalculate,
-                    assets: clientForCalc.assets
-                };
-                // Remove calculated fields or fields not for update
-                delete updatePayload.client.goals_summary;
-                // We might need to map 'gender' back to 'sex' or similar if updateFullClient is picky, 
-                // but it seems robust.
-
-                // However, doing a full DB update is heavy. 
-                // For now, let's just update the goals_summary snapshot so the dashboard reflects the new numbers.
-                await clientService.updateClient(id, {
-                    goals_summary: JSON.stringify(calculation)
-                });
-
-                // If we strictly follow REST, PUT /api/client/:id updates DB, then we might call recalculate internally.
-                // But here we want a specific action.
-                // Let's proceed with just updating the snapshot for visualization.
-            }
-
-            res.json({
-                client_id: id,
-                calculation: calculation
+            // We save the result 'goals_summary' so the dashboard updates permanently.
+            await clientService.updateClient(id, {
+                goals_summary: JSON.stringify(calculation)
             });
+
+            // Return the full calculation result (which already contains client_id and calculation keys)
+            res.json(calculation);
 
         } catch (err) {
             next(err);
@@ -381,10 +356,8 @@ class ClientController {
             // 1. Add Goal to DB
             await clientService.addGoal(id, req.body);
 
-            // 2. Trigger Recalculate (effectively same as recalculate method but with fresh DB state)
-            // We can just call recalculate but we need to ensure it doesn't try to merge from req.body 
-            // if we already updated the DB. 
-            // Actually, calling recalculate without goal overrides will fetch fresh from DB.
+            // 2. Trigger Recalculate
+            // This now automatically updates goals_summary and returns flat response
             if (!req.body) req.body = {};
             req.body.goals = null;
             return this.recalculate(req, res, next);
