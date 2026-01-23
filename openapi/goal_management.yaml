@@ -1,0 +1,65 @@
+openapi: 3.0.0
+info:
+  title: PFP Goal Management API
+  version: 1.0.0
+  description: |
+    API для управления целями клиента: добавление и удаление.
+    Каждое действие автоматически триггерит пересчет финансового плана (Smart Allocation).
+
+servers:
+  - url: /api
+
+paths:
+  /client/{id}/goals:
+    post:
+      summary: Add Goal (Добавить цель)
+      description: |
+        Добавляет новую цель клиенту и возвращает полный пересчитанный план.
+        Все свободные средства (бассейн) перераспределяются с учетом новой цели.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID Клиента
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './recalculate_pfp.yaml#/components/schemas/GoalInput'
+      responses:
+        '200':
+          description: Цель добавлена, план пересчитан.
+          content:
+            application/json:
+              schema:
+                $ref: './pfp-api-v1.2.yaml#/components/schemas/CalculationResponse'
+
+  /client/{id}/goals/{goalId}:
+    delete:
+      summary: Delete Goal (Удалить цель)
+      description: |
+        Удаляет цель и возвращает обновленный пересчитанный план.
+        Высвобожденные средства распределяются по оставшимся целям.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID Клиента
+        - in: path
+          name: goalId
+          required: true
+          schema:
+            type: integer
+          description: ID Цели
+      responses:
+        '200':
+          description: Цель удалена, план пересчитан.
+          content:
+            application/json:
+              schema:
+                $ref: './pfp-api-v1.2.yaml#/components/schemas/CalculationResponse'

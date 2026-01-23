@@ -243,6 +243,13 @@ class ClientController {
                 } else if (typeof g.params === 'object' && g.params !== null) {
                     parsed = { ...parsed, ...g.params };
                 }
+
+                // Ensure number types for calculation
+                if (parsed.target_amount !== undefined) parsed.target_amount = Number(parsed.target_amount);
+                if (parsed.initial_capital !== undefined) parsed.initial_capital = Number(parsed.initial_capital);
+                if (parsed.term_months !== undefined) parsed.term_months = Number(parsed.term_months);
+                if (parsed.monthly_replenishment !== undefined) parsed.monthly_replenishment = Number(parsed.monthly_replenishment);
+
                 return parsed;
             });
 
@@ -260,6 +267,11 @@ class ClientController {
                 });
 
                 req.body.goals.forEach(newGoal => {
+                    // Ensure types for new goal
+                    if (newGoal.target_amount) newGoal.target_amount = Number(newGoal.target_amount);
+                    if (newGoal.initial_capital) newGoal.initial_capital = Number(newGoal.initial_capital);
+                    if (newGoal.term_months) newGoal.term_months = Number(newGoal.term_months);
+
                     let matchFound = false;
 
                     // 1. Try Match by ID
@@ -303,7 +315,7 @@ class ClientController {
                 sex: existingClient.gender || existingClient.sex,
                 total_liquid_capital: req.body.client?.total_liquid_capital !== undefined
                     ? req.body.client.total_liquid_capital
-                    : (existingClient.assets_total || 0) // fallback if not sent, though calculationService usually sums assets
+                    : (existingClient.total_liquid_capital !== undefined ? Number(existingClient.total_liquid_capital) : (existingClient.assets_total || 0))
             };
 
             // 3. Prepare Calculation Request
@@ -373,6 +385,7 @@ class ClientController {
             // We can just call recalculate but we need to ensure it doesn't try to merge from req.body 
             // if we already updated the DB. 
             // Actually, calling recalculate without goal overrides will fetch fresh from DB.
+            if (!req.body) req.body = {};
             req.body.goals = null;
             return this.recalculate(req, res, next);
         } catch (err) {
@@ -389,6 +402,7 @@ class ClientController {
             await clientService.deleteGoal(id, goalId);
 
             // 2. Trigger Recalculate
+            if (!req.body) req.body = {};
             req.body.goals = null;
             return this.recalculate(req, res, next);
         } catch (err) {
