@@ -99,7 +99,7 @@ class PortfolioRepository {
     }
 
     async findAll({ agentId, filters = {}, includeDefaults = true }) {
-        const query = db('portfolios').select('*');
+        const query = db('portfolios').select('*').where('is_active', true);
 
         query.where((builder) => {
             builder.where('agent_id', agentId);
@@ -117,7 +117,7 @@ class PortfolioRepository {
     }
 
     async findById(id) {
-        const portfolio = await db('portfolios').where({ id }).first();
+        const portfolio = await db('portfolios').where({ id, is_active: true }).first();
         if (!portfolio) return null;
         return this._transformPortfolio(portfolio, db);
     }

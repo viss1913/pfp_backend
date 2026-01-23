@@ -30,6 +30,12 @@ app.use(helmet({
 
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
 // Swagger
 const swaggerDocument = YAML.load(path.join(__dirname, '../openapi/pfp-api.yaml'));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));

@@ -101,7 +101,7 @@ class PortfolioController {
         try {
             const validation = portfolioSchema.validate(req.body, { abortEarly: false });
             if (validation.error) {
-                return res.status(400).json({ 
+                return res.status(400).json({
                     error: 'Validation error',
                     message: validation.error.details[0].message,
                     details: validation.error.details.map(d => ({
@@ -138,7 +138,7 @@ class PortfolioController {
 
                     // Convert old format to new format
                     const instruments = [];
-                    
+
                     // Convert initial_capital
                     if (profile.initial_capital && Array.isArray(profile.initial_capital)) {
                         profile.initial_capital.forEach(item => {
@@ -148,7 +148,7 @@ class PortfolioController {
                             });
                         });
                     }
-                    
+
                     // Convert initial_replenishment or top_up (legacy)
                     const replenishment = profile.initial_replenishment || profile.top_up;
                     if (replenishment && Array.isArray(replenishment)) {
@@ -197,7 +197,7 @@ class PortfolioController {
             const validation = portfolioUpdateSchema.validate(req.body, { abortEarly: false });
             if (validation.error) {
                 console.error('Validation errors:', validation.error.details);
-                return res.status(400).json({ 
+                return res.status(400).json({
                     error: 'Validation error',
                     message: validation.error.details[0].message,
                     details: validation.error.details.map(d => ({
@@ -234,7 +234,7 @@ class PortfolioController {
 
                     // Convert old format to new format
                     const instruments = [];
-                    
+
                     // Convert initial_capital
                     if (profile.initial_capital && Array.isArray(profile.initial_capital)) {
                         profile.initial_capital.forEach(item => {
@@ -244,7 +244,7 @@ class PortfolioController {
                             });
                         });
                     }
-                    
+
                     // Convert initial_replenishment or top_up (legacy)
                     const replenishment = profile.initial_replenishment || profile.top_up;
                     if (replenishment && Array.isArray(replenishment)) {
@@ -293,9 +293,14 @@ class PortfolioController {
             const agentId = req.user.agentId;
             const isAdmin = req.user.isAdmin;
 
+            console.log(`=== Portfolio Delete Request ===`);
+            console.log(`ID: ${id}, AgentID: ${agentId}, IsAdmin: ${isAdmin}`);
+
             await portfolioService.deletePortfolio(id, agentId, isAdmin);
+            console.log(`Delete successful for ID: ${id}`);
             res.status(204).send();
         } catch (err) {
+            console.error(`Error in portfolio delete:`, err);
             next(err);
         }
     }
