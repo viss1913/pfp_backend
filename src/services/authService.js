@@ -10,9 +10,11 @@ class AuthService {
      * Login user and return JWT token
      */
     async login(email, password) {
-        // Find user by email
+        // Find user and agent info by email
         const user = await db('users')
-            .where({ email, is_active: true })
+            .leftJoin('agents', 'users.agent_id', 'agents.id')
+            .where({ 'users.email': email, 'users.is_active': true })
+            .select('users.*', 'agents.uuid as agent_uuid')
             .first();
 
         if (!user) {
@@ -26,13 +28,16 @@ class AuthService {
         }
 
         // Generate JWT token
+        const payload = {
+            id: user.agent_uuid, // UUID for SMM AI
+            user_id: user.id,   // Original ID for PFP
+            email: user.email,
+            role: user.role,
+            agentId: user.agent_id
+        };
+
         const token = jwt.sign(
-            {
-                id: user.id,
-                email: user.email,
-                role: user.role,
-                agentId: user.agent_id
-            },
+            payload,
             JWT_SECRET,
             { expiresIn: JWT_EXPIRES_IN }
         );

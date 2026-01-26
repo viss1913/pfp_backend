@@ -1,5 +1,7 @@
 const knex = require('../config/database');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const smmService = require('./smmService');
 
 class AgentService {
     /**
@@ -35,6 +37,7 @@ class AgentService {
             // 1. Create agent profile
             const [id] = await trx('agents').insert({
                 ...agentData,
+                uuid: crypto.randomUUID(), // Generate universal UUID
                 created_at: new Date(),
                 updated_at: new Date()
             });
@@ -56,7 +59,12 @@ class AgentService {
                 });
             }
 
-            return await this.getAgentById(agentId, trx);
+            const result = await this.getAgentById(agentId, trx);
+
+            // 3. Sync with SMM (async, don't wait to not block the main flow)
+            smmService.syncAgent(agentId).catch(err => console.error('Initial SMM sync failed:', err));
+
+            return result;
         });
     }
 
@@ -121,7 +129,12 @@ class AgentService {
                 }
             }
 
-            return await this.getAgentById(id, trx);
+            const result = await this.getAgentById(id, trx);
+
+            // 3. Sync with SMM (async, don't wait)
+            smmService.syncAgent(id).catch(err => console.error('SMM sync update failed:', err));
+
+            return result;
         });
     }
 }

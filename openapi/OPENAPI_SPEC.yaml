@@ -716,6 +716,9 @@ components:
       properties:
         id:
           type: integer
+        uuid:
+          type: string
+          format: uuid
         first_name:
           type: string
         last_name:

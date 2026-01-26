@@ -18,8 +18,9 @@ async function authMiddleware(req, res, next) {
             const decoded = authService.verifyToken(token);
 
             req.user = {
-                id: decoded.id,
+                id: decoded.user_id || decoded.id, // Support new (user_id) and legacy (id) formats
                 agentId: decoded.agentId,
+                uuid: decoded.id, // The UUID for SMM integration
                 email: decoded.email,
                 role: decoded.role,
                 isAdmin: decoded.role === 'admin'
