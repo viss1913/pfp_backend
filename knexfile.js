@@ -23,30 +23,51 @@ const parseMySQLUrl = (url) => {
 const railwayConnection = parseMySQLUrl(process.env.MYSQL_PUBLIC_URL) || parseMySQLUrl(process.env.MYSQL_URL);
 
 const getConnection = () => {
-    if (railwayConnection) {
-        return railwayConnection;
-    }
+    let conn;
 
-    // Check for Railway's individual variables
-    if (process.env.MYSQLHOST) {
-        return {
+    if (process.env.MYSQL_PUBLIC_URL) {
+        conn = process.env.MYSQL_PUBLIC_URL;
+    } else if (process.env.MYSQLHOST) {
+        conn = {
             host: process.env.MYSQLHOST,
             port: Number(process.env.MYSQLPORT) || 3306,
-            user: process.env.MYSQLUSER,
-            password: process.env.MYSQLPASSWORD,
-            database: process.env.MYSQLDATABASE
+            user: process.env.MYSQLUSER || 'root',
+            password: process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD,
+            database: process.env.MYSQLDATABASE || 'railway'
+        };
+    } else if (process.env.MYSQL_URL) {
+        conn = process.env.MYSQL_URL;
+    } else {
+        conn = {
+            host: process.env.DB_HOST || '127.0.0.1',
+            port: Number(process.env.DB_PORT) || 3306,
+            user: process.env.DB_USER || 'root',
+            password: process.env.DB_PASSWORD || '',
+            database: process.env.DB_NAME || 'pfp_service'
         };
     }
 
-    // Fall back to custom DB_* variables
-    return {
-        host: process.env.DB_HOST || '127.0.0.1',
-        port: Number(process.env.DB_PORT) || 3306,
-        user: process.env.DB_USER || 'root',
-        password: process.env.DB_PASSWORD || '',
-        database: process.env.DB_NAME || 'pfp_service'
-    };
+    console.log('🔌 DB Connection Method:', typeof conn === 'string' ? 'URL String' : 'Config Object');
+    if (typeof conn === 'object') {
+        console.log('🔌 DB Config:', { ...conn, password: '****' });
+    } else {
+        console.log('🔌 DB URL:', conn.replace(/:[^:@]+@/, ':****@'));
+    }
+
+    // Try to ensure SSL is used for external connections
+    if (typeof conn === 'object') {
+        return { ...conn, ssl: { rejectUnauthorized: false } };
+    }
+
+    return conn;
 };
+
+console.log('🔌 DB Config:', {
+    host: getConnection().host,
+    user: getConnection().user,
+    database: getConnection().database,
+    port: getConnection().port
+});
 
 module.exports = {
     development: {

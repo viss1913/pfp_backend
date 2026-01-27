@@ -16,7 +16,7 @@ async function startServer() {
             } else {
                 console.log('✅ All migrations are up to date');
             }
-            
+
             // Verify critical tables exist
             const criticalTables = [
                 'portfolios',
@@ -25,7 +25,7 @@ async function startServer() {
                 'portfolio_instruments',
                 'portfolio_classes'
             ];
-            
+
             console.log('Checking critical tables...');
             const missingTables = [];
             for (const table of criticalTables) {
@@ -37,7 +37,7 @@ async function startServer() {
                     missingTables.push(table);
                 }
             }
-            
+
             // Auto-fix missing tables
             if (missingTables.length > 0) {
                 console.log(`\n🔧 Attempting to create ${missingTables.length} missing table(s)...`);
@@ -52,7 +52,7 @@ async function startServer() {
                         });
                         console.log('  ✅ Created portfolio_class_links');
                     }
-                    
+
                     if (missingTables.includes('portfolio_risk_profiles')) {
                         await db.schema.createTable('portfolio_risk_profiles', (table) => {
                             table.bigIncrements('id').primary();
@@ -63,7 +63,7 @@ async function startServer() {
                         });
                         console.log('  ✅ Created portfolio_risk_profiles');
                     }
-                    
+
                     if (missingTables.includes('portfolio_instruments')) {
                         await db.schema.createTable('portfolio_instruments', (table) => {
                             table.bigIncrements('id').primary();
@@ -77,7 +77,7 @@ async function startServer() {
                         });
                         console.log('  ✅ Created portfolio_instruments');
                     }
-                    
+
                     console.log('✅ All missing tables created successfully!');
                 } catch (createError) {
                     console.error('❌ Failed to create missing tables:', createError.message);
@@ -105,7 +105,7 @@ async function startServer() {
             } else {
                 console.log('ℹ️  Users already exist, skipping main seeds');
             }
-            
+
             // Check if product_types table exists and is empty, then seed it
             try {
                 const tableExists = await db.schema.hasTable('product_types');
@@ -135,8 +135,12 @@ async function startServer() {
             console.log(`🔐 Login: POST /api/auth/login`);
         });
     } catch (err) {
-        console.error('❌ Server startup failed:', err);
-        process.exit(1);
+        console.error('❌ Server startup issue:', err.message);
+        console.warn('⚠️  Attempting to start app anyway... (Database might be unavailable)');
+
+        app.listen(PORT, () => {
+            console.log(`🚀 Server running on port ${PORT} (RECOVERY MODE)`);
+        });
     }
 }
 
