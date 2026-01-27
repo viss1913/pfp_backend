@@ -50,6 +50,7 @@ class AuthController {
             // Return current user info from token
             res.json({
                 id: req.user.id,
+                uuid: req.user.uuid,
                 email: req.user.email,
                 role: req.user.role,
                 agentId: req.user.agentId

@@ -46,6 +46,7 @@ class AuthService {
             token,
             user: {
                 id: user.id,
+                uuid: user.agent_uuid, // Added UUID for frontend
                 email: user.email,
                 name: user.name,
                 role: user.role,

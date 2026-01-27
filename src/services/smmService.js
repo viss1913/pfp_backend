@@ -4,7 +4,7 @@ const knex = require('../config/database');
 class SmmService {
     constructor() {
         this.apiUrl = process.env.SMM_API_URL || 'http://localhost:4000/api';
-        this.apiKey = process.env.SMM_INTERNAL_API_KEY || 'smm-secret-key';
+        this.apiKey = process.env.INTERNAL_API_KEY || process.env.SMM_INTERNAL_API_KEY || 'smm-secret-key';
     }
 
     /**
@@ -40,6 +40,7 @@ class SmmService {
                 region: agent.region,
                 city: agent.city,
                 timezone: agent.timezone,
+                timezone_offset_minutes: agent.timezone_offset_minutes || 180, // Added based on SMM spec
                 office_address: agent.office_address,
                 position_title: agent.position_title,
                 specialization: agent.specialization,
