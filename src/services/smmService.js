@@ -26,39 +26,29 @@ class SmmService {
             }
 
             const payload = {
-                external_agent_id: agent.id,
-                uuid: agent.uuid, // Pass our universal UUID
+                uuid: agent.uuid,
+                email: agent.email,
                 first_name: agent.first_name,
                 last_name: agent.last_name,
-                middle_name: agent.middle_name,
+                middle_name: agent.middle_name, // Added
                 phone: agent.phone,
-                email: agent.email,
-                website_url: agent.website_url,
-                telegram_bot: agent.telegram_bot,
                 telegram_channel: agent.telegram_channel,
-                telegram_channel_id: agent.telegram_channel_id,
+                telegram_channel_id: agent.telegram_channel_id, // Added
                 region: agent.region,
                 city: agent.city,
-                timezone: agent.timezone,
-                timezone_offset_minutes: agent.timezone_offset_minutes || 180, // Added based on SMM spec
-                office_address: agent.office_address,
-                position_title: agent.position_title,
-                specialization: agent.specialization,
-                consultation_price: agent.consultation_price,
-                currency: agent.currency,
-                target_customer_segment: agent.target_customer_segment,
-                about_text: agent.about_text,
-                experience_years: agent.experience_years,
                 is_active: !!agent.is_active,
-                date_joined: agent.date_joined,
-                updated_at: agent.updated_at
+                timezone_offset_minutes: agent.timezone_offset_minutes || 180,
+                about_text: agent.about_text, // Added
+                position_title: agent.position_title // Added
             };
 
-            console.log(`[SmmService] Syncing agent ${agentId} to SMM...`);
+            const url = `${this.apiUrl}/internal/webhooks/agent-updated`;
+            console.log(`[SmmService] Syncing agent ${agentId} to: ${url}`);
+            // console.log('[SmmService] Payload:', JSON.stringify(payload, null, 2));
 
-            await axios.post(`${this.apiUrl}/internal/webhooks/agent-updated`, payload, {
+            await axios.post(url, payload, {
                 headers: {
-                    'X-Internal-API-Key': this.apiKey,
+                    'x-internal-api-key': this.apiKey,
                     'Content-Type': 'application/json'
                 }
             });
@@ -67,7 +57,9 @@ class SmmService {
             return true;
         } catch (err) {
             console.error(`[SmmService] Failed to sync agent ${agentId}:`, err.message);
-            // We don't throw here to avoid breaking the main process if SMM is down
+            if (err.response && err.response.data) {
+                console.error('[SmmService] Error details:', JSON.stringify(err.response.data, null, 2));
+            }
             return false;
         }
     }

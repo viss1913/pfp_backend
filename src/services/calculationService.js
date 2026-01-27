@@ -390,8 +390,10 @@ class CalculationService {
     /**
      * Perform First Run calculation for a client request
      * @param {Object} data - CalculationRequest data
+     * @param {string} [targetGoalId] - ID of the goal to recalculate (partial mode)
+     * @param {Object} [previousCalculation] - Result of previous calculation for "frozen" goals
      */
-    async calculateFirstRun(data) {
+    async calculateFirstRun(data, targetGoalId = null, previousCalculation = null) {
         const { goals, client } = data;
         const clientData = client ? {
             ...client,
@@ -401,6 +403,14 @@ class CalculationService {
 
         // 1. Prepare Shared Context
         const context = await this._prepareContext(clientData);
+
+        // Map previous results by goal ID for quick lookup
+        const prevGoalsMap = new Map();
+        if (previousCalculation && previousCalculation.calculation && previousCalculation.calculation.goals) {
+            previousCalculation.calculation.goals.forEach(g => {
+                if (g.goal_id) prevGoalsMap.set(String(g.goal_id), g);
+            });
+        }
 
         // 2. Sort goals by Priority
         const indexedGoals = (goals || []).map((g, i) => ({ goal: g, index: i }))
@@ -412,37 +422,95 @@ class CalculationService {
             });
 
         // 2.1. Smart Allocation (Burden-Based)
-        console.log('[CalculationService] Running Smart Allocation...');
-        await this._calculateSmartAllocation(indexedGoals, context);
+        // Skip if we are in partial mode and have previous results
+        // In partial mode, we assume the user already has a distribution, 
+        // OR if it's a new goal addition, we might need a full run eventually.
+        // But for "editing" an existing goal, we want to keep others UNCHANGED.
+        if (!targetGoalId || !previousCalculation) {
+            console.log('[CalculationService] Running Full Smart Allocation...');
+            await this._calculateSmartAllocation(indexedGoals, context);
+        } else {
+            console.log(`[CalculationService] Partial Recalc Mode for goal: ${targetGoalId}. Frozen other goals.`);
+            // In partial mode, we must restore smart_initial_capital from previous results for ALL goals
+            // so that deductFromSharedPool works correctly and preserves the "state" of the pool.
+            for (const { goal } of indexedGoals) {
+                const prev = prevGoalsMap.get(String(goal.id || goal.goal_id));
+                if (prev && prev.summary && prev.summary.initial_capital !== undefined) {
+                    goal.smart_initial_capital = prev.summary.initial_capital;
+                    console.log(`[CalculationService] Restored capital ${goal.smart_initial_capital} for frozen goal ${goal.name}`);
+                }
+            }
+        }
 
         const resultsIndexed = [];
 
         // 3. Main Loop
         for (const { goal, index } of indexedGoals) {
-            const typeId = goal.goal_type_id;
-            const CalculatorClass = CALCULATORS[typeId] || otherGoalCalculator;
+            const currentGoalId = String(goal.id || goal.goal_id);
+            const isTarget = !targetGoalId || currentGoalId === String(targetGoalId);
 
-            try {
-                // Initialize calculator if it's a class, or use as object
-                const calculator = (typeof CalculatorClass === 'function') ? new CalculatorClass() : CalculatorClass;
+            if (isTarget) {
+                const typeId = goal.goal_type_id;
+                const CalculatorClass = CALCULATORS[typeId] || otherGoalCalculator;
 
-                const result = await calculator.calculate(goal, context);
+                try {
+                    const calculator = (typeof CalculatorClass === 'function') ? new CalculatorClass() : CalculatorClass;
+                    const result = await calculator.calculate(goal, context);
 
-                // Inject common fields if missing
-                if (!result.goal_name && goal.name) result.goal_name = goal.name;
-                if (!result.goal_id && goal.id) result.goal_id = goal.id;
+                    if (!result.goal_name && goal.name) result.goal_name = goal.name;
+                    if (!result.goal_id && goal.id) result.goal_id = goal.id;
 
-                resultsIndexed.push({ index, result });
-            } catch (err) {
-                console.error(`Calculation error for goal ${goal.name}:`, err);
-                resultsIndexed.push({
-                    index,
-                    result: {
-                        goal_id: goal.id || goal.goal_type_id,
-                        goal_name: goal.name,
-                        error: err.message
+                    resultsIndexed.push({ index, result });
+                } catch (err) {
+                    console.error(`Calculation error for goal ${goal.name}:`, err);
+                    resultsIndexed.push({
+                        index,
+                        result: {
+                            goal_id: goal.id || goal.goal_type_id,
+                            goal_name: goal.name,
+                            error: err.message
+                        }
+                    });
+                }
+            } else {
+                // FROZEN GOAL: Use previous result but MUST deduct from shared pool to maintain context
+                const prevResult = prevGoalsMap.get(currentGoalId);
+                if (prevResult) {
+                    console.log(`[CalculationService] Using frozen result for goal: ${goal.name}`);
+
+                    // Deduct from pool as if it was calculated
+                    // This is crucial so that goals later in priority see the correct remaining balance.
+                    const initialCap = prevResult.summary?.initial_capital || 0;
+                    if (initialCap > 0) {
+                        // We use a dummy calculator or just the base method to deduct
+                        const dummyCalculator = otherGoalCalculator;
+                        dummyCalculator.deductFromSharedPool(initialCap, context);
                     }
-                });
+
+                    // Update PDS limits if they were used by this goal previously
+                    if (prevResult.details && prevResult.details.yearly_breakdown) {
+                        prevResult.details.yearly_breakdown.forEach(yearData => {
+                            const year = yearData.year;
+                            if (yearData.cofinancing_for_year > 0) {
+                                // We approximate the contribution year as year - 1
+                                const contribYear = year - 1;
+                                context.usedCofinancingPerYear[contribYear] = (context.usedCofinancingPerYear[contribYear] || 0) + yearData.cofinancing_for_year;
+                            }
+                            // Note: Tax base is harder to restore exactly without internal simulation state, 
+                            // but usually it's tied to contributions. For now, we restore cofinancing which is more critical.
+                        });
+                    }
+
+                    resultsIndexed.push({ index, result: prevResult });
+                } else {
+                    // Fallback if no previous result found (should not happen in valid partial mode)
+                    console.warn(`[CalculationService] No previous result for frozen goal ${goal.name}, calculating anyway.`);
+                    const calculator = (typeof CALCULATORS[goal.goal_type_id] === 'function')
+                        ? new CALCULATORS[goal.goal_type_id]()
+                        : (CALCULATORS[goal.goal_type_id] || otherGoalCalculator);
+                    const result = await calculator.calculate(goal, context);
+                    resultsIndexed.push({ index, result });
+                }
             }
         }
 

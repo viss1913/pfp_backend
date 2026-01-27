@@ -334,8 +334,24 @@ class ClientController {
             };
 
             // 4. Run Calculation
-            // This will re-run Smart Allocation with the (potentially new) pool and goals
-            const calculation = await calculationService.calculateFirstRun(calcRequest);
+            // Detect if we can do partial recalculation (only if exactly one goal was updated)
+            let targetGoalId = null;
+            let previousCalculation = null;
+
+            if (req.body.goals && req.body.goals.length === 1 && req.body.goals[0].id) {
+                targetGoalId = req.body.goals[0].id;
+                try {
+                    previousCalculation = typeof existingClient.goals_summary === 'string'
+                        ? JSON.parse(existingClient.goals_summary)
+                        : existingClient.goals_summary;
+                    console.log(`[ClientController] Triggering partial recalculation for goal: ${targetGoalId}`);
+                } catch (e) {
+                    console.warn('[ClientController] Failed to parse previous goals_summary for partial recalculation');
+                }
+            }
+
+            // This will re-run Smart Allocation (full or partial) with the (potentially new) pool and goals
+            const calculation = await calculationService.calculateFirstRun(calcRequest, targetGoalId, previousCalculation);
 
             // 5. Update Client Record with New Summary
             // We save the result 'goals_summary' so the dashboard updates permanently.
