@@ -44,16 +44,19 @@ class SmmService {
 
             const url = `${this.apiUrl}/internal/webhooks/agent-updated`;
             console.log(`[SmmService] Syncing agent ${agentId} to: ${url}`);
-            // console.log('[SmmService] Payload:', JSON.stringify(payload, null, 2));
+            console.log('[SmmService] Payload:', JSON.stringify(payload, null, 2));
 
-            await axios.post(url, payload, {
+            const response = await axios.post(url, payload, {
                 headers: {
                     'x-internal-api-key': this.apiKey,
                     'Content-Type': 'application/json'
                 }
             });
 
-            console.log(`[SmmService] Agent ${agentId} synced successfully`);
+            console.log(`[SmmService] Agent ${agentId} synced successfully. Response status: ${response.status}`);
+            if (response.data) {
+                console.log('[SmmService] Response data:', typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data);
+            }
             return true;
         } catch (err) {
             console.error(`[SmmService] Failed to sync agent ${agentId}:`, err.message);
