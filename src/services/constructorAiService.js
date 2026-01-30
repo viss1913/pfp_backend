@@ -1,5 +1,5 @@
 const aiService = require('./aiService');
-const knex = require('knex')(require('../../knexfile').development); // Adjust for production if needed
+const knex = require('../config/database');
 
 class ConstructorAiService {
     /**
@@ -22,6 +22,12 @@ class ConstructorAiService {
         let currentCommand = null;
         if (current_command_id) {
             currentCommand = commands.find(c => c.id === current_command_id);
+        }
+
+        // 1.5 Принудительно выбираем /start для первого сообщения, если это команда /start
+        if (!current_command_id && userMessage.toLowerCase().includes('/start')) {
+            const startCmd = commands.find(c => c.command === '/start');
+            if (startCmd) return startCmd;
         }
 
         const classifierInstructions = currentCommand ? currentCommand.classifier : "Определи стадию диалога.";
