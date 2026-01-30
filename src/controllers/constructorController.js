@@ -1,4 +1,4 @@
-const knex = require('knex')(require('../../knexfile').development);
+const knex = require('../config/database');
 const constructorBotService = require('../services/constructorBotService');
 
 class ConstructorController {

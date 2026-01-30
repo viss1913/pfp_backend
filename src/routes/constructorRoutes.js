@@ -17,8 +17,12 @@ router.get('/templates', constructorController.getTemplates);
 
 // Brain Contexts (Admin)
 router.get('/brain-contexts', constructorController.getBrainContexts);
+router.get('/constructor_brain_contexts', constructorController.getBrainContexts);
 router.post('/brain-contexts', constructorController.createBrainContext);
+router.post('/constructor_brain_contexts', constructorController.createBrainContext);
 router.put('/brain-contexts/:id', constructorController.updateBrainContext);
+router.put('/constructor_brain_contexts/:id', constructorController.updateBrainContext);
 router.delete('/brain-contexts/:id', constructorController.deleteBrainContext);
+router.delete('/constructor_brain_contexts/:id', constructorController.deleteBrainContext);
 
 module.exports = router;
