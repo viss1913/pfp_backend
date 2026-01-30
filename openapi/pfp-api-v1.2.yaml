@@ -412,6 +412,82 @@ components:
       responses:
         '200':
           description: Chat history
+  # --- Admin Constructor Aliases ---
+  /admin/constructor/constructor_commands:
+    get:
+      summary: (Alias) List templates
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of templates
+    post:
+      summary: (Alias) Create template
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Created
+  /admin/constructor/constructor_commands/{id}:
+    put:
+      summary: (Alias) Update template
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Updated
+    patch:
+      summary: (Alias) Partial update template
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Updated
+    delete:
+      summary: (Alias) Delete template
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Deleted
+  /admin/constructor/constructor_brain_contexts:
+    get:
+      summary: (Alias) List brain contexts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List
+  /admin/constructor/constructor_brain_contexts/{id}:
+    put:
+      summary: (Alias) Update brain context
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Updated
+    patch:
+      summary: (Alias) Partial update brain context
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Updated
   /pfp/constructor/send-message:
     post:
       summary: Send manual message to a client (text + media)
