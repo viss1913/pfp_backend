@@ -10,7 +10,7 @@ class ConstructorController {
      */
     async registerBot(req, res) {
         const agentId = req.user.id; // Из authMiddleware
-        const { name, token, communication_style, base_brain_context } = req.body;
+        const { name, link, token, communication_style, base_brain_context } = req.body;
 
         try {
             let bot = await knex('constructor_bots').where('agent_id', agentId).first();
@@ -20,6 +20,7 @@ class ConstructorController {
                     .where('id', bot.id)
                     .update({
                         name,
+                        link,
                         token,
                         communication_style,
                         base_brain_context,
@@ -29,6 +30,7 @@ class ConstructorController {
                 const [id] = await knex('constructor_bots').insert({
                     agent_id: agentId,
                     name,
+                    link,
                     token,
                     communication_style,
                     base_brain_context
@@ -96,6 +98,7 @@ class ConstructorController {
             const sessions = await knex('constructor_sessions').where('client_id', clientId).pluck('id');
             const messages = await knex('constructor_logs')
                 .whereIn('session_id', sessions)
+                .select('id', 'input_text as user_message', 'response_generated as assistant_message', 'created_at')
                 .orderBy('created_at', 'asc');
 
             res.json(messages);

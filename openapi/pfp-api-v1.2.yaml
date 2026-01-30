@@ -377,6 +377,7 @@ components:
               type: object
               properties:
                 name: { type: string }
+                link: { type: string }
                 token: { type: string }
                 communication_style: { type: string }
                 base_brain_context: { type: string }
