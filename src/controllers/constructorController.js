@@ -9,7 +9,7 @@ class ConstructorController {
      * Регистрация или обновление бота агента
      */
     async registerBot(req, res) {
-        const agentId = req.user.id; // Из authMiddleware
+        const agentId = req.user.agentId || req.user.id; // Приоритет агента, fallback на user.id (совместимость)
         const { name, link, token, communication_style, base_brain_context } = req.body;
 
         try {
@@ -43,8 +43,16 @@ class ConstructorController {
 
             res.json({ success: true, message: 'Bot registered and started' });
         } catch (error) {
-            console.error('registerBot error:', error);
-            res.status(500).json({ error: 'Failed to register bot' });
+            console.error('registerBot error details:', {
+                agentId,
+                error: error.message,
+                stack: error.stack
+            });
+            res.status(500).json({
+                error: 'Failed to register bot',
+                message: error.message,
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            });
         }
     }
 
@@ -52,7 +60,7 @@ class ConstructorController {
      * GET /pfp/constructor/bot
      */
     async getMyBot(req, res) {
-        const agentId = req.user.id;
+        const agentId = req.user.agentId || req.user.id;
         try {
             const bot = await knex('constructor_bots').where('agent_id', agentId).first();
             res.json(bot || {});
@@ -65,7 +73,7 @@ class ConstructorController {
      * GET /pfp/constructor/clients
      */
     async getMyClients(req, res) {
-        const agentId = req.user.id;
+        const agentId = req.user.agentId || req.user.id;
         try {
             const bot = await knex('constructor_bots').where('agent_id', agentId).first();
             if (!bot) return res.json([]);

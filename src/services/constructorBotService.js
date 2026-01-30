@@ -1,5 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
-const knex = require('knex')(require('../../knexfile').development);
+const knex = require('../config/database');
 const constructorAiService = require('./constructorAiService');
 
 class ConstructorBotService {
