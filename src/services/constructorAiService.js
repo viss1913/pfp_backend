@@ -9,23 +9,23 @@ class ConstructorAiService {
         const { current_command_id, client_id } = session;
 
         // 1. Получаем все доступные команды для этого бота (или глобальные шаблоны)
-        // Сначала ищем команды бота, если их нет - берем глобальные
+        // Приоритезируем команды конкретного бота над шаблонами
         const client = await knex('constructor_clients').where('id', client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
         const commands = await knex('constructor_commands')
             .where('bot_id', bot.id)
-            .orWhere('is_template', true);
+            .orWhere('is_template', true)
+            .orderByRaw('bot_id DESC, is_template ASC'); // Бот > Шаблон
 
         // 2. Формируем контекст классификатора
-        // Берем classifier из текущей команды или базовый, если стадии нет
         let currentCommand = null;
         if (current_command_id) {
-            currentCommand = commands.find(c => c.id === current_command_id);
+            currentCommand = commands.find(c => Number(c.id) === Number(current_command_id));
         }
 
-        // 1.5 Принудительно выбираем /start для первого сообщения, если это команда /start
-        if (!current_command_id && userMessage.toLowerCase().includes('/start')) {
+        // 1.5 Принудительно выбираем /start для первого сообщения
+        if (!current_command_id && userMessage.trim().toLowerCase().includes('/start')) {
             const startCmd = commands.find(c => c.command === '/start');
             if (startCmd) return startCmd;
         }
@@ -48,13 +48,27 @@ class ConstructorAiService {
         ];
 
         try {
+            console.log(`[AI Step 1] Client: ${client_id}, Bot: ${bot.id}`);
+            console.log(`[AI Step 1] User Message: "${userMessage}"`);
+            console.log(`[AI Step 1] System Prompt Instructions: ${classifierInstructions}`);
+
             const result = await aiService.getCompletion(prompt);
-            const detectedCommand = result.trim();
+
+            // Очистка ответа (удаляем точки, кавычки и извлекаем первое слово-команду)
+            const detectedCommand = result.trim().replace(/[."'`«»]/g, '').split(' ')[0];
+
+            console.log(`[AI Step 1] Detected Command (Raw): "${result}"`);
+            console.log(`[AI Step 1] Detected Command (Clean): "${detectedCommand}"`);
 
             const nextCommand = commands.find(c => c.command === detectedCommand) || currentCommand;
+
+            if (nextCommand && (!currentCommand || Number(nextCommand.id) !== Number(current_command_id))) {
+                console.log(`[AI Step 1] Stage Switch: ${currentCommand ? currentCommand.command : 'None'} -> ${nextCommand.command}`);
+            }
+
             return nextCommand;
         } catch (error) {
-            console.error('Classification error:', error);
+            console.error('[AI Step 1] Classification error:', error);
             return currentCommand;
         }
     }
@@ -88,12 +102,22 @@ class ConstructorAiService {
             {
                 role: 'system',
                 content: `
-Слой 1 (Системный/Мозг): ${bot.base_brain_context || 'Ты — помощник агента.'}
-${brainSection ? '\nДополнительные инструкции Мозга:\n' + brainSection : ''}
+Ты — ИИ-ассистент по имени "${bot.name || 'Помощник'}".
 
-Слой 2 (Агентский): ${bot.communication_style || 'Общайся вежливо.'}
-Слой 3 (Сценарный): ${command.response}
-Слой 4 (Персональный): ${client.user_context || 'Информации о клиенте нет.'}
+СЛОЙ 1 (БАЗОВЫЙ КОНТЕКСТ И ЗНАНИЯ):
+${bot.base_brain_context || 'Ты — опытный финансовый консультант и помощник агента.'}
+${brainSection ? '\nДополнительные инструкции из базы знаний:\n' + brainSection : ''}
+
+СЛОЙ 2 (СТИЛИСТИКА ОБЩЕНИЯ):
+${bot.communication_style || 'Общайся вежливо и профессионально.'}
+
+СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА/СЦЕНАРИЙ):
+${command.response}
+
+СЛОЙ 4 (ДАННЫЕ О КЛИЕНТЕ):
+${client.user_context || 'Информации о клиенте пока нет.'}
+
+ВАЖНО: Придерживайся своей роли и стиля. Отвечай кратко и по делу, если иное не указано в сценарии.
 `
             },
             ...historyMessages,
@@ -104,10 +128,16 @@ ${brainSection ? '\nДополнительные инструкции Мозга
         ];
 
         try {
+            console.log(`[AI Step 2] Generating response for command: ${command.command}`);
+            console.log(`[AI Step 2] Layered Prompt (System): ${layeredPrompt[0].content}`);
+
             const responseText = await aiService.getCompletion(layeredPrompt);
+
+            console.log(`[AI Step 2] AI Response: "${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}"`);
+
             return responseText;
         } catch (error) {
-            console.error('Response generation error:', error);
+            console.error('[AI Step 2] Response generation error:', error);
             return "Извините, произошла ошибка. Попробуйте позже.";
         }
     }
@@ -137,6 +167,8 @@ ${brainSection ? '\nДополнительные инструкции Мозга
             session = await knex('constructor_sessions').where('id', session).first();
         }
 
+        console.log(`\n--- Processing Message from ${nickname} (${telegramUserId}) ---`);
+
         // 1. Классификация
         const nextCommand = await this.classifyStage(session, userMessage);
 
@@ -157,6 +189,8 @@ ${brainSection ? '\nДополнительные инструкции Мозга
             detected_command_id: nextCommand ? nextCommand.id : null,
             response_generated: responseText
         });
+
+        console.log(`--- Message Processed (Next Command: ${nextCommand ? nextCommand.command : 'none'}) ---\n`);
 
         return responseText;
     }

@@ -45,6 +45,7 @@ class ConstructorBotService {
                         msg.text
                     );
 
+                    console.log(`[Telegram] Sending response to ${msg.from.id}: "${response.substring(0, 50)}..."`);
                     await botInstance.sendMessage(msg.chat.id, response);
                 } catch (err) {
                     console.error(`Error in bot ${botData.id}:`, err);
