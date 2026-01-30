@@ -215,6 +215,41 @@ class ConstructorController {
         }
     }
 
+    /**
+     * PUT /admin/constructor/templates/:id
+     */
+    async updateTemplate(req, res) {
+        const { id } = req.params;
+        const { command, classifier, response, section } = req.body;
+        try {
+            await knex('constructor_commands')
+                .where('id', id)
+                .update({
+                    command,
+                    classifier,
+                    response,
+                    section,
+                    updated_at: knex.fn.now()
+                });
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to update template' });
+        }
+    }
+
+    /**
+     * DELETE /admin/constructor/templates/:id
+     */
+    async deleteTemplate(req, res) {
+        const { id } = req.params;
+        try {
+            await knex('constructor_commands').where('id', id).del();
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ error: 'Failed to delete template' });
+        }
+    }
+
     // --- Brain Context Methods (Admin) ---
 
     /**
