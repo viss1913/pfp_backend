@@ -365,3 +365,90 @@ components:
             application/json:
               schema:
                 $ref: '#/components/schemas/CalculationResponse'
+  /pfp/constructor/bot:
+    post:
+      summary: Register or update agent's AI bot
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                token: { type: string }
+                communication_style: { type: string }
+                base_brain_context: { type: string }
+      responses:
+        '200':
+          description: Successful
+    get:
+      summary: Get agent's bot configuration
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Bot info
+  /pfp/constructor/clients:
+    get:
+      summary: List clients of the agent's bot
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of clients
+  /pfp/constructor/messages/{client_id}:
+    get:
+      summary: Get message history for a specific client
+      parameters:
+        - in: path
+          name: client_id
+          schema: { type: integer }
+          required: true
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Chat history
+  /pfp/constructor/send-message:
+    post:
+      summary: Send manual message to a client (text + media)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                clientId: { type: integer }
+                text: { type: string }
+                photo: { type: string, description: "URL or file_id" }
+                video: { type: string }
+                voice: { type: string }
+                audio: { type: string }
+                document: { type: string }
+      responses:
+        '200':
+          description: Sent
+  /pfp/constructor/broadcast:
+    post:
+      summary: Send broadcast message to all clients
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+                photo: { type: string }
+                video: { type: string }
+                voice: { type: string }
+                audio: { type: string }
+                document: { type: string }
+      responses:
+        '200':
+          description: Broadcast results

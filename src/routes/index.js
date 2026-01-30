@@ -35,6 +35,11 @@ router.use('/pfp/crm', authMiddleware, crmRoutes);
 const reportRoutes = require('./reportRoutes');
 router.use('/pfp/reports', authMiddleware, reportRoutes);
 
+// Constructor Routes
+const constructorRoutes = require('./constructorRoutes');
+router.use('/pfp/constructor', authMiddleware, constructorRoutes);
+router.use('/admin/constructor', authMiddleware, constructorRoutes); // Reusing same router, internal paths handle prefixes
+
 // Alias for potentially mismatched frontend path:
 router.use('/ai', authMiddleware, aiRoutes);
 // Alias for direct /chat/stream path (mapping /api/chat/stream):

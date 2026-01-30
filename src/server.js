@@ -1,6 +1,8 @@
 require('dotenv').config();
 const app = require('./app');
 const db = require('./config/database');
+const constructorBotService = require('./services/constructorBotService');
+
 
 const PORT = process.env.PORT || 3000;
 const AUTO_SEED = process.env.AUTO_SEED !== 'false'; // Set to 'false' to disable
@@ -128,6 +130,9 @@ async function startServer() {
         console.log('Testing database connection...');
         await db.raw('SELECT 1');
         console.log('✅ Database connected successfully');
+
+        // Initialize AI Constructor Bots
+        await constructorBotService.initAllBots();
 
         app.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
