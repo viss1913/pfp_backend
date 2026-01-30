@@ -17,7 +17,9 @@ router.post('/constructor_commands', constructorController.createTemplate);
 router.get('/templates', constructorController.getTemplates);
 router.get('/constructor_commands', constructorController.getTemplates);
 router.put('/templates/:id', constructorController.updateTemplate);
+router.patch('/templates/:id', constructorController.updateTemplate);
 router.put('/constructor_commands/:id', constructorController.updateTemplate);
+router.patch('/constructor_commands/:id', constructorController.updateTemplate);
 router.delete('/templates/:id', constructorController.deleteTemplate);
 router.delete('/constructor_commands/:id', constructorController.deleteTemplate);
 
