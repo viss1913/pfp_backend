@@ -24,23 +24,38 @@ class ConstructorAiService {
             currentCommand = commands.find(c => Number(c.id) === Number(current_command_id));
         }
 
-        // 1.5 Принудительно выбираем /start для первого сообщения
+        // 1.5 Принудительно выбираем /start для первого сообщения если это /start
         if (!current_command_id && userMessage.trim().toLowerCase().includes('/start')) {
             const startCmd = commands.find(c => c.command === '/start');
             if (startCmd) return startCmd;
         }
 
-        const classifierInstructions = currentCommand ? currentCommand.classifier : "Определи стадию диалога.";
+        // 1.6 Получаем историю для классификатора
+        const history = await knex('constructor_logs')
+            .where('session_id', session.id)
+            .orderBy('created_at', 'desc')
+            .limit(5); // Для классификации достаточно 5 последних сообщений
+
+        const historyMessages = history.reverse().map(log => ([
+            { role: 'user', content: log.input_text },
+            { role: 'assistant', content: log.response_generated || '' }
+        ])).flat();
+
+        const classifierInstructions = currentCommand ? currentCommand.classifier : "Определи начальную стадию диалога.";
 
         const prompt = [
             {
                 role: 'system',
                 content: `Ты — классификатор стадий диалога. 
-Твоя задача: на основе сообщения пользователя и инструкций определить ключ (command) следующей стадии.
+Твоя задача: на основе сообщения пользователя, истории переписки и инструкций определить ключ (command) следующей стадии.
 Доступные команды: ${commands.map(c => c.command).join(', ')}.
-Инструкции по переключению: ${classifierInstructions}
-ОТВЕТЬ ТОЛЬКО КЛЮЧОМ КОМАНДЫ (например: /meeting). Если не уверен, верни текущую команду.`
+Инструкции по переключению (текущая стадия: ${currentCommand ? currentCommand.command : 'начало'}): ${classifierInstructions}
+
+ОТВЕТЬ ТОЛЬКО КЛЮЧОМ КОМАНДЫ (например: /meeting). 
+Если сообщение пользователя не требует переключения стадии или ты не уверен, верни текущую команду (или /start если это начало). 
+Не пиши ничего кроме ключа команды.`
             },
+            ...historyMessages,
             {
                 role: 'user',
                 content: userMessage
@@ -55,12 +70,17 @@ class ConstructorAiService {
             const result = await aiService.getCompletion(prompt);
 
             // Очистка ответа (удаляем точки, кавычки и извлекаем первое слово-команду)
-            const detectedCommand = result.trim().replace(/[."'`«»]/g, '').split(' ')[0];
+            const detectedCommand = result.trim().replace(/[."'`#*@]/g, '').split(' ')[0];
 
             console.log(`[AI Step 1] Detected Command (Raw): "${result}"`);
             console.log(`[AI Step 1] Detected Command (Clean): "${detectedCommand}"`);
 
-            const nextCommand = commands.find(c => c.command === detectedCommand) || currentCommand;
+            let nextCommand = commands.find(c => c.command === detectedCommand);
+
+            // Если команда не распознана, остаемся на текущей или выбираем /start
+            if (!nextCommand) {
+                nextCommand = currentCommand || commands.find(c => c.command === '/start');
+            }
 
             if (nextCommand && (!currentCommand || Number(nextCommand.id) !== Number(current_command_id))) {
                 console.log(`[AI Step 1] Stage Switch: ${currentCommand ? currentCommand.command : 'None'} -> ${nextCommand.command}`);
