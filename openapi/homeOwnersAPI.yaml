@@ -1,0 +1,295 @@
+openapi: 3.0.0
+info:
+  title: Home Owners Insurance API
+  version: 1.0.0
+  description: API для управления продуктами страхования недвижимости, настройки тарифов и расчета страховых премий.
+
+servers:
+  - url: /api
+    description: Основной сервер API
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HomeOwnersProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+        rate_constructive:
+          type: number
+          description: "Базовая ставка для конструктива (например, 0.0012)"
+        rate_finish:
+          type: number
+          description: "Базовая ставка для отделки"
+        rate_property:
+          type: number
+          description: "Базовая ставка для имущества"
+        rate_civil:
+          type: number
+          description: "Базовая ставка для гражданской ответственности"
+
+    HomeOwnersTariff:
+      type: object
+      properties:
+        id:
+          type: integer
+        product_id:
+          type: integer
+        parameter_name:
+          type: string
+          description: "Напр. wall_material, security, is_rented"
+        parameter_value:
+          type: string
+          description: "Напр. wood, alarm, yes"
+        coefficient:
+          type: number
+          description: "Множитель (коэффициент), на который умножается премия"
+        label:
+          type: string
+          description: "Человекочитаемое название для фронтенда"
+        coefficient_type:
+          type: string
+          enum: [multiplier]
+          description: "Для Home Owners сейчас используются только множители"
+
+    HomeOwnersCalculationRequest:
+      type: object
+      required:
+        - product_id
+        - object_params
+        - limits
+      properties:
+        product_id:
+          type: integer
+        client_id:
+          type: integer
+          nullable: true
+        object_params:
+          type: object
+          description: "Набор параметров объекта: { wall_material: 'wood', security: 'alarm' }"
+        limits:
+          type: object
+          required:
+            - property
+          properties:
+            constructive:
+              type: number
+            finish:
+              type: number
+            property:
+              type: number
+            civil:
+              type: number
+
+    HomeOwnersCalculationResponse:
+      type: object
+      properties:
+        total_premium:
+          type: number
+        total_limit:
+          type: number
+        limits:
+          type: object
+          properties:
+            constructive:
+              type: number
+            finish:
+              type: number
+            property:
+              type: number
+            civil:
+              type: number
+        currency:
+          type: string
+          default: "RUB"
+        calculation_steps:
+          type: array
+          items:
+            type: object
+            properties:
+              parameter:
+                type: string
+              value:
+                type: string
+              coefficient:
+                type: number
+              premium_after:
+                type: number
+              details:
+                type: object
+                description: "Дополнительные детали для базового шага"
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Admin
+    description: Управление продуктами и тарифами (требуются права администратора)
+  - name: Agent
+    description: Расчет премий и получение опций (доступно агентам)
+
+paths:
+  # --- AGENT / PUBLIC SECTION ---
+  /insurance/home-owners/products:
+    get:
+      summary: Список доступных страховых продуктов
+      tags: [Agent]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HomeOwnersProduct'
+
+  /insurance/home-owners/options:
+    get:
+      summary: Получить доступные опции для расчета (дропдауны)
+      tags: [Agent]
+      parameters:
+        - in: query
+          name: product_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+
+  /insurance/home-owners/calculate:
+    post:
+      summary: Расчитать страховую премию
+      tags: [Agent]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeOwnersCalculationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeOwnersCalculationResponse'
+
+  /insurance/home-owners/history:
+    get:
+      summary: История расчетов
+      tags: [Agent]
+      parameters:
+        - in: query
+          name: client_id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+
+  # --- ADMIN SECTION ---
+  /admin/insurance/home-owners/products:
+    get:
+      summary: Список всех продуктов (включая неактивные)
+      tags: [Admin]
+      parameters:
+        - in: query
+          name: all
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HomeOwnersProduct'
+    post:
+      summary: Создать или обновить продукт
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeOwnersProduct'
+      responses:
+        '200':
+          description: OK
+
+  /admin/insurance/home-owners/products/{id}:
+    delete:
+      summary: Удалить продукт и все его тарифы
+      tags: [Admin]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Удалено
+
+  /admin/insurance/home-owners/tariffs:
+    get:
+      summary: Список тарифов (множителей) для продукта
+      tags: [Admin]
+      parameters:
+        - in: query
+          name: product_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HomeOwnersTariff'
+    post:
+      summary: Создать или обновить тариф (множитель)
+      tags: [Admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeOwnersTariff'
+      responses:
+        '200':
+          description: OK
+
+  /admin/insurance/home-owners/tariffs/{id}:
+    delete:
+      summary: Удалить тариф
+      tags: [Admin]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Удалено
