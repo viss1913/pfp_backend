@@ -1,5 +1,6 @@
 const aiService = require('./aiService');
 const knex = require('../config/database');
+const homeOwnersCalculator = require('./calculators/HomeOwnersCalculator');
 
 class ConstructorAiService {
     /**
@@ -94,9 +95,51 @@ class ConstructorAiService {
     }
 
     /**
+     * Извлечение параметров для расчета страхования имущества из истории диалога
+     */
+    async extractHomeOwnersParams(session) {
+        const history = await knex('constructor_logs')
+            .where('session_id', session.id)
+            .orderBy('created_at', 'desc')
+            .limit(10);
+
+        const historyText = history.reverse().map(log =>
+            `User: ${log.input_text}\nAssistant: ${log.response_generated}`
+        ).join('\n');
+
+        const prompt = [
+            {
+                role: 'system',
+                content: `Ты — аналитик данных. Твоя задача: извлечь параметры для расчета страхования квартиры из диалога.
+Ищи следующие значения:
+1. finish (отделка) - сумма страхования отделки.
+2. property (имущество) - сумма страхования движимого имущества.
+3. civil (ГО) - сумма страхования гражданской ответственности.
+
+ОТВЕТЬ ТОЛЬКО ЧИСТЫМ JSON без пояснений. Если значение не найдено, используй 0.
+Пример: {"finish": 500000, "property": 300000, "civil": 1000000}
+`
+            },
+            {
+                role: 'user',
+                content: `Диалог:\n${historyText}`
+            }
+        ];
+
+        try {
+            const result = await aiService.getCompletion(prompt);
+            const cleanResult = result.replace(/```json|```/g, '').trim();
+            return JSON.parse(cleanResult);
+        } catch (error) {
+            console.error('[AI] Error extracting homeOwners params:', error);
+            return { finish: 0, property: 0, civil: 0 };
+        }
+    }
+
+    /**
      * Шаг 2: Генерация ответа (Послойный промпт)
      */
-    async generateResponse(session, command, userMessage) {
+    async generateResponse(session, command, userMessage, calculationResult = null) {
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
@@ -133,6 +176,7 @@ ${bot.communication_style || 'Общайся вежливо и професси�
 
 СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА/СЦЕНАРИЙ):
 ${command.response}
+${calculationResult ? '\nТЫ ПОЛУЧИЛ JSON С РАСЧЕТОМ:\n' + JSON.stringify(calculationResult, null, 2) : ''}
 
 СЛОЙ 4 (ДАННЫЕ О КЛИЕНТЕ):
 ${client.user_context || 'Информации о клиенте пока нет.'}
@@ -210,8 +254,25 @@ ${client.user_context || 'Информации о клиенте пока нет
         // 1. Классификация
         const nextCommand = await this.classifyStage(session, userMessage);
 
+        let calculationResult = null;
+        // Если перешли на стадию расчета или получили команду принудительно
+        if (nextCommand && nextCommand.command === '/homeOwnersCalc') {
+            const limits = await this.extractHomeOwnersParams(session);
+            console.log(`[Flow] Performing Home Owners Calculation with limits:`, limits);
+
+            try {
+                calculationResult = await homeOwnersCalculator.calculate({
+                    product_id: 1, // ID продукта "Домашний уют"
+                    object_params: {}, // Пока без доп. параметров в диалоге
+                    limits: limits
+                });
+            } catch (calcErr) {
+                console.error('Calculation failed:', calcErr);
+            }
+        }
+
         // 2. Генерация ответа
-        const responseText = await this.generateResponse(session, nextCommand, userMessage);
+        const responseText = await this.generateResponse(session, nextCommand, userMessage, calculationResult);
 
         // 3. Обновление сессии и логирование
         await knex('constructor_sessions')
