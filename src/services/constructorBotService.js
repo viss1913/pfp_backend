@@ -46,7 +46,7 @@ class ConstructorBotService {
                     );
 
                     console.log(`[Telegram] Sending response to ${msg.from.id}: "${response.substring(0, 50)}..."`);
-                    await botInstance.sendMessage(msg.chat.id, response);
+                    await botInstance.sendMessage(msg.chat.id, response, { parse_mode: 'Markdown' });
                 } catch (err) {
                     console.error(`Error in bot ${botData.id}:`, err);
                 }
@@ -105,13 +105,13 @@ class ConstructorBotService {
 
         const { text, photo, video, voice, audio, document } = content;
 
-        if (photo) return await botRecord.botInstance.sendPhoto(telegramUserId, photo, { caption: text });
-        if (video) return await botRecord.botInstance.sendVideo(telegramUserId, video, { caption: text });
-        if (voice) return await botRecord.botInstance.sendVoice(telegramUserId, voice, { caption: text });
-        if (audio) return await botRecord.botInstance.sendAudio(telegramUserId, audio, { caption: text });
-        if (document) return await botRecord.botInstance.sendDocument(telegramUserId, document, { caption: text });
+        if (photo) return await botRecord.botInstance.sendPhoto(telegramUserId, photo, { caption: text, parse_mode: 'Markdown' });
+        if (video) return await botRecord.botInstance.sendVideo(telegramUserId, video, { caption: text, parse_mode: 'Markdown' });
+        if (voice) return await botRecord.botInstance.sendVoice(telegramUserId, voice, { caption: text, parse_mode: 'Markdown' });
+        if (audio) return await botRecord.botInstance.sendAudio(telegramUserId, audio, { caption: text, parse_mode: 'Markdown' });
+        if (document) return await botRecord.botInstance.sendDocument(telegramUserId, document, { caption: text, parse_mode: 'Markdown' });
 
-        return await botRecord.botInstance.sendMessage(telegramUserId, text);
+        return await botRecord.botInstance.sendMessage(telegramUserId, text, { parse_mode: 'Markdown' });
     }
 
     /**
