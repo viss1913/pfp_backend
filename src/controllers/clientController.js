@@ -169,7 +169,9 @@ class ClientController {
             }
 
             // Extract query params for pagination/sorting if needed
-            const { page, limit, sort, order, search } = req.query;
+            const page = req.query.page || 1;
+            const limit = req.query.limit || 50;
+            const { sort, order, search } = req.query;
 
             const clients = await clientService.getClientsByAgent(agentId, { page, limit, sort, order, search });
             res.json(clients);
