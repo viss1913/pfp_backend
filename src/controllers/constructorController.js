@@ -78,12 +78,39 @@ class ConstructorController {
             const bot = await knex('constructor_bots').where('agent_id', agentId).first();
             if (!bot) return res.json([]);
 
-            const clients = await knex('constructor_clients')
-                .where('bot_id', bot.id)
-                .orderBy('updated_at', 'desc');
+            // Получаем список клиентов с текущей стадией и последним сообщением
+            const clients = await knex('constructor_clients as c')
+                .where('c.bot_id', bot.id)
+                .leftJoin('constructor_sessions as s', 'c.id', 's.client_id')
+                .leftJoin('constructor_commands as cmd', 's.current_command_id', 'cmd.id')
+                .select(
+                    'c.*',
+                    'cmd.command as current_stage'
+                )
+                .orderBy('c.updated_at', 'desc');
 
-            res.json(clients);
+            // Для каждого клиента получаем последнее сообщение из логов
+            const clientsWithLastMessage = await Promise.all(clients.map(async (client) => {
+                const lastLog = await knex('constructor_logs')
+                    .where('session_id', function () {
+                        this.select('id').from('constructor_sessions').where('client_id', client.id).limit(1);
+                    })
+                    .orderBy('created_at', 'desc')
+                    .first();
+
+                return {
+                    ...client,
+                    last_message: lastLog ? (lastLog.response_generated || lastLog.input_text) : null,
+                    last_message_at: lastLog ? lastLog.created_at : client.updated_at
+                };
+            }));
+
+            // Сортируем по времени последнего сообщения
+            clientsWithLastMessage.sort((a, b) => new Date(b.last_message_at) - new Date(a.last_message_at));
+
+            res.json(clientsWithLastMessage);
         } catch (error) {
+            console.error('getMyClients error:', error);
             res.status(500).json({ error: 'Failed to get clients' });
         }
     }
@@ -92,7 +119,7 @@ class ConstructorController {
      * GET /pfp/constructor/messages/:clientId
      */
     async getMessages(req, res) {
-        const agentId = req.user.id;
+        const agentId = req.user.agentId || req.user.id;
         const { clientId } = req.params;
 
         try {
@@ -120,7 +147,7 @@ class ConstructorController {
      * Отправка сообщения конкретному клиенту (текст + медиа)
      */
     async sendMessage(req, res) {
-        const agentId = req.user.id;
+        const agentId = req.user.agentId || req.user.id;
         const { clientId, text, photo, video, voice, audio, document } = req.body;
 
         try {
@@ -157,7 +184,7 @@ class ConstructorController {
      * Массовая рассылка всем клиентам агента
      */
     async broadcast(req, res) {
-        const agentId = req.user.id;
+        const agentId = req.user.agentId || req.user.id;
         const { text, photo, video, voice, audio, document } = req.body;
 
         try {
