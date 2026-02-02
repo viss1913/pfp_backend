@@ -24,7 +24,7 @@ class AiController {
     async getHistory(req, res) {
         try {
             const { assistant_id } = req.params;
-            const agentId = req.user.id;
+            const agentId = req.user.agentId || req.user.id;
 
             let history = await aiHistoryService.getHistory(agentId, assistant_id);
 
@@ -92,33 +92,30 @@ class AiController {
                     const allClients = await crmService.getDetailedAgentClientsSummary(agentIdToUse);
                     console.log(`[AiController] Found ${allClients.length} clients for context.`);
 
-                    let clientContext = "\n\n=== ПОЛНОЕ ДОСЬЕ НА КЛИЕНТОВ (Только для твоих глаз) ===\n";
+                    let clientContext = "\n\n=== ПОЛНОЕ ДОСЬЕ КЛИЕНТОВ (Только для системы) ===\n";
 
                     if (allClients.length === 0) {
                         clientContext += "Список клиентов пуст.\n";
                     } else {
-                        // Dump ALL clients with full details
-                        clientContext += `Всего клиентов: ${allClients.length}.\n`;
+                        clientContext += `У вас в базе ${allClients.length} клиентов. Вот актуальный срез:\n`;
 
                         allClients.forEach(c => {
-                            const financeInfo = c.finance.error
-                                ? "Нет финансовых данных"
-                                : `Капитал: ${c.finance.net_worth?.toLocaleString()} ₽. Цель: ${c.finance.top_goal} (${c.finance.target?.toLocaleString()} ₽). Портфель: ${c.finance.main_asset}`;
+                            const fin = c.finance;
+                            const finStr = fin.error
+                                ? "Данные не заполнены"
+                                : `Капитал: ${fin.net_worth.toLocaleString()}₽, Цель: ${fin.top_goal} (${fin.target.toLocaleString()}₽), Активы: ${fin.main_asset}`;
 
-                            clientContext += `- [${c.status}] ${c.name} (ID: ${c.id}). ${financeInfo}.\n`;
+                            clientContext += `- [${c.status}] ${c.name} (ID: ${c.id}). ${finStr}. След. контакт: ${c.next_action}\n`;
                         });
                     }
 
                     // Add to system prompt
                     assistant.context_template += clientContext;
-                    assistant.context_template += `\n\n[SYSTEM DEBUG]: В этом контексте загружено ${allClients.length} клиентов.`;
-                    assistant.context_template += "\n\nИНСТРУКЦИЯ ПО РАБОТЕ С ДАННЫМИ:\n" +
-                        "- Ты видишь полный список клиентов агента и их финансы.\n" +
-                        "- [THINKING] или [Думает] = Лид, с которым нужно работать.\n" +
-                        "- Используй цифры капитала и целей для точных советов.\n" +
-                        "- НЕ выдумывай данные, которых нет в списке.";
-                    assistant.context_template += "\n- ВАЖНО: Если клиентов > 0, отвечай точно по списку. Если 0 — скажи 'База пуста'.";
-                    // assistant.context_template += "\n- ДЛЯ ОТЛАДКИ: Начни ответ с фразы '(Загружено клиентов: X)', где X - число из SYSTEM DEBUG.";
+                    assistant.context_template += "\n\nИНСТРУКЦИЯ ПО РАБОТЕ С БАЗОЙ:\n" +
+                        "- Ты — аналитический ассистент. Если агент спрашивает 'кто у меня на продлении' или 'кому позвонить', ИЩИ В СПИСКЕ ВЫШЕ статус [RENEWAL] или [THINKING].\n" +
+                        "- Для статуса [BOUGHT] и высокого капитала предлагай идеи для масштабирования или кросс-продаж.\n" +
+                        "- Будь краток, называй клиентов по именам и давай конкретные цифры.\n" +
+                        "- Если агент просит найти кого-то по условию (например, капитал > 1 млн), прошерсти список и выведи только подходящих.";
 
                 } catch (ctxErr) {
                     console.error('Failed to inject CRM context:', ctxErr);

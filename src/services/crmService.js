@@ -85,39 +85,48 @@ class CrmService {
      * Generates the daily briefing text using AI
      */
     async generateDailyBriefing(agentId) {
-        const { thinkingClients, renewalClients } = await this.getAttentionRequiredClients(agentId);
+        const allClients = await this.getDetailedAgentClientsSummary(agentId);
 
-        if (thinkingClients.length === 0 && renewalClients.length === 0) {
-            return "Доброе утро! На сегодня срочных задач по клиентам нет. Можно заняться поиском новых лидов.";
+        if (allClients.length === 0) {
+            return "Доброе утро! В вашей базе пока нет клиентов. Как только вы их добавите, я смогу подготовить для вас аналитическую сводку.";
         }
+
+        const thinking = allClients.filter(c => c.status === 'THINKING');
+        const renewal = allClients.filter(c => c.status === 'RENEWAL');
+        const bought = allClients.filter(c => c.status === 'BOUGHT');
 
         // Build prompt context
-        let contextData = "Analyzed Clients:\n";
+        let contextData = "CRM Portfolio Summary:\n";
+        contextData += `- Total Clients: ${allClients.length}\n`;
+        contextData += `- Thinking: ${thinking.length}\n`;
+        contextData += `- Renewal: ${renewal.length}\n`;
+        contextData += `- Bought: ${bought.length}\n\n`;
 
-        if (thinkingClients.length > 0) {
-            contextData += "\n[STATUS: THINKING - Needs Nudge]\n";
-            thinkingClients.forEach(c => {
-                contextData += `- ${c.first_name} ${c.last_name} (Thinking since ${new Date(c.crm_status_date).toLocaleDateString()}). Info: ${JSON.stringify(c.goals_summary || 'No details')}\n`;
-            });
-        }
+        contextData += "Client Details for Analysis:\n";
+        allClients.forEach(c => {
+            contextData += `- [${c.status}] ${c.name} (ID: ${c.id}). `;
+            if (c.finance.error) {
+                contextData += "Финансовые данные не заполнены. ";
+            } else {
+                contextData += `Капитал: ${c.finance.net_worth.toLocaleString()}₽. Цель: ${c.finance.top_goal}. `;
+            }
+            contextData += `След. шаг: ${c.next_action}\n`;
+        });
 
-        if (renewalClients.length > 0) {
-            contextData += "\n[STATUS: RENEWAL - Needs Action]\n";
-            renewalClients.forEach(c => {
-                contextData += `- ${c.first_name} ${c.last_name} (Renewal due: ${new Date(c.next_action_date).toLocaleDateString()})\n`;
-            });
-        }
-
-        const systemPrompt = `Ты — AI CRM ассистент. Твоя задача — подготовить краткую сводку для агента на день.
+        const systemPrompt = `Ты — высококвалифицированный AI CRM ассистент для финансового советника. Твоя задача — подготовить вдохновляющий и точный брифинг на день.
         
-        ВХОДНЫЕ ДАННЫЕ:
+        ВХОДНЫЕ ДАННЫЕ (Твоя база знаний):
         ${contextData}
 
         ИНСТРУКЦИЯ:
-        1. Поздоровайся.
-        2. Для клиентов "THINKING": Предложи 1 конкретное действие (написать, позвонить) и короткую идею для захода (новость, аргумент).
-        3. Для клиентов "RENEWAL": Напомни, что пора продлевать.
-        4. Будь краток. Ответ должен выглядеть как список задач.
+        1. Начни с бодрого приветствия и краткой статистики портфеля (сколько всего, сколько на сделке).
+        2. ВЫДЕЛИ САМОЕ ВАЖНОЕ (Срочные):
+           - Сначала те, у кого статус RENEWAL (продление) — это "горящие" деньги.
+           - Затем те, у кого статус THINKING (думают) — предложи идею для звонка, опираясь на их Капитал или Цель.
+        3. СДЕЛАЙ ВЫВОД: Если есть клиенты с большим капиталом, которые не купили — обрати на них особое внимание.
+        4. Будь профессиональным, но энергичным. Твоя цель — помочь агенту закрыть сделки.
+        
+        Формат: Список задач с коротким обоснованием «Почему это важно сейчас».
         `;
 
         // Execute AI call using the new non-streaming method
