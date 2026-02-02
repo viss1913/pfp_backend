@@ -13,10 +13,25 @@ async function generateHomeOwnersPdf(data, outputPath) {
             const doc = new PDFDocument({ margin: 50 });
             const stream = fs.createWriteStream(outputPath);
 
-            // Путь к шрифту с поддержкой кириллицы (Windows)
-            const fontPath = 'C:\\Windows\\Fonts\\arial.ttf';
-            if (fs.existsSync(fontPath)) {
-                doc.font(fontPath);
+            // Путь к шрифту с поддержкой кириллицы
+            const fontPaths = [
+                'C:\\Windows\\Fonts\\arial.ttf',
+                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/ttf-dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
+            ];
+
+            let fontFound = false;
+            for (const fPath of fontPaths) {
+                if (fs.existsSync(fPath)) {
+                    doc.font(fPath);
+                    fontFound = true;
+                    break;
+                }
+            }
+
+            if (!fontFound) {
+                console.warn('⚠️  No Cyrillic font found, PDF might have encoding issues.');
             }
 
             doc.pipe(stream);
