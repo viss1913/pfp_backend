@@ -1,6 +1,9 @@
 const aiService = require('./aiService');
 const knex = require('../config/database');
 const homeOwnersCalculator = require('./calculators/HomeOwnersCalculator');
+const { generateHomeOwnersPdf } = require('../utils/pdfGenerator');
+const path = require('path');
+const fs = require('fs');
 
 class ConstructorAiService {
     /**
@@ -267,6 +270,8 @@ ${client.user_context || 'Информации о клиенте пока нет
         const nextCommand = await this.classifyStage(session, userMessage);
 
         let calculationResult = null;
+        let pdfPath = null;
+
         // Если перешли на стадию расчета или получили команду принудительно
         if (nextCommand && nextCommand.command === '/homeOwnersCalc') {
             const limits = await this.extractHomeOwnersParams(session, userMessage);
@@ -279,6 +284,22 @@ ${client.user_context || 'Информации о клиенте пока нет
                     limits: limits
                 });
                 console.log(`[Flow] Calculation Success. Total Premium: ${calculationResult.total_premium}`);
+
+                // Генерируем PDF
+                const tempDir = path.join(__dirname, '../../temp');
+                if (!fs.existsSync(tempDir)) {
+                    fs.mkdirSync(tempDir, { recursive: true });
+                }
+
+                const fileName = `calc_${session.id}_${Date.now()}.pdf`;
+                const tempPath = path.join(tempDir, fileName);
+
+                try {
+                    pdfPath = await generateHomeOwnersPdf(calculationResult, tempPath);
+                    console.log(`[Flow] PDF Generated: ${pdfPath}`);
+                } catch (pdfErr) {
+                    console.error('[Flow] PDF generation failed:', pdfErr);
+                }
             } catch (calcErr) {
                 console.error('[Flow] Calculation failed:', calcErr);
             }
@@ -303,6 +324,13 @@ ${client.user_context || 'Информации о клиенте пока нет
         });
 
         console.log(`--- Message Processed (Next Command: ${nextCommand ? nextCommand.command : 'none'}) ---\n`);
+
+        if (pdfPath) {
+            return {
+                text: responseText,
+                document: pdfPath
+            };
+        }
 
         return responseText;
     }

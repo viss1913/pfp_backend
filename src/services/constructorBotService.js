@@ -45,8 +45,20 @@ class ConstructorBotService {
                         msg.text
                     );
 
-                    console.log(`[Telegram] Sending response to ${msg.from.id}: "${response.substring(0, 50)}..."`);
-                    await botInstance.sendMessage(msg.chat.id, response, { parse_mode: 'Markdown' });
+                    if (typeof response === 'object' && response.document) {
+                        console.log(`[Telegram] Sending text and document to ${msg.from.id}`);
+                        await botInstance.sendMessage(msg.chat.id, response.text, { parse_mode: 'Markdown' });
+                        await botInstance.sendDocument(msg.chat.id, response.document);
+
+                        // Удаляем временный файл после отправки
+                        const fs = require('fs');
+                        fs.unlink(response.document, (err) => {
+                            if (err) console.error('Cleanup failed:', err);
+                        });
+                    } else {
+                        console.log(`[Telegram] Sending response to ${msg.from.id}: "${response.substring(0, 50)}..."`);
+                        await botInstance.sendMessage(msg.chat.id, response, { parse_mode: 'Markdown' });
+                    }
                 } catch (err) {
                     console.error(`Error in bot ${botData.id}:`, err);
                 }
