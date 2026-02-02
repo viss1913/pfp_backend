@@ -842,6 +842,14 @@ components:
           type: string
         is_active:
           type: boolean
+        rate_constructive:
+          type: number
+        rate_finish:
+          type: number
+        rate_property:
+          type: number
+        rate_civil:
+          type: number
     
     HomeOwnersTariff:
       type: object
@@ -885,6 +893,10 @@ components:
           required:
             - property
           properties:
+            constructive:
+              type: number
+            finish:
+              type: number
             property:
               type: number
             civil:
@@ -900,6 +912,10 @@ components:
         limits:
           type: object
           properties:
+            constructive:
+              type: number
+            finish:
+              type: number
             property:
               type: number
             civil:

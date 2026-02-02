@@ -8,8 +8,17 @@ async function seed() {
         const [productId] = await knex('insurance_home_owners_products').insert({
             name: 'Домашний уют (Базовый)',
             description: 'Комплексное страхование квартиры и ответственности перед соседями',
-            is_active: true
-        }).onConflict('name').ignore(); // Simple skip if exists
+            is_active: true,
+            rate_constructive: 0.0012,
+            rate_finish: 0.0025,
+            rate_property: 0.0035,
+            rate_civil: 0.0010
+        }).onConflict('name').merge({
+            rate_constructive: 0.0012,
+            rate_finish: 0.0025,
+            rate_property: 0.0035,
+            rate_civil: 0.0010
+        });
 
         let finalProductId = productId;
         if (!finalProductId) {
@@ -22,15 +31,12 @@ async function seed() {
         // 2. Clear existing tariffs for this product to avoid duplicates during re-seed
         await knex('insurance_home_owners_tariffs').where('product_id', finalProductId).delete();
 
-        // 3. Insert Tariffs (Base Rates)
+        // 3. Insert Tariffs (Multipliers)
         const tariffs = [
-            // Base rates per 1 RUB of limit
-            { product_id: finalProductId, parameter_name: 'object_type', parameter_value: 'apartment', coefficient: 0.0015, label: 'Квартира', coefficient_type: 'base' },
-            { product_id: finalProductId, parameter_name: 'object_type', parameter_value: 'house', coefficient: 0.0035, label: 'Жилой дом', coefficient_type: 'base' },
-
             // Multipliers: Wall Material
             { product_id: finalProductId, parameter_name: 'wall_material', parameter_value: 'brick', coefficient: 1.0, label: 'Кирпич/Бетон', coefficient_type: 'multiplier' },
             { product_id: finalProductId, parameter_name: 'wall_material', parameter_value: 'wood', coefficient: 1.8, label: 'Дерево', coefficient_type: 'multiplier' },
+            { product_id: finalProductId, parameter_name: 'wall_material', parameter_value: 'blocks', coefficient: 1.2, label: 'Пеноблоки/Газобетон', coefficient_type: 'multiplier' },
 
             // Multipliers: Security
             { product_id: finalProductId, parameter_name: 'security', parameter_value: 'alarm', coefficient: 0.9, label: 'Есть сигнализация', coefficient_type: 'multiplier' },

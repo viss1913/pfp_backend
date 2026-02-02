@@ -64,15 +64,27 @@ class HomeOwnersService {
      * Admin: Create or update product
      */
     async upsertProduct(data) {
-        const { id, name, description, is_active } = data;
+        const { id, name, description, is_active, rate_constructive, rate_finish, rate_property, rate_civil } = data;
+        const productData = {
+            name,
+            description,
+            is_active,
+            rate_constructive: rate_constructive || 0,
+            rate_finish: rate_finish || 0,
+            rate_property: rate_property || 0,
+            rate_civil: rate_civil || 0,
+            updated_at: knex.fn.now()
+        };
+
         if (id) {
             await knex('insurance_home_owners_products')
                 .where('id', id)
-                .update({ name, description, is_active, updated_at: knex.fn.now() });
+                .update(productData);
             return id;
         } else {
+            delete productData.updated_at; // Use default for new
             const [newId] = await knex('insurance_home_owners_products')
-                .insert({ name, description, is_active });
+                .insert(productData);
             return newId;
         }
     }

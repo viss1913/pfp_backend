@@ -8,59 +8,58 @@ class HomeOwnersCalculator {
     async calculate(params) {
         const { product_id, object_params, limits } = params;
 
-        // 1. Fetch all tariffs for this product
-        const tariffs = await knex('insurance_home_owners_tariffs')
-            .where('product_id', product_id);
+        // 1. Fetch product to get base rates
+        const product = await knex('insurance_home_owners_products')
+            .where('id', product_id)
+            .first();
 
-        if (!tariffs || tariffs.length === 0) {
-            throw new Error('No tariffs found for this product');
+        if (!product) {
+            throw new Error('Product not found');
         }
 
-        // 2. Separate base and multipliers
-        const baseRates = tariffs.filter(t => t.coefficient_type === 'base');
-        const multipliers = tariffs.filter(t => t.coefficient_type === 'multiplier');
+        // 2. Fetch all multipliers (tariffs) for this product
+        const multipliers = await knex('insurance_home_owners_tariffs')
+            .where('product_id', product_id)
+            .where('coefficient_type', 'multiplier');
 
-        // 3. Find base rate (e.g., base coefficient per 1 RUB of limit or aggregate base)
-        // For simplicity, let's assume base rate is applied to the sum of limits or specific limits
-        let totalPremium = 0;
         const appliedSteps = [];
 
-        // Logic: 
-        // We might have different base rates for property and civil liability? 
-        // User said "don't split", so we calculate a single premium.
-        // Let's assume total_limit = property + civil (if provided)
-        const propertyLimit = Number(limits?.property || 0);
-        const civilLimit = Number(limits?.civil || 0);
-        const totalLimit = propertyLimit + civilLimit;
+        // 3. Calculate initial premium based on product rates and limits
+        const l = {
+            constructive: Number(limits?.constructive || 0),
+            finish: Number(limits?.finish || 0),
+            property: Number(limits?.property || 0),
+            civil: Number(limits?.civil || 0)
+        };
 
-        // Find applicable base rate (e.g. by object_type which is a core param)
-        const objectType = object_params.object_type;
-        const baseRate = baseRates.find(r => r.parameter_name === 'object_type' && r.parameter_value === objectType)
-            || baseRates[0]; // Fallback to first base rate if not found
+        const r = {
+            constructive: Number(product.rate_constructive || 0),
+            finish: Number(product.rate_finish || 0),
+            property: Number(product.rate_property || 0),
+            civil: Number(product.rate_civil || 0)
+        };
 
-        if (!baseRate) {
-            throw new Error('Base rate not configured for this product');
-        }
-
-        // Initial premium = base_coeff * total_limit (or just base_coeff if it's a fixed price)
-        // Standard insurance formula: Premium = Limit * Rate
-        let currentPremium = totalLimit * Number(baseRate.coefficient);
+        let currentPremium = (l.constructive * r.constructive) +
+            (l.finish * r.finish) +
+            (l.property * r.property) +
+            (l.civil * r.civil);
 
         appliedSteps.push({
-            parameter: 'base_rate',
-            value: baseRate.parameter_value,
-            coefficient: baseRate.coefficient,
+            parameter: 'base_rates',
+            value: 'product_defaults',
+            details: {
+                constructive: `${l.constructive} * ${r.constructive}`,
+                finish: `${l.finish} * ${r.finish}`,
+                property: `${l.property} * ${r.property}`,
+                civil: `${l.civil} * ${r.civil}`
+            },
             premium_after: currentPremium
         });
 
-        // 4. Apply multipliers
+        // 4. Apply multipliers from tariffs
         for (const [paramName, paramValue] of Object.entries(object_params)) {
-            // Skip object_type as it was used for base rate
-            if (paramName === 'object_type') continue;
-
             const multiplier = multipliers.find(m => m.parameter_name === paramName && m.parameter_value === paramValue);
             if (multiplier) {
-                const prevPremium = currentPremium;
                 currentPremium *= Number(multiplier.coefficient);
                 appliedSteps.push({
                     parameter: paramName,
@@ -71,13 +70,12 @@ class HomeOwnersCalculator {
             }
         }
 
+        const totalLimit = l.constructive + l.finish + l.property + l.civil;
+
         return {
             total_premium: Math.round(currentPremium * 100) / 100,
             total_limit: totalLimit,
-            limits: {
-                property: propertyLimit,
-                civil: civilLimit
-            },
+            limits: l,
             calculation_steps: appliedSteps,
             currency: 'RUB'
         };
