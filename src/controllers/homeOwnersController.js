@@ -57,8 +57,25 @@ class HomeOwnersController {
      */
     async getProducts(req, res) {
         try {
-            const products = await HomeOwnersService.getProducts();
+            const onlyActive = req.query.all !== 'true';
+            const products = await HomeOwnersService.getProducts(onlyActive);
             res.json(products);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    /**
+     * Admin: Get tariffs for product
+     */
+    async getTariffs(req, res) {
+        try {
+            const { product_id } = req.query;
+            if (!product_id) {
+                return res.status(400).json({ error: 'product_id is required' });
+            }
+            const tariffs = await HomeOwnersService.getTariffs(product_id);
+            res.json(tariffs);
         } catch (error) {
             res.status(500).json({ error: error.message });
         }

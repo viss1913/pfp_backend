@@ -1688,6 +1688,18 @@ paths:
 
 
   /admin/insurance/home-owners/products:
+    get:
+      summary: List insurance products (Admin)
+      tags: [HomeOwnersInsurance]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HomeOwnersProduct'
     post:
       summary: Create/Update insurance product (Admin)
       tags: [HomeOwnersInsurance]
@@ -1702,6 +1714,24 @@ paths:
           description: OK
 
   /admin/insurance/home-owners/tariffs:
+    get:
+      summary: List tariff coefficients for a product (Admin)
+      tags: [HomeOwnersInsurance]
+      parameters:
+        - in: query
+          name: product_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HomeOwnersTariff'
     post:
       summary: Create/Update tariff coefficient (Admin)
       tags: [HomeOwnersInsurance]

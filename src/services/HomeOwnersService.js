@@ -4,9 +4,20 @@ class HomeOwnersService {
     /**
      * Get all home owners insurance products
      */
-    async getProducts() {
-        return knex('insurance_home_owners_products')
-            .where('is_active', true)
+    async getProducts(onlyActive = true) {
+        let query = knex('insurance_home_owners_products');
+        if (onlyActive) {
+            query = query.where('is_active', true);
+        }
+        return query.select('*');
+    }
+
+    /**
+     * Admin: Get all tariffs for a product
+     */
+    async getTariffs(productId) {
+        return knex('insurance_home_owners_tariffs')
+            .where('product_id', productId)
             .select('*');
     }
 
