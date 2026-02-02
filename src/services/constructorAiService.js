@@ -146,6 +146,23 @@ ${client.user_context || 'Информации о клиенте пока нет
      * Полный цикл обработки сообщения
      */
     async processMessage(botId, telegramUserId, nickname, userMessage) {
+        if (userMessage && userMessage.trim().toLowerCase() === '/reset') {
+            console.log(`[Lifecycle] Reset command received from ${nickname} (${telegramUserId})`);
+
+            // Получаем клиента перед удалением для логов
+            const clientToDelete = await knex('constructor_clients')
+                .where({ bot_id: botId, user_id: telegramUserId })
+                .first();
+
+            if (clientToDelete) {
+                // Удаляем клиента. Каскадное удаление (ON DELETE CASCADE) само удалит сессии и логи.
+                await knex('constructor_clients').where('id', clientToDelete.id).del();
+                console.log(`[Lifecycle] Data for client ${clientToDelete.id} successfully wiped.`);
+            }
+
+            return "Ваши данные и история диалога полностью удалены.";
+        }
+
         let client = await knex('constructor_clients')
             .where({ bot_id: botId, user_id: telegramUserId })
             .first();
