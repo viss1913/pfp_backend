@@ -7,6 +7,7 @@ const aiController = require('../controllers/aiController');
 
 router.get('/assistants', aiController.listAssistants.bind(aiController));
 router.get('/history/:assistant_id', aiController.getHistory.bind(aiController));
+router.post('/chat', aiController.chatStream.bind(aiController));
 router.post('/chat/stream', aiController.chatStream.bind(aiController));
 
 module.exports = router;
