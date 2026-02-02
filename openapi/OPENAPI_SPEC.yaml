@@ -1712,6 +1712,18 @@ paths:
       responses:
         '200':
           description: OK
+    delete:
+      summary: Delete insurance product (Admin)
+      tags: [HomeOwnersInsurance]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
 
   /admin/insurance/home-owners/tariffs:
     get:
@@ -1744,6 +1756,18 @@ paths:
       responses:
         '200':
           description: OK
+    delete:
+      summary: Delete tariff coefficient (Admin)
+      tags: [HomeOwnersInsurance]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
 
   /pfp/settings/pds/cofin-income-brackets:
     get:

@@ -129,6 +129,20 @@ class HomeOwnersService {
             result_data: typeof h.result_data === 'string' ? JSON.parse(h.result_data) : h.result_data
         }));
     }
+
+    /**
+     * Admin: Delete product
+     */
+    async deleteProduct(id) {
+        return knex('insurance_home_owners_products').where('id', id).del();
+    }
+
+    /**
+     * Admin: Delete tariff
+     */
+    async deleteTariff(id) {
+        return knex('insurance_home_owners_tariffs').where('id', id).del();
+    }
 }
 
 module.exports = new HomeOwnersService();

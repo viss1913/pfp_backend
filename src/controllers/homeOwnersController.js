@@ -118,6 +118,32 @@ class HomeOwnersController {
             res.status(500).json({ error: error.message });
         }
     }
+
+    /**
+     * Admin: Delete product
+     */
+    async deleteProduct(req, res) {
+        try {
+            const { id } = req.params;
+            await HomeOwnersService.deleteProduct(id);
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    /**
+     * Admin: Delete tariff
+     */
+    async deleteTariff(req, res) {
+        try {
+            const { id } = req.params;
+            await HomeOwnersService.deleteTariff(id);
+            res.json({ success: true });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
 }
 
 module.exports = new HomeOwnersController();
