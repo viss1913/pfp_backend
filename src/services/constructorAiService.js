@@ -97,7 +97,7 @@ class ConstructorAiService {
     /**
      * Извлечение параметров для расчета страхования имущества из истории диалога
      */
-    async extractHomeOwnersParams(session) {
+    async extractHomeOwnersParams(session, userMessage) {
         const history = await knex('constructor_logs')
             .where('session_id', session.id)
             .orderBy('created_at', 'desc')
@@ -107,29 +107,36 @@ class ConstructorAiService {
             `User: ${log.input_text}\nAssistant: ${log.response_generated}`
         ).join('\n');
 
+        const fullContext = historyText + `\nUser: ${userMessage}`;
+
         const prompt = [
             {
                 role: 'system',
                 content: `Ты — аналитик данных. Твоя задача: извлечь параметры для расчета страхования квартиры из диалога.
-Ищи следующие значения:
-1. finish (отделка) - сумма страхования отделки.
-2. property (имущество) - сумма страхования движимого имущества.
-3. civil (ГО) - сумма страхования гражданской ответственности.
+Ищи следующие значения (суммы страхования):
+1. finish (отделка/ремонт)
+2. property (имущество)
+3. civil (ГО/гражданская ответственность)
 
 ОТВЕТЬ ТОЛЬКО ЧИСТЫМ JSON без пояснений. Если значение не найдено, используй 0.
+Если в тексте написано "2 млн", это значит 2000000. Если "500 тыс", это 500000.
 Пример: {"finish": 500000, "property": 300000, "civil": 1000000}
 `
             },
             {
                 role: 'user',
-                content: `Диалог:\n${historyText}`
+                content: `Диалог:\n${fullContext}`
             }
         ];
 
         try {
+            console.log(`[AI Extraction] Context for extraction: ${fullContext}`);
             const result = await aiService.getCompletion(prompt);
+            console.log(`[AI Extraction] Raw AI result: ${result}`);
             const cleanResult = result.replace(/```json|```/g, '').trim();
-            return JSON.parse(cleanResult);
+            const extracted = JSON.parse(cleanResult);
+            console.log(`[AI Extraction] Clean Extracted Params:`, extracted);
+            return extracted;
         } catch (error) {
             console.error('[AI] Error extracting homeOwners params:', error);
             return { finish: 0, property: 0, civil: 0 };
@@ -176,7 +183,12 @@ ${bot.communication_style || 'Общайся вежливо и професси�
 
 СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА/СЦЕНАРИЙ):
 ${command.response}
-${calculationResult ? '\nТЫ ПОЛУЧИЛ JSON С РАСЧЕТОМ:\n' + JSON.stringify(calculationResult, null, 2) : ''}
+${calculationResult ? `
+ВНИМАНИЕ! РАСЧЕТ ВЫПОЛНЕН. ТЫ ОБЯЗАН ИСПОЛЬЗОВАТЬ ДАННЫЕ ИЗ ЭТОГО JSON ДЛЯ ОТВЕТА ПОЛЬЗОВАТЕЛЮ:
+${JSON.stringify(calculationResult, null, 2)}
+
+Инструкция для ИИ: презентуй итоговую стоимость (total_premium) и кратко перечисли лимиты (limits), по которым шел расчет, чтобы подтвердить, что ты всё правильно понял.
+` : ''}
 
 СЛОЙ 4 (ДАННЫЕ О КЛИЕНТЕ):
 ${client.user_context || 'Информации о клиенте пока нет.'}
@@ -257,17 +269,18 @@ ${client.user_context || 'Информации о клиенте пока нет
         let calculationResult = null;
         // Если перешли на стадию расчета или получили команду принудительно
         if (nextCommand && nextCommand.command === '/homeOwnersCalc') {
-            const limits = await this.extractHomeOwnersParams(session);
+            const limits = await this.extractHomeOwnersParams(session, userMessage);
             console.log(`[Flow] Performing Home Owners Calculation with limits:`, limits);
 
             try {
                 calculationResult = await homeOwnersCalculator.calculate({
                     product_id: 1, // ID продукта "Домашний уют"
-                    object_params: {}, // Пока без доп. параметров в диалоге
+                    object_params: {},
                     limits: limits
                 });
+                console.log(`[Flow] Calculation Success. Total Premium: ${calculationResult.total_premium}`);
             } catch (calcErr) {
-                console.error('Calculation failed:', calcErr);
+                console.error('[Flow] Calculation failed:', calcErr);
             }
         }
 
