@@ -72,6 +72,8 @@ class CrmService {
             summary.push({
                 id: client.id,
                 name: `${client.last_name} ${client.first_name}`,
+                phone: client.phone,
+                email: client.email,
                 status: client.crm_status, // THINKING, BOUGHT, etc.
                 next_action: client.next_action_date ? new Date(client.next_action_date).toLocaleDateString() : 'N/A',
                 finance: financials
@@ -105,6 +107,8 @@ class CrmService {
         contextData += "Client Details for Analysis:\n";
         allClients.forEach(c => {
             contextData += `- [${c.status}] ${c.name} (ID: ${c.id}). `;
+            if (c.phone) contextData += `Тел: ${c.phone}. `;
+            if (c.email) contextData += `Email: ${c.email}. `;
             if (c.finance.error) {
                 contextData += "Финансовые данные не заполнены. ";
             } else {

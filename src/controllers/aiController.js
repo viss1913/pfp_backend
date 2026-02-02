@@ -105,7 +105,8 @@ class AiController {
                                 ? "Данные не заполнены"
                                 : `Капитал: ${fin.net_worth.toLocaleString()}₽, Цель: ${fin.top_goal} (${fin.target.toLocaleString()}₽), Активы: ${fin.main_asset}`;
 
-                            clientContext += `- [${c.status}] ${c.name} (ID: ${c.id}). ${finStr}. След. контакт: ${c.next_action}\n`;
+                            const contactStr = `Тел: ${c.phone || 'нет'}, Email: ${c.email || 'нет'}`;
+                            clientContext += `- [${c.status}] ${c.name} (ID: ${c.id}). ${contactStr}. ${finStr}. След. контакт: ${c.next_action}\n`;
                         });
                     }
 
