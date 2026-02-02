@@ -40,6 +40,12 @@ const constructorRoutes = require('./constructorRoutes');
 router.use('/pfp/constructor', authMiddleware, constructorRoutes);
 router.use('/admin/constructor', authMiddleware, constructorRoutes); // Reusing same router, internal paths handle prefixes
 
+// Home Owners (Insurance) Routes
+const homeOwnersRoutes = require('./homeOwnersRoutes');
+const adminHomeOwnersRoutes = require('./adminHomeOwnersRoutes');
+router.use('/pfp/insurance/home-owners', authMiddleware, homeOwnersRoutes);
+router.use('/admin/insurance/home-owners', authMiddleware, adminHomeOwnersRoutes);
+
 // Alias for potentially mismatched frontend path:
 router.use('/ai', authMiddleware, aiRoutes);
 // Alias for direct /chat/stream path (mapping /api/chat/stream):

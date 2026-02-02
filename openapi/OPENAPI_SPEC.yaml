@@ -830,6 +830,96 @@ components:
         experience_years:
           type: integer
 
+    # Home Owners Insurance
+    HomeOwnersProduct:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+    
+    HomeOwnersTariff:
+      type: object
+      properties:
+        id:
+          type: integer
+        product_id:
+          type: integer
+        parameter_name:
+          type: string
+          description: "Напр. object_type, wall_material, security"
+        parameter_value:
+          type: string
+          description: "Напр. apartment, wood, alarm"
+        coefficient:
+          type: number
+        label:
+          type: string
+          description: "Человекочитаемое название для фронтенда"
+        coefficient_type:
+          type: string
+          enum: [base, multiplier]
+    
+    HomeOwnersCalculationRequest:
+      type: object
+      required:
+        - product_id
+        - object_params
+        - limits
+      properties:
+        product_id:
+          type: integer
+        client_id:
+          type: integer
+          nullable: true
+        object_params:
+          type: object
+          description: "Набор параметров объекта: { object_type: 'apartment', wall_material: 'wood', ... }"
+        limits:
+          type: object
+          required:
+            - property
+          properties:
+            property:
+              type: number
+            civil:
+              type: number
+    
+    HomeOwnersCalculationResponse:
+      type: object
+      properties:
+        total_premium:
+          type: number
+        total_limit:
+          type: number
+        limits:
+          type: object
+          properties:
+            property:
+              type: number
+            civil:
+              type: number
+        currency:
+          type: string
+        calculation_steps:
+          type: array
+          items:
+            type: object
+            properties:
+              parameter:
+                type: string
+              value:
+                type: string
+              coefficient:
+                type: number
+              premium_after:
+                type: number
+
 security:
   - bearerAuth: []
   - apiKeyAuth: []
@@ -843,6 +933,8 @@ tags:
     description: Management of AI Assistants (Admin only)
   - name: Agents
     description: Management of Agents (Consultants)
+  - name: HomeOwnersInsurance
+    description: Insurance for Home Owners and Civil Liability
 
 
 paths:
@@ -1593,6 +1685,35 @@ paths:
           description: Forbidden (admin only)
         '404':
           description: PDS cofinancing settings not found
+
+
+  /admin/insurance/home-owners/products:
+    post:
+      summary: Create/Update insurance product (Admin)
+      tags: [HomeOwnersInsurance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeOwnersProduct'
+      responses:
+        '200':
+          description: OK
+
+  /admin/insurance/home-owners/tariffs:
+    post:
+      summary: Create/Update tariff coefficient (Admin)
+      tags: [HomeOwnersInsurance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HomeOwnersTariff'
+      responses:
+        '200':
+          description: OK
 
   /pfp/settings/pds/cofin-income-brackets:
     get:
