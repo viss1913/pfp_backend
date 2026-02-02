@@ -10,67 +10,63 @@ const path = require('path');
 async function generateHomeOwnersPdf(data, outputPath) {
     return new Promise((resolve, reject) => {
         try {
-            const doc = new PDFDocument({ margin: 50 });
+            const doc = new PDFDocument({ margin: 0 }); // Без полей для полноэкранной шапки
             const stream = fs.createWriteStream(outputPath);
-
-            // Путь к шрифту с поддержкой кириллицы
-            const fontPaths = [
-                'C:\\Windows\\Fonts\\arial.ttf',
-                '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-                '/usr/share/fonts/ttf-dejavu/DejaVuSans.ttf',
-                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
-            ];
-
-            let fontFound = false;
-            for (const fPath of fontPaths) {
-                if (fs.existsSync(fPath)) {
-                    doc.font(fPath);
-                    fontFound = true;
-                    break;
-                }
-            }
-
-            if (!fontFound) {
-                console.warn('⚠️  No Cyrillic font found, PDF might have encoding issues.');
-            }
-
             doc.pipe(stream);
 
-            // Заголовок
-            doc.fontSize(20).text('ОТЧЕТ ПО РАСЧЕТУ СТРАХОВАНИЯ', { align: 'center' });
-            doc.moveDown();
+            // Шрифты
+            const localFontPath = path.join(__dirname, '../../assets/fonts/Roboto-Regular.ttf');
+            if (fs.existsSync(localFontPath)) doc.font(localFontPath);
 
-            // Продукт
-            doc.fontSize(14).text(`Продукт: Домашний уют (СК Абсолют)`, { bold: true });
-            doc.moveDown();
+            // 1. ШАПКА С КАРТИНКОЙ
+            const heroPath = path.join(__dirname, '../../assets/images/home_insurance_hero.png');
+            if (fs.existsSync(heroPath)) {
+                doc.image(heroPath, 0, 0, { width: 612 }); // Ширина A4
+                doc.rect(0, 0, 612, 150).fillOpacity(0.3).fill('black'); // Затемнение для текста
+            } else {
+                doc.rect(0, 0, 612, 150).fill('#1a237e');
+            }
 
-            // Таблица лимитов
-            doc.fontSize(12).text('Выбранные лимиты страхования:', { underline: true });
-            doc.moveDown(0.5);
+            // Текст в шапке
+            doc.fillOpacity(1).fill('white')
+                .fontSize(24).text('СТРАХОВОЙ ПОЛИС', 50, 40)
+                .fontSize(14).text('Программа «Домашний Уют»', 50, 75)
+                .fontSize(10).text(`№ расчета: ${data.id || 'HO-' + Date.now().toString().slice(-6)}`, 50, 95);
 
+            // 2. КОНТЕНТ (возвращаем отступы)
+            const contentX = 50;
+            let currentY = 180;
+
+            doc.fill('black').fontSize(16).text('Данные расчета', contentX, currentY);
+            currentY += 30;
+
+            // Рисуем блоки лимитов
             const limits = [
-                ['Отделка и ремонт:', `${data.limits.finish.toLocaleString('ru-RU')} руб.`],
-                ['Движимое имущ.:', `${data.limits.property.toLocaleString('ru-RU')} руб.`],
-                ['Гражд. ответств.:', `${data.limits.civil.toLocaleString('ru-RU')} руб.`],
-                ['Конструктив:', `${data.limits.constructive.toLocaleString()} руб.`]
+                { label: 'Внутренняя отделка и ремонт', value: data.limits.finish },
+                { label: 'Движимое имущество', value: data.limits.property },
+                { label: 'Гражданская ответственность', value: data.limits.civil },
+                { label: 'Конструктивные элементы', value: data.limits.constructive }
             ];
 
-            limits.forEach(([label, value]) => {
-                doc.text(`${label} ${value}`);
+            limits.forEach(item => {
+                // Серый фон блока
+                doc.rect(contentX, currentY, 512, 40).fill('#f5f5f5');
+                doc.fill('#333').fontSize(11).text(item.label, contentX + 15, currentY + 14);
+                doc.fill('#1a237e').fontSize(12).text(`${item.value.toLocaleString('ru-RU')} ₽`, contentX + 350, currentY + 14, { width: 150, align: 'right' });
+                currentY += 45;
             });
 
-            doc.moveDown();
-            doc.fontSize(16).fillColor('navy').text(`ИТОГОВАЯ ПРЕМИЯ: ${data.total_premium.toLocaleString('ru-RU')} РУБ.`, { bold: true });
-            doc.fillColor('black');
+            // 3. ИТОГО
+            currentY += 20;
+            doc.rect(contentX, currentY, 512, 60).fill('#e8eaf6');
+            doc.fill('#1a237e').fontSize(14).text('ИТОГОВАЯ СТОИМОСТЬ (ПРЕМИЯ):', contentX + 20, currentY + 22);
+            doc.fontSize(18).text(`${data.total_premium.toLocaleString('ru-RU')} ₽`, contentX + 350, currentY + 20, { width: 150, align: 'right' });
 
-            doc.moveDown();
-            doc.fontSize(10).text('--- Дополнительная информация ---');
-            doc.text(`Общая страховая сумма: ${data.total_limit.toLocaleString('ru-RU')} руб.`);
-            doc.text(`Валюта расчета: ${data.currency}`);
-            doc.text(`Дата расчета: ${new Date().toLocaleString('ru-RU')}`);
-
-            doc.moveDown();
-            doc.fontSize(10).text('Данный расчет является предварительным и не является публичной офертой.', { align: 'center' });
+            // 4. ПОДВАЛ
+            doc.fill('#666').fontSize(9).text(
+                'Расчет произведен на основании стандартных тарифов. Данное предложение не является публичной офертой. \nДля оформления полиса свяжитесь с вашим финансовым консультантом.',
+                contentX, 750, { width: 512, align: 'center' }
+            );
 
             doc.end();
 
