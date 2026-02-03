@@ -936,6 +936,45 @@ components:
               premium_after:
                 type: number
 
+    # Admin PFP calculations
+    PfpCalculationItem:
+      type: object
+      properties:
+        pfp_id:
+          type: integer
+          format: int64
+        client_fio:
+          type: string
+        agent_fio:
+          type: string
+        agent_email:
+          type: string
+        status:
+          type: string
+        has_calculation:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    PfpCalculationList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PfpCalculationItem'
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            limit:
+              type: integer
+            totalPages:
+              type: integer
+
 security:
   - bearerAuth: []
   - apiKeyAuth: []
@@ -951,9 +990,56 @@ tags:
     description: Management of Agents (Consultants)
   - name: HomeOwnersInsurance
     description: Insurance for Home Owners and Civil Liability
+  - name: Admin
+    description: All administrative and management endpoints
 
 
 paths:
+  /admin/pfp/calculations:
+    get:
+      summary: Get all PFP calculations/states (Admin only)
+      tags:
+        - Admin
+      parameters:
+        - name: limit
+          in: query
+          description: Rows per page
+          schema:
+            type: integer
+            default: 20
+        - name: page
+          in: query
+          description: Page number
+          schema:
+            type: integer
+            default: 1
+        - name: sort
+          in: query
+          description: Sort field
+          schema:
+            type: string
+        - name: order
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+        - name: search
+          in: query
+          description: Search by client/agent name or email
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of PFP calculations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PfpCalculationList'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden
   /auth/login:
     post:
       summary: Login and get JWT token

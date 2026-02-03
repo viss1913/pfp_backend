@@ -46,6 +46,10 @@ const adminHomeOwnersRoutes = require('./adminHomeOwnersRoutes');
 router.use('/pfp/insurance/home-owners', authMiddleware, homeOwnersRoutes);
 router.use('/admin/insurance/home-owners', authMiddleware, adminHomeOwnersRoutes);
 
+// Admin PFP Routes
+const adminPfpRoutes = require('./adminPfpRoutes');
+router.use('/admin/pfp', authMiddleware, adminPfpRoutes);
+
 // Alias for potentially mismatched frontend path:
 router.use('/ai', authMiddleware, aiRoutes);
 // Alias for direct /chat/stream path (mapping /api/chat/stream):
