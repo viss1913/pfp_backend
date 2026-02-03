@@ -430,14 +430,24 @@ class CalculationService {
             console.log('[CalculationService] Running Full Smart Allocation...');
             await this._calculateSmartAllocation(indexedGoals, context);
         } else {
-            console.log(`[CalculationService] Partial Recalc Mode for goal: ${targetGoalId}. Frozen other goals.`);
+            console.log(`[CalculationService] Partial Recalc Mode for goal: ${targetGoalId}. Frozen other goals. Skipping Smart Allocation.`);
             // In partial mode, we must restore smart_initial_capital from previous results for ALL goals
             // so that deductFromSharedPool works correctly and preserves the "state" of the pool.
             for (const { goal } of indexedGoals) {
                 const prev = prevGoalsMap.get(String(goal.id || goal.goal_id));
                 if (prev && prev.summary && prev.summary.initial_capital !== undefined) {
-                    goal.smart_initial_capital = prev.summary.initial_capital;
-                    console.log(`[CalculationService] Restored capital ${goal.smart_initial_capital} for frozen goal ${goal.name}`);
+                    // CRITICAL: We also need to PRESERVE the initial_capital of the TARGET goal 
+                    // unless it was explicitly changed in the 'goal' object itself.
+                    // If targetGoalId is set, 'goal' already contains the latest user input.
+                    // If goal.initial_capital is already set (from user), we don't overwrite it with 'prev'.
+
+                    const userInitial = goal.initial_capital;
+                    if (userInitial !== undefined && userInitial !== null && userInitial > 0) {
+                        goal.smart_initial_capital = userInitial;
+                    } else {
+                        goal.smart_initial_capital = prev.summary.initial_capital;
+                    }
+                    console.log(`[CalculationService] Set capital ${goal.smart_initial_capital} for goal ${goal.name} (Frozen/Target)`);
                 }
             }
         }

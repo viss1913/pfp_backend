@@ -287,15 +287,25 @@ class ClientController {
 
                     // 1. Try Match by ID
                     if (newGoal.id && goalsMap.has(String(newGoal.id))) {
-                        // Merge: Existing takes precedence? No, New takes precedence.
                         const existing = goalsMap.get(String(newGoal.id));
                         goalsMap.set(String(newGoal.id), { ...existing, ...newGoal });
                         matchFound = true;
                     }
 
+                    // 1.1 Match by Name and Type (Safety for when ID is missing from frontend)
+                    if (!matchFound && newGoal.name && newGoal.goal_type_id) {
+                        for (const [key, val] of goalsMap.entries()) {
+                            if (val.name === newGoal.name && val.goal_type_id === newGoal.goal_type_id) {
+                                goalsMap.set(key, { ...val, ...newGoal });
+                                matchFound = true;
+                                break;
+                            }
+                        }
+                    }
+
                     // 2. Try Match by Type for Unique Goals (if no ID or ID not found/mismatched)
                     // Unique Types: 1 (Pension), 7 (FinReserve)
-                    if (!matchFound && !newGoal.id && [1, 7].includes(newGoal.goal_type_id)) {
+                    if (!matchFound && [1, 7].includes(newGoal.goal_type_id)) {
                         for (const [key, val] of goalsMap.entries()) {
                             if (val.goal_type_id === newGoal.goal_type_id) {
                                 goalsMap.set(key, { ...val, ...newGoal });

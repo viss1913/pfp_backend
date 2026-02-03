@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AB Inforce Integration Guide</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&family=Inter:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0047AB;
+            /* Royal Blue */
+            --secondary: #2C3E50;
+            --accent: #E74C3C;
+            --bg: #F8F9FA;
+            --card-bg: #FFFFFF;
+            --text: #333333;
+            --text-muted: #666666;
+            --border: #E0E0E0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 60px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+
+        header {
+            border-bottom: 2px solid var(--primary);
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            color: var(--secondary);
+            font-size: 2.2rem;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-top: 10px;
+        }
+
+        h2 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            color: var(--primary);
+            border-left: 4px solid var(--primary);
+            padding-left: 15px;
+            margin-top: 40px;
+            font-size: 1.5rem;
+        }
+
+        h3 {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            color: var(--secondary);
+            margin-top: 30px;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+        }
+
+        h3::before {
+            content: "•";
+            color: var(--primary);
+            margin-right: 10px;
+            font-size: 1.8rem;
+        }
+
+        p {
+            margin-bottom: 1.5rem;
+        }
+
+        .entity-card {
+            background: #fdfdfd;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .variable-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .variable-list li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .variable-list li::before {
+            content: "–";
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        code {
+            background: #F1F3F5;
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .admin-tasks {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .task-item {
+            background: #F8F9FA;
+            padding: 15px;
+            border-radius: 6px;
+            border-top: 3px solid var(--primary);
+        }
+
+        .task-item strong {
+            display: block;
+            color: var(--secondary);
+            margin-bottom: 5px;
+        }
+
+        footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                border: none;
+                padding: 0;
+                max-width: 100%;
+            }
+
+            .task-item {
+                break-inside: avoid;
+            }
+
+            h2,
+            h3 {
+                break-after: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Интеграция AB Inforce</h1>
+            <div class="subtitle">Описание сущностей и функционала административной панели</div>
+        </header>
+
+        <p>В данном документе описаны основные сущности системы <strong>Antigravity PFP</strong>, их структура (названия
+            переменных) и ключевые задачи административной панели, необходимые для начала интеграции с бэкендом.</p>
+
+        <h2>📋 Основные сущности</h2>
+
+        <div class="entity-card">
+            <h3>1. Финансовые продукты (PFP Products)</h3>
+            <p>Используются для формирования инвестиционных портфелей и расчетов доходности.</p>
+            <strong>Переменные продукта:</strong>
+            <ul class="variable-list">
+                <li><code>id</code> — Уникальный идентификатор.</li>
+                <li><code>name</code> — Название продукта.</li>
+                <li><code>product_type</code> — Код типа (PDS, IIS, ISZH и т.д.).</li>
+                <li><code>currency</code> — Валюта (RUB, USD).</li>
+                <li><code>min_term_months</code> / <code>max_term_months</code> — Диапазон сроков.</li>
+                <li><code>min_amount</code> / <code>max_amount</code> — Диапазон сумм.</li>
+                <li><code>yields</code> — Массив линий доходности (<code>yield_percent</code>,
+                    <code>term_from_months</code>, <code>amount_from</code>).
+                </li>
+            </ul>
+        </div>
+
+        <div class="entity-card">
+            <h3>2. Портфели (Portfolios)</h3>
+            <p>Готовые стратегии распределения капитала.</p>
+            <strong>Переменные портфеля:</strong>
+            <ul class="variable-list">
+                <li><code>id</code> — Уникальный идентификатор.</li>
+                <li><code>name</code> — Название стратегии.</li>
+                <li><code>currency</code> — Валюта.</li>
+                <li><code>riskProfiles</code> — Массив риск-профилей (CONSERVATIVE, BALANCED, AGGRESSIVE).</li>
+                <li><code>instruments</code> — Состав (<code>product_id</code>, <code>share_percent</code>,
+                    <code>bucket_type</code>).
+                </li>
+            </ul>
+        </div>
+
+        <div class="entity-card">
+            <h3>3. Агенты (Agents)</h3>
+            <p>Финансовые консультанты, работающие в системе.</p>
+            <strong>Переменные агента:</strong>
+            <ul class="variable-list">
+                <li><code>id</code> / <code>uuid</code> — Идентификаторы.</li>
+                <li><code>first_name</code>, <code>last_name</code>, <code>middle_name</code> — ФИО.</li>
+                <li><code>email</code>, <code>phone</code> — Контакты.</li>
+                <li><code>telegram_bot</code> — Ссылка на персонального бота.</li>
+                <li><code>is_active</code> — Статус активности.</li>
+            </ul>
+        </div>
+
+        <div class="entity-card">
+            <h3>4. Клиенты (Clients)</h3>
+            <p>Лица, для которых составляется финансовый план.</p>
+            <strong>Переменные клиента:</strong>
+            <ul class="variable-list">
+                <li><code>id</code> — Уникальный идентификатор.</li>
+                <li><code>fio</code> / <code>name</code> — ФИО или имя клиента.</li>
+                <li><code>birth_date</code> — Дата рождения (важна для расчета пенсии и НСЖ).</li>
+                <li><code>sex</code> — Пол клиента.</li>
+                <li><code>avg_monthly_income</code> — Среднемесячный доход.</li>
+                <li><code>total_liquid_capital</code> — Общий объем ликвидного капитала (Бассейн).</li>
+                <li><code>assets</code> — Текущие активы (депозиты, недвижимость).</li>
+            </ul>
+        </div>
+
+        <div class="entity-card">
+            <h3>5. Цели (Goals)</h3>
+            <p>Конкретные финансовые задачи клиента (Пенсия, Покупка, Накопления).</p>
+            <strong>Переменные цели:</strong>
+            <ul class="variable-list">
+                <li><code>goal_type_id</code> — ID типа цели (1: Пенсия, 2: Покупка, 5: НСЖ).</li>
+                <li><code>name</code> — Название цели.</li>
+                <li><code>target_amount</code> — Целевая сумма (RUB).</li>
+                <li><code>term_months</code> — Срок достижения в месяцах.</li>
+                <li><code>risk_profile</code> — Риск-профиль (BALANCED и др.).</li>
+                <li><code>initial_capital</code> — Стартовый капитал.</li>
+                <li><code>monthly_replenishment</code> — Планируемое пополнение.</li>
+                <li><code>priority</code> — Приоритет (1 — высший).</li>
+            </ul>
+        </div>
+
+        <div class="entity-card">
+            <h3>6. ИИ Ассистенты и Конструктор</h3>
+            <p>Настройка логики общения чат-ботов.</p>
+            <strong>Переменные ассистента:</strong>
+            <ul class="variable-list">
+                <li><code>name</code> — Название.</li>
+                <li><code>model</code> — Модель (LLM).</li>
+                <li><code>context_template</code> — Системный промпт.</li>
+            </ul>
+            <br>
+            <strong>Переменные конструктора:</strong>
+            <ul class="variable-list">
+                <li><code>command</code> — Команда/стадия.</li>
+                <li><code>classifier</code> — Критерии перехода.</li>
+                <li><code>response</code> — Текст ответа.</li>
+            </ul>
+        </div>
+
+        <div class="entity-card">
+            <h3>7. Страхование (Home Owners)</h3>
+            <p>Параметры страховых продуктов для недвижимости.</p>
+            <strong>Переменные продукта:</strong>
+            <ul class="variable-list">
+                <li><code>rate_constructive</code>, <code>rate_finish</code>, <code>rate_property</code>,
+                    <code>rate_civil</code> — Базовые ставки по рискам.
+                </li>
+            </ul>
+            <br>
+            <strong>Переменные тарифа:</strong>
+            <ul class="variable-list">
+                <li><code>parameter_name</code> — Имя (wall_material).</li>
+                <li><code>parameter_value</code> — Значение (wood).</li>
+                <li><code>coefficient</code> — Множитель.</li>
+            </ul>
+        </div>
+
+        <h2>🛠 Функционал админки</h2>
+        <div class="admin-tasks">
+            <div class="task-item">
+                <strong>Управление каталогом</strong>
+                Создание и редактирование банковских и инвестиционных продуктов, настройка сеток доходности.
+            </div>
+            <div class="task-item">
+                <strong>Моделирование портфелей</strong>
+                Сборка портфелей из продуктов, расчет долей для разных уровней риска.
+            </div>
+            <div class="task-item">
+                <strong>Администрирование агентов</strong>
+                Регистрация новых консультантов, мониторинг их активности и прав доступа.
+            </div>
+            <div class="task-item">
+                <strong>Конструктор сценариев ИИ</strong>
+                Редактирование шаблонов поведения ботов и логики переходов между этапами CJM.
+            </div>
+            <div class="task-item">
+                <strong>Конфигурация страховки</strong>
+                Настройка поправочных коэффициентов и справочников для страховых объектов.
+            </div>
+            <div class="task-item">
+                <strong>Глобальные настройки</strong>
+                Налоги (2-НДФЛ), параметры ПДС, управление API ключами нейросетей.
+            </div>
+        </div>
+
+        <footer>
+            &copy; 2026 Antigravity Technical Team. Конфиденциально.
+        </footer>
+    </div>
+
+</body>
+
+</html>
