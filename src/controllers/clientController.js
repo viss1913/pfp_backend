@@ -274,6 +274,8 @@ class ClientController {
                     if (g.id) goalsMap.set(String(g.id), g);
                 });
 
+                let identifiedTargetId = null;
+
                 req.body.goals.forEach(newGoal => {
                     // Ensure types for new goal
                     const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income'];
@@ -283,47 +285,57 @@ class ClientController {
                         }
                     });
 
-                    let matchFound = false;
+                    let matchKey = null;
+                    const incomingId = newGoal.id || newGoal.goal_id;
 
                     // 1. Try Match by ID
-                    if (newGoal.id && goalsMap.has(String(newGoal.id))) {
-                        const existing = goalsMap.get(String(newGoal.id));
-                        goalsMap.set(String(newGoal.id), { ...existing, ...newGoal });
-                        matchFound = true;
+                    if (incomingId && goalsMap.has(String(incomingId))) {
+                        matchKey = String(incomingId);
                     }
 
-                    // 1.1 Match by Name and Type (Safety for when ID is missing from frontend)
-                    if (!matchFound && newGoal.name && newGoal.goal_type_id) {
+                    // 2. Match by Name and Type (Leniency with casing and trim)
+                    if (!matchKey && newGoal.name && newGoal.goal_type_id) {
+                        const nName = String(newGoal.name).trim().toLowerCase();
+                        const nType = Number(newGoal.goal_type_id);
+
                         for (const [key, val] of goalsMap.entries()) {
-                            if (val.name === newGoal.name && val.goal_type_id === newGoal.goal_type_id) {
-                                goalsMap.set(key, { ...val, ...newGoal });
-                                matchFound = true;
+                            const vName = String(val.name).trim().toLowerCase();
+                            const vType = Number(val.goal_type_id);
+                            if (vName === nName && vType === nType) {
+                                matchKey = key;
                                 break;
                             }
                         }
                     }
 
-                    // 2. Try Match by Type for Unique Goals (if no ID or ID not found/mismatched)
-                    // Unique Types: 1 (Pension), 7 (FinReserve)
-                    if (!matchFound && [1, 7].includes(newGoal.goal_type_id)) {
+                    // 3. Try Match by Type for Unique Goals (Pension, Reserve)
+                    const singletonTypes = [1, 7];
+                    if (!matchKey && singletonTypes.includes(Number(newGoal.goal_type_id))) {
                         for (const [key, val] of goalsMap.entries()) {
-                            if (val.goal_type_id === newGoal.goal_type_id) {
-                                goalsMap.set(key, { ...val, ...newGoal });
-                                matchFound = true;
+                            if (Number(val.goal_type_id) === Number(newGoal.goal_type_id)) {
+                                matchKey = key;
                                 break;
                             }
                         }
                     }
 
-                    // 3. If still no match, it's a new goal (simulation)
-                    if (!matchFound) {
-                        // Use provided ID or generate temp
-                        const key = newGoal.id ? String(newGoal.id) : `temp_${Date.now()}_${Math.random()}`;
+                    if (matchKey) {
+                        const existing = goalsMap.get(matchKey);
+                        goalsMap.set(matchKey, { ...existing, ...newGoal });
+                        // If this is the only goal in request, mark it as target for partial recalc
+                        if (req.body.goals.length === 1) identifiedTargetId = matchKey;
+                    } else {
+                        // New goal (simulation)
+                        const key = incomingId ? String(incomingId) : `temp_${Date.now()}_${Math.random()}`;
                         goalsMap.set(key, newGoal);
+                        if (req.body.goals.length === 1) identifiedTargetId = key;
                     }
                 });
 
                 goalsToCalculate = Array.from(goalsMap.values());
+
+                // Store identified ID for later use in calculateFirstRun trigger
+                req._identifiedTargetId = identifiedTargetId;
             }
 
             // Client/Assets: Merge
@@ -350,13 +362,13 @@ class ClientController {
             let targetGoalId = null;
             let previousCalculation = null;
 
-            if (req.body.goals && req.body.goals.length === 1 && req.body.goals[0].id) {
-                targetGoalId = req.body.goals[0].id;
+            if (req.body.goals && req.body.goals.length === 1) {
+                targetGoalId = req._identifiedTargetId || (req.body.goals[0].id || req.body.goals[0].goal_id);
                 try {
                     previousCalculation = typeof existingClient.goals_summary === 'string'
                         ? JSON.parse(existingClient.goals_summary)
                         : existingClient.goals_summary;
-                    console.log(`[ClientController] Triggering partial recalculation for goal: ${targetGoalId}`);
+                    console.log(`[ClientController] Identified target for partial recalc: ${targetGoalId}`);
                 } catch (e) {
                     console.warn('[ClientController] Failed to parse previous goals_summary for partial recalculation');
                 }
