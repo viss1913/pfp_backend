@@ -510,10 +510,15 @@ class CalculationService {
                     const calculator = (typeof CalculatorClass === 'function') ? new CalculatorClass() : CalculatorClass;
                     const result = await calculator.calculate(goal, context);
 
-                    if (!result.goal_name && goal.name) result.goal_name = goal.name;
-                    if (!result.goal_id && goal.id) result.goal_id = goal.id;
+                    let finalResult = {
+                        goal_id: result.goal_id || goal.id,
+                        goal_type_id: result.goal_type_id || goal.goal_type_id,
+                        goal_type: result.goal_type || 'OTHER',
+                        goal_name: goal.name,
+                        ...result
+                    };
 
-                    resultsIndexed.push({ index, result });
+                    resultsIndexed.push({ index, result: finalResult });
                 } catch (err) {
                     console.error(`Calculation error for goal ${goal.name}:`, err);
                     resultsIndexed.push({

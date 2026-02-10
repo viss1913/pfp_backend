@@ -104,7 +104,9 @@ class FinReserveCalculator extends BaseCalculator {
             details: {
                 portfolio_id: portfolio.id,
                 portfolio_name: portfolio.name,
-                instruments: initial_capital_instruments.length > 0 ? initial_capital_instruments : monthly_savings_instruments
+                initial_instruments: initial_capital_instruments,
+                monthly_instruments: monthly_savings_instruments,
+                yearly_breakdown: [] // FinReserve uses simple loop, no breakdown yet
             }
         };
     }

@@ -356,10 +356,8 @@ class PensionCalculator extends BaseCalculator {
                     retirement_year: statePensionResult.retirement_year,
                     years_to_pension: statePensionResult.years_to_pension
                 },
-                portfolio_structure: {
-                    initial_instruments: initial_instruments,
-                    monthly_instruments: monthly_instruments
-                },
+                initial_instruments: initial_instruments,
+                monthly_instruments: monthly_instruments,
                 yearly_breakdown: simResult.yearlyBreakdown
             }
         };
