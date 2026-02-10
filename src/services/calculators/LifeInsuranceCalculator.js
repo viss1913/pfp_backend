@@ -107,10 +107,9 @@ class LifeInsuranceCalculator extends BaseCalculator {
             }
         }
 
-        // 4. Deduct from Shared Pool (Waterfall) using the new BaseCalculator method
-        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use costNow
-        let amountToDeduct = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : costNow;
-        const deductedCapital = this.deductFromSharedPool(amountToDeduct, context);
+        // 4. Resolve Initial Capital (respects reservation)
+        // For Life, costNow is the target for deduction if no smart allocation
+        const deductedCapital = this.resolveInitialCapital({ ...goal, initial_capital: costNow }, context);
 
         // 5. Construct Result with Payment Frequency
         const risks = (nsjResult && nsjResult.risks && Array.isArray(nsjResult.risks) && nsjResult.risks.length > 0)

@@ -100,14 +100,12 @@ class PensionCalculator extends BaseCalculator {
         const statePensionResult = await this.calculateStatePension(clientWithIncome, pensionSettings, new Date());
 
         // DEDUCT FROM POOL
-        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
-        let initialCapital = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : (goal.initial_capital || 0);
+        // Use resolveInitialCapital to respect Smart Allocation reservation and avoid double-deducting
+        let initialCapital = this.resolveInitialCapital(goal, context);
 
         // ADD OPS CAPITAL (накопительная часть пенсии, которую можно инвестировать)
         const opsCapital = goal.ops_capital || clientWithIncome.ops_capital || 0;
         initialCapital += opsCapital;
-
-        initialCapital = this.deductFromSharedPool(initialCapital, context);
 
         const inflationAnnualUsed = pensionSettings.inflation_rate;
         const infl_month_decimal = (inflationAnnualUsed / 12) / 100; // Correct monthly decimal
