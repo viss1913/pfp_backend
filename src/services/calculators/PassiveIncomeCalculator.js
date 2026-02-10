@@ -129,7 +129,17 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 total_cofinancing: 0, // Placeholder as currently logic is not fully active
 
                 accumulation_yield_percent: Math.round(payoutYieldPercent * 100) / 100, // Using p.y. as d_annual is p.y.
-                payout_yield_percent: Math.round(payoutYieldPercent * 100) / 100
+                payout_yield_percent: Math.round(payoutYieldPercent * 100) / 100,
+                _debug: {
+                    initialCapital: initialCapital,
+                    requiredCapitalFuture: requiredCapitalFuture,
+                    termMonths: goal.term_months,
+                    yieldMonthly: d_month_decimal,
+                    replenishmentResult: recommendedReplenishment,
+                    isForwardCalc: (goal.monthly_replenishment && goal.monthly_replenishment > 0),
+                    targetInput: goal.target_amount,
+                    desiredIncome: initialDesiredIncome
+                }
             },
             details: {
                 portfolio_id: portfolio ? portfolio.id : null,
