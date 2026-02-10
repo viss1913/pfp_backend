@@ -348,7 +348,11 @@ class CalculationService {
 
                 if (target > 0 && target < 5000000) target = target * 150;
             } else if (goal.goal_type_id === 2) { // PASSIVE_INCOME
-                if (target > 0 && target < 10000000) target = target * 150;
+                if (goal.desired_monthly_income > 0) {
+                    target = goal.desired_monthly_income * 150;
+                } else if (target > 0 && target < 10000000) {
+                    target = target * 150;
+                }
             }
 
             const burden = target / term;

@@ -12,6 +12,8 @@ const calculationRequestSchema = Joi.object({
             .description('Целевая сумма (опционально для INVESTMENT/PASSIVE_INCOME, обязательно для других целей типа ПОКУПКА)'),
         term_months: Joi.number().integer().min(0).optional()
             .description('Срок достижения цели в месяцах. Для PENSION можно не указывать (будет рассчитан автоматически до выхода на пенсию)'),
+        desired_monthly_income: Joi.number().min(0).optional()
+            .description('Желаемый ежемесячный доход (для PASSIVE_INCOME)'),
         risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required()
             .description('Риск-профиль: CONSERVATIVE, BALANCED или AGGRESSIVE'),
         initial_capital: Joi.number().min(0).optional().default(0)
@@ -251,7 +253,7 @@ class ClientController {
                 parsed = { ...fromParams, ...g };
 
                 // Ensure number types for calculation from both sources
-                const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id'];
+                const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income'];
                 numericFields.forEach(field => {
                     if (parsed[field] !== undefined && parsed[field] !== null) {
                         parsed[field] = Number(parsed[field]);
