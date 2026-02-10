@@ -35,9 +35,14 @@ class ConstructorBotService {
             const botInstance = new TelegramBot(botData.token, { polling: true });
 
             botInstance.on('message', async (msg) => {
-                if (!msg.text) return;
+                console.log(`[Telegram] Received message from ${msg.from.id}: "${msg.text}"`);
+                if (!msg.text) {
+                    console.log(`[Telegram] Message from ${msg.from.id} ignored (no text).`);
+                    return;
+                }
 
                 try {
+                    console.log(`[Telegram] Processing message for bot ${botData.id}...`);
                     const response = await constructorAiService.processMessage(
                         botData.id,
                         msg.from.id.toString(),
@@ -61,6 +66,11 @@ class ConstructorBotService {
                     }
                 } catch (err) {
                     console.error(`Error in bot ${botData.id}:`, err);
+                    try {
+                        await botInstance.sendMessage(msg.chat.id, "Извините, произошла внутренняя ошибка. Мы уже работаем над исправлением.");
+                    } catch (sendErr) {
+                        console.error('Failed to send error message to user:', sendErr);
+                    }
                 }
             });
 

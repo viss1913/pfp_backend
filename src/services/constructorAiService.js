@@ -15,12 +15,25 @@ class ConstructorAiService {
         // 1. Получаем все доступные команды для этого бота (или глобальные шаблоны)
         // Приоритезируем команды конкретного бота над шаблонами
         const client = await knex('constructor_clients').where('id', client_id).first();
+        if (!client) {
+            console.error(`[AI Step 1] Client ${client_id} not found!`);
+            return null;
+        }
+
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
+        if (!bot) {
+            console.error(`[AI Step 1] Bot ${client.bot_id} not found!`);
+            return null;
+        }
+
+        console.log(`[AI Step 1] Fetching commands for Bot ID: ${bot.id} (Name: ${bot.name})`);
 
         const commands = await knex('constructor_commands')
             .where('bot_id', bot.id)
             .orWhere('is_template', true)
             .orderByRaw('bot_id DESC, is_template ASC'); // Бот > Шаблон
+
+        console.log(`[AI Step 1] Found ${commands.length} commands.`);
 
         // 2. Формируем контекст классификатора
         let currentCommand = null;
@@ -258,6 +271,7 @@ ${client.user_context || 'Информации о клиенте пока нет
 
         let session = await knex('constructor_sessions').where('client_id', client.id).first();
         if (!session) {
+            console.log(`[Lifecycle] Creating new session for client ${client.id}`);
             [session] = await knex('constructor_sessions').insert({
                 client_id: client.id
             });
@@ -265,9 +279,17 @@ ${client.user_context || 'Информации о клиенте пока нет
         }
 
         console.log(`\n--- Processing Message from ${nickname} (${telegramUserId}) ---`);
+        console.log(`[Flow] Session ID: ${session.id}, Current Command ID: ${session.current_command_id}`);
 
         // 1. Классификация
+        console.log('[Flow] Starting classification...');
         const nextCommand = await this.classifyStage(session, userMessage);
+
+        if (nextCommand) {
+            console.log(`[Flow] Classification result: ${nextCommand.command} (ID: ${nextCommand.id})`);
+        } else {
+            console.warn('[Flow] Classification returned NULL. Using fallback.');
+        }
 
         let calculationResult = null;
         let pdfPath = null;
