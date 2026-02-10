@@ -12,10 +12,12 @@ class OtherGoalCalculator extends BaseCalculator {
         const inflationMonthly = this.getMonthlyInflation(inflationRate);
         const targetAmountFuture = (goal.target_amount || 0) * Math.pow(1 + inflationMonthly, termMonths);
 
+        const initialCapitalForSearch = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
+
         // Поиск портфеля (ID 4 - Прочее)
         const portfolio = await portfolioRepository.findByCriteria({
             classId: 4,
-            amount: goal.initial_capital || 0,
+            amount: initialCapitalForSearch,
             term: termMonths
         });
 
@@ -73,7 +75,8 @@ class OtherGoalCalculator extends BaseCalculator {
                 const isPds = prodType === 'PDS';
                 if (isPds) pdsProductId = product.id;
 
-                const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
+                const calcInitial = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
+                const allocatedAmount = Math.max(calcInitial * (item.share_percent / 100), 1);
                 const yields = product.yields || [];
                 const line = yields.find(l =>
                     termMonths >= l.term_from_months &&
@@ -103,10 +106,8 @@ class OtherGoalCalculator extends BaseCalculator {
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual || 10);
         const indexationRate = (settings.investment_expense_growth_monthly || 0.1) / 100;
 
-        // DEDUCT FROM POOL
-        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
-        let initialCapital = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
-        initialCapital = this.deductFromSharedPool(initialCapital, context);
+        // 3. Resolve Initial Capital (respects reservation)
+        const initialCapital = this.resolveInitialCapital(goal, context);
 
         // Calculate inflows (Future Capital Distribution from Shared Pool)
         // We only look for inflows starting from Month 1 to avoid double-counting month 0 liquid capital

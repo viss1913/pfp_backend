@@ -34,10 +34,8 @@ class InvestmentCalculator extends BaseCalculator {
         const startDate = goal.start_date ? new Date(goal.start_date) : new Date();
         const avgMonthlyIncome = goal.avg_monthly_income || (client && client.avg_monthly_income) || 0;
 
-        // DEDUCT FROM POOL
-        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
-        let initialCapital = (goal.smart_initial_capital !== undefined) ? goal.smart_initial_capital : (goal.initial_capital || 0);
-        initialCapital = this.deductFromSharedPool(initialCapital, context);
+        // Resolve initial capital (respects reservation)
+        const initialCapital = this.resolveInitialCapital(goal, context);
 
         const simResult = await this.runSimulation({
             initialCapital: initialCapital,

@@ -296,9 +296,11 @@ class CalculationService {
                 }
 
                 const take = Math.min(tempPool, needed);
-                goal.smart_initial_capital = take;
-                tempPool -= take;
-                console.log(`[CalculationService] Allocated ${take} to ${goal.name} (Priority ${priority})`);
+                // Real deduction from pool events to reserve the capital
+                const actualTaken = this._internalDeduct(take, context);
+                goal.smart_initial_capital = actualTaken;
+                tempPool -= actualTaken;
+                console.log(`[CalculationService] Reserved ${actualTaken} for ${goal.name} (Priority ${priority})`);
             }
             // Phase 2 & 3 handled after this loop
         }
@@ -319,12 +321,14 @@ class CalculationService {
             const ruleAmount = tempPool * ratio; // 60% of Remainder
 
             const take = ruleAmount; // It's derived from tempPool, so always available
+            const actualTaken = this._internalDeduct(take, context);
 
             // Add to any existing initial (though unlikely for auto-algo)
             const currentInit = investmentGoalObj.goal.smart_initial_capital || 0;
-            investmentGoalObj.goal.smart_initial_capital = currentInit + take;
+            investmentGoalObj.goal.smart_initial_capital = currentInit + actualTaken;
 
-            tempPool -= take;
+            tempPool -= actualTaken;
+            console.log(`[CalculationService] Reserved ${actualTaken} for ${investmentGoalObj.goal.name} (Investment Rule)`);
         }
 
         // 3. Distribute Remaining Pool weighted by Burden (Other Goals)
@@ -363,32 +367,67 @@ class CalculationService {
             const totalBurden = burdenGoals.reduce((sum, item) => sum + item.burden, 0);
 
             if (totalBurden > 0) {
-                for (const item of burdenGoals) {
-                    const weight = item.burden / totalBurden;
-                    let allocation = tempPool * weight;
+                for (let i = 0; i < burdenGoals.length; i++) {
+                    const item = burdenGoals[i];
+                    const isLast = (i === burdenGoals.length - 1);
 
-                    // CAPPING & DISCOUNTING for long terms
-                    const years = item.term / 12;
-                    if (years > 5) {
-                        const discount = 1 / Math.pow(1.07, years); // 7% expected yield discount
-                        allocation = Math.min(allocation, item.target * discount);
+                    let allocation = 0;
+                    if (isLast) {
+                        // Последняя цель забирает всё, что осталось (не округляем, чтобы не терять деньги из пула)
+                        allocation = tempPool;
                     } else {
-                        allocation = Math.min(allocation, item.target);
+                        const weight = item.burden / totalBurden;
+                        allocation = tempPool * weight;
+
+                        // CAPPING & DISCOUNTING
+                        const years = item.term / 12;
+                        if (years > 5) {
+                            const discount = 1 / Math.pow(1.07, years);
+                            allocation = Math.min(allocation, item.target * discount);
+                        } else {
+                            allocation = Math.min(allocation, item.target);
+                        }
+
+                        // ОКРУГЛЕНИЕ ДО 50 000 (в меньшую сторону)
+                        allocation = Math.floor(allocation / 50000) * 50000;
                     }
 
                     const currentInit = item.goal.smart_initial_capital || 0;
-                    item.goal.smart_initial_capital = currentInit + allocation;
+                    const actualTaken = this._internalDeduct(allocation, context);
+                    item.goal.smart_initial_capital = currentInit + actualTaken;
+                    tempPool -= actualTaken;
+                    console.log(`[CalculationService] Reserved ${actualTaken} for ${item.goal.name} (Smart allocation, isLast: ${isLast})`);
                 }
             } else {
                 // If no burden target, dump to last
                 const last = burdenGoals[burdenGoals.length - 1];
-                last.goal.smart_initial_capital = (last.goal.smart_initial_capital || 0) + tempPool;
+                const actualTaken = this._internalDeduct(tempPool, context);
+                last.goal.smart_initial_capital = (last.goal.smart_initial_capital || 0) + actualTaken;
             }
         }
+    }
 
-        // Note: we do NOT update context.poolBalance here. 
-        // Real deduction happens in calculators via deductFromSharedPool.
-        // We just set a "suggestion" (smart_initial_capital) which deductFromSharedPool will respect.
+    /**
+     * Internal deduction for Smart Allocation phase.
+     * Modifies context.sharedPoolEvents.
+     */
+    _internalDeduct(amountNeeded, context) {
+        let remaining = amountNeeded;
+        let takenTotal = 0;
+
+        if (!context.sharedPoolEvents) return 0;
+
+        for (const event of context.sharedPoolEvents) {
+            if (remaining <= 0) break;
+            if (event.amount <= 0) continue;
+
+            const take = Math.min(event.amount, remaining);
+            event.amount -= take;
+            remaining -= take;
+            takenTotal += take;
+        }
+
+        return takenTotal;
     }
 
     /**

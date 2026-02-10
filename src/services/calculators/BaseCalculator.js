@@ -241,6 +241,21 @@ class BaseCalculator {
      * Modifies context.sharedPoolEvents in place.
      * @returns {number} The actual amount deducted.
      */
+    /**
+     * Resolves initial capital for a goal.
+     * If smart_initial_capital is present, it means it was ALREADY deducted from the pool
+     * in CalculationService._calculateSmartAllocation, so we just return it.
+     * Otherwise, we try to deduct from the shared pool waterfall.
+     */
+    resolveInitialCapital(goal, context) {
+        if (goal.smart_initial_capital !== undefined && goal.smart_initial_capital !== null) {
+            return Number(goal.smart_initial_capital);
+        }
+        // Fallback for manual or legacy mode
+        const needed = Number(goal.initial_capital || 0);
+        return this.deductFromSharedPool(needed, context);
+    }
+
     deductFromSharedPool(amountNeeded, context) {
         // Use Smart Allocation suggestion if available (this overrides amountNeeded from user input)
         // Check if the goal object has smart_initial_capital attached (we need access to goal object here? 
@@ -386,7 +401,8 @@ class BaseCalculator {
             const prodType = (product.product_type || '').toUpperCase().trim();
             if (prodType === 'PDS') pdsProductId = product.id;
 
-            const allocatedAmount = Math.max((goal.initial_capital || 0) * (item.share_percent / 100), 1);
+            const calcInitial = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
+            const allocatedAmount = Math.max(calcInitial * (item.share_percent / 100), 1);
             const yields = product.yields || [];
             const line = yields.find(l =>
                 goal.term_months >= l.term_from_months &&

@@ -21,9 +21,8 @@ class PassiveIncomeCalculator extends BaseCalculator {
         // Желаемый доход в ценах БУДУЩЕГО (индексируем на инфляцию за весь срок)
         const desiredIncomeFuture = initialDesiredIncome * Math.pow(1 + (inflationRate / 100), termYears);
 
-        // 2. Начальный капитал и Smart Allocation
-        let initialCapital = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
-        initialCapital = this.deductFromSharedPool(initialCapital, context);
+        // 2. Resolve Initial Capital (respects reservation)
+        const initialCapital = this.resolveInitialCapital(goal, context);
 
         // 3. Расчет целевого капитала (Фаза выплат)
         // Используем настройки passive_income_yield из админки (12-14%)
@@ -35,10 +34,12 @@ class PassiveIncomeCalculator extends BaseCalculator {
         // Формула: (Доход * 12 мес * 100) / Процент_доходности
         const requiredCapitalFuture = (desiredIncomeFuture * 12 * 100) / payoutYieldPercent;
 
+        const initialCapitalForSearch = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
+
         // 4. Подбор портфеля и расчет доходности накопления (Фаза накопления)
         const portfolio = await portfolioRepository.findByCriteria({
             classId: goal.goal_type_id,
-            amount: initialCapital,
+            amount: initialCapitalForSearch,
             term: termMonths
         });
 

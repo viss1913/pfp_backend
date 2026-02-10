@@ -30,18 +30,8 @@ class FinReserveCalculator extends BaseCalculator {
         // 2. Simulation Parameters
         const termMonths = Number(goal.term_months || 12);
 
-        // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0
-        let initialCapital = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
-
-        // DEDUCT FROM POOL: FinReserve consumes liquid capital first!
-        // We try to take the full requested amount.
-        const deducted = this.deductFromSharedPool(initialCapital, context);
-
-        // If we couldn't deduct the full amount (pool empty), we limit the initial capital to what we got?
-        // OR we assume the user might have other sources? 
-        // Logic: if user specified initial_capital, we expect it to come from assets. 
-        // If assets are insufficient, we start with what we have.
-        initialCapital = deducted;
+        // Resolve initial capital (respects Smart Allocation reservation)
+        let initialCapital = this.resolveInitialCapital(goal, context);
 
         const monthlyReplenishment = goal.monthly_replenishment || 0;
         const indexationRate = (settings.investment_expense_growth_monthly || 0.1) / 100;
