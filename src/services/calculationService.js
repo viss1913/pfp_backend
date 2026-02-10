@@ -165,8 +165,11 @@ class CalculationService {
         }
     }
 
-    async _prepareContext(clientData) {
+    async _prepareContext(clientData, options = {}) {
         // Collect assets and pool
+        const isFirstRun = options.isFirstRun !== false;
+        const usePoolFlag = options.usePool !== false;
+
         let poolBalance = Number(clientData.total_liquid_capital || 0);
         const assets = clientData.assets || [];
 
@@ -241,6 +244,8 @@ class CalculationService {
             sharedPoolEvents,
             usedCofinancingPerYear: {},
             usedTaxBasePerYear: {},
+            usePool: usePoolFlag,
+            isFirstRun: isFirstRun,
             inflationYear: db_inflation_year_percent,
             replenishmentIndexationRate: m_month_percent,
             client: clientData,
@@ -435,9 +440,11 @@ class CalculationService {
      * @param {Object} data - CalculationRequest data
      * @param {string} [targetGoalId] - ID of the goal to recalculate (partial mode)
      * @param {Object} [previousCalculation] - Result of previous calculation for "frozen" goals
+     * @param {Object} [options] - Additional options { isFirstRun, usePool }
      */
-    async calculateFirstRun(data, targetGoalId = null, previousCalculation = null) {
+    async calculateFirstRun(data, targetGoalId = null, previousCalculation = null, options = {}) {
         const { goals, client } = data;
+        const isFirstRun = options.isFirstRun !== false; // Default to true for backward compatibility
         const clientData = client ? {
             ...client,
             gender: client.gender || client.sex || 'male',
@@ -445,7 +452,7 @@ class CalculationService {
         } : {};
 
         // 1. Prepare Shared Context
-        const context = await this._prepareContext(clientData);
+        const context = await this._prepareContext(clientData, options);
 
         // Map previous results by goal ID for quick lookup
         const prevGoalsMap = new Map();
@@ -465,15 +472,13 @@ class CalculationService {
             });
 
         // 2.1. Smart Allocation (Burden-Based)
-        // Skip if we are in partial mode and have previous results
-        // In partial mode, we assume the user already has a distribution, 
-        // OR if it's a new goal addition, we might need a full run eventually.
-        // But for "editing" an existing goal, we want to keep others UNCHANGED.
-        if (!targetGoalId || !previousCalculation) {
-            console.log('[CalculationService] Running Full Smart Allocation...');
+        // Skip if restricted by options OR if we are in partial mode and have previous results
+        // User requested: Smart Allocation only for "First Run" (Onboarding)
+        if (isFirstRun && (!targetGoalId || !previousCalculation)) {
+            console.log('[CalculationService] Running Full Smart Allocation (First Run)...');
             await this._calculateSmartAllocation(indexedGoals, context);
         } else {
-            console.log(`[CalculationService] Partial Recalc Mode for goal: ${targetGoalId}. Frozen other goals. Skipping Smart Allocation.`);
+            console.log(`[CalculationService] Skipping Smart Allocation (Recalculate Mode or Target Set). isFirstRun: ${isFirstRun}, target: ${targetGoalId}`);
             // In partial mode, we must restore smart_initial_capital from previous results for ALL goals
             // so that deductFromSharedPool works correctly and preserves the "state" of the pool.
             for (const { goal } of indexedGoals) {

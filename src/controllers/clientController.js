@@ -120,7 +120,7 @@ class ClientController {
             }
 
             // 2. Perform Calculation (This may inject "Smart" goals into req.body.goals)
-            const calculation = await calculationService.calculateFirstRun(req.body);
+            const calculation = await calculationService.calculateFirstRun(req.body, null, null, { isFirstRun: true, usePool: true });
 
             // 3. Inject Agent ID if authenticated
             if (req.user && req.user.agentId) {
@@ -145,8 +145,6 @@ class ClientController {
 
     async create(req, res, next) {
         try {
-            // Basic Joi validation for structure could be here
-            // For now passing directly to service
             if (req.user && req.user.agentId) {
                 if (!req.body.client) req.body.client = {};
                 req.body.client.agent_id = req.user.agentId;
@@ -167,7 +165,6 @@ class ClientController {
                 return res.status(400).json({ error: 'Agent ID not found in token' });
             }
 
-            // Extract query params for pagination/sorting if needed
             const page = req.query.page || 1;
             const limit = req.query.limit || 50;
             const { sort, order, search } = req.query;
@@ -197,7 +194,6 @@ class ClientController {
             const { id } = req.params;
             const agentId = req.user.agentId;
 
-            // Optional: check if client belongs to agent
             const existing = await clientService.getFullClient(id);
             if (!existing || existing.agent_id != agentId) {
                 return res.status(404).json({ error: 'Client not found or access denied' });
@@ -225,164 +221,108 @@ class ClientController {
                 return res.status(403).json({ error: 'Access denied' });
             }
 
-            // 2. Merge Updates from Request Body
-            // Allow updating goals, assets, or basic client info (income, etc)
-
-            // 2. Merge Updates from Request Body
-            // Goals: Merge logic instead of overwrite
-            let goalsToCalculate = [];
-
-            // Normalize existing goals (unpack params from JSON string/object if needed)
-            // This is crucial because calculationService expects flat properties, but DB stores extra params in a JSON column.
+            // 2. Prepare goals map from DB
             const existingGoals = (existingClient.goals || []).map(g => {
                 let parsed = { ...g };
                 let fromParams = {};
-
                 if (typeof g.params === 'string') {
-                    try {
-                        fromParams = JSON.parse(g.params);
-                    } catch (e) { /* ignore */ }
+                    try { fromParams = JSON.parse(g.params); } catch (e) { }
                 } else if (typeof g.params === 'object' && g.params !== null) {
                     fromParams = g.params;
                 }
-
-                // Merge: DB columns (g) MUST take precedence over stale params (fromParams)
                 parsed = { ...fromParams, ...g };
-
-                // Ensure number types for calculation from both sources
                 const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income'];
                 numericFields.forEach(field => {
-                    if (parsed[field] !== undefined && parsed[field] !== null) {
-                        parsed[field] = Number(parsed[field]);
-                    }
+                    if (parsed[field] !== undefined && parsed[field] !== null) parsed[field] = Number(parsed[field]);
                 });
-
                 return parsed;
             });
 
+            const goalsMap = new Map();
+            existingGoals.forEach(g => { if (g.id) goalsMap.set(String(g.id), g); });
+
+            let identifiedTargetId = null;
+            let goalsToCalculate = [];
+
+            // 3. Handle Updates (Bulk or Single)
             if (!req.body.goals || req.body.goals.length === 0) {
-                // If no goals sent, imply "recalculate current state"
-                goalsToCalculate = existingGoals;
-            } else {
-                // Strategy: Start with existing goals, Apply updates from request
-                // We map by ID for fast lookup.
-                // If incoming goal has no ID, we check for "Singleton" types (Pension, Reserve) to avoid duplication.
+                // Check for single goal update format: { goal_id: "...", target_amount: 100, ... }
+                const singleGoalId = req.body.goal_id || req.body.id;
 
-                const goalsMap = new Map();
-                existingGoals.forEach(g => {
-                    if (g.id) goalsMap.set(String(g.id), g);
-                });
+                if (singleGoalId && goalsMap.has(String(singleGoalId))) {
+                    console.log(`[ClientController] Single goal update format: ${singleGoalId}`);
+                    const existing = goalsMap.get(String(singleGoalId));
+                    const updated = { ...existing, ...req.body };
 
-                let identifiedTargetId = null;
+                    // Clean up fields that are not part of goal parameters if they came from root
+                    delete updated.client;
+                    delete updated.goals;
 
-                req.body.goals.forEach(newGoal => {
-                    // Ensure types for new goal
-                    const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income'];
+                    // Ensure number types for critical fields
+                    const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income', 'ops_capital'];
                     numericFields.forEach(field => {
-                        if (newGoal[field] !== undefined && newGoal[field] !== null) {
-                            newGoal[field] = Number(newGoal[field]);
+                        if (updated[field] !== undefined && updated[field] !== null) {
+                            updated[field] = Number(updated[field]);
                         }
                     });
 
+                    goalsMap.set(String(singleGoalId), updated);
+                    identifiedTargetId = String(singleGoalId);
+                } else {
+                    console.log('[ClientController] No goals provided, recalculating current state');
+                }
+                goalsToCalculate = Array.from(goalsMap.values());
+            } else {
+                // Bulk updates in goals array
+                req.body.goals.forEach(newGoal => {
+                    const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income'];
+                    numericFields.forEach(f => { if (newGoal[f] !== undefined) newGoal[f] = Number(newGoal[f]); });
+
                     let matchKey = null;
                     const incomingId = newGoal.id || newGoal.goal_id;
-
-                    // 1. Try Match by ID
-                    if (incomingId && goalsMap.has(String(incomingId))) {
-                        matchKey = String(incomingId);
-                    }
-
-                    // 2. Match by Name and Type (Leniency with casing and trim)
-                    if (!matchKey && newGoal.name && newGoal.goal_type_id) {
-                        const nName = String(newGoal.name).trim().toLowerCase();
-                        const nType = Number(newGoal.goal_type_id);
-
-                        for (const [key, val] of goalsMap.entries()) {
-                            const vName = String(val.name).trim().toLowerCase();
-                            const vType = Number(val.goal_type_id);
-                            if (vName === nName && vType === nType) {
-                                matchKey = key;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 3. Try Match by Type for Unique Goals (Pension, Reserve)
-                    const singletonTypes = [1, 7];
-                    if (!matchKey && singletonTypes.includes(Number(newGoal.goal_type_id))) {
-                        for (const [key, val] of goalsMap.entries()) {
-                            if (Number(val.goal_type_id) === Number(newGoal.goal_type_id)) {
-                                matchKey = key;
-                                break;
-                            }
-                        }
-                    }
+                    if (incomingId && goalsMap.has(String(incomingId))) matchKey = String(incomingId);
 
                     if (matchKey) {
                         const existing = goalsMap.get(matchKey);
                         goalsMap.set(matchKey, { ...existing, ...newGoal });
-                        // If this is the only goal in request, mark it as target for partial recalc
                         if (req.body.goals.length === 1) identifiedTargetId = matchKey;
                     } else {
-                        // New goal (simulation)
                         const key = incomingId ? String(incomingId) : `temp_${Date.now()}_${Math.random()}`;
                         goalsMap.set(key, newGoal);
                         if (req.body.goals.length === 1) identifiedTargetId = key;
                     }
                 });
-
                 goalsToCalculate = Array.from(goalsMap.values());
-
-                // Store identified ID for later use in calculateFirstRun trigger
-                req._identifiedTargetId = identifiedTargetId;
             }
 
-            // Client/Assets: Merge
-            // We construct the 'client' object expected by calculateFirstRun
+            // 4. Merge Client Data
             const clientForCalc = {
-                ...existingClient, // base properties
-                ...req.body.client, // overrides (e.g. new avg_monthly_income)
-                assets: req.body.client?.assets || existingClient.assets || [], // explicit assets override or existing
-                birth_date: existingClient.birth_date, // ensure critical fields preserved if not overridden
-                gender: existingClient.gender,
+                ...existingClient,
+                ...req.body.client,
+                assets: req.body.client?.assets || existingClient.assets || [],
                 total_liquid_capital: req.body.client?.total_liquid_capital !== undefined
                     ? req.body.client.total_liquid_capital
                     : (existingClient.total_liquid_capital !== undefined ? Number(existingClient.total_liquid_capital) : (existingClient.assets_total || 0))
             };
 
-            // 3. Prepare Calculation Request
-            const calcRequest = {
-                client: clientForCalc,
-                goals: goalsToCalculate
-            };
-
-            // 4. Run Calculation
-            // Detect if we can do partial recalculation (only if exactly one goal was updated)
-            let targetGoalId = null;
+            // 5. Run Calculation
+            const calcRequest = { client: clientForCalc, goals: goalsToCalculate };
             let previousCalculation = null;
+            try {
+                previousCalculation = typeof existingClient.goals_summary === 'string'
+                    ? JSON.parse(existingClient.goals_summary)
+                    : existingClient.goals_summary;
+            } catch (e) { }
 
-            if (req.body.goals && req.body.goals.length === 1) {
-                targetGoalId = req._identifiedTargetId || (req.body.goals[0].id || req.body.goals[0].goal_id);
-                try {
-                    previousCalculation = typeof existingClient.goals_summary === 'string'
-                        ? JSON.parse(existingClient.goals_summary)
-                        : existingClient.goals_summary;
-                    console.log(`[ClientController] Identified target for partial recalc: ${targetGoalId}`);
-                } catch (e) {
-                    console.warn('[ClientController] Failed to parse previous goals_summary for partial recalculation');
-                }
-            }
+            const calculation = await calculationService.calculateFirstRun(
+                calcRequest,
+                identifiedTargetId,
+                previousCalculation,
+                { isFirstRun: false, usePool: false }
+            );
 
-            // This will re-run Smart Allocation (full or partial) with the (potentially new) pool and goals
-            const calculation = await calculationService.calculateFirstRun(calcRequest, targetGoalId, previousCalculation);
-
-            // 5. Update Client Record with New Summary
-            // We save the result 'goals_summary' so the dashboard updates permanently.
-            await clientService.updateClient(id, {
-                goals_summary: JSON.stringify(calculation)
-            });
-
-            // Return the full calculation result (which already contains client_id and calculation keys)
+            // 6. Persistence
+            await clientService.updateClient(id, { goals_summary: JSON.stringify(calculation) });
             res.json(calculation);
 
         } catch (err) {
@@ -393,13 +333,7 @@ class ClientController {
     async addGoal(req, res, next) {
         try {
             const { id } = req.params;
-            const agentId = req.user.agentId;
-
-            // 1. Add Goal to DB
             await clientService.addGoal(id, req.body);
-
-            // 2. Trigger Recalculate
-            // This now automatically updates goals_summary and returns flat response
             if (!req.body) req.body = {};
             req.body.goals = null;
             return this.recalculate(req, res, next);
@@ -411,12 +345,7 @@ class ClientController {
     async deleteGoal(req, res, next) {
         try {
             const { id, goalId } = req.params;
-            const agentId = req.user.agentId;
-
-            // 1. Delete Goal from DB
             await clientService.deleteGoal(id, goalId);
-
-            // 2. Trigger Recalculate
             if (!req.body) req.body = {};
             req.body.goals = null;
             return this.recalculate(req, res, next);

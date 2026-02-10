@@ -310,7 +310,7 @@ class BaseCalculator {
             const fvWithoutShared = getFV(replenishment, fixedInflows);
             let gapFuture = Math.max(0, targetAmountFuture - fvWithoutShared);
 
-            if (gapFuture > 0) {
+            if (gapFuture > 0 && context.usePool !== false) {
                 for (const event of context.sharedPoolEvents) {
                     if (event.month > termMonths) continue;
                     if (event.amount <= 0) continue;
