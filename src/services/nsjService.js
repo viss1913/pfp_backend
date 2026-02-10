@@ -217,7 +217,7 @@ class NSJService {
                 if (client.birth_date) {
                     const dob = this.formatDate(client.birth_date);
                     const age = this.calculateAge(client.birth_date);
-                    const sex = this.normalizeSex(client.sex);
+                    const sex = this.normalizeSex(client.gender || client.sex);
 
                     requestData.data.policyHolder = {
                         dob: dob,

@@ -170,8 +170,9 @@ class NSJApiService {
 
         // Преобразуем пол
         let sex = null;
-        if (client.sex) {
-            sex = client.sex.toLowerCase() === 'male' || client.sex.toLowerCase() === 'm' ? 'male' : 'female';
+        const clientSex = client.gender || client.sex;
+        if (clientSex) {
+            sex = clientSex.toLowerCase() === 'male' || clientSex.toLowerCase() === 'm' ? 'male' : 'female';
         }
 
         // Форматируем телефон
@@ -221,8 +222,9 @@ class NSJApiService {
                     requestData.insuredPerson.dob = this.formatDateOnly(new Date(client.insured_person.birth_date));
                     requestData.insuredPerson.age = this.calculateAge(client.insured_person.birth_date);
                 }
-                if (client.insured_person.sex) {
-                    requestData.insuredPerson.sex = client.insured_person.sex.toLowerCase() === 'male' || client.insured_person.sex.toLowerCase() === 'm' ? 'male' : 'female';
+                const insuredSex = client.insured_person.gender || client.insured_person.sex;
+                if (insuredSex) {
+                    requestData.insuredPerson.sex = insuredSex.toLowerCase() === 'male' || insuredSex.toLowerCase() === 'm' ? 'male' : 'female';
                 }
             }
         }

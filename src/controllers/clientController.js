@@ -136,11 +136,8 @@ class ClientController {
                 goals_summary: JSON.stringify(calculation)
             });
 
-            // 5. Return combined result
-            res.status(200).json({
-                client_id: clientId,
-                calculation: calculation
-            });
+            // 5. Return combined result (calculation already contains client_id)
+            res.status(200).json(calculation);
         } catch (err) {
             next(err);
         }
@@ -347,7 +344,7 @@ class ClientController {
                 ...req.body.client, // overrides (e.g. new avg_monthly_income)
                 assets: req.body.client?.assets || existingClient.assets || [], // explicit assets override or existing
                 birth_date: existingClient.birth_date, // ensure critical fields preserved if not overridden
-                sex: existingClient.gender || existingClient.sex,
+                gender: existingClient.gender,
                 total_liquid_capital: req.body.client?.total_liquid_capital !== undefined
                     ? req.body.client.total_liquid_capital
                     : (existingClient.total_liquid_capital !== undefined ? Number(existingClient.total_liquid_capital) : (existingClient.assets_total || 0))

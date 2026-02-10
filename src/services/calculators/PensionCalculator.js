@@ -11,7 +11,7 @@ class PensionCalculator extends BaseCalculator {
         const age = currentYear - birthYear;
         const yearsOfWork = Math.max(age - 18, 0);
 
-        const sex = client.sex || '';
+        const sex = client.gender || client.sex || '';
         const isMale = sex === 'male' || sex === 'M' || sex === 'мужской';
         const retirementAge = isMale ? 65 : 60;
         const retirementYear = birthYear + retirementAge;

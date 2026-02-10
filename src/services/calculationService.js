@@ -401,7 +401,7 @@ class CalculationService {
         const { goals, client } = data;
         const clientData = client ? {
             ...client,
-            sex: client.gender || client.sex || 'male',
+            gender: client.gender || client.sex || 'male',
             birth_date: client.birth_date || '1985-01-01'
         } : {};
 
@@ -542,49 +542,41 @@ class CalculationService {
         const age = Math.abs(ageDate.getUTCFullYear() - 1970);
 
         return {
-            client_id: data.client_id || client.id,
-            client_profile: {
-                age: age,
-                sex: client.sex,
-                avg_monthly_income: client.avg_monthly_income,
-                assets: client.assets || []
+            client_id: data.client_id || (client ? client.id : null),
+            summary: {
+                goals_count: (goals || []).length,
+                total_capital: Math.round(results.reduce((sum, r) => {
+                    const cap = r.summary?.projected_capital_at_end
+                        || r.summary?.total_capital_at_end
+                        || r.summary?.projected_capital_at_retirement
+                        || r.summary?.expected_cash_value
+                        || r.summary?.initial_capital // For RENT/Rentier where capital is preserved
+                        || 0;
+                    return sum + cap;
+                }, 0) * 100) / 100,
+
+                total_state_benefit: Math.round(results.reduce((sum, r) => {
+                    // New format: distinct generic fields
+                    const tax = r.summary?.total_tax_benefit || 0;
+                    const cofin = r.summary?.total_cofinancing || 0;
+                    // Legacy format: single field
+                    const legacy = r.summary?.state_benefit || 0;
+                    // Use max to avoid double counting if both exist (though usually one set exists)
+                    return sum + Math.max(tax + cofin, legacy);
+                }, 0) * 100) / 100,
+
+                total_target_amount_initial: Math.round(results.reduce((sum, r) => {
+                    return sum + (r.summary?.target_amount_initial || r.details?.target_amount_initial || 0);
+                }, 0) * 100) / 100,
+
+                total_target_amount_future: Math.round(results.reduce((sum, r) => {
+                    return sum + (r.summary?.target_amount_future || r.details?.target_amount_future || 0);
+                }, 0) * 100) / 100,
+
+                consolidated_portfolio: consolidated,
+                tax_benefits_summary: this._generateTaxBenefitsSummary(results)
             },
-            calculation: {
-                summary: {
-                    goals_count: goals.length,
-                    total_capital: Math.round(results.reduce((sum, r) => {
-                        const cap = r.summary?.projected_capital_at_end
-                            || r.summary?.total_capital_at_end
-                            || r.summary?.projected_capital_at_retirement
-                            || r.summary?.expected_cash_value
-                            || r.summary?.initial_capital // For RENT/Rentier where capital is preserved
-                            || 0;
-                        return sum + cap;
-                    }, 0) * 100) / 100,
-
-                    total_state_benefit: Math.round(results.reduce((sum, r) => {
-                        // New format: distinct generic fields
-                        const tax = r.summary?.total_tax_benefit || 0;
-                        const cofin = r.summary?.total_cofinancing || 0;
-                        // Legacy format: single field
-                        const legacy = r.summary?.state_benefit || 0;
-                        // Use max to avoid double counting if both exist (though usually one set exists)
-                        return sum + Math.max(tax + cofin, legacy);
-                    }, 0) * 100) / 100,
-
-                    total_target_amount_initial: Math.round(results.reduce((sum, r) => {
-                        return sum + (r.summary?.target_amount_initial || r.details?.target_amount_initial || 0);
-                    }, 0) * 100) / 100,
-
-                    total_target_amount_future: Math.round(results.reduce((sum, r) => {
-                        return sum + (r.summary?.target_amount_future || r.details?.target_amount_future || 0);
-                    }, 0) * 100) / 100,
-
-                    consolidated_portfolio: consolidated,
-                    tax_benefits_summary: this._generateTaxBenefitsSummary(results)
-                },
-                goals: results
-            }
+            goals: results
         };
     }
 
