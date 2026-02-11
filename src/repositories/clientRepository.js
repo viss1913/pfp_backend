@@ -82,6 +82,12 @@ class ClientRepository {
         return query;
     }
 
+    async updateGoal(clientId, goalId, data, trx = null) {
+        const query = knex('goals').where({ id: goalId, client_id: clientId }).update(data);
+        if (trx) query.transacting(trx);
+        return query;
+    }
+
     async getGoals(clientId) {
         return knex('goals').where({ client_id: clientId });
     }

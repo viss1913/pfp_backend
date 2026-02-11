@@ -326,8 +326,15 @@ class ClientController {
             );
 
             // 6. Persistence
+            // If we identified a single target goal update, persist it to the goals table
+            if (identifiedTargetId && !identifiedTargetId.startsWith('temp_')) {
+                const updatedGoalData = goalsMap.get(identifiedTargetId);
+                await clientService.updateGoal(id, identifiedTargetId, updatedGoalData);
+                console.log(`[ClientController] Persisted changes to goal ${identifiedTargetId}`);
+            }
+
             await clientService.updateClient(id, { goals_summary: JSON.stringify(calculation) });
-            res.json(calculationService.simplify(calculation));
+            res.json(calculation);
 
         } catch (err) {
             next(err);

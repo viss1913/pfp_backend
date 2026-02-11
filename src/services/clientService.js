@@ -260,10 +260,37 @@ class ClientService {
             goalRecord.params = JSON.stringify(params);
         }
 
-        await clientRepository.addGoals([goalRecord]);
-        return true;
+        const id = await clientRepository.addGoals([goalRecord]);
+        await this.updateFinancialAggregates(clientId);
+        return id;
     }
 
+    async updateGoal(clientId, goalId, goalData) {
+        const goalColumns = [
+            'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
+            'term_months', 'end_date', 'initial_capital', 'inflation_rate', 'risk_profile'
+        ];
+
+        const goalRecord = {};
+        const params = {};
+
+        Object.keys(goalData).forEach(key => {
+            if (goalColumns.includes(key)) {
+                goalRecord[key] = goalData[key];
+            } else if (key !== 'client_id' && key !== 'id' && key !== 'goal_id' && key !== 'params') {
+                params[key] = goalData[key];
+            }
+        });
+
+        if (Object.keys(params).length > 0) {
+            // Need to merge with existing params if we want to be safe, 
+            // but for simplicity we overwrite if it's a full update of the object
+            goalRecord.params = JSON.stringify(params);
+        }
+
+        await clientRepository.updateGoal(clientId, goalId, goalRecord);
+        await this.updateFinancialAggregates(clientId);
+    }
     async deleteGoal(clientId, goalId) {
         await clientRepository.deleteGoal(clientId, goalId);
         return true;
