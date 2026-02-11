@@ -138,7 +138,7 @@ class ClientController {
 
             // 5. Return combined result (calculation already contains client_id)
             calculation.client_id = clientId;
-            res.status(200).json(calculationService.simplify(calculation));
+            res.json(calculationService.simplify(calculation));
         } catch (err) {
             next(err);
         }
@@ -334,7 +334,7 @@ class ClientController {
             }
 
             await clientService.updateClient(id, { goals_summary: JSON.stringify(calculation) });
-            res.json(calculation);
+            res.json(calculationService.simplify(calculation));
 
         } catch (err) {
             next(err);
