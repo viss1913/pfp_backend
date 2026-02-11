@@ -564,7 +564,14 @@ class CalculationService {
                         });
                     }
 
-                    resultsIndexed.push({ index, result: prevResult });
+                    // Ensure goal_id and goal_name exist in the frozen result
+                    const finalFrozenResult = {
+                        ...prevResult,
+                        goal_id: prevResult.goal_id || goal.id || goal.goal_id,
+                        goal_name: goal.name || prevResult.goal_name
+                    };
+
+                    resultsIndexed.push({ index, result: finalFrozenResult });
                 } else {
                     // Fallback if no previous result found (should not happen in valid partial mode)
                     console.warn(`[CalculationService] No previous result for frozen goal ${goal.name}, calculating anyway.`);
