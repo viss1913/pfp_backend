@@ -98,7 +98,7 @@ class ClientController {
             }
 
             const result = await calculationService.calculateFirstRun(req.body);
-            res.json(result);
+            res.json(calculationService.simplify(result));
         } catch (err) {
             next(err);
         }
@@ -137,7 +137,8 @@ class ClientController {
             });
 
             // 5. Return combined result (calculation already contains client_id)
-            res.status(200).json(calculation);
+            calculation.client_id = clientId;
+            res.status(200).json(calculationService.simplify(calculation));
         } catch (err) {
             next(err);
         }
@@ -152,7 +153,7 @@ class ClientController {
 
             const clientId = await clientService.createFullClient(req.body);
             const fullClient = await clientService.getFullClient(clientId);
-            res.status(201).json(fullClient);
+            res.status(201).json(calculationService.simplify(fullClient));
         } catch (err) {
             next(err);
         }
@@ -170,6 +171,9 @@ class ClientController {
             const { sort, order, search } = req.query;
 
             const clients = await clientService.getClientsByAgent(agentId, { page, limit, sort, order, search });
+            if (clients.data) {
+                clients.data = clients.data.map(c => calculationService.simplify(c));
+            }
             res.json(clients);
         } catch (err) {
             next(err);
@@ -183,7 +187,7 @@ class ClientController {
             if (!client) {
                 return res.status(404).json({ error: 'Client not found' });
             }
-            res.json(client);
+            res.json(calculationService.simplify(client));
         } catch (err) {
             next(err);
         }
@@ -201,7 +205,7 @@ class ClientController {
 
             await clientService.updateFullClient(id, req.body);
             const updated = await clientService.getFullClient(id);
-            res.json(updated);
+            res.json(calculationService.simplify(updated));
         } catch (err) {
             next(err);
         }
@@ -323,7 +327,7 @@ class ClientController {
 
             // 6. Persistence
             await clientService.updateClient(id, { goals_summary: JSON.stringify(calculation) });
-            res.json(calculation);
+            res.json(calculationService.simplify(calculation));
 
         } catch (err) {
             next(err);

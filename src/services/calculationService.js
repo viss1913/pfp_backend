@@ -516,10 +516,10 @@ class CalculationService {
                     const result = await calculator.calculate(goal, context);
 
                     let finalResult = {
-                        goal_id: result.goal_id || goal.id,
-                        goal_type_id: result.goal_type_id || goal.goal_type_id,
-                        goal_type: result.goal_type || 'OTHER',
                         goal_name: goal.name,
+                        goal_type: result.goal_type || 'OTHER',
+                        goal_type_id: result.goal_type_id || goal.goal_type_id,
+                        goal_id: result.goal_id || goal.id,
                         ...result
                     };
 
@@ -714,6 +714,45 @@ class CalculationService {
                 total_state_benefits: Math.round((totalDeductionsAll + totalCofinancingAll) * 100) / 100
             }
         };
+    }
+
+    /**
+     * Simplify calculation result by removing yearly_breakdown from goals
+     * and ensuring field order for core properties.
+     */
+    simplify(result) {
+        if (!result) return result;
+
+        // If it's a client object with goals_summary
+        if (result.goals_summary) {
+            result.goals_summary = this.simplify(result.goals_summary);
+            return result;
+        }
+
+        // Handle case where result is wraped in { calculation: ... } or is the calc object itself
+        const calc = result.calculation || result;
+
+        if (calc.goals && Array.isArray(calc.goals)) {
+            calc.goals = calc.goals.map(goal => {
+                // Ensure field order and remove yearly_breakdown
+                const { goal_name, goal_type, goal_type_id, goal_id, ...rest } = goal;
+
+                if (rest.details && rest.details.yearly_breakdown) {
+                    delete rest.details.yearly_breakdown;
+                }
+
+                // Reconstruct with guaranteed order
+                return {
+                    goal_name: goal_name || goal.name,
+                    goal_type,
+                    goal_type_id,
+                    goal_id,
+                    ...rest
+                };
+            });
+        }
+
+        return result;
     }
 
     _generateConsolidatedPortfolio(results) {
