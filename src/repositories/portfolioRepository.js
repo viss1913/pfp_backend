@@ -14,18 +14,23 @@ class PortfolioRepository {
             // Сначала пытаемся прочитать из JSON поля portfolios.classes
             if (portfolio.classes) {
                 try {
-                    const classIds = typeof portfolio.classes === 'string'
+                    const parsed = typeof portfolio.classes === 'string'
                         ? JSON.parse(portfolio.classes)
                         : portfolio.classes;
-                    if (Array.isArray(classIds) && classIds.length > 0) {
-                        console.log('[PortfolioRepo] Fetching classes for portfolio', portfolio.id, 'ids:', classIds);
-                        classes = await db('portfolio_classes')
-                            .whereIn('id', classIds)
-                            .select('*');
-                        console.log('[PortfolioRepo] Fetched classes:', classes.length);
-                    }
+                    classes = Array.isArray(parsed) ? parsed : [parsed];
                 } catch (e) {
-                    console.warn('Could not parse classes from JSON field:', e.message);
+                    // Fallback for comma-separated string
+                    if (typeof portfolio.classes === 'string') {
+                        classes = portfolio.classes.split(',').map(id => Number(id.trim()));
+                    }
+                }
+
+                if (classes.length > 0) {
+                    console.log('[PortfolioRepo] Fetching classes for portfolio', portfolio.id, 'ids:', classes);
+                    classes = await db('portfolio_classes')
+                        .whereIn('id', classes)
+                        .select('*');
+                    console.log('[PortfolioRepo] Fetched classes:', classes.length);
                 }
             }
 
@@ -254,8 +259,18 @@ class PortfolioRepository {
             throw e;
         }
         const found = candidates.find(p => {
-            const classes = typeof p.classes === 'string' ? JSON.parse(p.classes) : p.classes;
-            if (!Array.isArray(classes)) return false;
+            let classes = p.classes;
+            if (typeof classes === 'string' && classes.trim() !== '') {
+                try {
+                    classes = JSON.parse(classes);
+                } catch (e) {
+                    // Try comma-separated
+                    classes = classes.split(',').map(c => Number(c.trim()));
+                }
+            }
+            if (!Array.isArray(classes)) {
+                classes = classes ? [Number(classes)] : [];
+            }
             return classes.includes(Number(classId));
         });
 

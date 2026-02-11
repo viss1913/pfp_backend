@@ -128,8 +128,13 @@ class ClientService {
         // Better approach: Do a raw query or update repo to valid aggregations.
 
         // Quick aggregation logic:
-        const assets = await knex('client_assets').where({ client_id: clientId }).transacting(trx || undefined);
-        const liabilities = await knex('client_liabilities').where({ client_id: clientId }).transacting(trx || undefined);
+        let assetsQuery = knex('client_assets').where({ client_id: clientId });
+        if (trx) assetsQuery = assetsQuery.transacting(trx);
+        const assets = await assetsQuery;
+
+        let liabilitiesQuery = knex('client_liabilities').where({ client_id: clientId });
+        if (trx) liabilitiesQuery = liabilitiesQuery.transacting(trx);
+        const liabilities = await liabilitiesQuery;
 
         const assetsTotal = assets.reduce((sum, item) => sum + Number(item.current_value || 0), 0);
         const liabilitiesTotal = liabilities.reduce((sum, item) => sum + Number(item.remaining_amount || 0), 0);

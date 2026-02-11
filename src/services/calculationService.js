@@ -515,22 +515,22 @@ class CalculationService {
                     const calculator = (typeof CalculatorClass === 'function') ? new CalculatorClass() : CalculatorClass;
                     const result = await calculator.calculate(goal, context);
 
-                    let finalResult = {
-                        goal_name: goal.name,
-                        goal_type: result.goal_type || 'OTHER',
+                    const wrappedResult = {
+                        ...result,
+                        goal_name: goal.name || goal.goal_name || result.goal_name || result.name || goal.goal_type || 'Цель',
+                        goal_type: result.goal_type || goal.goal_type || 'OTHER',
                         goal_type_id: result.goal_type_id || goal.goal_type_id,
-                        goal_id: result.goal_id || goal.id,
-                        ...result
+                        goal_id: result.goal_id || goal.id || goal.goal_id
                     };
 
-                    resultsIndexed.push({ index, result: finalResult });
+                    resultsIndexed.push({ index, result: wrappedResult });
                 } catch (err) {
                     console.error(`Calculation error for goal ${goal.name}:`, err);
                     resultsIndexed.push({
                         index,
                         result: {
-                            goal_id: goal.id || goal.goal_type_id,
-                            goal_name: goal.name,
+                            goal_id: goal.id || goal.goal_id || goal.goal_type_id,
+                            goal_name: goal.name || goal.goal_name || 'Ошибка расчета',
                             error: err.message
                         }
                     });
@@ -568,7 +568,8 @@ class CalculationService {
                     const finalFrozenResult = {
                         ...prevResult,
                         goal_id: prevResult.goal_id || goal.id || goal.goal_id,
-                        goal_name: goal.name || prevResult.goal_name
+                        goal_name: goal.name || goal.goal_name || prevResult.goal_name || prevResult.name || goal.goal_type || 'Цель',
+                        goal_type: prevResult.goal_type || goal.goal_type || 'OTHER'
                     };
 
                     resultsIndexed.push({ index, result: finalFrozenResult });
@@ -579,7 +580,14 @@ class CalculationService {
                         ? new CALCULATORS[goal.goal_type_id]()
                         : (CALCULATORS[goal.goal_type_id] || otherGoalCalculator);
                     const result = await calculator.calculate(goal, context);
-                    resultsIndexed.push({ index, result });
+                    const wrappedResult = {
+                        ...result,
+                        goal_name: goal.name || goal.goal_name || result.goal_name || result.name || goal.goal_type || 'Цель',
+                        goal_type: result.goal_type || goal.goal_type || 'OTHER',
+                        goal_type_id: result.goal_type_id || goal.goal_type_id,
+                        goal_id: result.goal_id || goal.id || goal.goal_id
+                    };
+                    resultsIndexed.push({ index, result: wrappedResult });
                 }
             }
         }
