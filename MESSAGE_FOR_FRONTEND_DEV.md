@@ -107,10 +107,12 @@
   },
   "goals": [
     {
+      "goal_id": 367,
       "goal_type_id": 1,
       "name": "Госпенсия",
-      "target_amount": 150000,
-      "ops_capital": 500000,
+      "desired_monthly_income": 150000, // Желаемая сумма (синоним target_amount)
+      "ipk_current": 75.5, // Текущий ИПК баллы
+      "ops_capital": 500000, // Накопительная часть
       "initial_capital": 300000,
       "risk_profile": "BALANCED"
     }

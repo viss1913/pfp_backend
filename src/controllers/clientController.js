@@ -80,6 +80,7 @@ const calculationRequestSchema = Joi.object({
 });
 
 const clientService = require('../services/clientService');
+const goalRecalculator = require('../services/recalculators');
 
 class ClientController {
     // --- Existing Calculator ---
@@ -254,21 +255,9 @@ class ClientController {
                 const singleGoalId = req.body.goal_id || req.body.id;
 
                 if (singleGoalId && goalsMap.has(String(singleGoalId))) {
-                    console.log(`[ClientController] Single goal update format: ${singleGoalId}`);
+                    console.log(`[ClientController] Using GoalRecalculator for single goal: ${singleGoalId}`);
                     const existing = goalsMap.get(String(singleGoalId));
-                    const updated = { ...existing, ...req.body };
-
-                    // Clean up fields that are not part of goal parameters if they came from root
-                    delete updated.client;
-                    delete updated.goals;
-
-                    // Ensure number types for critical fields
-                    const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income', 'ops_capital'];
-                    numericFields.forEach(field => {
-                        if (updated[field] !== undefined && updated[field] !== null) {
-                            updated[field] = Number(updated[field]);
-                        }
-                    });
+                    const updated = goalRecalculator.prepare(existing, req.body);
 
                     goalsMap.set(String(singleGoalId), updated);
                     identifiedTargetId = String(singleGoalId);
@@ -278,21 +267,19 @@ class ClientController {
                 goalsToCalculate = Array.from(goalsMap.values());
             } else {
                 // Bulk updates in goals array
-                req.body.goals.forEach(newGoal => {
-                    const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income'];
-                    numericFields.forEach(f => { if (newGoal[f] !== undefined) newGoal[f] = Number(newGoal[f]); });
+                req.body.goals.forEach(patch => {
+                    const incomingId = patch.id || patch.goal_id;
+                    let matchKey = incomingId ? String(incomingId) : null;
 
-                    let matchKey = null;
-                    const incomingId = newGoal.id || newGoal.goal_id;
-                    if (incomingId && goalsMap.has(String(incomingId))) matchKey = String(incomingId);
-
-                    if (matchKey) {
+                    if (matchKey && goalsMap.has(matchKey)) {
                         const existing = goalsMap.get(matchKey);
-                        goalsMap.set(matchKey, { ...existing, ...newGoal });
+                        const updated = goalRecalculator.prepare(existing, patch);
+                        goalsMap.set(matchKey, updated);
                         if (req.body.goals.length === 1) identifiedTargetId = matchKey;
                     } else {
-                        const key = incomingId ? String(incomingId) : `temp_${Date.now()}_${Math.random()}`;
-                        goalsMap.set(key, newGoal);
+                        // For new goals in the array, use default preparation if possible
+                        const key = matchKey || `temp_${Date.now()}_${Math.random()}`;
+                        goalsMap.set(key, patch);
                         if (req.body.goals.length === 1) identifiedTargetId = key;
                     }
                 });
