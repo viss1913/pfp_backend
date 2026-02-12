@@ -12,10 +12,18 @@ class BaseRecalculator {
     prepare(existing, patch) {
         const result = { ...existing, ...patch };
 
-        // Clean up internal non-goal fields if they leaked from root request
+        // Clean up internal non-goal fields and previous results 
+        // to avoid merging stale calculated data back into inputs
         delete result.client;
         delete result.goals;
-        delete result.goal_id; // we use 'id' internally or as fallback
+        delete result.goal_id;
+        delete result.summary;
+        delete result.details;
+        delete result.calculations;
+        delete result.financials;
+        delete result.pds_cofinancing;
+        delete result.state_pension_result;
+        delete result.nsj_calculation;
 
         return this.convertNumbers(result);
     }

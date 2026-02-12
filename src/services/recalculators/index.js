@@ -11,11 +11,13 @@ const RECALCULATORS = {
     1: pensionRecalculator,    // PENSION
     2: passiveIncomeRecalculator, // PASSIVE_INCOME
     3: investmentRecalculator, // INVESTMENT
-    4: homeOwnersRecalculator, // HOME_OWNERS
+    4: defaultRecalculator,    // OTHER (HOUSE, CAR, etc.)
     5: lifeInsuranceRecalculator, // LIFE_INSURANCE
     6: pensionRecalculator,    // PDS (uses pension logic)
     7: finReserveRecalculator, // FIN_RESERVE
-    8: rentRecalculator        // RENT (Ежемесячный процент)
+    8: rentRecalculator,       // RENT (Ежемесячный процент)
+    9: defaultRecalculator,    // OTHER
+    10: homeOwnersRecalculator // INSURANCE (Property) - placeholder
 };
 
 /**

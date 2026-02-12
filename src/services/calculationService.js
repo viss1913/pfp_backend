@@ -456,8 +456,12 @@ class CalculationService {
 
         // Map previous results by goal ID for quick lookup
         const prevGoalsMap = new Map();
-        if (previousCalculation && previousCalculation.calculation && previousCalculation.calculation.goals) {
-            previousCalculation.calculation.goals.forEach(g => {
+        const prevGoalsSource = (previousCalculation && previousCalculation.calculation && previousCalculation.calculation.goals)
+            ? previousCalculation.calculation.goals
+            : (previousCalculation && previousCalculation.goals ? previousCalculation.goals : null);
+
+        if (prevGoalsSource) {
+            prevGoalsSource.forEach(g => {
                 if (g.goal_id) prevGoalsMap.set(String(g.goal_id), g);
             });
         }
