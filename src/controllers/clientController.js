@@ -83,6 +83,26 @@ const clientService = require('../services/clientService');
 const goalRecalculator = require('../services/recalculators');
 
 class ClientController {
+    async _syncGoalsWithDatabase(clientId, calculation) {
+        if (!calculation || !calculation.goals) return;
+
+        const dbGoals = await clientService.getFullClient(clientId);
+        if (!dbGoals || !dbGoals.goals) return;
+
+        calculation.goals.forEach(calcGoal => {
+            // Find match in DB goals by name and type
+            const match = dbGoals.goals.find(dg =>
+                String(dg.name).trim() === String(calcGoal.goal_name || calcGoal.name).trim() &&
+                Number(dg.goal_type_id) === Number(calcGoal.goal_type_id)
+            );
+
+            if (match) {
+                calcGoal.goal_id = match.id;
+                calcGoal.id = match.id;
+            }
+        });
+    }
+
     // --- Existing Calculator ---
     async calculateFirstRun(req, res, next) {
         try {
@@ -108,7 +128,7 @@ class ClientController {
     // --- New Integrated Method (First Run / Onboarding) ---
     async firstRun(req, res, next) {
         try {
-            // 1. Validation (Reuse existing schema for calculation parts, but full request has assets/etc)
+            // 1. Validation
             const validation = calculationRequestSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
             if (validation.error) {
                 return res.status(400).json({
@@ -120,26 +140,29 @@ class ClientController {
                 });
             }
 
-            // 2. Perform Calculation (This may inject "Smart" goals into req.body.goals)
-            const calculation = await calculationService.calculateFirstRun(req.body, null, null, { isFirstRun: true, usePool: true });
+            // 2. Perform Calculation
+            const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, { isFirstRun: true, usePool: true });
+            const calculation = calculationResponse.calculation || calculationResponse;
 
-            // 3. Inject Agent ID if authenticated
+            // 3. Inject Agent ID
             if (req.user && req.user.agentId) {
                 if (!req.body.client) req.body.client = {};
                 req.body.client.agent_id = req.user.agentId;
             }
 
-            // 4. Save/Update Profile (Now include injected goals)
+            // 4. Save/Update Profile
             const clientId = await clientService.createFullClient(req.body);
 
-            // 4. Save Calculation Snapshot to Client record for Agent/Consultant
+            // 5. SYNC IDs: Update calculation goals with real DB IDs
+            await this._syncGoalsWithDatabase(clientId, calculation);
+
+            // Save Calculation Snapshot to Client record (with real IDs)
             await clientService.updateClient(clientId, {
-                goals_summary: JSON.stringify(calculation)
+                goals_summary: JSON.stringify(calculationResponse)
             });
 
-            // 5. Return combined result (calculation already contains client_id)
-            calculation.client_id = clientId;
-            res.json(calculationService.simplify(calculation));
+            calculationResponse.client_id = clientId;
+            res.json(calculationService.simplify(calculationResponse));
         } catch (err) {
             next(err);
         }
@@ -236,7 +259,7 @@ class ClientController {
                     fromParams = g.params;
                 }
                 parsed = { ...fromParams, ...g };
-                const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income'];
+                const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income', 'id', 'goal_id'];
                 numericFields.forEach(field => {
                     if (parsed[field] !== undefined && parsed[field] !== null) parsed[field] = Number(parsed[field]);
                 });
@@ -305,7 +328,7 @@ class ClientController {
                     : existingClient.goals_summary;
             } catch (e) { }
 
-            const calculation = await calculationService.calculateFirstRun(
+            const calculationResponse = await calculationService.calculateFirstRun(
                 calcRequest,
                 identifiedTargetId,
                 previousCalculation,
@@ -313,15 +336,27 @@ class ClientController {
             );
 
             // 6. Persistence
-            // If we identified a single target goal update, persist it to the goals table
+            const clientId = existingClient.id;
+            const calculation = calculationResponse.calculation || calculationResponse;
+
             if (identifiedTargetId && !identifiedTargetId.startsWith('temp_')) {
                 const updatedGoalData = goalsMap.get(identifiedTargetId);
-                await clientService.updateGoal(id, identifiedTargetId, updatedGoalData);
+                await clientService.updateGoal(clientId, identifiedTargetId, updatedGoalData);
                 console.log(`[ClientController] Persisted changes to goal ${identifiedTargetId}`);
+            } else if (!req.body.goals || req.body.goals.length > 0) {
+                // Bulk update / new goals
+                await clientService.updateFullClient(clientId, { client: clientForCalc, goals: goalsToCalculate });
             }
 
-            await clientService.updateClient(id, { goals_summary: JSON.stringify(calculation) });
-            res.json(calculationService.simplify(calculation));
+            // 7. SYNC IDs (especially for new goals with temp IDs)
+            await this._syncGoalsWithDatabase(clientId, calculation);
+
+            // Save Snapshot
+            await clientService.updateClient(clientId, {
+                goals_summary: JSON.stringify(calculationResponse)
+            });
+
+            res.json(calculationService.simplify(calculationResponse));
 
         } catch (err) {
             next(err);

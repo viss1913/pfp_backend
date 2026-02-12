@@ -13,10 +13,10 @@ class BaseRecalculator {
         const result = { ...existing, ...patch };
 
         // Clean up internal non-goal fields and previous results 
-        // to avoid merging stale calculated data back into inputs
+        // to avoid merging stale calculated data back into inputs.
+        // We KEEP goal_id as it is used by the frontend and some calc logic.
         delete result.client;
         delete result.goals;
-        delete result.goal_id;
         delete result.summary;
         delete result.details;
         delete result.calculations;
@@ -45,7 +45,7 @@ class BaseRecalculator {
      * Fields that should be numeric across all calculators
      */
     getNumericFields() {
-        return ['target_amount', 'initial_capital', 'term_months', 'priority', 'inflation_rate', 'goal_type_id'];
+        return ['target_amount', 'initial_capital', 'term_months', 'priority', 'inflation_rate', 'goal_type_id', 'id', 'goal_id'];
     }
 }
 
