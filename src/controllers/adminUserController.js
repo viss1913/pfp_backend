@@ -7,7 +7,7 @@ class AdminUserController {
      */
     async getAllUsers(req, res) {
         try {
-            const users = await db('users')
+            const query = db('users')
                 .leftJoin('projects', 'users.project_id', 'projects.id')
                 .select(
                     'users.id',
@@ -21,8 +21,9 @@ class AdminUserController {
 
             const projectId = req.projectId || req.user?.projectId;
             if (projectId) {
-                users.where('users.project_id', projectId);
+                query.where('users.project_id', projectId);
             }
+            const users = await query;
             res.json(users);
         } catch (error) {
             res.status(500).json({ error: error.message });

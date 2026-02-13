@@ -9,11 +9,12 @@ class ConstructorController {
      * Регистрация или обновление бота агента
      */
     async registerBot(req, res) {
-        const agentId = req.user.agentId || req.user.id; // Приоритет агента, fallback на user.id (совместимость)
+        const agentId = req.user.agentId || req.user.id;
+        const projectId = req.projectId || req.user?.projectId;
         const { name, link, token, communication_style, base_brain_context } = req.body;
 
         try {
-            let bot = await knex('constructor_bots').where('agent_id', agentId).first();
+            let bot = await knex('constructor_bots').where({ agent_id: agentId, project_id: projectId }).first();
 
             if (bot) {
                 await knex('constructor_bots')
@@ -29,6 +30,7 @@ class ConstructorController {
             } else {
                 const [id] = await knex('constructor_bots').insert({
                     agent_id: agentId,
+                    project_id: projectId,
                     name,
                     link,
                     token,
@@ -61,8 +63,9 @@ class ConstructorController {
      */
     async getMyBot(req, res) {
         const agentId = req.user.agentId || req.user.id;
+        const projectId = req.projectId || req.user?.projectId;
         try {
-            const bot = await knex('constructor_bots').where('agent_id', agentId).first();
+            const bot = await knex('constructor_bots').where({ agent_id: agentId, project_id: projectId }).first();
             res.json(bot || {});
         } catch (error) {
             res.status(500).json({ error: 'Failed to get bot' });
@@ -208,11 +211,17 @@ class ConstructorController {
      * GET /admin/constructor/bots
      */
     async getAllBots(req, res) {
-        // Здесь должна быть проверка на админа
         try {
-            const bots = await knex('constructor_bots')
+            const projectId = req.projectId || req.user?.projectId;
+            const query = knex('constructor_bots')
                 .leftJoin('agents', 'constructor_bots.agent_id', 'agents.id')
                 .select('constructor_bots.*', 'agents.email as agent_email');
+
+            if (projectId) {
+                query.where('constructor_bots.project_id', projectId);
+            }
+
+            const bots = await query;
             res.json(bots);
         } catch (error) {
             res.status(500).json({ error: 'Failed to get bots' });

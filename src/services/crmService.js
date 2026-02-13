@@ -143,12 +143,15 @@ class CrmService {
         return await aiService.getCompletion(messages, 'Qwen/Qwen2.5-14B-Instruct');
     }
 
-    async updateClientStatus(clientId, status, notes) {
+    async updateClientStatus(clientId, status, notes, projectId = null) {
         const updateData = {
             crm_status: status,
             crm_status_date: db.fn.now(),
             updated_at: db.fn.now()
         };
+
+        const filter = { id: clientId };
+        if (projectId) filter.project_id = projectId;
 
         // Automatic logic for reminders
         if (status === 'THINKING') {
@@ -170,7 +173,7 @@ class CrmService {
             // Better: append to notes/history. But schema has simple 'notes'.
         }
 
-        await db('clients').where({ id: clientId }).update(updateData);
+        await db('clients').where(filter).update(updateData);
         return { success: true, status, clientId };
     }
 }

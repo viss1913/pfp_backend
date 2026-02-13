@@ -3,12 +3,11 @@ const reportService = require('../services/reportService');
 class ReportController {
     async getClientReport(req, res) {
         try {
-            const { clientId } = req.params;
-            const agentId = req.user.agentId; // Needed if we want to enforce ownership
+            const agentId = req.user.agentId;
+            const clientId = req.params.clientId; // Assuming clientId comes from URL parameters
+            const projectId = req.projectId || req.user?.projectId;
 
-            // Optional: Check ownership via clientService (omitted for brevity, assume middleware matches or service handles)
-
-            const reportData = await reportService.getClientReportData(clientId);
+            const reportData = await reportService.getClientReportData(clientId, projectId);
             res.json(reportData);
         } catch (error) {
             console.error('Report Generation Error:', error);

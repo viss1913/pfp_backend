@@ -14,11 +14,13 @@ class CrmController {
     async updateClientStatus(req, res) {
         try {
             const { client_id, crm_status, notes } = req.body;
+            const projectId = req.projectId || req.user?.projectId;
+
             if (!client_id || !crm_status) {
                 return res.status(400).json({ error: 'client_id and crm_status are required' });
             }
 
-            const result = await crmService.updateClientStatus(client_id, crm_status, notes);
+            const result = await crmService.updateClientStatus(client_id, crm_status, notes, projectId);
             res.json(result);
         } catch (error) {
             console.error('CRM Update Error:', error);

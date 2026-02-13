@@ -3,9 +3,9 @@ const aiService = require('./aiService');
 const calculationService = require('./calculationService');
 
 class ReportService {
-    async getClientReportData(clientId) {
+    async getClientReportData(clientId, projectId = null) {
         // 1. Fetch Client Data
-        const client = await clientService.getFullClient(clientId);
+        const client = await clientService.getFullClient(clientId, projectId);
         if (!client) throw new Error('Client not found');
 
         // 2. Use stored snapshot (goals_summary) for 100% consistency with Dashboard
