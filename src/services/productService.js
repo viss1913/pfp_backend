@@ -5,7 +5,9 @@ class ProductService {
         const { includeDefaults = 'true', product_type, is_active } = query;
         const filters = {};
         if (product_type) filters.product_type = product_type;
-        if (is_active !== undefined) filters.is_active = is_active === 'true';
+        if (is_active !== undefined) {
+            filters.is_active = is_active === 'true' || is_active === '1' || is_active === true || is_active === 1;
+        }
 
         return productRepository.findAll({
             projectId,

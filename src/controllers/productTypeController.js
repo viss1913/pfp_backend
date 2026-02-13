@@ -26,7 +26,7 @@ class ProductTypeController {
             const projectId = req.user?.projectId || req.projectId;
             const filters = {};
             if (req.query.is_active !== undefined) {
-                filters.is_active = req.query.is_active === 'true';
+                filters.is_active = req.query.is_active === 'true' || req.query.is_active === '1' || req.query.is_active === true || req.query.is_active === 1;
             }
             const productTypes = await productTypeService.getAllProductTypes(projectId, filters);
             res.json(productTypes);

@@ -136,7 +136,7 @@ class ProductRepository {
         });
     }
 
-    async update(id, productData, yieldsData) {
+    async update(id, productData, yieldsData, projectId = null) {
         return db.transaction(async (trx) => {
             // Convert yieldsData to lines format if provided
             if (yieldsData !== undefined) {

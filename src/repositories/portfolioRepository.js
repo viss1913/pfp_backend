@@ -172,7 +172,7 @@ class PortfolioRepository {
         });
     }
 
-    async update(id, portfolioData, classIds, riskProfilesData) {
+    async update(id, portfolioData, classIds, riskProfilesData, projectId = null) {
         return db.transaction(async (trx) => {
             // Обновляем risk_profiles в JSON поле (просто и понятно!)
             if (riskProfilesData !== undefined) {
