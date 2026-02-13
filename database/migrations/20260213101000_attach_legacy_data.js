@@ -3,17 +3,25 @@
  * @returns { Promise<void> }
  */
 exports.up = async function (knex) {
-    // 1. Создаем дефолтный проект
-    const [projectId] = await knex('projects').insert({
-        name: 'Основной проект',
-        slug: 'default',
-        public_key: 'pk_default_pfp_2026',
-        status: 'active',
-        created_at: new Date(),
-        updated_at: new Date()
-    }).returning('id');
+    // 1. Создаем дефолтный проект (если еще не создан)
+    let id;
+    const existingProject = await knex('projects').where('slug', 'default').first();
 
-    const id = typeof projectId === 'object' ? projectId.id : projectId;
+    if (existingProject) {
+        id = existingProject.id;
+        console.log(`🔌 Project 'default' already exists with ID: ${id}`);
+    } else {
+        const [projectId] = await knex('projects').insert({
+            name: 'Основной проект',
+            slug: 'default',
+            public_key: 'pk_default_pfp_2026',
+            status: 'active',
+            created_at: new Date(),
+            updated_at: new Date()
+        });
+        id = typeof projectId === 'object' ? projectId.id : projectId;
+        console.log(`🔌 Created new default project with ID: ${id}`);
+    }
 
     // 2. Привязываем существующих пользователей
     await knex('users').whereNull('project_id').update({ project_id: id });
