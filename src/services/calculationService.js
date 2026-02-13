@@ -33,6 +33,7 @@ class CalculationService {
      * @returns {Object} Результат расчета госпенсии
      */
     async calculateStatePension(client, systemSettings, nowDate) {
+        console.log(`[CalculationService] calculateStatePension for client: ${client.fio || 'anonymous'}`);
         // 1. Возраст и стаж
         const currentYear = nowDate.getFullYear();
         const birthDate = new Date(client.birth_date);
@@ -211,8 +212,9 @@ class CalculationService {
             try {
                 const s = await settingsService.getSettingByKey(key, projectId);
                 settings[key] = s ? s.value : null;
+                if (!s) console.warn(`[CalculationService] Setting ${key} NOT FOUND for project ${projectId}`);
             } catch (e) {
-                console.warn(`Could not fetch setting ${key}`);
+                console.warn(`[CalculationService] Could not fetch setting ${key}:`, e.message);
             }
         }
 
@@ -445,209 +447,218 @@ class CalculationService {
      * @param {Object} [options] - Additional options { isFirstRun, usePool }
      */
     async calculateFirstRun(data, targetGoalId = null, previousCalculation = null, options = {}) {
-        const { goals, client } = data;
-        const isFirstRun = options.isFirstRun !== false; // Default to true for backward compatibility
-        const clientData = client ? {
-            ...client,
-            gender: client.gender || client.sex || 'male',
-            birth_date: client.birth_date || '1985-01-01'
-        } : {};
+        try {
+            const { goals, client } = data;
+            const isFirstRun = options.isFirstRun !== false; // Default to true for backward compatibility
 
-        // 1. Prepare Shared Context
-        const context = await this._prepareContext(clientData, options);
+            const clientData = client ? {
+                ...client,
+                gender: client.gender || client.sex || 'male',
+                birth_date: client.birth_date || '1985-01-01'
+            } : {};
 
-        // Map previous results by goal ID for quick lookup
-        const prevGoalsMap = new Map();
-        const prevGoalsSource = (previousCalculation && previousCalculation.calculation && previousCalculation.calculation.goals)
-            ? previousCalculation.calculation.goals
-            : (previousCalculation && previousCalculation.goals ? previousCalculation.goals : null);
+            console.log(`[CalculationService] calculateFirstRun for project: ${clientData.project_id}, Goals: ${goals?.length}`);
 
-        if (prevGoalsSource) {
-            prevGoalsSource.forEach(g => {
-                if (g.goal_id) prevGoalsMap.set(String(g.goal_id), g);
-            });
-        }
+            // 1. Prepare Shared Context
+            const context = await this._prepareContext(clientData, options);
+            console.log(`[CalculationService] Context prepared. Project: ${context.projectId}`);
 
-        // 2. Sort goals by Priority
-        const indexedGoals = (goals || []).map((g, i) => ({ goal: g, index: i }))
-            .sort((a, b) => {
-                const pA = a.goal.priority || this._getPriority(a.goal);
-                const pB = b.goal.priority || this._getPriority(b.goal);
-                if (pA !== pB) return pA - pB;
-                return (a.goal.term_months || 0) - (b.goal.term_months || 0);
-            });
+            // Map previous results by goal ID for quick lookup
+            const prevGoalsMap = new Map();
+            const prevGoalsSource = (previousCalculation && previousCalculation.calculation && previousCalculation.calculation.goals)
+                ? previousCalculation.calculation.goals
+                : (previousCalculation && previousCalculation.goals ? previousCalculation.goals : null);
 
-        // 2.1. Smart Allocation (Burden-Based)
-        // Skip if restricted by options OR if we are in partial mode and have previous results
-        // User requested: Smart Allocation only for "First Run" (Onboarding)
-        if (isFirstRun && (!targetGoalId || !previousCalculation)) {
-            console.log('[CalculationService] Running Full Smart Allocation (First Run)...');
-            await this._calculateSmartAllocation(indexedGoals, context);
-        } else {
-            console.log(`[CalculationService] Skipping Smart Allocation (Recalculate Mode or Target Set). isFirstRun: ${isFirstRun}, target: ${targetGoalId}`);
-            // In partial mode, we must restore smart_initial_capital from previous results for ALL goals
-            // so that deductFromSharedPool works correctly and preserves the "state" of the pool.
-            for (const { goal } of indexedGoals) {
-                const prev = prevGoalsMap.get(String(goal.id || goal.goal_id));
-                if (prev && prev.summary && prev.summary.initial_capital !== undefined) {
-                    // CRITICAL: We also need to PRESERVE the initial_capital of the TARGET goal 
-                    // unless it was explicitly changed in the 'goal' object itself.
-                    // If targetGoalId is set, 'goal' already contains the latest user input.
-                    // If goal.initial_capital is already set (from user), we don't overwrite it with 'prev'.
+            if (prevGoalsSource) {
+                prevGoalsSource.forEach(g => {
+                    if (g.goal_id) prevGoalsMap.set(String(g.goal_id), g);
+                });
+            }
 
-                    const userInitial = goal.initial_capital;
-                    if (userInitial !== undefined && userInitial !== null && userInitial > 0) {
-                        goal.smart_initial_capital = userInitial;
-                    } else {
-                        goal.smart_initial_capital = prev.summary.initial_capital;
+            // 2. Sort goals by Priority
+            const indexedGoals = (goals || []).map((g, i) => ({ goal: g, index: i }))
+                .sort((a, b) => {
+                    const pA = a.goal.priority || this._getPriority(a.goal);
+                    const pB = b.goal.priority || this._getPriority(b.goal);
+                    if (pA !== pB) return pA - pB;
+                    return (a.goal.term_months || 0) - (b.goal.term_months || 0);
+                });
+
+            // 2.1. Smart Allocation (Burden-Based)
+            // Skip if restricted by options OR if we are in partial mode and have previous results
+            // User requested: Smart Allocation only for "First Run" (Onboarding)
+            if (isFirstRun && (!targetGoalId || !previousCalculation)) {
+                console.log('[CalculationService] Running Full Smart Allocation (First Run)...');
+                await this._calculateSmartAllocation(indexedGoals, context);
+            } else {
+                console.log(`[CalculationService] Skipping Smart Allocation (Recalculate Mode or Target Set). isFirstRun: ${isFirstRun}, target: ${targetGoalId}`);
+                // In partial mode, we must restore smart_initial_capital from previous results for ALL goals
+                // so that deductFromSharedPool works correctly and preserves the "state" of the pool.
+                for (const { goal } of indexedGoals) {
+                    const prev = prevGoalsMap.get(String(goal.id || goal.goal_id));
+                    if (prev && prev.summary && prev.summary.initial_capital !== undefined) {
+                        // CRITICAL: We also need to PRESERVE the initial_capital of the TARGET goal 
+                        // unless it was explicitly changed in the 'goal' object itself.
+                        // If targetGoalId is set, 'goal' already contains the latest user input.
+                        // If goal.initial_capital is already set (from user), we don't overwrite it with 'prev'.
+
+                        const userInitial = goal.initial_capital;
+                        if (userInitial !== undefined && userInitial !== null && userInitial > 0) {
+                            goal.smart_initial_capital = userInitial;
+                        } else {
+                            goal.smart_initial_capital = prev.summary.initial_capital;
+                        }
+                        console.log(`[CalculationService] Set capital ${goal.smart_initial_capital} for goal ${goal.name} (Frozen/Target)`);
                     }
-                    console.log(`[CalculationService] Set capital ${goal.smart_initial_capital} for goal ${goal.name} (Frozen/Target)`);
                 }
             }
-        }
 
-        const resultsIndexed = [];
+            const resultsIndexed = [];
 
-        // 3. Main Loop
-        for (const { goal, index } of indexedGoals) {
-            const currentGoalId = String(goal.id || goal.goal_id);
-            const isTarget = !targetGoalId || currentGoalId === String(targetGoalId);
+            // 3. Main Loop
+            for (const { goal, index } of indexedGoals) {
+                const currentGoalId = String(goal.id || goal.goal_id);
+                const isTarget = !targetGoalId || currentGoalId === String(targetGoalId);
 
-            if (isTarget) {
-                const typeId = goal.goal_type_id;
-                const CalculatorClass = CALCULATORS[typeId] || otherGoalCalculator;
+                if (isTarget) {
+                    const typeId = goal.goal_type_id;
+                    const CalculatorClass = CALCULATORS[typeId] || otherGoalCalculator;
 
-                try {
-                    const calculator = (typeof CalculatorClass === 'function') ? new CalculatorClass() : CalculatorClass;
-                    const result = await calculator.calculate(goal, context);
+                    try {
+                        const calculator = (typeof CalculatorClass === 'function') ? new CalculatorClass() : CalculatorClass;
+                        const result = await calculator.calculate(goal, context);
 
-                    const wrappedResult = {
-                        ...result,
-                        goal_name: goal.name || goal.goal_name || result.goal_name || result.name || goal.goal_type || 'Цель',
-                        goal_type: result.goal_type || goal.goal_type || 'OTHER',
-                        goal_type_id: result.goal_type_id || goal.goal_type_id,
-                        goal_id: result.goal_id || goal.id || goal.goal_id
-                    };
+                        const wrappedResult = {
+                            ...result,
+                            goal_name: goal.name || goal.goal_name || result.goal_name || result.name || goal.goal_type || 'Цель',
+                            goal_type: result.goal_type || goal.goal_type || 'OTHER',
+                            goal_type_id: result.goal_type_id || goal.goal_type_id,
+                            goal_id: result.goal_id || goal.id || goal.goal_id
+                        };
 
-                    resultsIndexed.push({ index, result: wrappedResult });
-                } catch (err) {
-                    console.error(`Calculation error for goal ${goal.name}:`, err);
-                    resultsIndexed.push({
-                        index,
-                        result: {
-                            goal_id: goal.id || goal.goal_id || goal.goal_type_id,
-                            goal_name: goal.name || goal.goal_name || 'Ошибка расчета',
-                            error: err.message
-                        }
-                    });
-                }
-            } else {
-                // FROZEN GOAL: Use previous result but MUST deduct from shared pool to maintain context
-                const prevResult = prevGoalsMap.get(currentGoalId);
-                if (prevResult) {
-                    console.log(`[CalculationService] Using frozen result for goal: ${goal.name}`);
-
-                    // Deduct from pool as if it was calculated
-                    // This is crucial so that goals later in priority see the correct remaining balance.
-                    const initialCap = prevResult.summary?.initial_capital || 0;
-                    if (initialCap > 0) {
-                        // We use a dummy calculator or just the base method to deduct
-                        const dummyCalculator = otherGoalCalculator;
-                        dummyCalculator.deductFromSharedPool(initialCap, context);
-                    }
-
-                    // Update PDS limits if they were used by this goal previously
-                    if (prevResult.details && prevResult.details.yearly_breakdown) {
-                        prevResult.details.yearly_breakdown.forEach(yearData => {
-                            const year = yearData.year;
-                            if (yearData.cofinancing_for_year > 0) {
-                                // We approximate the contribution year as year - 1
-                                const contribYear = year - 1;
-                                context.usedCofinancingPerYear[contribYear] = (context.usedCofinancingPerYear[contribYear] || 0) + yearData.cofinancing_for_year;
+                        resultsIndexed.push({ index, result: wrappedResult });
+                    } catch (err) {
+                        console.error(`Calculation error for goal ${goal.name}:`, err);
+                        resultsIndexed.push({
+                            index,
+                            result: {
+                                goal_id: goal.id || goal.goal_id || goal.goal_type_id,
+                                goal_name: goal.name || goal.goal_name || 'Ошибка расчета',
+                                error: err.message
                             }
-                            // Note: Tax base is harder to restore exactly without internal simulation state, 
-                            // but usually it's tied to contributions. For now, we restore cofinancing which is more critical.
                         });
                     }
-
-                    // Ensure goal_id and goal_name exist in the frozen result
-                    const finalFrozenResult = {
-                        ...prevResult,
-                        goal_id: prevResult.goal_id || goal.id || goal.goal_id,
-                        goal_name: goal.name || goal.goal_name || prevResult.goal_name || prevResult.name || goal.goal_type || 'Цель',
-                        goal_type: prevResult.goal_type || goal.goal_type || 'OTHER'
-                    };
-
-                    resultsIndexed.push({ index, result: finalFrozenResult });
                 } else {
-                    // Fallback if no previous result found (should not happen in valid partial mode)
-                    console.warn(`[CalculationService] No previous result for frozen goal ${goal.name}, calculating anyway.`);
-                    const calculator = (typeof CALCULATORS[goal.goal_type_id] === 'function')
-                        ? new CALCULATORS[goal.goal_type_id]()
-                        : (CALCULATORS[goal.goal_type_id] || otherGoalCalculator);
-                    const result = await calculator.calculate(goal, context);
-                    const wrappedResult = {
-                        ...result,
-                        goal_name: goal.name || goal.goal_name || result.goal_name || result.name || goal.goal_type || 'Цель',
-                        goal_type: result.goal_type || goal.goal_type || 'OTHER',
-                        goal_type_id: result.goal_type_id || goal.goal_type_id,
-                        goal_id: result.goal_id || goal.id || goal.goal_id
-                    };
-                    resultsIndexed.push({ index, result: wrappedResult });
+                    // FROZEN GOAL: Use previous result but MUST deduct from shared pool to maintain context
+                    const prevResult = prevGoalsMap.get(currentGoalId);
+                    if (prevResult) {
+                        console.log(`[CalculationService] Using frozen result for goal: ${goal.name}`);
+
+                        // Deduct from pool as if it was calculated
+                        // This is crucial so that goals later in priority see the correct remaining balance.
+                        const initialCap = prevResult.summary?.initial_capital || 0;
+                        if (initialCap > 0) {
+                            // We use a dummy calculator or just the base method to deduct
+                            const dummyCalculator = otherGoalCalculator;
+                            dummyCalculator.deductFromSharedPool(initialCap, context);
+                        }
+
+                        // Update PDS limits if they were used by this goal previously
+                        if (prevResult.details && prevResult.details.yearly_breakdown) {
+                            prevResult.details.yearly_breakdown.forEach(yearData => {
+                                const year = yearData.year;
+                                if (yearData.cofinancing_for_year > 0) {
+                                    // We approximate the contribution year as year - 1
+                                    const contribYear = year - 1;
+                                    context.usedCofinancingPerYear[contribYear] = (context.usedCofinancingPerYear[contribYear] || 0) + yearData.cofinancing_for_year;
+                                }
+                                // Note: Tax base is harder to restore exactly without internal simulation state, 
+                                // but usually it's tied to contributions. For now, we restore cofinancing which is more critical.
+                            });
+                        }
+
+                        // Ensure goal_id and goal_name exist in the frozen result
+                        const finalFrozenResult = {
+                            ...prevResult,
+                            goal_id: prevResult.goal_id || goal.id || goal.goal_id,
+                            goal_name: goal.name || goal.goal_name || prevResult.goal_name || prevResult.name || goal.goal_type || 'Цель',
+                            goal_type: prevResult.goal_type || goal.goal_type || 'OTHER'
+                        };
+
+                        resultsIndexed.push({ index, result: finalFrozenResult });
+                    } else {
+                        // Fallback if no previous result found (should not happen in valid partial mode)
+                        console.warn(`[CalculationService] No previous result for frozen goal ${goal.name}, calculating anyway.`);
+                        const calculator = (typeof CALCULATORS[goal.goal_type_id] === 'function')
+                            ? new CALCULATORS[goal.goal_type_id]()
+                            : (CALCULATORS[goal.goal_type_id] || otherGoalCalculator);
+                        const result = await calculator.calculate(goal, context);
+                        const wrappedResult = {
+                            ...result,
+                            goal_name: goal.name || goal.goal_name || result.goal_name || result.name || goal.goal_type || 'Цель',
+                            goal_type: result.goal_type || goal.goal_type || 'OTHER',
+                            goal_type_id: result.goal_type_id || goal.goal_type_id,
+                            goal_id: result.goal_id || goal.id || goal.goal_id
+                        };
+                        resultsIndexed.push({ index, result: wrappedResult });
+                    }
                 }
             }
+
+            // 4. Aggregate Results
+            const results = resultsIndexed
+                .sort((a, b) => a.index - b.index)
+                .map(item => item.result);
+
+            const consolidated = this._generateConsolidatedPortfolio(results);
+
+            // Calculate Age
+            const birthDate = new Date(client.birth_date);
+            const ageDifMs = Date.now() - birthDate.getTime();
+            const ageDate = new Date(ageDifMs);
+            const age = Math.abs(ageDate.getUTCFullYear() - 1970);
+
+            return {
+                client_id: data.client_id || (client ? client.id : null),
+                summary: {
+                    goals_count: (goals || []).length,
+                    total_capital: Math.round(results.reduce((sum, r) => {
+                        const cap = r.summary?.projected_capital_at_end
+                            || r.summary?.total_capital_at_end
+                            || r.summary?.projected_capital_at_retirement
+                            || r.summary?.expected_cash_value
+                            || r.summary?.initial_capital // For RENT/Rentier where capital is preserved
+                            || 0;
+                        return sum + cap;
+                    }, 0) * 100) / 100,
+
+                    total_state_benefit: Math.round(results.reduce((sum, r) => {
+                        // New format: distinct generic fields
+                        const tax = r.summary?.total_tax_benefit || 0;
+                        const cofin = r.summary?.total_cofinancing || 0;
+                        // Legacy format: single field
+                        const legacy = r.summary?.state_benefit || 0;
+                        // Use max to avoid double counting if both exist (though usually one set exists)
+                        return sum + Math.max(tax + cofin, legacy);
+                    }, 0) * 100) / 100,
+
+                    total_target_amount_initial: Math.round(results.reduce((sum, r) => {
+                        return sum + (r.summary?.target_amount_initial || r.details?.target_amount_initial || 0);
+                    }, 0) * 100) / 100,
+
+                    total_target_amount_future: Math.round(results.reduce((sum, r) => {
+                        return sum + (r.summary?.target_amount_future || r.details?.target_amount_future || 0);
+                    }, 0) * 100) / 100,
+
+                    consolidated_portfolio: consolidated,
+                    tax_benefits_summary: this._generateTaxBenefitsSummary(results)
+                },
+                goals: results
+            };
+        } catch (err) {
+            console.error('[CalculationService] calculateFirstRun error:', err);
+            throw err;
         }
-
-        // 4. Aggregate Results
-        const results = resultsIndexed
-            .sort((a, b) => a.index - b.index)
-            .map(item => item.result);
-
-        const consolidated = this._generateConsolidatedPortfolio(results);
-
-        // Calculate Age
-        const birthDate = new Date(client.birth_date);
-        const ageDifMs = Date.now() - birthDate.getTime();
-        const ageDate = new Date(ageDifMs);
-        const age = Math.abs(ageDate.getUTCFullYear() - 1970);
-
-        return {
-            client_id: data.client_id || (client ? client.id : null),
-            summary: {
-                goals_count: (goals || []).length,
-                total_capital: Math.round(results.reduce((sum, r) => {
-                    const cap = r.summary?.projected_capital_at_end
-                        || r.summary?.total_capital_at_end
-                        || r.summary?.projected_capital_at_retirement
-                        || r.summary?.expected_cash_value
-                        || r.summary?.initial_capital // For RENT/Rentier where capital is preserved
-                        || 0;
-                    return sum + cap;
-                }, 0) * 100) / 100,
-
-                total_state_benefit: Math.round(results.reduce((sum, r) => {
-                    // New format: distinct generic fields
-                    const tax = r.summary?.total_tax_benefit || 0;
-                    const cofin = r.summary?.total_cofinancing || 0;
-                    // Legacy format: single field
-                    const legacy = r.summary?.state_benefit || 0;
-                    // Use max to avoid double counting if both exist (though usually one set exists)
-                    return sum + Math.max(tax + cofin, legacy);
-                }, 0) * 100) / 100,
-
-                total_target_amount_initial: Math.round(results.reduce((sum, r) => {
-                    return sum + (r.summary?.target_amount_initial || r.details?.target_amount_initial || 0);
-                }, 0) * 100) / 100,
-
-                total_target_amount_future: Math.round(results.reduce((sum, r) => {
-                    return sum + (r.summary?.target_amount_future || r.details?.target_amount_future || 0);
-                }, 0) * 100) / 100,
-
-                consolidated_portfolio: consolidated,
-                tax_benefits_summary: this._generateTaxBenefitsSummary(results)
-            },
-            goals: results
-        };
     }
 
     /**

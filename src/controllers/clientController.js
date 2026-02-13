@@ -119,7 +119,9 @@ class ClientController {
             }
 
             if (!req.body.client) req.body.client = {};
-            req.body.client.project_id = req.user?.projectId || req.projectId;
+            req.body.client.project_id = req.projectId || req.user?.projectId || req.body.client.project_id;
+
+            console.log(`[ClientController] calculateFirstRun for project: ${req.body.client.project_id}`);
 
             const result = await calculationService.calculateFirstRun(req.body);
             res.json(calculationService.simplify(result));
@@ -145,7 +147,9 @@ class ClientController {
 
             // 1.5 Inject Project ID
             if (!req.body.client) req.body.client = {};
-            req.body.client.project_id = req.user?.projectId || req.projectId;
+            req.body.client.project_id = req.projectId || req.user?.projectId || req.body.client.project_id;
+
+            console.log(`[ClientController] firstRun for project: ${req.body.client.project_id}`);
 
             // 2. Perform Calculation
             const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, { isFirstRun: true, usePool: true });

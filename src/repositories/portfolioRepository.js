@@ -280,7 +280,8 @@ class PortfolioRepository {
         console.log('[PortfolioRepo] Executing query...');
         let candidates;
         try {
-            candidates = await query;
+            // Priority: project-specific (not null) first
+            candidates = await query.orderBy('project_id', 'desc');
             console.log(`[PortfolioRepo] Query finished. Found ${candidates.length} candidates.`);
         } catch (e) {
             console.error('[PortfolioRepo] Query failed:', e);

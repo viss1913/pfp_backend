@@ -68,7 +68,7 @@ class ProductRepository {
             });
         }
 
-        const product = await query.first();
+        const product = await query.orderBy('project_id', 'desc').first();
         if (!product) return null;
 
         // Parse lines JSON and convert to yields format for compatibility

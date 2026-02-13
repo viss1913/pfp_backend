@@ -7,8 +7,10 @@ const tenantMiddleware = async (req, res, next) => {
     const projectKey = req.headers['x-project-key'];
 
     if (!projectKey) {
-        // If no project key, we just continue. 
-        // Specific routes or authorization middleware will check if project is required.
+        // Fallback to user's project if authenticated
+        if (req.user && req.user.projectId) {
+            req.projectId = req.user.projectId;
+        }
         return next();
     }
 

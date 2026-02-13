@@ -1,0 +1,98 @@
+openapi: 3.0.0
+info:
+  title: PFP Calculation API (Consolidated)
+  version: 1.0.0
+  description: Основные методы для расчета ПФП с поддержкой мультиарендности.
+
+servers:
+  - url: /api/v1
+    description: Основной сервер
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    projectKeyAuth:
+      type: apiKey
+      in: header
+      name: x-project-key
+      description: Публичный ключ проекта (обязателен для получения верных портфелей и продуктов)
+
+  parameters:
+    ProjectKeyHeader:
+      name: x-project-key
+      in: header
+      required: true
+      schema:
+        type: string
+      example: pk_proj_0e9fdde1e8cd961121906f04507af06e4afec281a58012c4
+
+paths:
+  /client/calculate:
+    post:
+      summary: Stateless Calculation (Без сохранения в БД)
+      tags: [Calculation]
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client:
+                  type: object
+                  properties:
+                    project_id: { type: integer }
+                    birth_date: { type: string }
+                    total_liquid_capital: { type: number }
+                goals:
+                  type: array
+                  items:
+                    type: object
+      responses:
+        '200':
+          description: OK
+
+  /client/first-run:
+    post:
+      summary: First Run (С сохранением клиента и целей)
+      tags: [Calculation]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
+
+  /client/{id}/recalculate:
+    post:
+      summary: Пересчет существующего плана
+      tags: [Calculation]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: OK
