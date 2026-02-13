@@ -18,6 +18,11 @@ class AdminUserController {
                     'users.project_id',
                     'projects.name as project_name'
                 );
+
+            const projectId = req.projectId || req.user?.projectId;
+            if (projectId) {
+                users.where('users.project_id', projectId);
+            }
             res.json(users);
         } catch (error) {
             res.status(500).json({ error: error.message });

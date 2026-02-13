@@ -12,7 +12,7 @@ class AgentController {
                 return res.status(403).json({ error: 'Forbidden: Admin or API Key required' });
             }
 
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const filters = {
                 updated_since: req.query.updated_since,
                 is_active: req.query.is_active
@@ -36,7 +36,7 @@ class AgentController {
                 return res.status(403).json({ error: 'Forbidden: Admin role required' });
             }
 
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const newAgent = await agentService.createAgent(projectId, req.body);
             res.status(201).json(newAgent);
         } catch (err) {
@@ -49,7 +49,7 @@ class AgentController {
      */
     async getById(req, res, next) {
         try {
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const agent = await agentService.getAgentById(req.params.id, projectId);
             if (!agent) {
                 return res.status(404).json({ error: 'Agent not found' });
@@ -67,7 +67,7 @@ class AgentController {
     async update(req, res, next) {
         try {
             const agentId = req.params.id;
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
 
             // Check permissions: admin or the agent themselves
