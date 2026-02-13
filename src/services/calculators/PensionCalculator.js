@@ -124,6 +124,7 @@ class PensionCalculator extends BaseCalculator {
 
         // Поиск портфеля для накопления
         const portfolioForAcc = await portfolioRepository.findByCriteria({
+            projectId: context.projectId,
             classId: 1,
             amount: initialCapital, // Use deducted capital
             term: monthsToPension
@@ -177,7 +178,7 @@ class PensionCalculator extends BaseCalculator {
         }
 
         for (const item of allBuckets) {
-            const product = await productRepository.findById(item.product_id);
+            const product = await productRepository.findById(item.product_id, context.projectId);
             if (product) {
                 const prodType = (product.product_type || '').toUpperCase().trim();
                 const isPds = prodType === 'PDS';

@@ -16,6 +16,7 @@ class OtherGoalCalculator extends BaseCalculator {
 
         // Поиск портфеля (ID 4 - Прочее)
         const portfolio = await portfolioRepository.findByCriteria({
+            projectId: context.projectId,
             classId: 4,
             amount: initialCapitalForSearch,
             term: termMonths
@@ -69,7 +70,7 @@ class OtherGoalCalculator extends BaseCalculator {
         }
 
         for (const item of allBuckets) {
-            const product = await repositories.productRepository.findById(item.product_id);
+            const product = await repositories.productRepository.findById(item.product_id, context.projectId);
             if (product) {
                 const prodType = (product.product_type || '').toUpperCase().trim();
                 const isPds = prodType === 'PDS';

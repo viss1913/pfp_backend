@@ -118,6 +118,9 @@ class ClientController {
                 });
             }
 
+            if (!req.body.client) req.body.client = {};
+            req.body.client.project_id = req.user?.projectId || req.projectId;
+
             const result = await calculationService.calculateFirstRun(req.body);
             res.json(calculationService.simplify(result));
         } catch (err) {
@@ -139,6 +142,10 @@ class ClientController {
                     }))
                 });
             }
+
+            // 1.5 Inject Project ID
+            if (!req.body.client) req.body.client = {};
+            req.body.client.project_id = req.user?.projectId || req.projectId;
 
             // 2. Perform Calculation
             const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, { isFirstRun: true, usePool: true });
@@ -322,6 +329,9 @@ class ClientController {
                     ? req.body.client.total_liquid_capital
                     : (existingClient.total_liquid_capital !== undefined ? Number(existingClient.total_liquid_capital) : (existingClient.assets_total || 0))
             };
+
+            // 4.5 Inject Project ID
+            clientForCalc.project_id = projectId;
 
             // 5. Run Calculation
             const calcRequest = { client: clientForCalc, goals: goalsToCalculate };

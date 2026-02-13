@@ -342,7 +342,7 @@ class BaseCalculator {
      * @param {Object} productRepository - Repository to fetch products.
      * @returns {Promise<number>} Weighted annual yield percentage (e.g. 0.15 for 15%).
      */
-    async calculateWeightedYield(portfolio, goal, productRepository) {
+    async calculateWeightedYield(portfolio, goal, productRepository, projectId = null) {
         let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles || [];
 
         if (typeof riskProfiles === 'string') {
@@ -397,7 +397,7 @@ class BaseCalculator {
         let pdsProductId = null;
 
         for (const item of allBuckets) {
-            const product = await productRepository.findById(item.product_id);
+            const product = await productRepository.findById(item.product_id, projectId);
             if (!product) continue;
 
             const prodType = (product.product_type || '').toUpperCase().trim();

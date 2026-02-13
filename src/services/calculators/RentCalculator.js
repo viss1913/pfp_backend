@@ -9,6 +9,7 @@ class RentCalculator extends BaseCalculator {
         let portfolio;
         try {
             portfolio = await portfolioRepository.findByCriteria({
+                projectId: context.projectId,
                 classId: goal.goal_type_id,
                 amount: goal.initial_capital || 0,
                 term: 12 // Nominal term for searching
@@ -21,7 +22,7 @@ class RentCalculator extends BaseCalculator {
             throw new Error(`Rent portfolio not found for class ${goal.goal_type_id} and amount ${goal.initial_capital}`);
         }
 
-        const { weightedYieldAnnual } = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository);
+        const { weightedYieldAnnual } = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository, context.projectId);
 
         // 2. Calculate Monthly Income
         // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0

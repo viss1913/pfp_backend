@@ -11,6 +11,7 @@ class FinReserveCalculator extends BaseCalculator {
         let portfolio;
         try {
             portfolio = await portfolioRepository.findByCriteria({
+                projectId: context.projectId,
                 classId: goal.goal_type_id,
                 amount: goal.initial_capital || 0,
                 term: 12 // Fixed term for FinReserve
@@ -23,7 +24,7 @@ class FinReserveCalculator extends BaseCalculator {
             throw new Error(`FinReserve portfolio not found for class ${goal.goal_type_id} and amount ${goal.initial_capital}`);
         }
 
-        const yieldResult = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository);
+        const yieldResult = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository, context.projectId);
         const weightedYieldAnnual = yieldResult.weightedYieldAnnual;
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
 

@@ -10,6 +10,7 @@ class InvestmentCalculator extends BaseCalculator {
 
         // 0. Найти портфель
         const portfolio = await portfolioRepository.findByCriteria({
+            projectId: context.projectId,
             classId: goal.goal_type_id,
             amount: goal.initial_capital || 0,
             term: goal.term_months
@@ -24,7 +25,7 @@ class InvestmentCalculator extends BaseCalculator {
             initial_instruments,
             monthly_instruments,
             pdsProductId
-        } = await this.calculateWeightedYield(portfolio, goal, productRepository);
+        } = await this.calculateWeightedYield(portfolio, goal, productRepository, context.projectId);
 
         const portfolioYieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
         const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;

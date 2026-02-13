@@ -26,7 +26,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
 
         // 3. Расчет целевого капитала (Фаза выплат)
         // Используем настройки passive_income_yield из админки (12-14%)
-        const payoutYieldLine = await settingsService.findPassiveIncomeYieldLine(0, termMonths, true);
+        const payoutYieldLine = await settingsService.findPassiveIncomeYieldLine(0, termMonths, true, context.projectId);
         if (!payoutYieldLine) throw new Error('Passive income yield line not found in settings');
         const payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
 
@@ -38,6 +38,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
 
         // 4. Подбор портфеля и расчет доходности накопления (Фаза накопления)
         const portfolio = await portfolioRepository.findByCriteria({
+            projectId: context.projectId,
             classId: goal.goal_type_id,
             amount: initialCapitalForSearch,
             term: termMonths
@@ -53,7 +54,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
             initial_instruments,
             monthly_instruments,
             pdsProductId
-        } = await this.calculateWeightedYield(portfolio, goal, productRepository);
+        } = await this.calculateWeightedYield(portfolio, goal, productRepository, context.projectId);
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
 
