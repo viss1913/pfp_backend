@@ -70,7 +70,7 @@ class SettingsController {
     async getAll(req, res, next) {
         try {
             const { category } = req.query;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const settings = await settingsService.getAllSettings(projectId, category);
             res.json(settings);
         } catch (err) {
@@ -81,7 +81,7 @@ class SettingsController {
     async getByKey(req, res, next) {
         try {
             const { key } = req.params;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const setting = await settingsService.getSettingByKey(key, projectId);
             res.json(setting);
         } catch (err) {
@@ -93,7 +93,7 @@ class SettingsController {
         try {
             const { key } = req.params;
             const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             const validation = updateSettingSchema.validate(req.body);
             if (validation.error) {
@@ -110,7 +110,7 @@ class SettingsController {
     async create(req, res, next) {
         try {
             const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             const validation = settingSchema.validate(req.body);
             if (validation.error) {
@@ -128,7 +128,7 @@ class SettingsController {
         try {
             const { key } = req.params;
             const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             await settingsService.deleteSetting(key, isAdmin, projectId);
             res.status(204).send();
@@ -145,7 +145,7 @@ class SettingsController {
      */
     async getAllTaxBrackets(req, res, next) {
         try {
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const brackets = await settingsService.getAllTaxBrackets(projectId);
             res.json(brackets);
         } catch (err) {
@@ -160,7 +160,7 @@ class SettingsController {
     async getTaxBracketById(req, res, next) {
         try {
             const { id } = req.params;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const bracket = await settingsService.getTaxBracketById(parseInt(id), projectId);
             res.json(bracket);
         } catch (err) {
@@ -175,7 +175,7 @@ class SettingsController {
     async getTaxBracketByIncome(req, res, next) {
         try {
             const { income } = req.params;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const bracket = await settingsService.getTaxBracketByIncome(parseFloat(income), projectId);
             res.json(bracket);
         } catch (err) {
@@ -190,7 +190,7 @@ class SettingsController {
     async createTaxBracket(req, res, next) {
         try {
             const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             const validation = taxBracketSchema.validate(req.body);
             if (validation.error) {
@@ -212,7 +212,7 @@ class SettingsController {
         try {
             const { id } = req.params;
             const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             const validation = taxBracketUpdateSchema.validate(req.body);
             if (validation.error) {
@@ -234,7 +234,7 @@ class SettingsController {
         try {
             const { id } = req.params;
             const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             await settingsService.deleteTaxBracket(parseInt(id), isAdmin, projectId);
             res.status(204).send();
@@ -250,7 +250,7 @@ class SettingsController {
     async createTaxBracketsBulk(req, res, next) {
         try {
             const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             const validation = taxBracketsBulkSchema.validate(req.body);
             if (validation.error) {
@@ -272,7 +272,7 @@ class SettingsController {
      */
     async getPdsCofinSettings(req, res, next) {
         try {
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const settings = await settingsService.getPdsCofinSettings(projectId);
             res.json(settings);
         } catch (err) {
@@ -287,7 +287,7 @@ class SettingsController {
     async updatePdsCofinSettings(req, res, next) {
         try {
             const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             const validation = pdsCofinSettingsUpdateSchema.validate(req.body);
             if (validation.error) {

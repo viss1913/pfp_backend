@@ -38,7 +38,7 @@ const productSchema = Joi.object({
 class ProductController {
     async getAll(req, res, next) {
         try {
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const products = await productService.getAllProducts(projectId, req.query);
             res.json(products);
         } catch (err) {
@@ -48,7 +48,7 @@ class ProductController {
 
     async getById(req, res, next) {
         try {
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const product = await productService.getProductById(req.params.id, projectId);
             if (!product) return res.status(404).json({ error: 'Product not found' });
             res.json(product);
@@ -71,7 +71,7 @@ class ProductController {
             }
 
             const agentId = req.user.agentId;
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const newProduct = await productService.createProduct(agentId, projectId, req.body);
             res.status(201).json(newProduct);
         } catch (err) {
@@ -83,7 +83,7 @@ class ProductController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const isAdmin = req.user.isAdmin;
 
             const updatedProduct = await productService.updateProduct(id, agentId, projectId, isAdmin, req.body);
@@ -97,7 +97,7 @@ class ProductController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const isAdmin = req.user.isAdmin;
 
             await productService.deleteProduct(id, agentId, projectId, isAdmin);
@@ -111,7 +111,7 @@ class ProductController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
 
             const cloned = await productService.cloneProduct(id, agentId, projectId);
             res.status(201).json(cloned);

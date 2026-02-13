@@ -70,7 +70,7 @@ const portfolioUpdateSchema = Joi.object({
 class PortfolioController {
     async getAll(req, res, next) {
         try {
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const result = await portfolioService.getAllPortfolios(projectId, req.query);
             res.json(result);
         } catch (err) {
@@ -89,7 +89,7 @@ class PortfolioController {
 
     async getById(req, res, next) {
         try {
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const result = await portfolioService.getPortfolioById(req.params.id, projectId);
             if (!result) return res.status(404).json({ error: 'Portfolio not found' });
             res.json(result);
@@ -144,7 +144,7 @@ class PortfolioController {
             }
 
             const agentId = req.user.agentId;
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const result = await portfolioService.createPortfolio(agentId, projectId, normalizedData);
             res.status(201).json(result);
         } catch (err) {
@@ -242,7 +242,7 @@ class PortfolioController {
 
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const projectId = req.user.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
 
             const result = await portfolioService.updatePortfolio(id, agentId, projectId, isAdmin, normalizedData);

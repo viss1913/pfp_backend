@@ -23,7 +23,7 @@ const productTypeUpdateSchema = Joi.object({
 class ProductTypeController {
     async getAll(req, res, next) {
         try {
-            const projectId = req.user?.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const filters = {};
             if (req.query.is_active !== undefined) {
                 filters.is_active = req.query.is_active === 'true' || req.query.is_active === '1' || req.query.is_active === true || req.query.is_active === 1;
@@ -37,7 +37,7 @@ class ProductTypeController {
 
     async getById(req, res, next) {
         try {
-            const projectId = req.user?.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const productType = await productTypeService.getProductTypeById(req.params.id, projectId);
             if (!productType) return res.status(404).json({ error: 'Product type not found' });
             res.json(productType);
@@ -53,7 +53,7 @@ class ProductTypeController {
                 return res.status(400).json({ error: result.error.details[0].message });
             }
 
-            const projectId = req.user?.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const newProductType = await productTypeService.createProductType(projectId, req.body);
             res.status(201).json(newProductType);
         } catch (err) {
@@ -71,7 +71,7 @@ class ProductTypeController {
                 return res.status(400).json({ error: result.error.details[0].message });
             }
 
-            const projectId = req.user?.projectId || req.projectId;
+            const projectId = req.projectId || req.user?.projectId;
             const updatedProductType = await productTypeService.updateProductType(req.params.id, projectId, req.body);
             res.json(updatedProductType);
         } catch (err) {
