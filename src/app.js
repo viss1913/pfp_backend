@@ -16,8 +16,8 @@ app.use(cors({
     origin: true, // Allow all origins
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-agent-id', 'x-role', 'x-api-key', 'X-Requested-With'],
-    exposedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-agent-id', 'x-role', 'x-api-key', 'X-Requested-With', 'x-project-key', 'x-project-id'],
+    exposedHeaders: ['Content-Type', 'Authorization', 'x-project-key'],
     preflightContinue: false,
     optionsSuccessStatus: 204
 }));
