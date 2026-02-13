@@ -5,22 +5,25 @@ const clientController = require('../controllers/clientController');
 // Calculator (Stateless)
 const authMiddleware = require('../middlewares/authMiddleware');
 
+const tenantMiddleware = require('../middlewares/tenantMiddleware');
+
 // Calculator (Stateless)
-router.post('/calculate', clientController.calculateFirstRun.bind(clientController));
+router.post('/calculate', tenantMiddleware, clientController.calculateFirstRun.bind(clientController));
 
 // Protected Routes
-router.post('/first-run', authMiddleware, clientController.firstRun.bind(clientController));
-router.get('/agent-clients', authMiddleware, clientController.listByAgent.bind(clientController));
+const pfpMiddleware = [authMiddleware, tenantMiddleware];
+
+router.post('/first-run', pfpMiddleware, clientController.firstRun.bind(clientController));
+router.get('/agent-clients', pfpMiddleware, clientController.listByAgent.bind(clientController));
 
 // Client Management (DB)
-// Assuming standard CRUD might need protection too, but sticking to plan
-router.post('/', authMiddleware, clientController.create.bind(clientController));
-router.get('/:id', authMiddleware, clientController.get.bind(clientController)); // Usually should check agent ownership
-router.put('/:id', authMiddleware, clientController.update.bind(clientController));
-router.post('/:id/recalculate', authMiddleware, clientController.recalculate.bind(clientController));
+router.post('/', pfpMiddleware, clientController.create.bind(clientController));
+router.get('/:id', pfpMiddleware, clientController.get.bind(clientController));
+router.put('/:id', pfpMiddleware, clientController.update.bind(clientController));
+router.post('/:id/recalculate', pfpMiddleware, clientController.recalculate.bind(clientController));
 
 // Goal Management
-router.post('/:id/goals', authMiddleware, clientController.addGoal.bind(clientController));
-router.delete('/:id/goals/:goalId', authMiddleware, clientController.deleteGoal.bind(clientController));
+router.post('/:id/goals', pfpMiddleware, clientController.addGoal.bind(clientController));
+router.delete('/:id/goals/:goalId', pfpMiddleware, clientController.deleteGoal.bind(clientController));
 
 module.exports = router;

@@ -119,7 +119,12 @@ class ClientController {
             }
 
             if (!req.body.client) req.body.client = {};
-            req.body.client.project_id = req.projectId || req.user?.projectId || req.body.client.project_id;
+            // Strict scoping: priority to validated projectId from context/token
+            req.body.client.project_id = req.projectId || req.user?.projectId;
+
+            if (!req.body.client.project_id) {
+                return res.status(400).json({ error: 'Project context is missing' });
+            }
 
             console.log(`[ClientController] calculateFirstRun for project: ${req.body.client.project_id}`);
 
@@ -145,9 +150,13 @@ class ClientController {
                 });
             }
 
-            // 1.5 Inject Project ID
+            // 1.5 Inject Project ID (Strict enforcement)
             if (!req.body.client) req.body.client = {};
-            req.body.client.project_id = req.projectId || req.user?.projectId || req.body.client.project_id;
+            req.body.client.project_id = req.projectId || req.user?.projectId;
+
+            if (!req.body.client.project_id) {
+                return res.status(400).json({ error: 'Project context is missing' });
+            }
 
             console.log(`[ClientController] firstRun for project: ${req.body.client.project_id}`);
 
@@ -334,8 +343,13 @@ class ClientController {
                     : (existingClient.total_liquid_capital !== undefined ? Number(existingClient.total_liquid_capital) : (existingClient.assets_total || 0))
             };
 
-            // 4.5 Inject Project ID
+            // 4.5 Inject Project ID (Strict enforcement)
             clientForCalc.project_id = projectId;
+            if (req.body.client) req.body.client.project_id = projectId;
+
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context missing during recalculation' });
+            }
 
             // 5. Run Calculation
             const calcRequest = { client: clientForCalc, goals: goalsToCalculate };

@@ -36,14 +36,12 @@ app.use((req, res, next) => {
     next();
 });
 
-// Tenant identification
-app.use(tenantMiddleware);
-
 // Swagger
 const swaggerDocument = YAML.load(path.join(__dirname, '../openapi/pfp-api.yaml'));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Routes
+// Note: tenantMiddleware is now applied within routes to benefit from req.user context
 app.use('/api', routes);
 
 // Error Handler
