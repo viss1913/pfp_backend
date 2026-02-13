@@ -38,8 +38,8 @@ const productSchema = Joi.object({
 class ProductController {
     async getAll(req, res, next) {
         try {
-            const agentId = req.user.agentId;
-            const products = await productService.getAllProducts(agentId, req.query);
+            const projectId = req.user.projectId || req.projectId;
+            const products = await productService.getAllProducts(projectId, req.query);
             res.json(products);
         } catch (err) {
             next(err);
@@ -48,7 +48,8 @@ class ProductController {
 
     async getById(req, res, next) {
         try {
-            const product = await productService.getProductById(req.params.id);
+            const projectId = req.user.projectId || req.projectId;
+            const product = await productService.getProductById(req.params.id, projectId);
             if (!product) return res.status(404).json({ error: 'Product not found' });
             res.json(product);
         } catch (err) {
@@ -66,14 +67,12 @@ class ProductController {
             // Проверяем существование типа продукта
             const productType = await productTypeService.getProductTypeByCode(req.body.product_type);
             if (!productType) {
-                return res.status(400).json({ error: `Product type "${req.body.product_type}" not found. Use GET /api/pfp/product-types to get available types.` });
-            }
-            if (!productType.is_active) {
-                return res.status(400).json({ error: `Product type "${req.body.product_type}" is not active.` });
+                return res.status(400).json({ error: `Product type "${req.body.product_type}" not found.` });
             }
 
             const agentId = req.user.agentId;
-            const newProduct = await productService.createProduct(agentId, req.body);
+            const projectId = req.user.projectId || req.projectId;
+            const newProduct = await productService.createProduct(agentId, projectId, req.body);
             res.status(201).json(newProduct);
         } catch (err) {
             next(err);
@@ -84,20 +83,10 @@ class ProductController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const isAdmin = req.user.isAdmin; // Mocked in auth middleware
+            const projectId = req.user.projectId || req.projectId;
+            const isAdmin = req.user.isAdmin;
 
-            // Если обновляется product_type, проверяем его существование
-            if (req.body.product_type) {
-                const productType = await productTypeService.getProductTypeByCode(req.body.product_type);
-                if (!productType) {
-                    return res.status(400).json({ error: `Product type "${req.body.product_type}" not found. Use GET /api/pfp/product-types to get available types.` });
-                }
-                if (!productType.is_active) {
-                    return res.status(400).json({ error: `Product type "${req.body.product_type}" is not active.` });
-                }
-            }
-
-            const updatedProduct = await productService.updateProduct(id, agentId, isAdmin, req.body);
+            const updatedProduct = await productService.updateProduct(id, agentId, projectId, isAdmin, req.body);
             res.json(updatedProduct);
         } catch (err) {
             next(err);
@@ -108,9 +97,10 @@ class ProductController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
+            const projectId = req.user.projectId || req.projectId;
             const isAdmin = req.user.isAdmin;
 
-            await productService.deleteProduct(id, agentId, isAdmin);
+            await productService.deleteProduct(id, agentId, projectId, isAdmin);
             res.status(204).send();
         } catch (err) {
             next(err);
@@ -121,8 +111,9 @@ class ProductController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
+            const projectId = req.user.projectId || req.projectId;
 
-            const cloned = await productService.cloneProduct(id, agentId);
+            const cloned = await productService.cloneProduct(id, agentId, projectId);
             res.status(201).json(cloned);
         } catch (err) {
             next(err);

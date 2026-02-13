@@ -4,14 +4,22 @@ class PdsSettingsRepository {
     /**
      * Получить настройки ПДС (всегда одна запись)
      */
-    async find() {
-        return db('pds_settings').first();
+    async find(projectId = null) {
+        const query = db('pds_settings');
+        if (projectId) {
+            return query.where((builder) => {
+                builder.where('project_id', projectId).orWhereNull('project_id');
+            })
+                .orderBy('project_id', 'desc')
+                .first();
+        }
+        return query.whereNull('project_id').first();
     }
 
     /**
      * Обновить настройки ПДС
      */
-    async update(data) {
+    async update(data, projectId = null) {
         const updateData = {};
         if (data.max_state_cofin_amount_per_year !== undefined) {
             updateData.max_state_cofin_amount_per_year = parseInt(data.max_state_cofin_amount_per_year);
@@ -24,8 +32,14 @@ class PdsSettingsRepository {
         }
         updateData.updated_at = new Date();
 
-        return db('pds_settings')
-            .update(updateData);
+        const query = db('pds_settings');
+        if (projectId) {
+            query.where('project_id', projectId);
+        } else {
+            query.whereNull('project_id');
+        }
+
+        return query.update(updateData);
     }
 }
 

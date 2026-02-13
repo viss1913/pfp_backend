@@ -1,27 +1,28 @@
 const productTypeRepository = require('../repositories/productTypeRepository');
 
 class ProductTypeService {
-    async getAllProductTypes(filters = {}) {
-        return productTypeRepository.findAll(filters);
+    async getAllProductTypes(projectId = null, filters = {}) {
+        return productTypeRepository.findAll(projectId, filters);
     }
 
-    async getProductTypeById(id) {
-        return productTypeRepository.findById(id);
+    async getProductTypeById(id, projectId = null) {
+        return productTypeRepository.findById(id, projectId);
     }
 
-    async getProductTypeByCode(code) {
-        return productTypeRepository.findByCode(code);
+    async getProductTypeByCode(code, projectId = null) {
+        return productTypeRepository.findByCode(code, projectId);
     }
 
-    async createProductType(data) {
+    async createProductType(projectId, data) {
         // Проверяем уникальность кода
         const exists = await productTypeRepository.existsByCode(data.code);
         if (exists) {
             throw { status: 400, message: `Product type with code "${data.code}" already exists` };
         }
 
-        const id = await productTypeRepository.create(data);
-        return this.getProductTypeById(id);
+        const productTypeData = { ...data, project_id: projectId };
+        const id = await productTypeRepository.create(productTypeData);
+        return this.getProductTypeById(id, projectId);
     }
 
     async updateProductType(id, data) {
@@ -51,11 +52,11 @@ class ProductTypeService {
         // Проверяем, используется ли тип в продуктах
         const db = require('../config/database');
         const productsCount = await db('products').where({ product_type: productType.code }).count('* as count').first();
-        
+
         if (parseInt(productsCount.count) > 0) {
-            throw { 
-                status: 400, 
-                message: `Cannot delete product type: it is used by ${productsCount.count} product(s). Deactivate it instead.` 
+            throw {
+                status: 400,
+                message: `Cannot delete product type: it is used by ${productsCount.count} product(s). Deactivate it instead.`
             };
         }
 

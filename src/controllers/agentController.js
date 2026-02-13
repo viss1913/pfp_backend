@@ -7,18 +7,18 @@ class AgentController {
      */
     async getAll(req, res, next) {
         try {
-            // SMM service will use x-api-key which maps to an agent record or admin
-            // For general sync, we check if it's an admin or a valid service key
-            if (req.user.role !== 'admin' && !req.user.isApiKey) {
+            const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+            if (!isAdmin && !req.user.isApiKey) {
                 return res.status(403).json({ error: 'Forbidden: Admin or API Key required' });
             }
 
+            const projectId = req.user.projectId || req.projectId;
             const filters = {
                 updated_since: req.query.updated_since,
                 is_active: req.query.is_active
             };
 
-            const agents = await agentService.getAllAgentsForSync(filters);
+            const agents = await agentService.getAllAgentsForSync(projectId, filters);
             res.json(agents);
         } catch (err) {
             next(err);
@@ -31,12 +31,13 @@ class AgentController {
      */
     async create(req, res, next) {
         try {
-            // Only admins can create agents
-            if (req.user.role !== 'admin') {
+            const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+            if (!isAdmin) {
                 return res.status(403).json({ error: 'Forbidden: Admin role required' });
             }
 
-            const newAgent = await agentService.createAgent(req.body);
+            const projectId = req.user.projectId || req.projectId;
+            const newAgent = await agentService.createAgent(projectId, req.body);
             res.status(201).json(newAgent);
         } catch (err) {
             next(err);
@@ -48,7 +49,8 @@ class AgentController {
      */
     async getById(req, res, next) {
         try {
-            const agent = await agentService.getAgentById(req.params.id);
+            const projectId = req.user.projectId || req.projectId;
+            const agent = await agentService.getAgentById(req.params.id, projectId);
             if (!agent) {
                 return res.status(404).json({ error: 'Agent not found' });
             }
@@ -65,13 +67,15 @@ class AgentController {
     async update(req, res, next) {
         try {
             const agentId = req.params.id;
+            const projectId = req.user.projectId || req.projectId;
+            const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
 
             // Check permissions: admin or the agent themselves
-            if (req.user.role !== 'admin' && req.user.agentId !== parseInt(agentId)) {
+            if (!isAdmin && req.user.agentId !== parseInt(agentId)) {
                 return res.status(403).json({ error: 'Forbidden' });
             }
 
-            const updatedAgent = await agentService.updateAgent(agentId, req.body);
+            const updatedAgent = await agentService.updateAgent(agentId, projectId, req.body);
             res.json(updatedAgent);
         } catch (err) {
             next(err);

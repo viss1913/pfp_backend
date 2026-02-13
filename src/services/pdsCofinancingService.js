@@ -89,7 +89,8 @@ class PdsCofinancingService {
             monthlyGrowthRate,
             avgMonthlyIncome,
             usedCofinancingPerYear,
-            passName: "Pass 1"
+            passName: "Pass 1",
+            projectId: params.projectId || null
         });
 
         const totalCofinancingWithInvestment = firstPass.stateCapital;
@@ -122,7 +123,8 @@ class PdsCofinancingService {
             monthlyGrowthRate,
             avgMonthlyIncome,
             usedCofinancingPerYear,
-            passName: "Pass 2"
+            passName: "Pass 2",
+            projectId: params.projectId || null
         });
 
 
@@ -163,7 +165,8 @@ class PdsCofinancingService {
             monthlyGrowthRate,
             avgMonthlyIncome,
             usedCofinancingPerYear = {},
-            passName = "Default"
+            passName = "Default",
+            projectId = null
         } = config;
 
         // Dynamic require to avoid circular deps if any, and scope it
@@ -217,7 +220,9 @@ class PdsCofinancingService {
                         const cofinResult = await settingsService.calculatePdsCofinancing(
                             yearlyContributions[currentYear],
                             avgMonthlyIncome,
-                            remainingLimit
+                            remainingLimit,
+                            null, // cachedData
+                            projectId
                         );
                         cofinForPrevYear = cofinResult.state_cofin_amount || 0;
                     } catch (e) {
@@ -230,7 +235,7 @@ class PdsCofinancingService {
                 let projectedTaxRefund = 0;
                 try {
                     const estimatedAnnualIncome = avgMonthlyIncome * 12;
-                    const taxCalc = await TaxService.calculateNdfl(estimatedAnnualIncome, currentYear);
+                    const taxCalc = await TaxService.calculateNdfl(estimatedAnnualIncome, currentYear, null, projectId);
                     // Use effective rate for deduction approximation
                     const taxProfile = {
                         annual_income_taxable: estimatedAnnualIncome,
@@ -287,7 +292,7 @@ class PdsCofinancingService {
                 if (yearlyContributions[prevYear] > 0) {
                     try {
                         const estimatedAnnualIncome = avgMonthlyIncome * 12;
-                        const dedRes = await TaxService.calculatePdsRefundDelta(estimatedAnnualIncome, yearlyContributions[prevYear], prevYear);
+                        const dedRes = await TaxService.calculatePdsRefundDelta(estimatedAnnualIncome, yearlyContributions[prevYear], prevYear, null, projectId);
 
                         const refund = dedRes.refundAmount;
                         if (refund > 0) {
@@ -315,7 +320,9 @@ class PdsCofinancingService {
                         const cofinResult = await settingsService.calculatePdsCofinancing(
                             yearlyContributions[prevYear],
                             avgMonthlyIncome,
-                            remainingLimit
+                            remainingLimit,
+                            null, // cachedData
+                            projectId
                         );
                         const stateCofinAmount = cofinResult.state_cofin_amount || 0;
                         if (stateCofinAmount > 0) {
@@ -345,7 +352,9 @@ class PdsCofinancingService {
                 const cofinResult = await settingsService.calculatePdsCofinancing(
                     yearlyContributions[currentYear],
                     avgMonthlyIncome,
-                    remainingLimit
+                    remainingLimit,
+                    null, // cachedData
+                    projectId
                 );
                 cofinForThisYear = cofinResult.state_cofin_amount || 0;
             } catch (e) { }
@@ -354,7 +363,7 @@ class PdsCofinancingService {
         // Last year tax proj
         try {
             const estimatedAnnualIncome = avgMonthlyIncome * 12;
-            const taxCalc = await TaxService.calculateNdfl(estimatedAnnualIncome, currentYear);
+            const taxCalc = await TaxService.calculateNdfl(estimatedAnnualIncome, currentYear, null, projectId);
             const taxProfile = {
                 annual_income_taxable: estimatedAnnualIncome,
                 ndfl_amount_without_deductions: taxCalc.taxAmount,
@@ -393,7 +402,7 @@ class PdsCofinancingService {
                 // Just reusing original variable setup
                 const alreadyTaken = usedCofinancingPerYear[startYear] || 0;
                 const remainingLimit = Math.max(0, BASE_ANNUAL_LIMIT - alreadyTaken);
-                const cofinResult = await settingsService.calculatePdsCofinancing(yearlyContributions[startYear], avgMonthlyIncome, remainingLimit);
+                const cofinResult = await settingsService.calculatePdsCofinancing(yearlyContributions[startYear], avgMonthlyIncome, remainingLimit, null, projectId);
                 cofinancingNextYear = cofinResult.state_cofin_amount || 0;
             } catch (e) { }
         }

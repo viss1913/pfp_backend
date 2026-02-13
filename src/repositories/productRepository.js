@@ -1,19 +1,24 @@
 const db = require('../config/database');
 
 class ProductRepository {
-    async findAll({ agentId, includeDefaults = true, filters = {} }) {
+    async findAll({ projectId = null, includeDefaults = true, filters = {} }) {
         const query = db('products')
             .select('products.*');
 
         // Multi-tenancy logic
         query.where((builder) => {
-            builder.where('products.agent_id', agentId);
-            if (includeDefaults) {
-                builder.orWhereNull('products.agent_id');
+            if (projectId) {
+                builder.where('products.project_id', projectId);
+                if (includeDefaults) {
+                    builder.orWhereNull('products.project_id');
+                }
             }
         });
 
         // Filters
+        if (filters.agent_id) {
+            query.where('products.agent_id', filters.agent_id);
+        }
         if (filters.product_type) {
             query.where('products.product_type', filters.product_type);
         }
@@ -54,8 +59,16 @@ class ProductRepository {
         });
     }
 
-    async findById(id) {
-        const product = await db('products').where({ id }).first();
+    async findById(id, projectId = null) {
+        let query = db('products').where({ id });
+
+        if (projectId) {
+            query.where((builder) => {
+                builder.where({ project_id: projectId }).orWhereNull('project_id');
+            });
+        }
+
+        const product = await query.first();
         if (!product) return null;
 
         // Parse lines JSON and convert to yields format for compatibility
@@ -160,12 +173,16 @@ class ProductRepository {
                 }
             }
 
-            await trx('products').where({ id }).update({ ...productData, updated_at: new Date() }); // Knex doesn't auto update updated_at usually
+            const query = trx('products').where({ id });
+            if (projectId) query.where({ project_id: projectId });
+            await query.update({ ...productData, updated_at: new Date() });
         });
     }
 
-    async softDelete(id) {
-        return db('products').where({ id }).update({ is_active: false });
+    async softDelete(id, projectId = null) {
+        const query = db('products').where({ id });
+        if (projectId) query.where({ project_id: projectId });
+        return query.update({ is_active: false });
     }
 }
 

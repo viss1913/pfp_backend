@@ -28,6 +28,7 @@ paths:
             type: integer
           required: true
           description: ID Клиента
+        - $ref: './pfp-api-v1.2.yaml#/components/parameters/ProjectKeyHeader'
       requestBody:
         required: true
         content:

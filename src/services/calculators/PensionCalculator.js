@@ -116,7 +116,7 @@ class PensionCalculator extends BaseCalculator {
         const pensionGapMonthlyFuture = Math.max(desiredPensionMonthlyFuture - statePensionResult.state_pension_monthly_future, 0);
 
         // Фаза накопления
-        const payoutYieldLine = await context.services.settingsService.findPassiveIncomeYieldLine(0, monthsToPension, true);
+        const payoutYieldLine = await context.services.settingsService.findPassiveIncomeYieldLine(0, monthsToPension, true, context.projectId);
         if (!payoutYieldLine) throw new Error('Passive income yield line not found');
         const payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
         // Капитал нужен такой, чтобы его доходность (passive yield) покрывала нехватку

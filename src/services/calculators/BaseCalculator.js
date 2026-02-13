@@ -49,7 +49,8 @@ class BaseCalculator {
                         yearlyContributions[prevYear],
                         avgMonthlyIncome,
                         remainingLimit,
-                        context.cachedData // Pass cached data
+                        context.cachedData, // Pass cached data
+                        context.projectId
                     );
                     const benefit = cofinResult.state_cofin_amount || 0;
                     if (benefit > 0) {
@@ -74,7 +75,8 @@ class BaseCalculator {
                         prevContrib,
                         alreadyUsedBase,
                         prevYear,
-                        context.cachedData ? context.cachedData.taxBrackets : null // Pass cached tax brackets
+                        context.cachedData ? context.cachedData.taxBrackets : null, // Pass cached tax brackets
+                        context.projectId
                     );
                     const refundAmount = dedRes.refundAmount;
 

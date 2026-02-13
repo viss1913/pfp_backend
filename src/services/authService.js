@@ -33,7 +33,8 @@ class AuthService {
             user_id: user.id,   // Original ID for PFP
             email: user.email,
             role: user.role,
-            agentId: user.agent_id
+            agentId: user.agent_id,
+            projectId: user.project_id
         };
 
         const token = jwt.sign(
@@ -50,7 +51,8 @@ class AuthService {
                 email: user.email,
                 name: user.name,
                 role: user.role,
-                agentId: user.agent_id
+                agentId: user.agent_id,
+                projectId: user.project_id
             }
         };
     }
@@ -70,7 +72,7 @@ class AuthService {
      * Register new user (agent)
      */
     async register(data) {
-        const { email, password, name, agentId } = data;
+        const { email, password, name, agentId, projectId } = data;
 
         // Check if user already exists
         const existingUser = await db('users').where({ email }).first();
@@ -84,6 +86,7 @@ class AuthService {
         // Create user
         const [userId] = await db('users').insert({
             agent_id: agentId,
+            project_id: projectId || null,
             email,
             password_hash: passwordHash,
             name,
@@ -94,7 +97,7 @@ class AuthService {
         // Return user without password
         const user = await db('users')
             .where({ id: userId })
-            .select('id', 'email', 'name', 'role', 'agent_id as agentId')
+            .select('id', 'email', 'name', 'role', 'agent_id as agentId', 'project_id as projectId')
             .first();
 
         return user;

@@ -103,26 +103,33 @@ class PortfolioRepository {
         return result;
     }
 
-    async findAll({ agentId, filters = {}, includeDefaults = true }) {
+    async findAll({ projectId = null, filters = {}, includeDefaults = true }) {
         const query = db('portfolios').select('*').where('is_active', true);
 
         query.where((builder) => {
-            builder.where('agent_id', agentId);
-            if (includeDefaults) {
-                builder.orWhereNull('agent_id');
+            if (projectId) {
+                builder.where('project_id', projectId);
+                if (includeDefaults) {
+                    builder.orWhereNull('project_id');
+                }
             }
         });
 
         if (filters.amount_from) query.where('amount_from', '>=', filters.amount_from);
+        if (filters.agent_id) query.where('agent_id', filters.agent_id);
 
         const portfolios = await query;
-        // Parallel async transformation is okay structurally but _transform relies on db calls for classes
-        // Ideally we should batch class fetching but for 2-3 portfolios it's fine.
         return Promise.all(portfolios.map(p => this._transformPortfolio(p, db)));
     }
 
-    async findById(id) {
-        const portfolio = await db('portfolios').where({ id }).first();
+    async findById(id, projectId = null) {
+        let query = db('portfolios').where({ id });
+        if (projectId) {
+            query.where((builder) => {
+                builder.where({ project_id: projectId }).orWhereNull('project_id');
+            });
+        }
+        const portfolio = await query.first();
         if (!portfolio) return null;
         return this._transformPortfolio(portfolio, db);
     }
@@ -185,10 +192,14 @@ class PortfolioRepository {
 
             // Update basic fields
             if (Object.keys(portfolioData).length > 0) {
-                await trx('portfolios').where({ id }).update({ ...portfolioData, updated_at: new Date() });
+                let query = trx('portfolios').where({ id });
+                if (projectId) query.where({ project_id: projectId });
+                await query.update({ ...portfolioData, updated_at: new Date() });
             } else {
                 // Still update updated_at even if no other fields changed
-                await trx('portfolios').where({ id }).update({ updated_at: new Date() });
+                let query = trx('portfolios').where({ id });
+                if (projectId) query.where({ project_id: projectId });
+                await query.update({ updated_at: new Date() });
             }
 
             // Update Classes: Храним ТОЛЬКО в JSON поле portfolios.classes (просто и понятно!)
@@ -230,17 +241,34 @@ class PortfolioRepository {
         });
     }
 
-    async softDelete(id) {
-        return db('portfolios').where({ id }).update({ is_active: false });
+    async softDelete(id, projectId = null) {
+        let query = db('portfolios').where({ id });
+        if (projectId) query.where({ project_id: projectId });
+        return query.update({ is_active: false });
     }
 
-    async getClasses() {
-        return db('portfolio_classes').select('*');
+    async getClasses(projectId = null) {
+        const query = db('portfolio_classes').select('*');
+        query.where((builder) => {
+            if (projectId) {
+                builder.where('project_id', projectId).orWhereNull('project_id');
+            } else {
+                builder.whereNull('project_id');
+            }
+        });
+        return query;
     }
 
-    async findByCriteria({ classId, amount, term }) {
-        console.log('[PortfolioRepo] findByCriteria called with:', { classId, amount, term });
+    async findByCriteria({ projectId = null, classId, amount, term }) {
+        console.log('[PortfolioRepo] findByCriteria called with:', { projectId, classId, amount, term });
         const query = db('portfolios').where({ is_active: true });
+
+        if (projectId) {
+            query.where((builder) => {
+                builder.where({ project_id: projectId }).orWhereNull('project_id');
+            });
+        }
+
         if (amount !== undefined) {
             query.where('amount_from', '<=', amount)
                 .where('amount_to', '>=', amount);

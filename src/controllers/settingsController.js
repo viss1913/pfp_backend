@@ -70,7 +70,8 @@ class SettingsController {
     async getAll(req, res, next) {
         try {
             const { category } = req.query;
-            const settings = await settingsService.getAllSettings(category);
+            const projectId = req.user.projectId;
+            const settings = await settingsService.getAllSettings(projectId, category);
             res.json(settings);
         } catch (err) {
             next(err);
@@ -80,7 +81,8 @@ class SettingsController {
     async getByKey(req, res, next) {
         try {
             const { key } = req.params;
-            const setting = await settingsService.getSettingByKey(key);
+            const projectId = req.user.projectId;
+            const setting = await settingsService.getSettingByKey(key, projectId);
             res.json(setting);
         } catch (err) {
             next(err);
@@ -91,13 +93,14 @@ class SettingsController {
         try {
             const { key } = req.params;
             const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId;
 
             const validation = updateSettingSchema.validate(req.body);
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
-            const updated = await settingsService.updateSetting(key, req.body.value, isAdmin);
+            const updated = await settingsService.updateSetting(key, req.body.value, isAdmin, projectId);
             res.json(updated);
         } catch (err) {
             next(err);
@@ -107,13 +110,14 @@ class SettingsController {
     async create(req, res, next) {
         try {
             const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId;
 
             const validation = settingSchema.validate(req.body);
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
-            const created = await settingsService.createSetting(req.body, isAdmin);
+            const created = await settingsService.createSetting(req.body, isAdmin, projectId);
             res.status(201).json(created);
         } catch (err) {
             next(err);
@@ -124,8 +128,9 @@ class SettingsController {
         try {
             const { key } = req.params;
             const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId;
 
-            await settingsService.deleteSetting(key, isAdmin);
+            await settingsService.deleteSetting(key, isAdmin, projectId);
             res.status(204).send();
         } catch (err) {
             next(err);
@@ -140,7 +145,8 @@ class SettingsController {
      */
     async getAllTaxBrackets(req, res, next) {
         try {
-            const brackets = await settingsService.getAllTaxBrackets();
+            const projectId = req.user.projectId;
+            const brackets = await settingsService.getAllTaxBrackets(projectId);
             res.json(brackets);
         } catch (err) {
             next(err);
@@ -154,7 +160,8 @@ class SettingsController {
     async getTaxBracketById(req, res, next) {
         try {
             const { id } = req.params;
-            const bracket = await settingsService.getTaxBracketById(parseInt(id));
+            const projectId = req.user.projectId;
+            const bracket = await settingsService.getTaxBracketById(parseInt(id), projectId);
             res.json(bracket);
         } catch (err) {
             next(err);
@@ -168,7 +175,8 @@ class SettingsController {
     async getTaxBracketByIncome(req, res, next) {
         try {
             const { income } = req.params;
-            const bracket = await settingsService.getTaxBracketByIncome(parseFloat(income));
+            const projectId = req.user.projectId;
+            const bracket = await settingsService.getTaxBracketByIncome(parseFloat(income), projectId);
             res.json(bracket);
         } catch (err) {
             next(err);
@@ -182,13 +190,14 @@ class SettingsController {
     async createTaxBracket(req, res, next) {
         try {
             const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId;
 
             const validation = taxBracketSchema.validate(req.body);
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
-            const created = await settingsService.createTaxBracket(req.body, isAdmin);
+            const created = await settingsService.createTaxBracket(req.body, isAdmin, projectId);
             res.status(201).json(created);
         } catch (err) {
             next(err);
@@ -203,13 +212,14 @@ class SettingsController {
         try {
             const { id } = req.params;
             const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId;
 
             const validation = taxBracketUpdateSchema.validate(req.body);
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
-            const updated = await settingsService.updateTaxBracket(parseInt(id), req.body, isAdmin);
+            const updated = await settingsService.updateTaxBracket(parseInt(id), req.body, isAdmin, projectId);
             res.json(updated);
         } catch (err) {
             next(err);
@@ -224,8 +234,9 @@ class SettingsController {
         try {
             const { id } = req.params;
             const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId;
 
-            await settingsService.deleteTaxBracket(parseInt(id), isAdmin);
+            await settingsService.deleteTaxBracket(parseInt(id), isAdmin, projectId);
             res.status(204).send();
         } catch (err) {
             next(err);
@@ -239,13 +250,14 @@ class SettingsController {
     async createTaxBracketsBulk(req, res, next) {
         try {
             const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId;
 
             const validation = taxBracketsBulkSchema.validate(req.body);
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
-            const brackets = await settingsService.createTaxBracketsMany(req.body.brackets, isAdmin);
+            const brackets = await settingsService.createTaxBracketsMany(req.body.brackets, isAdmin, projectId);
             res.status(201).json(brackets);
         } catch (err) {
             next(err);
@@ -260,7 +272,8 @@ class SettingsController {
      */
     async getPdsCofinSettings(req, res, next) {
         try {
-            const settings = await settingsService.getPdsCofinSettings();
+            const projectId = req.user.projectId;
+            const settings = await settingsService.getPdsCofinSettings(projectId);
             res.json(settings);
         } catch (err) {
             next(err);
@@ -274,13 +287,14 @@ class SettingsController {
     async updatePdsCofinSettings(req, res, next) {
         try {
             const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId;
 
             const validation = pdsCofinSettingsUpdateSchema.validate(req.body);
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
-            const updated = await settingsService.updatePdsCofinSettings(req.body, isAdmin);
+            const updated = await settingsService.updatePdsCofinSettings(req.body, isAdmin, projectId);
             res.json(updated);
         } catch (err) {
             next(err);
@@ -295,7 +309,8 @@ class SettingsController {
      */
     async getAllPdsCofinIncomeBrackets(req, res, next) {
         try {
-            const brackets = await settingsService.getAllPdsCofinIncomeBrackets();
+            const projectId = req.user.projectId;
+            const brackets = await settingsService.getAllPdsCofinIncomeBrackets(projectId);
             res.json(brackets);
         } catch (err) {
             next(err);
@@ -416,14 +431,14 @@ class SettingsController {
 
             console.log('Processed lines:', JSON.stringify(req.body.lines, null, 2));
 
-            const validation = passiveIncomeYieldUpdateSchema.validate(req.body, { 
+            const validation = passiveIncomeYieldUpdateSchema.validate(req.body, {
                 abortEarly: false,
-                convert: true 
+                convert: true
             });
             if (validation.error) {
                 console.error('Validation error:', validation.error);
                 const errorMessages = validation.error.details.map(detail => detail.message).join('; ');
-                return res.status(400).json({ 
+                return res.status(400).json({
                     error: 'Validation error',
                     message: errorMessages,
                     details: validation.error.details

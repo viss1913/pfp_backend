@@ -9,10 +9,14 @@ class AgentService {
      * @param {Object} filters 
      * @returns {Promise<Array>}
      */
-    async getAllAgentsForSync(filters = {}) {
+    async getAllAgentsForSync(projectId = null, filters = {}) {
         const query = knex('agents')
             .leftJoin('users', 'agents.id', 'users.agent_id')
             .select('agents.*', 'users.email');
+
+        if (projectId) {
+            query.where('agents.project_id', projectId);
+        }
 
         if (filters.updated_since) {
             query.where('agents.updated_at', '>=', new Date(filters.updated_since));
@@ -30,13 +34,14 @@ class AgentService {
      * @param {Object} data 
      * @returns {Promise<Object>}
      */
-    async createAgent(data) {
+    async createAgent(projectId, data) {
         const { email, password, ...agentData } = data;
 
         return await knex.transaction(async (trx) => {
             // 1. Create agent profile
             const [id] = await trx('agents').insert({
                 ...agentData,
+                project_id: projectId,
                 uuid: crypto.randomUUID(), // Generate universal UUID
                 created_at: new Date(),
                 updated_at: new Date()
@@ -49,6 +54,7 @@ class AgentService {
                 const passwordHash = password ? await bcrypt.hash(password, 10) : await bcrypt.hash('agent123', 10);
                 await trx('users').insert({
                     agent_id: agentId,
+                    project_id: projectId,
                     email,
                     password_hash: passwordHash,
                     name: `${agentData.first_name || ''} ${agentData.last_name || ''}`.trim() || 'Agent',
@@ -59,7 +65,7 @@ class AgentService {
                 });
             }
 
-            const result = await this.getAgentById(agentId, trx);
+            const result = await this.getAgentById(agentId, projectId, trx);
 
             // 3. Sync with SMM (async, don't wait to not block the main flow)
             smmService.syncAgent(agentId).catch(err => console.error('Initial SMM sync failed:', err));
@@ -71,15 +77,21 @@ class AgentService {
     /**
      * Get agent by ID
      * @param {number} id 
+     * @param {number} [projectId]
      * @param {Object} [trx] 
      * @returns {Promise<Object>}
      */
-    async getAgentById(id, trx = knex) {
-        return await trx('agents')
+    async getAgentById(id, projectId = null, trx = knex) {
+        let query = trx('agents')
             .leftJoin('users', 'agents.id', 'users.agent_id')
             .select('agents.*', 'users.email')
-            .where('agents.id', id)
-            .first();
+            .where('agents.id', id);
+
+        if (projectId) {
+            query.where('agents.project_id', projectId);
+        }
+
+        return await query.first();
     }
 
     /**
@@ -88,13 +100,19 @@ class AgentService {
      * @param {Object} data 
      * @returns {Promise<Object>}
      */
-    async updateAgent(id, data) {
+    async updateAgent(id, projectId, data) {
         const { email, password, ...agentData } = data;
 
         return await knex.transaction(async (trx) => {
+            // Check if agent exists and belongs to project
+            const existingAgent = await this.getAgentById(id, projectId, trx);
+            if (!existingAgent) {
+                throw { status: 404, message: 'Agent not found' };
+            }
+
             // 1. Update agent profile
             if (Object.keys(agentData).length > 0) {
-                await trx('agents').where('id', id).update({
+                await trx('agents').where({ id, project_id: projectId }).update({
                     ...agentData,
                     updated_at: new Date()
                 });
@@ -107,9 +125,9 @@ class AgentService {
             if (agentData.is_active !== undefined) userUpdate.is_active = agentData.is_active;
 
             if (Object.keys(userUpdate).length > 0) {
-                const existingUser = await trx('users').where('agent_id', id).first();
+                const existingUser = await trx('users').where({ agent_id: id, project_id: projectId }).first();
                 if (existingUser) {
-                    await trx('users').where('agent_id', id).update({
+                    await trx('users').where({ agent_id: id, project_id: projectId }).update({
                         ...userUpdate,
                         updated_at: new Date()
                     });
@@ -118,6 +136,7 @@ class AgentService {
                     const passwordHash = password ? await bcrypt.hash(password, 10) : await bcrypt.hash('agent123', 10);
                     await trx('users').insert({
                         agent_id: id,
+                        project_id: projectId,
                         email,
                         password_hash: passwordHash,
                         name: `${agentData.first_name || ''} ${agentData.last_name || ''}`.trim() || 'Agent',
@@ -129,7 +148,7 @@ class AgentService {
                 }
             }
 
-            const result = await this.getAgentById(id, trx);
+            const result = await this.getAgentById(id, projectId, trx);
 
             // 3. Sync with SMM (async, don't wait)
             smmService.syncAgent(id).catch(err => console.error('SMM sync update failed:', err));

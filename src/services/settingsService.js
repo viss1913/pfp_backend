@@ -4,8 +4,8 @@ const pdsSettingsRepository = require('../repositories/pdsSettingsRepository');
 const pdsCofinIncomeBracketsRepository = require('../repositories/pdsCofinIncomeBracketsRepository');
 
 class SettingsService {
-    async getAllSettings(category = null) {
-        const settings = await settingsRepository.findAll(category);
+    async getAllSettings(projectId = null, category = null) {
+        const settings = await settingsRepository.findAll(projectId, category);
 
         // Парсим значения для удобства
         return settings.map(s => ({
@@ -13,12 +13,13 @@ class SettingsService {
             value: this._parseValue(s.value, s.value_type),
             description: s.description,
             category: s.category,
-            updated_at: s.updated_at
+            updated_at: s.updated_at,
+            project_id: s.project_id
         }));
     }
 
-    async getSettingByKey(key) {
-        const setting = await settingsRepository.findByKey(key);
+    async getSettingByKey(key, projectId = null) {
+        const setting = await settingsRepository.findByKey(key, projectId);
         if (!setting) throw { status: 404, message: 'Setting not found' };
 
         return {
@@ -26,46 +27,47 @@ class SettingsService {
             value: this._parseValue(setting.value, setting.value_type),
             description: setting.description,
             category: setting.category,
-            updated_at: setting.updated_at
+            updated_at: setting.updated_at,
+            project_id: setting.project_id
         };
     }
 
-    async updateSetting(key, value, isAdmin) {
+    async updateSetting(key, value, isAdmin, projectId = null) {
         // Только админ может менять настройки
         if (!isAdmin) {
             throw { status: 403, message: 'Only admin can update settings' };
         }
 
-        const setting = await settingsRepository.findByKey(key);
+        const setting = await settingsRepository.findByKey(key, projectId);
         if (!setting) throw { status: 404, message: 'Setting not found' };
 
-        await settingsRepository.updateByKey(key, value);
-        return this.getSettingByKey(key);
+        await settingsRepository.updateByKey(key, value, projectId);
+        return this.getSettingByKey(key, projectId);
     }
 
-    async createSetting(data, isAdmin) {
+    async createSetting(data, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw { status: 403, message: 'Only admin can create settings' };
         }
 
-        const existing = await settingsRepository.findByKey(data.key);
-        if (existing) {
-            throw { status: 400, message: 'Setting with this key already exists' };
+        const existing = await settingsRepository.findByKey(data.key, projectId);
+        if (existing && (existing.project_id === projectId || (!projectId && !existing.project_id))) {
+            throw { status: 400, message: 'Setting with this key already exists for this project' };
         }
 
-        const id = await settingsRepository.create(data);
-        return this.getSettingByKey(data.key);
+        const id = await settingsRepository.create(data, projectId);
+        return this.getSettingByKey(data.key, projectId);
     }
 
-    async deleteSetting(key, isAdmin) {
+    async deleteSetting(key, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw { status: 403, message: 'Only admin can delete settings' };
         }
 
-        const setting = await settingsRepository.findByKey(key);
+        const setting = await settingsRepository.findByKey(key, projectId);
         if (!setting) throw { status: 404, message: 'Setting not found' };
 
-        await settingsRepository.delete(key);
+        await settingsRepository.delete(key, projectId);
         return { success: true };
     }
 
@@ -82,8 +84,8 @@ class SettingsService {
     }
 
     // Метод для получения конкретного значения (для использования в расчётах)
-    async getValue(key) {
-        return settingsRepository.getValue(key);
+    async getValue(key, projectId = null) {
+        return settingsRepository.getValue(key, projectId);
     }
 
     // Алиас для getValue (для удобства использования в расчетах)
@@ -105,15 +107,15 @@ class SettingsService {
     /**
      * Получить все налоговые ставки 2НДФЛ
      */
-    async getAllTaxBrackets() {
-        return tax2ndflRepository.findAll();
+    async getAllTaxBrackets(projectId = null) {
+        return tax2ndflRepository.findAll(projectId);
     }
 
     /**
      * Получить налоговую ставку по ID
      */
-    async getTaxBracketById(id) {
-        const bracket = await tax2ndflRepository.findById(id);
+    async getTaxBracketById(id, projectId = null) {
+        const bracket = await tax2ndflRepository.findById(id, projectId);
         if (!bracket) {
             throw {
                 status: 404,
@@ -127,8 +129,8 @@ class SettingsService {
     /**
      * Найти налоговую ставку для конкретного дохода
      */
-    async getTaxBracketByIncome(income) {
-        const bracket = await tax2ndflRepository.findByIncome(income);
+    async getTaxBracketByIncome(income, projectId = null) {
+        const bracket = await tax2ndflRepository.findByIncome(income, projectId);
         if (!bracket) {
             throw {
                 status: 404,
@@ -142,7 +144,7 @@ class SettingsService {
     /**
      * Создать новую налоговую ставку
      */
-    async createTaxBracket(data, isAdmin) {
+    async createTaxBracket(data, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -160,8 +162,8 @@ class SettingsService {
             };
         }
 
-        // Валидация: проверяем, что диапазоны не пересекаются
-        const existing = await tax2ndflRepository.findAll();
+        // Валидация: проверяем, что диапазоны не пересекаются в рамках одного проекта
+        const existing = await tax2ndflRepository.findAll(projectId);
         for (const bracket of existing) {
             // Проверка пересечения: (a_from <= b_to) AND (a_to >= b_from)
             if (
@@ -186,14 +188,14 @@ class SettingsService {
             }
         }
 
-        const id = await tax2ndflRepository.create(data);
-        return tax2ndflRepository.findById(id);
+        const id = await tax2ndflRepository.create(data, projectId);
+        return tax2ndflRepository.findById(id, projectId);
     }
 
     /**
      * Обновить налоговую ставку
      */
-    async updateTaxBracket(id, data, isAdmin) {
+    async updateTaxBracket(id, data, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -202,7 +204,7 @@ class SettingsService {
             };
         }
 
-        const existing = await tax2ndflRepository.findById(id);
+        const existing = await tax2ndflRepository.findById(id, projectId);
         if (!existing) {
             throw {
                 status: 404,
@@ -223,7 +225,7 @@ class SettingsService {
         }
 
         // Валидация пересечений (исключая текущую запись)
-        const allBrackets = await tax2ndflRepository.findAll();
+        const allBrackets = await tax2ndflRepository.findAll(projectId);
         const incomeFrom = data.income_from !== undefined ? data.income_from : existing.income_from;
         const incomeTo = data.income_to !== undefined ? data.income_to : existing.income_to;
 
@@ -243,14 +245,14 @@ class SettingsService {
             }
         }
 
-        await tax2ndflRepository.update(id, data);
-        return tax2ndflRepository.findById(id);
+        await tax2ndflRepository.update(id, data, projectId);
+        return tax2ndflRepository.findById(id, projectId);
     }
 
     /**
      * Удалить налоговую ставку
      */
-    async deleteTaxBracket(id, isAdmin) {
+    async deleteTaxBracket(id, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -259,7 +261,7 @@ class SettingsService {
             };
         }
 
-        const bracket = await tax2ndflRepository.findById(id);
+        const bracket = await tax2ndflRepository.findById(id, projectId);
         if (!bracket) {
             throw {
                 status: 404,
@@ -268,14 +270,14 @@ class SettingsService {
             };
         }
 
-        await tax2ndflRepository.delete(id);
+        await tax2ndflRepository.delete(id, projectId);
         return { success: true };
     }
 
     /**
      * Создать несколько налоговых ставок за раз (bulk create)
      */
-    async createTaxBracketsMany(brackets, isAdmin) {
+    async createTaxBracketsMany(brackets, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -297,7 +299,7 @@ class SettingsService {
         }
 
         // Валидация всех диапазонов на пересечения
-        const existing = await tax2ndflRepository.findAll();
+        const existing = await tax2ndflRepository.findAll(projectId);
         const allBrackets = [...existing, ...brackets];
 
         // Проверка пересечений между новыми ставками
@@ -361,12 +363,13 @@ class SettingsService {
                 income_from: parseFloat(bracket.income_from),
                 income_to: parseFloat(bracket.income_to),
                 rate: parseFloat(bracket.rate),
-                order_index: bracket.order_index !== undefined && bracket.order_index !== null ? parseInt(bracket.order_index) : 0
+                order_index: bracket.order_index !== undefined && bracket.order_index !== null ? parseInt(bracket.order_index) : 0,
+                project_id: projectId
             }));
             await trx('tax_2ndfl_brackets').insert(data);
         });
 
-        return tax2ndflRepository.findAll();
+        return tax2ndflRepository.findAll(projectId);
     }
 
     // ========== Методы для работы с настройками ПДС софинансирования ==========
@@ -374,8 +377,8 @@ class SettingsService {
     /**
      * Получить настройки софинансирования ПДС
      */
-    async getPdsCofinSettings() {
-        const settings = await pdsSettingsRepository.find();
+    async getPdsCofinSettings(projectId = null) {
+        const settings = await pdsSettingsRepository.find(projectId);
         if (!settings) {
             throw {
                 status: 404,
@@ -389,7 +392,7 @@ class SettingsService {
     /**
      * Обновить настройки софинансирования ПДС
      */
-    async updatePdsCofinSettings(data, isAdmin) {
+    async updatePdsCofinSettings(data, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -421,8 +424,8 @@ class SettingsService {
             };
         }
 
-        await pdsSettingsRepository.update(data);
-        return pdsSettingsRepository.find();
+        await pdsSettingsRepository.update(data, projectId);
+        return pdsSettingsRepository.find(projectId);
     }
 
     // ========== Методы для работы с шкалой доходов ПДС ==========
@@ -430,15 +433,15 @@ class SettingsService {
     /**
      * Получить все диапазоны доходов для софинансирования ПДС
      */
-    async getAllPdsCofinIncomeBrackets() {
-        return pdsCofinIncomeBracketsRepository.findAll();
+    async getAllPdsCofinIncomeBrackets(projectId = null) {
+        return pdsCofinIncomeBracketsRepository.findAll(projectId);
     }
 
     /**
      * Получить диапазон по ID
      */
-    async getPdsCofinIncomeBracketById(id) {
-        const bracket = await pdsCofinIncomeBracketsRepository.findById(id);
+    async getPdsCofinIncomeBracketById(id, projectId = null) {
+        const bracket = await pdsCofinIncomeBracketsRepository.findById(id, projectId);
         if (!bracket) {
             throw {
                 status: 404,
@@ -452,7 +455,7 @@ class SettingsService {
     /**
      * Создать новый диапазон доходов
      */
-    async createPdsCofinIncomeBracket(data, isAdmin) {
+    async createPdsCofinIncomeBracket(data, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -482,7 +485,7 @@ class SettingsService {
         }
 
         // Валидация: проверяем, что диапазоны не пересекаются
-        const existing = await pdsCofinIncomeBracketsRepository.findAll();
+        const existing = await pdsCofinIncomeBracketsRepository.findAll(projectId);
         const incomeTo = data.income_to !== undefined && data.income_to !== null ? data.income_to : Infinity;
 
         for (const bracket of existing) {
@@ -510,14 +513,14 @@ class SettingsService {
             };
         }
 
-        const id = await pdsCofinIncomeBracketsRepository.create(data);
-        return pdsCofinIncomeBracketsRepository.findById(id);
+        const id = await pdsCofinIncomeBracketsRepository.create(data, projectId);
+        return pdsCofinIncomeBracketsRepository.findById(id, projectId);
     }
 
     /**
      * Обновить диапазон доходов
      */
-    async updatePdsCofinIncomeBracket(id, data, isAdmin) {
+    async updatePdsCofinIncomeBracket(id, data, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -526,7 +529,7 @@ class SettingsService {
             };
         }
 
-        const existing = await pdsCofinIncomeBracketsRepository.findById(id);
+        const existing = await pdsCofinIncomeBracketsRepository.findById(id, projectId);
         if (!existing) {
             throw {
                 status: 404,
@@ -556,7 +559,7 @@ class SettingsService {
         }
 
         // Валидация пересечений (исключая текущую запись)
-        const allBrackets = await pdsCofinIncomeBracketsRepository.findAll();
+        const allBrackets = await pdsCofinIncomeBracketsRepository.findAll(projectId);
         const incomeToForCheck = incomeTo !== null && incomeTo !== undefined ? incomeTo : Infinity;
 
         for (const bracket of allBrackets) {
@@ -589,14 +592,14 @@ class SettingsService {
             };
         }
 
-        await pdsCofinIncomeBracketsRepository.update(id, data);
-        return pdsCofinIncomeBracketsRepository.findById(id);
+        await pdsCofinIncomeBracketsRepository.update(id, data, projectId);
+        return pdsCofinIncomeBracketsRepository.findById(id, projectId);
     }
 
     /**
      * Удалить диапазон доходов
      */
-    async deletePdsCofinIncomeBracket(id, isAdmin) {
+    async deletePdsCofinIncomeBracket(id, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -605,7 +608,7 @@ class SettingsService {
             };
         }
 
-        const bracket = await pdsCofinIncomeBracketsRepository.findById(id);
+        const bracket = await pdsCofinIncomeBracketsRepository.findById(id, projectId);
         if (!bracket) {
             throw {
                 status: 404,
@@ -614,7 +617,7 @@ class SettingsService {
             };
         }
 
-        await pdsCofinIncomeBracketsRepository.delete(id);
+        await pdsCofinIncomeBracketsRepository.delete(id, projectId);
         return { success: true };
     }
 
@@ -629,8 +632,8 @@ class SettingsService {
     /**
      * Получить все линии доходности для пассивного дохода
      */
-    async getPassiveIncomeYield() {
-        const setting = await settingsRepository.findByKey('passive_income_yield');
+    async getPassiveIncomeYield(projectId = null) {
+        const setting = await settingsRepository.findByKey('passive_income_yield', projectId);
         if (!setting) {
             throw {
                 status: 404,
@@ -640,14 +643,15 @@ class SettingsService {
         }
         return {
             lines: this._parseValue(setting.value, setting.value_type),
-            updated_at: setting.updated_at
+            updated_at: setting.updated_at,
+            project_id: setting.project_id
         };
     }
 
     /**
      * Обновить линии доходности для пассивного дохода
      */
-    async updatePassiveIncomeYield(lines, isAdmin) {
+    async updatePassiveIncomeYield(lines, isAdmin, projectId = null) {
         if (!isAdmin) {
             throw {
                 status: 403,
@@ -719,8 +723,8 @@ class SettingsService {
             }
         }
 
-        await settingsRepository.updateByKey('passive_income_yield', lines);
-        return this.getPassiveIncomeYield();
+        await settingsRepository.updateByKey('passive_income_yield', lines, projectId);
+        return this.getPassiveIncomeYield(projectId);
     }
 
     /**
@@ -730,8 +734,8 @@ class SettingsService {
      * @param {boolean} byTermOnly - Если true, искать только по сроку, игнорируя сумму
      * @returns {Object|null} - Найденная линия или null
      */
-    async findPassiveIncomeYieldLine(amount, termMonths, byTermOnly = false) {
-        const setting = await this.getPassiveIncomeYield();
+    async findPassiveIncomeYieldLine(amount, termMonths, byTermOnly = false, projectId = null) {
+        const setting = await this.getPassiveIncomeYield(projectId);
         const lines = setting.lines;
 
         if (!lines || lines.length === 0) {
@@ -759,13 +763,13 @@ class SettingsService {
         return line || null;
     }
 
-    async calculatePdsCofinancing(yearlyContribution, avgMonthlyIncome, overrideMaxAmount = null, cachedData = null) {
+    async calculatePdsCofinancing(yearlyContribution, avgMonthlyIncome, overrideMaxAmount = null, cachedData = null, projectId = null) {
         // 1. Получаем настройки (из кэша или БД)
         let settings;
         if (cachedData && cachedData.pdsSettings) {
             settings = cachedData.pdsSettings;
         } else {
-            settings = await pdsSettingsRepository.find();
+            settings = await pdsSettingsRepository.find(projectId);
         }
 
         if (!settings) {
@@ -797,7 +801,7 @@ class SettingsService {
                 return avgMonthlyIncome >= b.income_from && avgMonthlyIncome <= upLimit;
             });
         } else {
-            bracket = await pdsCofinIncomeBracketsRepository.findByIncome(avgMonthlyIncome);
+            bracket = await pdsCofinIncomeBracketsRepository.findByIncome(avgMonthlyIncome, projectId);
         }
 
         if (!bracket) {

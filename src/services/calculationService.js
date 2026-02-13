@@ -169,6 +169,7 @@ class CalculationService {
         // Collect assets and pool
         const isFirstRun = options.isFirstRun !== false;
         const usePoolFlag = options.usePool !== false;
+        const projectId = clientData.project_id || null;
 
         let poolBalance = Number(clientData.total_liquid_capital || 0);
         const assets = clientData.assets || [];
@@ -208,7 +209,7 @@ class CalculationService {
 
         for (const key of allSettingsKeys) {
             try {
-                const s = await settingsService.get(key);
+                const s = await settingsService.getSettingByKey(key, projectId);
                 settings[key] = s ? s.value : null;
             } catch (e) {
                 console.warn(`Could not fetch setting ${key}`);
@@ -227,9 +228,9 @@ class CalculationService {
         try {
             console.log('[CalculationService] Pre-fetching optimization settings...');
             const [pdsSet, pdsBr, taxBr] = await Promise.all([
-                settingsService.getPdsCofinSettings().catch(e => { console.warn('Failed to pre-fetch PDS settings:', e.message); return null; }),
-                settingsService.getAllPdsCofinIncomeBrackets().catch(e => { console.warn('Failed to pre-fetch PDS brackets:', e.message); return []; }),
-                settingsService.getAllTaxBrackets().catch(e => { console.warn('Failed to pre-fetch Tax brackets:', e.message); return []; })
+                settingsService.getPdsCofinSettings(projectId).catch(e => { console.warn('Failed to pre-fetch PDS settings:', e.message); return null; }),
+                settingsService.getAllPdsCofinIncomeBrackets(projectId).catch(e => { console.warn('Failed to pre-fetch PDS brackets:', e.message); return []; }),
+                settingsService.getAllTaxBrackets(projectId).catch(e => { console.warn('Failed to pre-fetch Tax brackets:', e.message); return []; })
             ]);
             pdsSettings = pdsSet;
             pdsBrackets = pdsBr || [];
@@ -240,6 +241,7 @@ class CalculationService {
         }
 
         return {
+            projectId,
             poolBalance,
             sharedPoolEvents,
             usedCofinancingPerYear: {},

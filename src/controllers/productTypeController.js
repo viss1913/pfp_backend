@@ -23,11 +23,12 @@ const productTypeUpdateSchema = Joi.object({
 class ProductTypeController {
     async getAll(req, res, next) {
         try {
+            const projectId = req.user?.projectId || req.projectId;
             const filters = {};
             if (req.query.is_active !== undefined) {
                 filters.is_active = req.query.is_active === 'true';
             }
-            const productTypes = await productTypeService.getAllProductTypes(filters);
+            const productTypes = await productTypeService.getAllProductTypes(projectId, filters);
             res.json(productTypes);
         } catch (err) {
             next(err);
@@ -36,7 +37,8 @@ class ProductTypeController {
 
     async getById(req, res, next) {
         try {
-            const productType = await productTypeService.getProductTypeById(req.params.id);
+            const projectId = req.user?.projectId || req.projectId;
+            const productType = await productTypeService.getProductTypeById(req.params.id, projectId);
             if (!productType) return res.status(404).json({ error: 'Product type not found' });
             res.json(productType);
         } catch (err) {
@@ -51,7 +53,8 @@ class ProductTypeController {
                 return res.status(400).json({ error: result.error.details[0].message });
             }
 
-            const newProductType = await productTypeService.createProductType(req.body);
+            const projectId = req.user?.projectId || req.projectId;
+            const newProductType = await productTypeService.createProductType(projectId, req.body);
             res.status(201).json(newProductType);
         } catch (err) {
             if (err.status) {
@@ -68,7 +71,8 @@ class ProductTypeController {
                 return res.status(400).json({ error: result.error.details[0].message });
             }
 
-            const updatedProductType = await productTypeService.updateProductType(req.params.id, req.body);
+            const projectId = req.user?.projectId || req.projectId;
+            const updatedProductType = await productTypeService.updateProductType(req.params.id, projectId, req.body);
             res.json(updatedProductType);
         } catch (err) {
             if (err.status) {
@@ -80,7 +84,8 @@ class ProductTypeController {
 
     async delete(req, res, next) {
         try {
-            await productTypeService.deleteProductType(req.params.id);
+            const projectId = req.user?.projectId || req.projectId;
+            await productTypeService.deleteProductType(req.params.id, projectId);
             res.status(204).send();
         } catch (err) {
             if (err.status) {

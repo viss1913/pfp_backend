@@ -4,30 +4,57 @@ class PdsCofinIncomeBracketsRepository {
     /**
      * Получить все диапазоны доходов, отсортированные по income_from
      */
-    async findAll() {
-        return db('pds_cofin_income_brackets')
-            .select('*')
-            .orderBy('income_from', 'asc');
+    async findAll(projectId = null) {
+        const query = db('pds_cofin_income_brackets').select('*');
+
+        query.where((builder) => {
+            if (projectId) {
+                builder.where('project_id', projectId).orWhereNull('project_id');
+            } else {
+                builder.whereNull('project_id');
+            }
+        });
+
+        return query.orderBy('income_from', 'asc');
     }
 
     /**
      * Получить диапазон по ID
      */
-    async findById(id) {
-        return db('pds_cofin_income_brackets').where({ id }).first();
+    async findById(id, projectId = null) {
+        const query = db('pds_cofin_income_brackets').where({ id });
+        if (projectId) {
+            query.where((builder) => {
+                builder.where('project_id', projectId).orWhereNull('project_id');
+            });
+        } else {
+            query.whereNull('project_id');
+        }
+        return query.first();
     }
 
     /**
      * Найти диапазон для конкретного среднемесячного дохода
      * @param {number} monthlyIncome - Среднемесячный доход (₽/мес)
      */
-    async findByIncome(monthlyIncome) {
-        return db('pds_cofin_income_brackets')
+    async findByIncome(monthlyIncome, projectId = null) {
+        const query = db('pds_cofin_income_brackets')
             .where('income_from', '<=', monthlyIncome)
-            .where(function() {
+            .where(function () {
                 this.where('income_to', '>=', monthlyIncome)
-                    .orWhereNull('income_to'); // NULL означает "нет верхней границы"
-            })
+                    .orWhereNull('income_to');
+            });
+
+        query.where((builder) => {
+            if (projectId) {
+                builder.where('project_id', projectId).orWhereNull('project_id');
+            } else {
+                builder.whereNull('project_id');
+            }
+        });
+
+        return query
+            .orderBy('project_id', 'desc')
             .orderBy('income_from', 'asc')
             .first();
     }
@@ -35,15 +62,16 @@ class PdsCofinIncomeBracketsRepository {
     /**
      * Создать новый диапазон
      */
-    async create(bracketData) {
+    async create(bracketData, projectId = null) {
         const { income_from, income_to, ratio_numerator, ratio_denominator } = bracketData;
-        
+
         const insertData = {
             income_from: parseInt(income_from),
             ratio_numerator: parseInt(ratio_numerator),
-            ratio_denominator: parseInt(ratio_denominator)
+            ratio_denominator: parseInt(ratio_denominator),
+            project_id: projectId
         };
-        
+
         if (income_to !== undefined && income_to !== null) {
             insertData.income_to = parseInt(income_to);
         } else {
@@ -57,9 +85,9 @@ class PdsCofinIncomeBracketsRepository {
     /**
      * Обновить диапазон
      */
-    async update(id, bracketData) {
+    async update(id, bracketData, projectId = null) {
         const updateData = {};
-        
+
         if (bracketData.income_from !== undefined) {
             updateData.income_from = parseInt(bracketData.income_from);
         }
@@ -72,19 +100,30 @@ class PdsCofinIncomeBracketsRepository {
         if (bracketData.ratio_denominator !== undefined) {
             updateData.ratio_denominator = parseInt(bracketData.ratio_denominator);
         }
-        
+
         updateData.updated_at = new Date();
 
-        return db('pds_cofin_income_brackets')
-            .where({ id })
-            .update(updateData);
+        const query = db('pds_cofin_income_brackets').where({ id });
+        if (projectId) {
+            query.where('project_id', projectId);
+        } else {
+            query.whereNull('project_id');
+        }
+
+        return query.update(updateData);
     }
 
     /**
      * Удалить диапазон
      */
-    async delete(id) {
-        return db('pds_cofin_income_brackets').where({ id }).del();
+    async delete(id, projectId = null) {
+        const query = db('pds_cofin_income_brackets').where({ id });
+        if (projectId) {
+            query.where('project_id', projectId);
+        } else {
+            query.whereNull('project_id');
+        }
+        return query.del();
     }
 }
 

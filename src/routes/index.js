@@ -48,7 +48,9 @@ router.use('/admin/insurance/home-owners', authMiddleware, adminHomeOwnersRoutes
 
 // Admin PFP Routes
 const adminPfpRoutes = require('./adminPfpRoutes');
+const adminProjectRoutes = require('./adminProjectRoutes');
 router.use('/admin/pfp', authMiddleware, adminPfpRoutes);
+router.use('/admin/projects', authMiddleware, adminProjectRoutes);
 
 // Alias for potentially mismatched frontend path:
 router.use('/ai', authMiddleware, aiRoutes);

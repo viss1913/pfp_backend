@@ -1,8 +1,14 @@
 const db = require('../config/database');
 
 class ProductTypeRepository {
-    async findAll(filters = {}) {
+    async findAll(projectId = null, filters = {}) {
         const query = db('product_types').select('*');
+
+        if (projectId) {
+            query.where(builder => {
+                builder.where({ project_id: projectId }).orWhereNull('project_id');
+            });
+        }
 
         if (filters.is_active !== undefined) {
             query.where('is_active', filters.is_active);
@@ -14,12 +20,24 @@ class ProductTypeRepository {
         return query;
     }
 
-    async findById(id) {
-        return db('product_types').where({ id }).first();
+    async findById(id, projectId = null) {
+        let query = db('product_types').where({ id });
+        if (projectId) {
+            query.where(builder => {
+                builder.where({ project_id: projectId }).orWhereNull('project_id');
+            });
+        }
+        return query.first();
     }
 
-    async findByCode(code) {
-        return db('product_types').where({ code }).first();
+    async findByCode(code, projectId = null) {
+        let query = db('product_types').where({ code });
+        if (projectId) {
+            query.where(builder => {
+                builder.where({ project_id: projectId }).orWhereNull('project_id');
+            });
+        }
+        return query.first();
     }
 
     async create(data) {

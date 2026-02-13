@@ -8,22 +8,25 @@ class ClientRepository {
         return id;
     }
 
-    async findById(id, trx = null) {
-        const query = knex('clients').where({ id }).first();
+    async findById(id, projectId = null, trx = null) {
+        const query = knex('clients').where({ id });
+        if (projectId) query.where({ project_id: projectId });
         if (trx) query.transacting(trx);
-        return query;
+        return query.first();
     }
 
-    async findByEmail(email, trx = null) {
-        const query = knex('clients').where({ email }).first();
+    async findByEmail(email, projectId = null, trx = null) {
+        const query = knex('clients').where({ email });
+        if (projectId) query.where({ project_id: projectId });
         if (trx) query.transacting(trx);
-        return query;
+        return query.first();
     }
 
-    async update(id, data, trx = null) {
-        const query = knex('clients').where({ id }).update(data);
+    async update(id, data, projectId = null, trx = null) {
+        const query = knex('clients').where({ id });
+        if (projectId) query.where({ project_id: projectId });
         if (trx) query.transacting(trx);
-        return query;
+        return query.update(data);
     }
 
     // --- Related Entities ---
@@ -135,12 +138,13 @@ class ClientRepository {
         return clientObj;
     }
 
-    async findAllByAgent(agentId, options = {}) {
+    async findAllByAgent(agentId, projectId = null, options = {}) {
         const { limit = null, page = 1, sort = 'created_at', order = 'desc', search = '' } = options;
         const offset = limit ? (page - 1) * limit : 0;
 
         // Base query
         let query = knex('clients').where({ agent_id: agentId });
+        if (projectId) query.where({ project_id: projectId });
 
         // Apply search filter if provided
         if (search) {

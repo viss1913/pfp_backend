@@ -111,12 +111,38 @@ class ClientService {
         });
     }
 
-    async getFullClient(id) {
-        return await clientRepository.getFullClientData(id);
+    async getFullClient(id, projectId = null) {
+        const client = await clientRepository.findById(id, projectId);
+        if (!client) return null;
+
+        const [assets, liabilities, expenses, goals] = await Promise.all([
+            clientRepository.getAssets(id),
+            clientRepository.getLiabilities(id),
+            clientRepository.getExpenses(id),
+            clientRepository.getGoals(id)
+        ]);
+
+        const clientObj = {
+            ...client,
+            assets,
+            liabilities,
+            expenses,
+            goals
+        };
+
+        if (typeof clientObj.goals_summary === 'string') {
+            try {
+                clientObj.goals_summary = JSON.parse(clientObj.goals_summary);
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        return clientObj;
     }
 
-    async updateClient(id, data) {
-        return await clientRepository.update(id, data);
+    async updateClient(id, data, projectId = null) {
+        return await clientRepository.update(id, data, projectId);
     }
 
     async updateFinancialAggregates(clientId, trx = null) {
@@ -240,8 +266,8 @@ class ClientService {
         });
     }
 
-    async getClientsByAgent(agentId, options = {}) {
-        return await clientRepository.findAllByAgent(agentId, options);
+    async getClientsByAgent(agentId, projectId = null, options = {}) {
+        return await clientRepository.findAllByAgent(agentId, projectId, options);
     }
 
     async addGoal(clientId, goalData) {

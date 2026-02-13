@@ -8,7 +8,7 @@ class TaxService {
      * @returns {Promise<{taxAmount: number, effectiveRate: number, brackets: Array}>}
      */
 
-    async calculateNdfl(annualIncome, year, cachedTaxBrackets = null) {
+    async calculateNdfl(annualIncome, year, cachedTaxBrackets = null, projectId = null) {
         // 1. Try to use Cached Rates if provided
         let rates;
         if (cachedTaxBrackets && Array.isArray(cachedTaxBrackets) && cachedTaxBrackets.length > 0) {
@@ -23,8 +23,15 @@ class TaxService {
             // 2. Fallback: Use "Standard/Current" Rates
             if (!rates || rates.length === 0) {
                 try {
-                    rates = await knex('tax_2ndfl_brackets')
-                        .orderBy('order_index', 'asc');
+                    const query = knex('tax_2ndfl_brackets');
+                    if (projectId) {
+                        query.where(builder => {
+                            builder.where('project_id', projectId).orWhereNull('project_id');
+                        }).orderBy('project_id', 'desc');
+                    } else {
+                        query.whereNull('project_id');
+                    }
+                    rates = await query.orderBy('order_index', 'asc');
                 } catch (e) {
                     console.warn('TaxService: Failed to fetch from tax_2ndfl_brackets', e.message);
                 }

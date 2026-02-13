@@ -186,6 +186,7 @@ class ClientController {
     async listByAgent(req, res, next) {
         try {
             const agentId = req.user.agentId;
+            const projectId = req.user.projectId || req.projectId;
             if (!agentId) {
                 return res.status(400).json({ error: 'Agent ID not found in token' });
             }
@@ -194,7 +195,7 @@ class ClientController {
             const limit = req.query.limit || 50;
             const { sort, order, search } = req.query;
 
-            const clients = await clientService.getClientsByAgent(agentId, { page, limit, sort, order, search });
+            const clients = await clientService.getClientsByAgent(agentId, projectId, { page, limit, sort, order, search });
             if (clients.data) {
                 clients.data = clients.data.map(c => calculationService.simplify(c));
             }
@@ -207,7 +208,8 @@ class ClientController {
     async get(req, res, next) {
         try {
             const { id } = req.params;
-            const client = await clientService.getFullClient(id);
+            const projectId = req.user?.projectId || req.projectId;
+            const client = await clientService.getFullClient(id, projectId);
             if (!client) {
                 return res.status(404).json({ error: 'Client not found' });
             }
@@ -221,14 +223,15 @@ class ClientController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
+            const projectId = req.user.projectId || req.projectId;
 
-            const existing = await clientService.getFullClient(id);
-            if (!existing || existing.agent_id != agentId) {
+            const existing = await clientService.getFullClient(id, projectId);
+            if (!existing || (existing.agent_id && existing.agent_id != agentId)) {
                 return res.status(404).json({ error: 'Client not found or access denied' });
             }
 
             await clientService.updateFullClient(id, req.body);
-            const updated = await clientService.getFullClient(id);
+            const updated = await clientService.getFullClient(id, projectId);
             res.json(calculationService.simplify(updated));
         } catch (err) {
             next(err);
@@ -239,9 +242,10 @@ class ClientController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
+            const projectId = req.user.projectId || req.projectId;
 
             // 1. Fetch Existing Client Data
-            const existingClient = await clientService.getFullClient(id);
+            const existingClient = await clientService.getFullClient(id, projectId);
             if (!existingClient) {
                 return res.status(404).json({ error: 'Client not found' });
             }

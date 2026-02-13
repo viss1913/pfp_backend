@@ -6,6 +6,7 @@ const YAML = require('yamljs');
 const path = require('path');
 const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
+const tenantMiddleware = require('./middlewares/tenantMiddleware');
 
 const app = express();
 
@@ -30,11 +31,13 @@ app.use(helmet({
 
 app.use(express.json());
 
-// Request logging middleware
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     next();
 });
+
+// Tenant identification
+app.use(tenantMiddleware);
 
 // Swagger
 const swaggerDocument = YAML.load(path.join(__dirname, '../openapi/pfp-api.yaml'));

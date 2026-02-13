@@ -20,10 +20,12 @@ async function authMiddleware(req, res, next) {
             req.user = {
                 id: decoded.user_id || decoded.id, // Support new (user_id) and legacy (id) formats
                 agentId: decoded.agentId,
+                projectId: decoded.projectId,
                 uuid: decoded.id, // The UUID for SMM integration
                 email: decoded.email,
                 role: decoded.role,
-                isAdmin: decoded.role === 'admin'
+                isAdmin: ['admin', 'super_admin'].includes(decoded.role),
+                isSuperAdmin: decoded.role === 'super_admin'
             };
 
             return next();
@@ -37,19 +39,23 @@ async function authMiddleware(req, res, next) {
                 return res.status(401).json({ error: 'Invalid API Key' });
             }
             req.user = agentContext;
+            req.projectId = agentContext.projectId; // API Keys are also tied to projects
             return next();
         }
 
         // 3. Legacy Authentication (x-agent-id)
         // TODO: Disable in production or log warning
         const agentId = req.headers['x-agent-id'];
+        const projectContextId = req.headers['x-project-id']; // For testing
         const role = req.headers['x-role'];
 
         if (agentId) {
             req.user = {
                 id: parseInt(agentId),
                 agentId: parseInt(agentId),
-                isAdmin: role === 'admin',
+                projectId: projectContextId ? parseInt(projectContextId) : null,
+                isAdmin: ['admin', 'super_admin'].includes(role),
+                isSuperAdmin: role === 'super_admin',
                 role: role || 'agent',
                 isLegacy: true
             };

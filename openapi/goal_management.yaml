@@ -23,6 +23,7 @@ paths:
           schema:
             type: integer
           description: ID Клиента
+        - $ref: './pfp-api-v1.2.yaml#/components/parameters/ProjectKeyHeader'
       requestBody:
         required: true
         content:
@@ -56,6 +57,7 @@ paths:
           schema:
             type: integer
           description: ID Цели
+        - $ref: './pfp-api-v1.2.yaml#/components/parameters/ProjectKeyHeader'
       responses:
         '200':
           description: Цель удалена, план пересчитан.

@@ -70,8 +70,8 @@ const portfolioUpdateSchema = Joi.object({
 class PortfolioController {
     async getAll(req, res, next) {
         try {
-            const agentId = req.user.agentId;
-            const result = await portfolioService.getAllPortfolios(agentId, req.query);
+            const projectId = req.user.projectId || req.projectId;
+            const result = await portfolioService.getAllPortfolios(projectId, req.query);
             res.json(result);
         } catch (err) {
             next(err);
@@ -89,7 +89,8 @@ class PortfolioController {
 
     async getById(req, res, next) {
         try {
-            const result = await portfolioService.getPortfolioById(req.params.id);
+            const projectId = req.user.projectId || req.projectId;
+            const result = await portfolioService.getPortfolioById(req.params.id, projectId);
             if (!result) return res.status(404).json({ error: 'Portfolio not found' });
             res.json(result);
         } catch (err) {
@@ -121,56 +122,30 @@ class PortfolioController {
             // Normalize classes: if it's an array of objects, extract IDs
             if (normalizedData.classes !== undefined && Array.isArray(normalizedData.classes)) {
                 if (normalizedData.classes.length > 0 && typeof normalizedData.classes[0] === 'object' && normalizedData.classes[0] !== null) {
-                    // It's an array of objects, extract IDs
                     normalizedData.classes = normalizedData.classes.map(c => typeof c === 'object' && c !== null ? c.id : c).filter(id => id !== undefined && id !== null);
-                    console.log('Normalized classes from objects to IDs:', normalizedData.classes);
                 }
-                // If it's already an array of numbers, keep it as is
             }
 
-            // Convert old format (initial_capital/initial_replenishment) to new format (instruments)
+            // Convert old format to new format
             if (normalizedData.riskProfiles) {
                 normalizedData.riskProfiles = normalizedData.riskProfiles.map(profile => {
-                    // If already in new format (has instruments), use it
-                    if (profile.instruments !== undefined) {
-                        return profile;
-                    }
-
-                    // Convert old format to new format
+                    if (profile.instruments !== undefined) return profile;
                     const instruments = [];
-
-                    // Convert initial_capital
                     if (profile.initial_capital && Array.isArray(profile.initial_capital)) {
-                        profile.initial_capital.forEach(item => {
-                            instruments.push({
-                                ...item,
-                                bucket_type: 'INITIAL_CAPITAL'
-                            });
-                        });
+                        profile.initial_capital.forEach(item => instruments.push({ ...item, bucket_type: 'INITIAL_CAPITAL' }));
                     }
-
-                    // Convert initial_replenishment or top_up (legacy)
                     const replenishment = profile.initial_replenishment || profile.top_up;
                     if (replenishment && Array.isArray(replenishment)) {
-                        replenishment.forEach(item => {
-                            instruments.push({
-                                ...item,
-                                bucket_type: 'TOP_UP'
-                            });
-                        });
+                        replenishment.forEach(item => instruments.push({ ...item, bucket_type: 'TOP_UP' }));
                     }
-
-                    // Return profile with converted instruments
                     const { initial_capital, initial_replenishment, top_up, ...rest } = profile;
-                    return {
-                        ...rest,
-                        instruments: instruments.length > 0 ? instruments : undefined
-                    };
+                    return { ...rest, instruments: instruments.length > 0 ? instruments : undefined };
                 });
             }
 
             const agentId = req.user.agentId;
-            const result = await portfolioService.createPortfolio(agentId, normalizedData);
+            const projectId = req.user.projectId || req.projectId;
+            const result = await portfolioService.createPortfolio(agentId, projectId, normalizedData);
             res.status(201).json(result);
         } catch (err) {
             next(err);
@@ -267,22 +242,12 @@ class PortfolioController {
 
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId || req.projectId;
+            const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
 
-            console.log('Calling updatePortfolio with:', {
-                id,
-                agentId,
-                isAdmin,
-                normalizedDataKeys: Object.keys(normalizedData),
-                hasRiskProfiles: !!normalizedData.riskProfiles
-            });
-
-            const result = await portfolioService.updatePortfolio(id, agentId, isAdmin, normalizedData);
-            console.log('Update successful');
+            const result = await portfolioService.updatePortfolio(id, agentId, projectId, isAdmin, normalizedData);
             res.json(result);
         } catch (err) {
-            console.error('Error in portfolio update:', err);
-            console.error('Error stack:', err.stack);
             next(err);
         }
     }
@@ -291,16 +256,12 @@ class PortfolioController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
-            const isAdmin = req.user.isAdmin;
+            const projectId = req.user.projectId || req.projectId;
+            const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
 
-            console.log(`=== Portfolio Delete Request ===`);
-            console.log(`ID: ${id}, AgentID: ${agentId}, IsAdmin: ${isAdmin}`);
-
-            await portfolioService.deletePortfolio(id, agentId, isAdmin);
-            console.log(`Delete successful for ID: ${id}`);
+            await portfolioService.deletePortfolio(id, agentId, projectId, isAdmin);
             res.status(204).send();
         } catch (err) {
-            console.error(`Error in portfolio delete:`, err);
             next(err);
         }
     }
@@ -309,8 +270,9 @@ class PortfolioController {
         try {
             const { id } = req.params;
             const agentId = req.user.agentId;
+            const projectId = req.user.projectId || req.projectId;
 
-            const result = await portfolioService.clonePortfolio(id, agentId);
+            const result = await portfolioService.clonePortfolio(id, agentId, projectId);
             res.status(201).json(result);
         } catch (err) {
             next(err);
