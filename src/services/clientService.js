@@ -43,10 +43,10 @@ class ClientService {
 
             // 1. Check if client exists by email (Upsert logic)
             if (clientData.email) {
-                const existing = await clientRepository.findByEmail(clientData.email, trx);
+                const existing = await clientRepository.findByEmail(clientData.email, null, trx);
                 if (existing) {
                     clientId = existing.id;
-                    await clientRepository.update(clientId, clientData, trx);
+                    await clientRepository.update(clientId, clientData, null, trx);
 
                     // Clear existing related data to replace with new data (Fresh Start)
                     await clientRepository.deleteAssets(clientId, trx);
@@ -170,7 +170,7 @@ class ClientService {
             assets_total: assetsTotal,
             liabilities_total: liabilitiesTotal,
             net_worth: netWorth
-        }, trx);
+        }, null, trx);
 
         return { assetsTotal, liabilitiesTotal, netWorth };
     }
@@ -202,7 +202,7 @@ class ClientService {
             delete clientData.id;
 
             // 1. Update Profile
-            await clientRepository.update(clientId, clientData, trx);
+            await clientRepository.update(clientId, clientData, null, trx);
 
             // 2. Refresh Related Data (Clear and add new ones)
             if (data.assets) {
