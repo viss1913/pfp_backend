@@ -58,6 +58,14 @@ class ClientService {
 
             // 2. Create if not found/no email
             if (!clientId) {
+                // Security: ensure project_id is set. Fallback to agent's project if missing.
+                if (!clientData.project_id && clientData.agent_id) {
+                    const agent = await trx('agents').where({ id: clientData.agent_id }).first();
+                    if (agent) {
+                        clientData.project_id = agent.project_id;
+                        console.log(`[ClientService] Set missing project_id ${agent.project_id} from agent ${agent.id}`);
+                    }
+                }
                 clientId = await clientRepository.create(clientData, trx);
             }
 
