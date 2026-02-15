@@ -59,8 +59,16 @@ class ConstructorBotService {
 
                 // ВАЖНО: URL должен быть публично доступным.
                 // В реальном приложении это будет https://domain.com/api/constructor/webhook/max/BOT_ID
-                const webhookUrl = process.env.BASE_URL
-                    ? `${process.env.BASE_URL}/api/constructor/webhook/max/${botData.id}`
+                let baseUrl = process.env.BASE_URL;
+                if (baseUrl && !baseUrl.startsWith('http')) {
+                    baseUrl = `https://${baseUrl}`;
+                }
+                if (baseUrl && baseUrl.endsWith('/')) {
+                    baseUrl = baseUrl.slice(0, -1);
+                }
+
+                const webhookUrl = baseUrl
+                    ? `${baseUrl}/api/pfp/constructor/webhook/max/${botData.id}`
                     : null;
 
                 if (webhookUrl) {
