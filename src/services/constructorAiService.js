@@ -30,7 +30,9 @@ class ConstructorAiService {
 
         const commands = await knex('constructor_commands')
             .where('bot_id', bot.id)
-            .orWhere('is_template', true)
+            .orWhere(function () {
+                this.where('is_template', true).andWhere('project_id', bot.project_id);
+            })
             .orderByRaw('bot_id DESC, is_template ASC'); // Бот > Шаблон
 
         console.log(`[AI Step 1] Found ${commands.length} commands.`);
@@ -166,9 +168,12 @@ class ConstructorAiService {
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
-        // Получаем активные контексты Мозга (Brain)
+        // Получаем активные контексты Мозга (Brain) для конкретного проекта
         const brainContexts = await knex('constructor_brain_contexts')
-            .where('is_active', true)
+            .where({
+                is_active: true,
+                project_id: bot.project_id
+            })
             .orderBy('priority', 'desc');
 
         const brainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');

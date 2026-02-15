@@ -261,6 +261,7 @@ class ConstructorController {
      */
     async getCommands(req, res) {
         const { bot_id, is_template } = req.query;
+        const projectId = req.projectId || req.user?.projectId;
         try {
             let query = knex('constructor_commands');
 
@@ -268,9 +269,11 @@ class ConstructorController {
                 query = query.where('bot_id', bot_id);
             } else if (is_template !== undefined) {
                 query = query.where('is_template', is_template === 'true' || is_template === true);
+                if (projectId) query = query.andWhere('project_id', projectId);
             } else {
-                // По умолчанию возвращаем шаблоны
+                // По умолчанию возвращаем шаблоны текущего проекта
                 query = query.where('is_template', true);
+                if (projectId) query = query.andWhere('project_id', projectId);
             }
 
             const commands = await query.orderBy('created_at', 'desc');
@@ -283,6 +286,7 @@ class ConstructorController {
 
     async createCommand(req, res) {
         const { command, classifier, response, section, is_template, bot_id } = req.body;
+        const projectId = req.projectId || req.user?.projectId;
         try {
             const [id] = await knex('constructor_commands').insert({
                 command,
@@ -290,7 +294,8 @@ class ConstructorController {
                 response,
                 section,
                 is_template: is_template || (bot_id ? false : true),
-                bot_id: bot_id || null
+                bot_id: bot_id || null,
+                project_id: projectId || null
             });
             res.json({ id, success: true });
         } catch (error) {
@@ -335,8 +340,13 @@ class ConstructorController {
      * GET /admin/constructor/brain-contexts
      */
     async getBrainContexts(req, res) {
+        const projectId = req.projectId || req.user?.projectId;
         try {
-            const contexts = await knex('constructor_brain_contexts').orderBy('priority', 'desc');
+            const query = knex('constructor_brain_contexts');
+            if (projectId) {
+                query.where('project_id', projectId);
+            }
+            const contexts = await query.orderBy('priority', 'desc');
             res.json(contexts);
         } catch (error) {
             res.status(500).json({ error: 'Failed to get brain contexts' });
@@ -348,12 +358,14 @@ class ConstructorController {
      */
     async createBrainContext(req, res) {
         const { title, content, is_active, priority } = req.body;
+        const projectId = req.projectId || req.user?.projectId;
         try {
             const [id] = await knex('constructor_brain_contexts').insert({
                 title,
                 content,
                 is_active: is_active !== undefined ? is_active : true,
-                priority: priority || 0
+                priority: priority || 0,
+                project_id: projectId || null
             });
             res.json({ success: true, id });
         } catch (error) {
