@@ -445,10 +445,10 @@ class ConstructorController {
                     // Отправляем ответ (текст или объект с документом)
                     const constructorBotService = require('../services/constructorBotService');
                     const messageContent = typeof response === 'object' ? response : { text: response };
-                    await constructorBotService.sendMessageToClient(bot.id, userId, messageContent);
+                    // ВАЖНО: Используем chatId для отправки ответа в MAX
+                    await constructorBotService.sendMessageToClient(bot.id, chatId, messageContent);
 
-                    // Если был документ, он уже отправлен, но его нужно удалить (хотя ConstructorBotService для Telegram это делает сам, для MAX я этого не добавил)
-                    // Добавим очистку в ConstructorBotService.sendMessageToClient для MAX или здесь.
+                    // Очистка документа, если он был отправлен
                     if (typeof response === 'object' && response.document) {
                         const fs = require('fs');
                         fs.unlink(response.document, (err) => {
