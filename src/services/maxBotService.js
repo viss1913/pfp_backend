@@ -34,6 +34,28 @@ class MaxBotService {
     }
 
     /**
+     * Отправка действия (например, "печатает")
+     * @param {string} action - 'typing_on', 'mark_seen' и т.д.
+     */
+    async sendChatAction(token, recipientId, action = 'typing_on') {
+        try {
+            const response = await axios.post(`${this.apiUrl}/chats/${recipientId}/actions`, {
+                action: action
+            }, {
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('[MAX API] sendChatAction error:', error.response?.data || error.message);
+            // Не кидаем ошибку выше, так как это вспомогательное действие
+            return null;
+        }
+    }
+
+    /**
      * Отправка документа (PDF)
      */
     async sendDocument(token, recipientId, filePath, caption = '') {
