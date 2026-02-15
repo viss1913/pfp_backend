@@ -2,6 +2,7 @@ const aiService = require('./aiService');
 const knex = require('../config/database');
 const homeOwnersCalculator = require('./calculators/HomeOwnersCalculator');
 const { generateHomeOwnersPdf } = require('../utils/pdfGenerator');
+const calculationService = require('./calculationService');
 const path = require('path');
 const fs = require('fs');
 
@@ -162,6 +163,73 @@ class ConstructorAiService {
     }
 
     /**
+     * Извлечение комплексных параметров для финансового плана (/firstRun)
+     */
+    async extractFinancialPlanParams(session, userMessage) {
+        const history = await knex('constructor_logs')
+            .where('session_id', session.id)
+            .orderBy('created_at', 'desc')
+            .limit(15);
+
+        const historyText = history.reverse().map(log =>
+            `User: ${log.input_text}\nAssistant: ${log.response_generated}`
+        ).join('\n');
+
+        const fullContext = historyText + `\nUser: ${userMessage}`;
+
+        const prompt = [
+            {
+                role: 'system',
+                content: `Ты — финансовый аналитик. Твоя задача: извлечь данные о клиенте и его целях из диалога для расчета финансового плана (на текущий 2026 год).
+
+Возвращай ТОЛЬКО чистый JSON по следующей структуре:
+{
+  "client": {
+    "sex": "male" или "female",
+    "birth_date": "YYYY-MM-DD",
+    "avg_monthly_income": число (доход в месяц),
+    "total_liquid_capital": число (текущие накопления)
+  },
+  "goals": [
+    {
+      "goal_type_id": число (1-Пенсия, 2-Пассивный доход, 3-Инвестиции, 4-Квартира, 6-Машина, 9-Другое),
+      "name": "Название цели",
+      "target_amount": число (желаемая сумма),
+      "term_months": число (через сколько месяцев),
+      "desired_monthly_income": число (только для типа 1 и 2)
+    }
+  ]
+}
+
+ПРАВИЛА:
+1. Если какое-то поле не найдено, используй значения по умолчанию: birth_date "1990-01-01", income 100000, capital 0.
+2. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
+3. Если целей нет, массив "goals" пуст.
+`
+            },
+            {
+                role: 'user',
+                content: `Диалог:\n${fullContext}`
+            }
+        ];
+
+        try {
+            console.log(`[AI Extraction] Extracting Financial Params...`);
+            const result = await aiService.getCompletion(prompt);
+            const cleanResult = result.replace(/```json|```/g, '').trim();
+            const extracted = JSON.parse(cleanResult);
+            console.log(`[AI Extraction] Extracted:`, extracted);
+            return extracted;
+        } catch (error) {
+            console.error('[AI] Error extracting financial params:', error);
+            return {
+                client: { sex: 'male', birth_date: '1990-01-01', avg_monthly_income: 100000, total_liquid_capital: 0 },
+                goals: []
+            };
+        }
+    }
+
+    /**
      * Шаг 2: Генерация ответа (Послойный промпт)
      */
     async generateResponse(session, command, userMessage, calculationResult = null) {
@@ -208,7 +276,17 @@ ${calculationResult ? `
 ВНИМАНИЕ! РАСЧЕТ ВЫПОЛНЕН. ТЫ ОБЯЗАН ИСПОЛЬЗОВАТЬ ДАННЫЕ ИЗ ЭТОГО JSON ДЛЯ ОТВЕТА ПОЛЬЗОВАТЕЛЮ:
 ${JSON.stringify(calculationResult, null, 2)}
 
-Инструкция для ИИ: презентуй итоговую стоимость (total_premium) и кратко перечисли лимиты (limits), по которым шел расчет, чтобы подтвердить, что ты всё правильно понял.
+Инструкция для ИИ по интерпретации JSON:
+${calculationResult.summary ? `
+Это ПОЛНЫЙ ФИНАНСОВЫЙ ПЛАН.
+1. Озвучь итоговый капитал (summary.total_capital) к концу срока.
+2. Пройдись по основным целям в массиве "goals" (назови цель, срок и сколько нужно инвестировать ежемесячно).
+3. Упомяни налоговую выгоду и софинансирование от государства (summary.total_state_benefit).
+4. Если есть "consolidated_portfolio", кратко скажи, что план сбалансирован.
+` : `
+Это расчет СТРАХОВАНИЯ ИМУЩЕСТВА.
+Презентуй итоговую стоимость (total_premium) и кратко перечисли лимиты (limits), по которым шел расчет.
+`}
 ` : ''}
 
 СЛОЙ 4 (ДАННЫЕ О КЛИЕНТЕ):
@@ -250,6 +328,9 @@ ${!historyMessages.length ? `
      * Полный цикл обработки сообщения
      */
     async processMessage(botId, userId, nickname, userMessage) {
+        const bot = await knex('constructor_bots').where('id', botId).first();
+        if (!bot) return "Бот не найден.";
+
         if (userMessage && userMessage.trim().toLowerCase() === '/reset') {
             console.log(`[Lifecycle] Reset command received from ${nickname} (${userId})`);
 
@@ -335,6 +416,26 @@ ${!historyMessages.length ? `
                 }
             } catch (calcErr) {
                 console.error('[Flow] Calculation failed:', calcErr);
+            }
+        } else if (nextCommand && nextCommand.command === '/firstRun') {
+            const extraction = await this.extractFinancialPlanParams(session, userMessage);
+            console.log(`[Flow] Performing Full Financial Plan Calculation for client:`, client.nickname);
+
+            try {
+                // Подготавливаем данные для calculationService
+                const calcData = {
+                    client: {
+                        ...client,
+                        ...extraction.client,
+                        project_id: bot.project_id
+                    },
+                    goals: extraction.goals || []
+                };
+
+                calculationResult = await calculationService.calculateFirstRun(calcData);
+                console.log(`[Flow] FirstRun Calculation Success. Total Capital: ${calculationResult.summary?.total_capital}`);
+            } catch (calcErr) {
+                console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
         }
 
