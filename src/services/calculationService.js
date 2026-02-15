@@ -359,7 +359,9 @@ class CalculationService {
                 const yearsToRet = Math.max(retAge - (new Date().getFullYear() - birthYear), 0.5);
                 term = Math.round(yearsToRet * 12);
 
-                if (target > 0 && target < 5000000) target = target * 150;
+                if (goal.desired_monthly_income > 0) {
+                    target = goal.desired_monthly_income;
+                }
             } else if (goal.goal_type_id === 2) { // PASSIVE_INCOME
                 if (goal.desired_monthly_income > 0) {
                     target = goal.desired_monthly_income * 150;
@@ -476,13 +478,22 @@ class CalculationService {
             }
 
             // 2. Sort goals by Priority
-            const indexedGoals = (goals || []).map((g, i) => ({ goal: g, index: i }))
-                .sort((a, b) => {
-                    const pA = a.goal.priority || this._getPriority(a.goal);
-                    const pB = b.goal.priority || this._getPriority(b.goal);
-                    if (pA !== pB) return pA - pB;
-                    return (a.goal.term_months || 0) - (b.goal.term_months || 0);
-                });
+            const indexedGoals = (goals || []).map((g, i) => {
+                // [FIX] For Pension goals, if desired_monthly_income is missing, default to 70% of current income
+                if (g.goal_type_id === 1 && (!g.desired_monthly_income || g.desired_monthly_income <= 0)) {
+                    const currentIncome = clientData.avg_monthly_income || 0;
+                    if (currentIncome > 0) {
+                        g.desired_monthly_income = currentIncome * 0.7;
+                        console.log(`[CalculationService] Auto-set desired_monthly_income for Pension to 70% of income: ${g.desired_monthly_income}`);
+                    }
+                }
+                return { goal: g, index: i };
+            }).sort((a, b) => {
+                const pA = a.goal.priority || this._getPriority(a.goal);
+                const pB = b.goal.priority || this._getPriority(b.goal);
+                if (pA !== pB) return pA - pB;
+                return (a.goal.term_months || 0) - (b.goal.term_months || 0);
+            });
 
             // 2.1. Smart Allocation (Burden-Based)
             // Skip if restricted by options OR if we are in partial mode and have previous results
