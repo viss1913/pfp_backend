@@ -427,15 +427,17 @@ class ConstructorController {
             // Сообщение создано
             if (eventType === 'message_created' && payload.message) {
                 const message = payload.message;
+                // ВАЖНО: Для ответа в MAX нужно использовать chat_id из объекта recipient
+                const chatId = message.recipient?.chat_id;
                 const userId = message.sender?.user_id || message.sender?.id;
                 const nickname = message.sender?.name || message.sender?.first_name || userId;
                 const text = message.body?.text || message.text;
 
-                if (userId && text) {
+                if (chatId && text) {
                     const constructorAiService = require('../services/constructorAiService');
                     const response = await constructorAiService.processMessage(
                         bot.id,
-                        userId.toString(),
+                        chatId.toString(),
                         nickname,
                         text
                     );

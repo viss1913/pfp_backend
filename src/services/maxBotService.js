@@ -14,7 +14,7 @@ class MaxBotService {
     async sendMessage(token, recipientId, text) {
         try {
             const response = await axios.post(`${this.apiUrl}/messages`, {
-                user_id: parseInt(recipientId),
+                chat_id: parseInt(recipientId),
                 text: text,
                 format: 'markdown' // Поддержка форматирования
             }, {
@@ -23,7 +23,7 @@ class MaxBotService {
                     'Content-Type': 'application/json'
                 }
             });
-            console.log(`[MAX API] Message sent to ${recipientId}: success`);
+            console.log(`[MAX API] Message sent to chat ${recipientId}: success`);
             return response.data;
         } catch (error) {
             console.error('[MAX API] sendMessage error:', error.response?.data || error.message);
@@ -56,7 +56,7 @@ class MaxBotService {
 
             // Этап 2: Отправка сообщения с вложением
             const response = await axios.post(`${this.apiUrl}/messages`, {
-                user_id: parseInt(recipientId),
+                chat_id: parseInt(recipientId),
                 text: caption,
                 format: 'markdown',
                 attachments: [
@@ -74,7 +74,7 @@ class MaxBotService {
                 }
             });
 
-            console.log(`[MAX API] Document sent to ${recipientId}: success (Token: ${fileToken})`);
+            console.log(`[MAX API] Document sent to chat ${recipientId}: success (Token: ${fileToken})`);
             return response.data;
         } catch (error) {
             console.error('[MAX API] sendDocument error:', error.response?.data || error.message);
