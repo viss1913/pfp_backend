@@ -32,7 +32,7 @@ class AiService {
             throw new Error('OPENROUTER_API_KEY is not set');
         }
 
-        const effectiveModel = model || 'google/gemini-2.5-flash-lite';
+        const effectiveModel = model || 'google/gemini-2.5-flash';
 
         const keyFingerprint = this.apiKey ? `${this.apiKey.substring(0, 6)}...${this.apiKey.substring(this.apiKey.length - 6)}` : 'N/A';
 
@@ -121,7 +121,7 @@ class AiService {
         if (!this.apiKey) throw new Error('OPENROUTER_API_KEY is not set');
 
         // Default to Gemini Flash Lite if not specified
-        const effectiveModel = model || 'google/gemini-2.5-flash-lite';
+        const effectiveModel = model || 'google/gemini-2.5-flash';
 
         const maxRetries = 3;
         let lastError = null;
