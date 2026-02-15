@@ -218,7 +218,16 @@ class ConstructorAiService {
             const result = await aiService.getCompletion(prompt);
             const cleanResult = result.replace(/```json|```/g, '').trim();
             const extracted = JSON.parse(cleanResult);
-            console.log(`[AI Extraction] Extracted:`, extracted);
+
+            // Настаиваем на BALANCED для всех целей из мессенджера
+            if (extracted.goals && Array.isArray(extracted.goals)) {
+                extracted.goals = extracted.goals.map(g => ({
+                    ...g,
+                    risk_profile: 'BALANCED'
+                }));
+            }
+
+            console.log(`[AI Extraction] Extracted with Balanced Profile:`, extracted);
             return extracted;
         } catch (error) {
             console.error('[AI] Error extracting financial params:', error);
