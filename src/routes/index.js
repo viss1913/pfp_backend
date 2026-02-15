@@ -11,8 +11,13 @@ const agentRoutes = require('./agentRoutes');
 const router = express.Router();
 const tenantMiddleware = require('../middlewares/tenantMiddleware');
 
-// Public auth routes (no middleware)
+// Public routes
 router.use('/auth', authRoutes);
+
+// Public Constructor Webhooks (no auth, no tenant middleware)
+const constructorController = require('../controllers/constructorController');
+router.post('/pfp/constructor/webhook/max/:botId', constructorController.handleMaxWebhook);
+router.post('/admin/constructor/webhook/max/:botId', constructorController.handleMaxWebhook);
 
 // Helper for combined auth + tenant
 const pfpMiddleware = [authMiddleware, tenantMiddleware];

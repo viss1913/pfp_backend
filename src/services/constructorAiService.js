@@ -238,13 +238,13 @@ ${client.user_context || 'Информации о клиенте пока нет
     /**
      * Полный цикл обработки сообщения
      */
-    async processMessage(botId, telegramUserId, nickname, userMessage) {
+    async processMessage(botId, userId, nickname, userMessage) {
         if (userMessage && userMessage.trim().toLowerCase() === '/reset') {
-            console.log(`[Lifecycle] Reset command received from ${nickname} (${telegramUserId})`);
+            console.log(`[Lifecycle] Reset command received from ${nickname} (${userId})`);
 
             // Получаем клиента перед удалением для логов
             const clientToDelete = await knex('constructor_clients')
-                .where({ bot_id: botId, user_id: telegramUserId })
+                .where({ bot_id: botId, user_id: userId })
                 .first();
 
             if (clientToDelete) {
@@ -257,13 +257,13 @@ ${client.user_context || 'Информации о клиенте пока нет
         }
 
         let client = await knex('constructor_clients')
-            .where({ bot_id: botId, user_id: telegramUserId })
+            .where({ bot_id: botId, user_id: userId })
             .first();
 
         if (!client) {
             [client] = await knex('constructor_clients').insert({
                 bot_id: botId,
-                user_id: telegramUserId,
+                user_id: userId,
                 nickname: nickname
             });
             client = await knex('constructor_clients').where('id', client).first();
@@ -278,7 +278,7 @@ ${client.user_context || 'Информации о клиенте пока нет
             session = await knex('constructor_sessions').where('id', session).first();
         }
 
-        console.log(`\n--- Processing Message from ${nickname} (${telegramUserId}) ---`);
+        console.log(`\n--- Processing Message from ${nickname} (${userId}) ---`);
         console.log(`[Flow] Session ID: ${session.id}, Current Command ID: ${session.current_command_id}`);
 
         // 1. Классификация

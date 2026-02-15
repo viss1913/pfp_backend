@@ -12,16 +12,24 @@ router.post('/broadcast', constructorController.broadcast);
 
 // Админские роуты
 router.get('/bots', constructorController.getAllBots);
-router.post('/templates', constructorController.createTemplate);
-router.post('/constructor_commands', constructorController.createTemplate);
-router.get('/templates', constructorController.getTemplates);
-router.get('/constructor_commands', constructorController.getTemplates);
-router.put('/templates/:id', constructorController.updateTemplate);
-router.patch('/templates/:id', constructorController.updateTemplate);
-router.put('/constructor_commands/:id', constructorController.updateTemplate);
-router.patch('/constructor_commands/:id', constructorController.updateTemplate);
-router.delete('/templates/:id', constructorController.deleteTemplate);
-router.delete('/constructor_commands/:id', constructorController.deleteTemplate);
+
+// Конструктор команд (Универсальный: шаблоны и команды ботов)
+router.get('/commands', constructorController.getCommands);
+router.post('/commands', constructorController.createCommand);
+router.put('/commands/:id', constructorController.updateCommand);
+router.delete('/commands/:id', constructorController.deleteCommand);
+
+// Алиасы для обратной совместимости (опционально)
+router.get('/templates', constructorController.getCommands);
+router.post('/templates', constructorController.createCommand);
+router.post('/constructor_commands', constructorController.createCommand);
+router.get('/constructor_commands', constructorController.getCommands);
+router.put('/templates/:id', constructorController.updateCommand);
+router.patch('/templates/:id', constructorController.updateCommand);
+router.put('/constructor_commands/:id', constructorController.updateCommand);
+router.patch('/constructor_commands/:id', constructorController.updateCommand);
+router.delete('/templates/:id', constructorController.deleteCommand);
+router.delete('/constructor_commands/:id', constructorController.deleteCommand);
 
 // Brain Contexts (Admin)
 router.get('/brain-contexts', constructorController.getBrainContexts);
@@ -32,5 +40,8 @@ router.put('/brain-contexts/:id', constructorController.updateBrainContext);
 router.put('/constructor_brain_contexts/:id', constructorController.updateBrainContext);
 router.delete('/brain-contexts/:id', constructorController.deleteBrainContext);
 router.delete('/constructor_brain_contexts/:id', constructorController.deleteBrainContext);
+
+// Public Webhooks (should be called without authMiddleware in index.js)
+router.post('/webhook/max/:botId', constructorController.handleMaxWebhook);
 
 module.exports = router;

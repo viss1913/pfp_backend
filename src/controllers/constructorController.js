@@ -11,10 +11,11 @@ class ConstructorController {
     async registerBot(req, res) {
         const agentId = req.user.agentId || req.user.id;
         const projectId = req.projectId || req.user?.projectId;
-        const { name, link, token, communication_style, base_brain_context } = req.body;
+        const { name, link, token, communication_style, base_brain_context, bot_type, webhook_secret } = req.body;
 
         try {
-            let bot = await knex('constructor_bots').where({ agent_id: agentId, project_id: projectId }).first();
+            const type = bot_type || 'telegram';
+            let bot = await knex('constructor_bots').where({ agent_id: agentId, project_id: projectId, bot_type: type }).first();
 
             if (bot) {
                 await knex('constructor_bots')
@@ -23,6 +24,7 @@ class ConstructorController {
                         name,
                         link,
                         token,
+                        webhook_secret,
                         communication_style,
                         base_brain_context,
                         updated_at: knex.fn.now()
@@ -34,6 +36,8 @@ class ConstructorController {
                     name,
                     link,
                     token,
+                    webhook_secret,
+                    bot_type: type,
                     communication_style,
                     base_brain_context
                 });
@@ -60,15 +64,26 @@ class ConstructorController {
 
     /**
      * GET /pfp/constructor/bot
+     * Получение всех ботов агента (Telegram, MAX и др.)
      */
     async getMyBot(req, res) {
         const agentId = req.user.agentId || req.user.id;
         const projectId = req.projectId || req.user?.projectId;
+        const { bot_type } = req.query;
+
         try {
-            const bot = await knex('constructor_bots').where({ agent_id: agentId, project_id: projectId }).first();
-            res.json(bot || {});
+            let query = knex('constructor_bots').where({ agent_id: agentId, project_id: projectId });
+
+            if (bot_type) {
+                query = query.where('bot_type', bot_type);
+                const bot = await query.first();
+                return res.json(bot || {});
+            }
+
+            const bots = await query.orderBy('created_at', 'desc');
+            res.json(bots);
         } catch (error) {
-            res.status(500).json({ error: 'Failed to get bot' });
+            res.status(500).json({ error: 'Failed to get bots' });
         }
     }
 
@@ -77,18 +92,30 @@ class ConstructorController {
      */
     async getMyClients(req, res) {
         const agentId = req.user.agentId || req.user.id;
-        try {
-            const bot = await knex('constructor_bots').where('agent_id', agentId).first();
-            if (!bot) return res.json([]);
+        const { bot_id } = req.query;
 
-            // Получаем список клиентов с текущей стадией и последним сообщением
+        try {
+            // Либо берем конкретного бота, либо всех ботов агента
+            let botIdsQuery = knex('constructor_bots').where('agent_id', agentId);
+            if (bot_id) {
+                botIdsQuery = botIdsQuery.where('id', bot_id);
+            }
+            const bots = await botIdsQuery.select('id');
+            const botIds = bots.map(b => b.id);
+
+            if (botIds.length === 0) return res.json([]);
+
+            // Получаем список клиентов для всех (или одного) ботов агента
             const clients = await knex('constructor_clients as c')
-                .where('c.bot_id', bot.id)
+                .whereIn('c.bot_id', botIds)
                 .leftJoin('constructor_sessions as s', 'c.id', 's.client_id')
                 .leftJoin('constructor_commands as cmd', 's.current_command_id', 'cmd.id')
+                .leftJoin('constructor_bots as b', 'c.bot_id', 'b.id')
                 .select(
                     'c.*',
-                    'cmd.command as current_stage'
+                    'cmd.command as current_stage',
+                    'b.bot_type',
+                    'b.name as bot_name'
                 )
                 .orderBy('c.updated_at', 'desc');
 
@@ -229,42 +256,51 @@ class ConstructorController {
     }
 
     /**
-     * POST /admin/constructor/templates
+     * GET /commands
+     * Получение списка команд (шаблонов или команд конкретного бота)
      */
-    async createTemplate(req, res) {
-        const { command, classifier, response, section } = req.body;
+    async getCommands(req, res) {
+        const { bot_id, is_template } = req.query;
         try {
-            await knex('constructor_commands').insert({
+            let query = knex('constructor_commands');
+
+            if (bot_id) {
+                query = query.where('bot_id', bot_id);
+            } else if (is_template !== undefined) {
+                query = query.where('is_template', is_template === 'true' || is_template === true);
+            } else {
+                // По умолчанию возвращаем шаблоны
+                query = query.where('is_template', true);
+            }
+
+            const commands = await query.orderBy('created_at', 'desc');
+            res.json(commands);
+        } catch (error) {
+            console.error('getCommands error:', error);
+            res.status(500).json({ error: 'Failed to fetch commands' });
+        }
+    }
+
+    async createCommand(req, res) {
+        const { command, classifier, response, section, is_template, bot_id } = req.body;
+        try {
+            const [id] = await knex('constructor_commands').insert({
                 command,
                 classifier,
                 response,
                 section,
-                is_template: true
+                is_template: is_template || (bot_id ? false : true),
+                bot_id: bot_id || null
             });
-            res.json({ success: true });
+            res.json({ id, success: true });
         } catch (error) {
-            res.status(500).json({ error: 'Failed to create template' });
+            res.status(500).json({ error: 'Failed to create command' });
         }
     }
 
-    /**
-     * GET /admin/constructor/templates
-     */
-    async getTemplates(req, res) {
-        try {
-            const templates = await knex('constructor_commands').where('is_template', true);
-            res.json(templates);
-        } catch (error) {
-            res.status(500).json({ error: 'Failed to get templates' });
-        }
-    }
-
-    /**
-     * PUT /admin/constructor/templates/:id
-     */
-    async updateTemplate(req, res) {
+    async updateCommand(req, res) {
         const { id } = req.params;
-        const { command, classifier, response, section } = req.body;
+        const { command, classifier, response, section, is_template, bot_id } = req.body;
         try {
             await knex('constructor_commands')
                 .where('id', id)
@@ -273,24 +309,23 @@ class ConstructorController {
                     classifier,
                     response,
                     section,
+                    is_template,
+                    bot_id,
                     updated_at: knex.fn.now()
                 });
             res.json({ success: true });
         } catch (error) {
-            res.status(500).json({ error: 'Failed to update template' });
+            res.status(500).json({ error: 'Failed to update command' });
         }
     }
 
-    /**
-     * DELETE /admin/constructor/templates/:id
-     */
-    async deleteTemplate(req, res) {
+    async deleteCommand(req, res) {
         const { id } = req.params;
         try {
             await knex('constructor_commands').where('id', id).del();
             res.json({ success: true });
         } catch (error) {
-            res.status(500).json({ error: 'Failed to delete template' });
+            res.status(500).json({ error: 'Failed to delete command' });
         }
     }
 
@@ -358,6 +393,70 @@ class ConstructorController {
             res.json({ success: true });
         } catch (error) {
             res.status(500).json({ error: 'Failed to delete brain context' });
+        }
+    }
+
+    /**
+     * POST /webhook/max/:botId
+     * Обработка входящих сообщений от MAX Messenger
+     */
+    async handleMaxWebhook(req, res) {
+        const { botId } = req.params;
+        const payload = req.body; // Ожидаем JSON от MAX
+        const signature = req.headers['x-max-bot-api-secret'];
+
+        try {
+            const bot = await knex('constructor_bots').where('id', botId).first();
+            if (!bot) {
+                console.error(`[MAX Webhook] Bot ${botId} not found`);
+                return res.status(404).send('Bot not found');
+            }
+
+            // Проверка секрета (если задан)
+            if (bot.webhook_secret && bot.webhook_secret !== signature) {
+                console.warn(`[MAX Webhook] Invalid secret for bot ${botId}`);
+                return res.status(403).send('Invalid secret');
+            }
+
+            console.log(`[MAX Webhook] Received event for bot ${botId}: ${payload.type}`);
+
+            // Самое важное событие - message_created
+            if (payload.type === 'message_created') {
+                const message = payload.object;
+                const userId = message.sender?.id;
+                const nickname = message.sender?.name || message.sender?.nick || userId;
+                const text = message.text;
+
+                if (userId && text) {
+                    const constructorAiService = require('../services/constructorAiService');
+                    const response = await constructorAiService.processMessage(
+                        bot.id,
+                        userId.toString(),
+                        nickname,
+                        text
+                    );
+
+                    // Отправляем ответ (текст или объект с документом)
+                    const constructorBotService = require('../services/constructorBotService');
+                    const messageContent = typeof response === 'object' ? response : { text: response };
+                    await constructorBotService.sendMessageToClient(bot.id, userId, messageContent);
+
+                    // Если был документ, он уже отправлен, но его нужно удалить (хотя ConstructorBotService для Telegram это делает сам, для MAX я этого не добавил)
+                    // Добавим очистку в ConstructorBotService.sendMessageToClient для MAX или здесь.
+                    if (typeof response === 'object' && response.document) {
+                        const fs = require('fs');
+                        fs.unlink(response.document, (err) => {
+                            if (err) console.error('[MAX] Cleanup failed:', err);
+                        });
+                    }
+                }
+            }
+
+            // MAX ожидает 200 OK в ответ на вебхук
+            res.status(200).json({ success: true });
+        } catch (error) {
+            console.error(`[MAX Webhook] Internal Error:`, error);
+            res.status(500).send('Internal Server Error');
         }
     }
 }
