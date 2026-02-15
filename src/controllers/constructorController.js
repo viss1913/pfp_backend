@@ -424,42 +424,48 @@ class ConstructorController {
             const eventType = payload.update_type || payload.type;
             console.log(`[MAX Webhook] Received event for bot ${botId}: ${eventType}`);
 
-            // Сообщение создано
+            // Обработка событий
+            let chatId, userId, nickname, text;
+
             if (eventType === 'message_created' && payload.message) {
                 const message = payload.message;
-                // ВАЖНО: Для ответа в MAX нужно использовать chat_id из объекта recipient
-                const chatId = message.recipient?.chat_id;
-                const userId = message.sender?.user_id || message.sender?.id;
-                const nickname = message.sender?.name || message.sender?.first_name || userId;
-                const text = message.body?.text || message.text;
+                chatId = message.recipient?.chat_id;
+                userId = message.sender?.user_id || message.sender?.id;
+                nickname = message.sender?.name || message.sender?.first_name || userId;
+                text = message.body?.text || message.text;
+            } else if (eventType === 'bot_started') {
+                // Пользователь нажал кнопку "Начать" или впервые открыл бота
+                chatId = payload.chat_id;
+                userId = payload.user?.user_id || payload.user?.id;
+                nickname = payload.user?.name || payload.user?.first_name || userId;
+                text = '/start'; // Имитируем команду старта для ИИ
+            }
 
-                if (chatId && text) {
-                    const constructorAiService = require('../services/constructorAiService');
-                    const response = await constructorAiService.processMessage(
-                        bot.id,
-                        chatId.toString(),
-                        nickname,
-                        text
-                    );
+            if (chatId && text) {
+                const constructorAiService = require('../services/constructorAiService');
+                const response = await constructorAiService.processMessage(
+                    bot.id,
+                    chatId.toString(),
+                    nickname,
+                    text
+                );
 
-                    // Отправляем ответ (текст или объект с документом)
-                    const constructorBotService = require('../services/constructorBotService');
-                    const messageContent = typeof response === 'object' ? response : { text: response };
-                    // ВАЖНО: Используем chatId для отправки ответа в MAX
-                    await constructorBotService.sendMessageToClient(bot.id, chatId, messageContent);
+                // Отправляем ответ (текст или объект с документом)
+                const constructorBotService = require('../services/constructorBotService');
+                const messageContent = typeof response === 'object' ? response : { text: response };
+                // ВАЖНО: Используем chatId для отправки ответа в MAX
+                await constructorBotService.sendMessageToClient(bot.id, chatId, messageContent);
 
-                    // Очистка документа, если он был отправлен
-                    if (typeof response === 'object' && response.document) {
-                        const fs = require('fs');
-                        fs.unlink(response.document, (err) => {
-                            if (err) console.error('[MAX] Cleanup failed:', err);
-                        });
-                    }
+                // Логика очистки (если был отправлен документ)
+                if (typeof response === 'object' && response.document) {
+                    const fs = require('fs');
+                    fs.unlink(response.document, (err) => {
+                        if (err) console.error('[MAX] Cleanup failed:', err);
+                    });
                 }
             }
 
-            // MAX ожидает 200 OK в ответ на вебхук
-            res.status(200).json({ success: true });
+            return res.status(200).json({ status: 'ok' });
         } catch (error) {
             console.error(`[MAX Webhook] Internal Error:`, error);
             res.status(500).send('Internal Server Error');
