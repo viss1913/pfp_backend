@@ -14,10 +14,12 @@ class MaxBotService {
     async sendMessage(token, recipientId, text) {
         try {
             const response = await axios.post(`${this.apiUrl}/messages`, {
-                chat_id: parseInt(recipientId),
                 text: text,
                 format: 'markdown' // Поддержка форматирования
             }, {
+                params: {
+                    chat_id: parseInt(recipientId)
+                },
                 headers: {
                     'Authorization': token,
                     'Content-Type': 'application/json'
@@ -36,27 +38,32 @@ class MaxBotService {
      */
     async sendDocument(token, recipientId, filePath, caption = '') {
         try {
-            // Этап 1: Загрузка файла для получения токена
+            // Этап 1: Получение URL для загрузки и токена
+            console.log(`[MAX API] Getting upload URL for: ${path.basename(filePath)}...`);
+            const uploadInitRes = await axios.post(`${this.apiUrl}/uploads`, {}, {
+                params: { type: 'file' },
+                headers: { 'Authorization': token }
+            });
+
+            const { url: uploadUrl, token: fileToken } = uploadInitRes.data;
+            if (!uploadUrl || !fileToken) {
+                throw new Error('Failed to get upload URL or token from MAX API');
+            }
+
+            // Этап 2: Загрузка файла на полученный URL
             const form = new FormData();
-            // По документации поле называется 'data'
             form.append('data', fs.createReadStream(filePath));
 
-            console.log(`[MAX API] Uploading file: ${path.basename(filePath)}...`);
-            const uploadRes = await axios.post(`${this.apiUrl}/uploads?type=file`, form, {
+            console.log(`[MAX API] Uploading file to ${uploadUrl}...`);
+            await axios.post(uploadUrl, form, {
                 headers: {
                     'Authorization': token,
                     ...form.getHeaders()
                 }
             });
 
-            const fileToken = uploadRes.data.token;
-            if (!fileToken) {
-                throw new Error('Failed to get file token from MAX API');
-            }
-
-            // Этап 2: Отправка сообщения с вложением
+            // Этап 3: Отправка сообщения с вложением
             const response = await axios.post(`${this.apiUrl}/messages`, {
-                chat_id: parseInt(recipientId),
                 text: caption,
                 format: 'markdown',
                 attachments: [
@@ -68,6 +75,9 @@ class MaxBotService {
                     }
                 ]
             }, {
+                params: {
+                    chat_id: parseInt(recipientId)
+                },
                 headers: {
                     'Authorization': token,
                     'Content-Type': 'application/json'
