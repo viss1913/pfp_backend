@@ -418,6 +418,7 @@ class ConstructorController {
                 return res.status(403).send('Invalid secret');
             }
 
+            console.log(`[MAX Webhook] Payload for bot ${botId}:`, JSON.stringify(payload, null, 2));
             console.log(`[MAX Webhook] Received event for bot ${botId}: ${payload.type}`);
 
             // Самое важное событие - message_created
