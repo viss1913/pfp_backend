@@ -289,18 +289,30 @@ class PortfolioRepository {
         }
         const found = candidates.find(p => {
             let classes = p.classes;
+            // Robust parsing of classes field
             if (typeof classes === 'string' && classes.trim() !== '') {
                 try {
                     classes = JSON.parse(classes);
                 } catch (e) {
-                    // Try comma-separated
-                    classes = classes.split(',').map(c => Number(c.trim()));
+                    // Try comma-separated if JSON fails
+                    classes = classes.split(',').map(c => c.trim());
                 }
             }
             if (!Array.isArray(classes)) {
-                classes = classes ? [Number(classes)] : [];
+                classes = classes !== null && classes !== undefined ? [classes] : [];
             }
-            return classes.includes(Number(classId));
+
+            // Convert everything to numbers for reliable comparison
+            const targetId = Number(classId);
+            const isMatch = classes.some(c => Number(c) === targetId);
+
+            if (!isMatch) {
+                console.log(`[PortfolioRepo] Portfolio ${p.id} classes ${JSON.stringify(classes)} do not contain ${targetId}`);
+            } else {
+                console.log(`[PortfolioRepo] Portfolio ${p.id} matched class ${targetId}`);
+            }
+
+            return isMatch;
         });
 
         return found ? this._transformPortfolio(found, db) : null;
