@@ -419,14 +419,17 @@ class ConstructorController {
             }
 
             console.log(`[MAX Webhook] Payload for bot ${botId}:`, JSON.stringify(payload, null, 2));
-            console.log(`[MAX Webhook] Received event for bot ${botId}: ${payload.type}`);
 
-            // Самое важное событие - message_created
-            if (payload.type === 'message_created') {
-                const message = payload.object;
-                const userId = message.sender?.id;
-                const nickname = message.sender?.name || message.sender?.nick || userId;
-                const text = message.text;
+            // Проверяем тип события (в реальном логе это update_type)
+            const eventType = payload.update_type || payload.type;
+            console.log(`[MAX Webhook] Received event for bot ${botId}: ${eventType}`);
+
+            // Сообщение создано
+            if (eventType === 'message_created' && payload.message) {
+                const message = payload.message;
+                const userId = message.sender?.user_id || message.sender?.id;
+                const nickname = message.sender?.name || message.sender?.first_name || userId;
+                const text = message.body?.text || message.text;
 
                 if (userId && text) {
                     const constructorAiService = require('../services/constructorAiService');
