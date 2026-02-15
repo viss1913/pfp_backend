@@ -146,30 +146,49 @@ class AiService {
             effectiveModel = 'Qwen/Qwen2.5-14B-Instruct';
         }
 
-        try {
-            const response = await axios.post(
-                `${this.baseUrl}/chat/completions`,
-                {
-                    model: effectiveModel,
-                    messages: messages,
-                    stream: false // key difference
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${this.apiKey}`,
-                        'Content-Type': 'application/json'
+        const maxRetries = 3;
+        let lastError = null;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await axios.post(
+                    `${this.baseUrl}/chat/completions`,
+                    {
+                        model: effectiveModel,
+                        messages: messages,
+                        stream: false
+                    },
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${this.apiKey}`,
+                            'Content-Type': 'application/json'
+                        },
+                        timeout: 30000 // 30 seconds timeout
+                    }
+                );
+                return response.data.choices[0].message.content;
+            } catch (error) {
+                lastError = error;
+                const status = error.response ? error.response.status : 'No Response';
+                console.error(`❌ SiliconFlow attempt ${attempt}/${maxRetries} failed (Status: ${status}):`, error.message);
+
+                // If it's a 500 error or timeout, we might want to switch model on the last attempt
+                if (attempt < maxRetries) {
+                    const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+                    console.log(`🔄 Retrying in ${delay / 1000}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+
+                    // On second and third attempt, if it was a 500, try a different stable model as fallback
+                    if (status >= 500 && attempt === 2) {
+                        console.warn('⚠️ Switching to fallback model: Qwen/Qwen2.5-7B-Instruct');
+                        effectiveModel = 'Qwen/Qwen2.5-7B-Instruct';
                     }
                 }
-            );
-            return response.data.choices[0].message.content;
-        } catch (error) {
-            console.error('❌ SiliconFlow completion error:', error.message);
-            if (error.response) {
-                console.error('   Data:', error.response.data);
             }
-            // Fallback or rethrow
-            throw error;
         }
+
+        console.error('❌ All AI attempts failed.');
+        throw lastError;
     }
 }
 
