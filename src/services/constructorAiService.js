@@ -395,8 +395,11 @@ ${!historyMessages.length ? `
         let calculationResult = null;
         let pdfPath = null;
 
+        // Нормализация команды для сравнения (убираем регистр и пробелы)
+        const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
+
         // Если перешли на стадию расчета или получили команду принудительно
-        if (nextCommand && nextCommand.command === '/homeOwnersCalc') {
+        if (cmdKey === '/homeownerscalc') {
             const limits = await this.extractHomeOwnersParams(session, userMessage);
             console.log(`[Flow] Performing Home Owners Calculation with limits:`, limits);
 
@@ -426,9 +429,11 @@ ${!historyMessages.length ? `
             } catch (calcErr) {
                 console.error('[Flow] Calculation failed:', calcErr);
             }
-        } else if (nextCommand && nextCommand.command === '/firstRun') {
+        } else if (cmdKey === '/firstrun') {
+            console.log('[Flow] DEBUG: /firstRun command detected. Starting extraction...');
             const extraction = await this.extractFinancialPlanParams(session, userMessage);
             console.log(`[Flow] Performing Full Financial Plan Calculation for client:`, client.nickname);
+            console.log(`[Flow] Extraction Result:`, JSON.stringify(extraction, null, 2));
 
             try {
                 // Подготавливаем данные для calculationService
@@ -441,11 +446,14 @@ ${!historyMessages.length ? `
                     goals: extraction.goals || []
                 };
 
+                console.log('[Flow] DEBUG: Calling calculationService.calculateFirstRun with:', JSON.stringify(calcData, null, 2));
                 calculationResult = await calculationService.calculateFirstRun(calcData);
                 console.log(`[Flow] FirstRun Calculation Success. Total Capital: ${calculationResult.summary?.total_capital}`);
             } catch (calcErr) {
                 console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
+        } else {
+            console.log(`[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeOwnersCalc or /firstRun`);
         }
 
         // 2. Генерация ответа
