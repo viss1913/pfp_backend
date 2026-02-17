@@ -1,0 +1,406 @@
+openapi: 3.0.0
+info:
+  title: PFP B2C API (Client Cabinet)
+  version: 1.0.0
+  description: API for client self-registration and personal financial cabinet.
+servers:
+  - url: /api
+    description: Main API server
+
+security:
+  - bearerAuth: []
+
+paths:
+  # --- AUTHENTICATION (Public) ---
+  /auth/register-client:
+    post:
+      tags:
+        - Registration
+      summary: Step 1: Initiate client registration
+      description: Sends a 6-digit verification code to the client's email.
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - name
+                - project_key
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: client@example.com
+                name:
+                  type: string
+                  example: "Иван Иванов"
+                project_key:
+                  type: string
+                  description: Public key of the project (e.g., pk_...)
+                  example: pk_9cfe10dcec21667bd5c557ea
+      responses:
+        '200':
+          description: Verification code sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  email:
+                    type: string
+                  expires_in_minutes:
+                    type: integer
+        '400':
+          description: Invalid input or project not found
+        '409':
+          description: User already exists
+
+  /auth/verify-code:
+    post:
+      tags:
+        - Registration
+      summary: Step 2: Verify code and create account
+      description: Verifies the email code and creates a user (role 'client') and a client profile.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - code
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                  minLength: 6
+                  maxLength: 6
+                  example: "123456"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "secret123"
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid code or password
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Client Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  # --- CLIENT CABINET (Protected) ---
+  /my/plan:
+    get:
+      tags:
+        - Cabinet
+      summary: Get my financial plan
+      description: Returns the authenticated client's full profile and financial plan.
+      responses:
+        '200':
+          description: Client profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientFullData'
+    
+  /my/plan/first-run:
+    post:
+      tags:
+        - Cabinet
+      summary: Create or update initial financial plan
+      description: Performs full calculation and saves the plan for the authenticated client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculationRequest'
+      responses:
+        '200':
+          description: Calculation result and plan saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResult'
+
+  /my/plan/{goalId}/recalculate:
+    post:
+      tags:
+        - Cabinet
+      summary: Recalculate specific goal
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_amount:
+                  type: number
+                term_months:
+                  type: integer
+                risk_profile:
+                  type: string
+                  enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+                client:
+                  type: object
+                  description: Personal data updates
+      responses:
+        '200':
+          description: Recalculation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResult'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  parameters:
+    ProjectKeyHeader:
+      name: x-project-key
+      in: header
+      required: false
+      description: Public Project Key
+      schema:
+        type: string
+
+  schemas:
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+            email:
+              type: string
+            name:
+              type: string
+            role:
+              type: string
+              example: client
+            clientId:
+              type: integer
+            projectId:
+              type: integer
+
+    ClientFullData:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        project_id:
+          type: integer
+        goals_summary:
+          type: object
+          description: Last calculation results snapshot
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalculationGoalWithId'
+        assets:
+          type: array
+          items:
+            type: object
+
+    CalculationRequest:
+      type: object
+      required:
+        - goals
+      properties:
+        goals:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CalculationGoal'
+          description: Array of goals to calculate
+        client:
+          $ref: '#/components/schemas/ClientData'
+
+    CalculationGoal:
+      type: object
+      required:
+        - goal_type_id
+        - name
+        - risk_profile
+      properties:
+        goal_type_id:
+          type: integer
+          description: Portfolio class ID. 5 for LIFE, 7 for FIN_RESERVE, 8 for RENT, 2 for PASSIVE_INCOME
+        name:
+          type: string
+          description: Goal name
+        target_amount:
+          type: number
+          description: Target amount (or monthly income for PASSIVE_INCOME)
+        term_months:
+          type: integer
+          description: Term in months
+        risk_profile:
+          type: string
+          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+        initial_capital:
+          type: number
+          default: 0
+        inflation_rate:
+          type: number
+        avg_monthly_income:
+          type: number
+        start_date:
+          type: string
+          format: date
+        monthly_replenishment:
+          type: number
+        payment_variant:
+          type: integer
+          enum: [0, 1, 2, 4, 12]
+          description: NSJ payment variant (LIFE goals)
+        program:
+          type: string
+          description: NSJ product code
+
+    CalculationGoalWithId:
+      allOf:
+        - $ref: '#/components/schemas/CalculationGoal'
+        - type: object
+          properties:
+            id:
+              type: integer
+            goal_id:
+              type: integer
+
+    ClientData:
+      type: object
+      properties:
+        birth_date:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum: [male, female, M, F]
+        fio:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+
+    CalculationResponse:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            goals_count:
+              type: integer
+            total_capital:
+              type: number
+            total_state_benefit:
+              type: number
+        goals:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/GenericCalculationResult'
+              - $ref: '#/components/schemas/LifeCalculationResult'
+              - $ref: '#/components/schemas/PassiveIncomeCalculationResult'
+
+    GenericCalculationResult:
+      type: object
+      properties:
+        goal_id: { type: integer }
+        goal_name: { type: string }
+        financials:
+          type: object
+          properties:
+            cost_initial: { type: number }
+            cost_with_inflation: { type: number }
+            capital_gap: { type: number }
+            recommended_replenishment: { type: number }
+        summary:
+          type: object
+          properties:
+            success: { type: boolean }
+
+    LifeCalculationResult:
+      type: object
+      properties:
+        goal_id: { type: integer }
+        goal_name: { type: string }
+        nsj_calculation:
+          type: object
+          properties:
+            total_premium: { type: number }
+            total_limit: { type: number }
+
+    PassiveIncomeCalculationResult:
+      type: object
+      properties:
+        goal_id: { type: integer }
+        goal_name: { type: string }
+        passive_income_calculation:
+          type: object
+          properties:
+            required_capital: { type: number }
+            yield_percent: { type: number }

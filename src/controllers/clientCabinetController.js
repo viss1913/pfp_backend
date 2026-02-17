@@ -1,0 +1,269 @@
+const calculationService = require('../services/calculationService');
+const clientService = require('../services/clientService');
+const goalRecalculator = require('../services/recalculators');
+const Joi = require('joi');
+
+// Reuse the same validation schema as clientController
+const calculationRequestSchema = Joi.object({
+    goals: Joi.array().items(Joi.object({
+        goal_type_id: Joi.number().integer().positive().required(),
+        name: Joi.string().required(),
+        target_amount: Joi.number().min(0).optional(),
+        term_months: Joi.number().integer().min(0).optional(),
+        desired_monthly_income: Joi.number().min(0).optional(),
+        risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required(),
+        initial_capital: Joi.number().min(0).optional().default(0),
+        inflation_rate: Joi.number().min(0).optional(),
+        avg_monthly_income: Joi.number().min(0).optional(),
+        start_date: Joi.string().optional(),
+        payment_variant: Joi.number().integer().valid(0, 1, 2, 4, 12).optional(),
+        program: Joi.string().optional(),
+        monthly_replenishment: Joi.number().min(0).optional(),
+        id: Joi.string().optional(),
+        priority: Joi.number().integer().min(1).max(10).optional()
+    })).min(1).required(),
+    client: Joi.object({
+        risk_profile_answers: Joi.object().pattern(
+            Joi.string().regex(/^q[2-9]|q10$/),
+            Joi.number().integer().min(1).max(5)
+        ).optional()
+    }).optional()
+}).options({ allowUnknown: true });
+
+/**
+ * Client Cabinet Controller
+ * 
+ * All methods work with the authenticated client's own data.
+ * clientId is always taken from JWT token (req.user.clientId).
+ * No access to other clients' data.
+ */
+class ClientCabinetController {
+
+    /**
+     * GET /my/plan — Get the client's own financial plan
+     */
+    async getMyPlan(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+            const client = await clientService.getFullClient(clientId, projectId);
+            if (!client) {
+                return res.status(404).json({ error: 'Client profile not found' });
+            }
+
+            res.json(calculationService.simplify(client));
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /my/plan/first-run — Create the client's first financial plan
+     */
+    async createMyPlan(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            // Validate
+            const validation = calculationRequestSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map(d => ({
+                        field: d.path.join('.'),
+                        message: d.message
+                    }))
+                });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+
+            // Inject project and client context
+            if (!req.body.client) req.body.client = {};
+            req.body.client.project_id = projectId;
+
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context is missing' });
+            }
+
+            console.log(`[ClientCabinet] createMyPlan for clientId=${clientId}, project=${projectId}`);
+
+            // Perform calculation
+            const calculationResponse = await calculationService.calculateFirstRun(
+                req.body, null, null, { isFirstRun: true, usePool: true }
+            );
+            const calculation = calculationResponse.calculation || calculationResponse;
+
+            // Update existing client record (don't create new one)
+            const existingClient = await clientService.getFullClient(clientId, projectId);
+            if (!existingClient) {
+                return res.status(404).json({ error: 'Client profile not found' });
+            }
+
+            // Merge client data with existing profile
+            const updateData = {
+                client: {
+                    ...req.body.client,
+                    id: clientId,
+                    risk_profile_answers: req.body.client?.risk_profile_answers
+                        ? JSON.stringify(req.body.client.risk_profile_answers)
+                        : undefined
+                },
+                goals: req.body.goals
+            };
+            await clientService.updateFullClient(clientId, updateData);
+
+            // Sync goal IDs
+            await this._syncGoalsWithDatabase(clientId, calculation);
+
+            // Save calculation snapshot
+            await clientService.updateClient(clientId, {
+                goals_summary: JSON.stringify(calculationResponse)
+            });
+
+            calculationResponse.client_id = clientId;
+            res.json(calculationService.simplify(calculationResponse));
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /my/plan/:goalId/recalculate — Recalculate a specific goal
+     */
+    async recalculateGoal(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const { goalId } = req.params;
+            const projectId = req.projectId || req.user.projectId;
+
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context missing' });
+            }
+
+            // Fetch existing client data
+            const existingClient = await clientService.getFullClient(clientId, projectId);
+            if (!existingClient) {
+                return res.status(404).json({ error: 'Client profile not found' });
+            }
+
+            // Build goals map from DB
+            const existingGoals = (existingClient.goals || []).map(g => {
+                let parsed = { ...g };
+                let fromParams = {};
+                if (typeof g.params === 'string') {
+                    try { fromParams = JSON.parse(g.params); } catch (e) { }
+                } else if (typeof g.params === 'object' && g.params !== null) {
+                    fromParams = g.params;
+                }
+                parsed = { ...fromParams, ...g };
+                const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income', 'id', 'goal_id'];
+                numericFields.forEach(field => {
+                    if (parsed[field] !== undefined && parsed[field] !== null) parsed[field] = Number(parsed[field]);
+                });
+                return parsed;
+            });
+
+            const goalsMap = new Map();
+            existingGoals.forEach(g => { if (g.id) goalsMap.set(String(g.id), g); });
+
+            let identifiedTargetId = null;
+
+            // Apply updates to target goal
+            if (goalId && goalsMap.has(String(goalId))) {
+                const existing = goalsMap.get(String(goalId));
+                const updated = goalRecalculator.prepare(existing, req.body);
+                goalsMap.set(String(goalId), updated);
+                identifiedTargetId = String(goalId);
+            } else {
+                return res.status(404).json({ error: 'Goal not found' });
+            }
+
+            const goalsToCalculate = Array.from(goalsMap.values());
+
+            // Merge client data
+            const clientForCalc = {
+                ...existingClient,
+                ...req.body.client,
+                assets: req.body.client?.assets || existingClient.assets || [],
+                total_liquid_capital: req.body.client?.total_liquid_capital !== undefined
+                    ? req.body.client.total_liquid_capital
+                    : (existingClient.total_liquid_capital !== undefined ? Number(existingClient.total_liquid_capital) : (existingClient.assets_total || 0)),
+                risk_profile_answers: req.body.client?.risk_profile_answers || existingClient.risk_profile_answers
+            };
+            clientForCalc.project_id = projectId;
+
+            // Run calculation
+            const calcRequest = { client: clientForCalc, goals: goalsToCalculate };
+            let previousCalculation = null;
+            try {
+                previousCalculation = typeof existingClient.goals_summary === 'string'
+                    ? JSON.parse(existingClient.goals_summary)
+                    : existingClient.goals_summary;
+            } catch (e) { }
+
+            const calculationResponse = await calculationService.calculateFirstRun(
+                calcRequest, identifiedTargetId, previousCalculation,
+                { isFirstRun: false, usePool: false }
+            );
+
+            // Persist
+            const calculation = calculationResponse.calculation || calculationResponse;
+            const updatedGoalData = goalsMap.get(identifiedTargetId);
+            await clientService.updateGoal(clientId, identifiedTargetId, updatedGoalData);
+
+            // Also update client profile if new data (like answers) was provided
+            if (req.body.client) {
+                const clientUpdate = { ...req.body.client };
+                if (clientUpdate.risk_profile_answers) {
+                    clientUpdate.risk_profile_answers = JSON.stringify(clientUpdate.risk_profile_answers);
+                }
+                await clientService.updateClient(clientId, clientUpdate, projectId);
+            }
+
+            await this._syncGoalsWithDatabase(clientId, calculation);
+
+            await clientService.updateClient(clientId, {
+                goals_summary: JSON.stringify(calculationResponse)
+            });
+
+            res.json(calculationService.simplify(calculationResponse));
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Sync calculation goal IDs with database IDs
+     */
+    async _syncGoalsWithDatabase(clientId, calculation) {
+        if (!calculation || !calculation.goals) return;
+
+        const dbData = await clientService.getFullClient(clientId);
+        if (!dbData || !dbData.goals) return;
+
+        calculation.goals.forEach(calcGoal => {
+            const match = dbData.goals.find(dg =>
+                String(dg.name).trim() === String(calcGoal.goal_name || calcGoal.name).trim() &&
+                Number(dg.goal_type_id) === Number(calcGoal.goal_type_id)
+            );
+            if (match) {
+                calcGoal.goal_id = match.id;
+                calcGoal.id = match.id;
+            }
+        });
+    }
+}
+
+module.exports = new ClientCabinetController();

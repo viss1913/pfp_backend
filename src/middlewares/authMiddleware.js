@@ -25,7 +25,8 @@ async function authMiddleware(req, res, next) {
                 email: decoded.email,
                 role: decoded.role,
                 isAdmin: ['admin', 'super_admin'].includes(decoded.role),
-                isSuperAdmin: decoded.role === 'super_admin'
+                isSuperAdmin: decoded.role === 'super_admin',
+                clientId: decoded.clientId || null // For client role
             };
 
             return next();

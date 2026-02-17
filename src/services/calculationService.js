@@ -11,6 +11,7 @@ const lifeInsuranceCalculator = require('./calculators/LifeInsuranceCalculator')
 const finReserveCalculator = require('./calculators/FinReserveCalculator');
 const otherGoalCalculator = require('./calculators/OtherGoalCalculator');
 const rentCalculator = require('./calculators/RentCalculator');
+const riskProfileService = require('./riskProfileService');
 
 const CALCULATORS = {
     1: pensionCalculator,     // PENSION
@@ -531,6 +532,24 @@ class CalculationService {
                 const currentGoalId = String(goal.id || goal.goal_id);
                 const isTarget = !targetGoalId || currentGoalId === String(targetGoalId);
 
+                // [RISK PROFILE] Auto-calculate risk profile based on Dengina methodology
+                if (clientData.risk_profile_answers) {
+                    let answers = clientData.risk_profile_answers;
+                    if (typeof answers === 'string') {
+                        try { answers = JSON.parse(answers); } catch (e) { }
+                    }
+
+                    if (answers && typeof answers === 'object') {
+                        const term = goal.term_months || 0;
+                        const calculatedProfile = riskProfileService.calculateGoalProfile(answers, term);
+
+                        if (calculatedProfile) {
+                            console.log(`[CalculationService] Auto-calculated risk profile for ${goal.name}: ${calculatedProfile} (term: ${term}mo)`);
+                            goal.risk_profile = calculatedProfile;
+                        }
+                    }
+                }
+
                 if (isTarget) {
                     const typeId = goal.goal_type_id;
                     const CalculatorClass = CALCULATORS[typeId] || otherGoalCalculator;
@@ -544,7 +563,8 @@ class CalculationService {
                             goal_name: goal.name || goal.goal_name || result.goal_name || result.name || goal.goal_type || 'Цель',
                             goal_type: result.goal_type || goal.goal_type || 'OTHER',
                             goal_type_id: result.goal_type_id || goal.goal_type_id,
-                            goal_id: result.goal_id || goal.id || goal.goal_id
+                            goal_id: result.goal_id || goal.id || goal.goal_id,
+                            risk_profile: goal.risk_profile
                         };
 
                         resultsIndexed.push({ index, result: wrappedResult });
@@ -593,7 +613,8 @@ class CalculationService {
                             ...prevResult,
                             goal_id: prevResult.goal_id || goal.id || goal.goal_id,
                             goal_name: goal.name || goal.goal_name || prevResult.goal_name || prevResult.name || goal.goal_type || 'Цель',
-                            goal_type: prevResult.goal_type || goal.goal_type || 'OTHER'
+                            goal_type: prevResult.goal_type || goal.goal_type || 'OTHER',
+                            risk_profile: goal.risk_profile || prevResult.risk_profile
                         };
 
                         resultsIndexed.push({ index, result: finalFrozenResult });

@@ -40,6 +40,9 @@ app.use((req, res, next) => {
 const swaggerDocument = YAML.load(path.join(__dirname, '../openapi/pfp-api.yaml'));
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
+const b2cSwaggerDocument = YAML.load(path.join(__dirname, '../openapi/pfpB2C.yaml'));
+app.use('/api-docs-b2c', swaggerUi.serve, swaggerUi.setup(b2cSwaggerDocument));
+
 // Routes
 // Note: tenantMiddleware is now applied within routes to benefit from req.user context
 app.use('/api', routes);

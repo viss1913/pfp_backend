@@ -72,4 +72,9 @@ router.use('/ai', pfpMiddleware, aiRoutes);
 // Alias for direct /chat/stream path (mapping /api/chat/stream):
 router.use('/', pfpMiddleware, aiRoutes);
 
+// Client Cabinet Routes (personal cabinet for self-registered clients)
+const clientCabinetRoutes = require('./clientCabinetRoutes');
+router.use('/my', pfpMiddleware, clientCabinetRoutes);
+
 module.exports = router;
+
