@@ -345,6 +345,19 @@ components:
         email:
           type: string
           format: email
+        risk_profile_answers:
+          type: object
+          description: Answers to risk profiling questionnaire (Dengina method). Q1 is calculated automatically.
+          properties:
+            q2: { type: integer, minimum: 1, maximum: 5 }
+            q3: { type: integer, minimum: 1, maximum: 5 }
+            q4: { type: integer, minimum: 1, maximum: 5 }
+            q5: { type: integer, minimum: 1, maximum: 5 }
+            q6: { type: integer, minimum: 1, maximum: 5 }
+            q7: { type: integer, minimum: 1, maximum: 5 }
+            q8: { type: integer, minimum: 1, maximum: 5 }
+            q9: { type: integer, minimum: 1, maximum: 5 }
+            q10: { type: integer, minimum: 1, maximum: 5 }
 
     CalculationResponse:
       type: object
