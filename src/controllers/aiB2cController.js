@@ -252,6 +252,25 @@ class AiB2cController {
             res.status(500).json({ error: 'Failed to clear history' });
         }
     }
+
+    /** GET /my/ai-b2c/stages — Получить список доступных этапов (для клиента) */
+    async getMyStages(req, res) {
+        try {
+            const projectId = req.user.projectId;
+            const stages = await knex('ai_b2c_stage_contexts')
+                .where({ project_id: projectId, is_active: true })
+                .orWhere(function () {
+                    this.whereNull('project_id').andWhere('is_active', true);
+                })
+                .select('stage_key', 'title')
+                .orderBy('priority', 'desc');
+
+            res.json(stages);
+        } catch (error) {
+            console.error('[AiB2C] Get my stages error:', error);
+            res.status(500).json({ error: 'Failed to get available stages' });
+        }
+    }
 }
 
 module.exports = new AiB2cController();

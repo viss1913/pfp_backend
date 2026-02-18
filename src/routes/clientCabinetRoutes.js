@@ -27,6 +27,9 @@ router.post('/ai-b2c/chat/stream', aiB2cController.sendAiB2cChatStream.bind(aiB2
 // GET /my/ai-b2c/history — Get chat history (?stage=PFP1)
 router.get('/ai-b2c/history', aiB2cController.getAiB2cHistory.bind(aiB2cController));
 
+// GET /my/ai-b2c/stages — Get available stages list for current project
+router.get('/ai-b2c/stages', aiB2cController.getMyStages.bind(aiB2cController));
+
 // DELETE /my/ai-b2c/history — Clear chat history (?stage=PFP1)
 router.delete('/ai-b2c/history', aiB2cController.clearAiB2cHistory.bind(aiB2cController));
 
