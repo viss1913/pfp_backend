@@ -9,7 +9,7 @@
  *   4. История чата (ai_b2c_chat_messages)
  */
 
-const knex = require('../db');
+const knex = require('../config/database');
 const aiService = require('./aiService');
 
 class AiB2cService {

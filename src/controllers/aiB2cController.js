@@ -5,7 +5,7 @@
  * B2C: chat, stream, history
  */
 
-const knex = require('../db');
+const knex = require('../config/database');
 const aiB2cService = require('../services/aiB2cService');
 
 class AiB2cController {
