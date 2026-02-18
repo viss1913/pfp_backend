@@ -2402,8 +2402,8 @@ paths:
               properties:
                 stage_key:
                   type: string
-                  description: 'Уникальный ключ этапа (PFP1, chooseTarget, riskProfile, financialReserve, assets, result)'
-                  example: chooseTarget
+                  description: 'Уникальный ключ этапа (любая строка, придумывается админом)'
+                  example: AI_B2C_site
                 title: { type: string, description: 'Название этапа для админки' }
                 content: { type: string, description: 'Промпт-инструкция для ИИ на этом этапе' }
                 is_active: { type: boolean, default: true }
