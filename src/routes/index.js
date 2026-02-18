@@ -72,6 +72,10 @@ router.use('/ai', pfpMiddleware, aiRoutes);
 // Alias for direct /chat/stream path (mapping /api/chat/stream):
 router.use('/', pfpMiddleware, aiRoutes);
 
+// AI B2C Admin Routes (brain contexts + stage contexts management)
+const aiB2cRoutes = require('./aiB2cRoutes');
+router.use('/admin/ai-b2c', pfpMiddleware, aiB2cRoutes);
+
 // Client Cabinet Routes (personal cabinet for self-registered clients)
 const clientCabinetRoutes = require('./clientCabinetRoutes');
 router.use('/my', pfpMiddleware, clientCabinetRoutes);

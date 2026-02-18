@@ -417,3 +417,112 @@ components:
           properties:
             required_capital: { type: number }
             yield_percent: { type: number }
+
+  # ==================== AI B2C Chat ====================
+
+  /my/ai-b2c/chat:
+    post:
+      summary: Отправить сообщение ИИ-ассистенту (обычный ответ)
+      tags: [AiB2C]
+      description: |
+        Отправляет сообщение ИИ-ассистенту на конкретном этапе.
+        ИИ учитывает:
+        - Базовые знания (Brain Contexts)
+        - Контекст текущего этапа (Stage Context)
+        - Данные клиента (финплан, цели, активы)
+        - Историю чата на этом этапе
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage, message]
+              properties:
+                stage:
+                  type: string
+                  description: Ключ этапа/страницы
+                  example: chooseTarget
+                  enum: [PFP1, chooseTarget, riskProfile, financialReserve, assets, result]
+                message:
+                  type: string
+                  description: Сообщение от пользователя
+                  example: "Хочу накопить на квартиру за 5 лет"
+      responses:
+        '200':
+          description: Ответ ИИ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stage: { type: string }
+                  response: { type: string, description: 'Ответ ИИ в формате Markdown' }
+
+  /my/ai-b2c/chat/stream:
+    post:
+      summary: Отправить сообщение ИИ-ассистенту (стриминг SSE)
+      tags: [AiB2C]
+      description: |
+        То же самое, что /my/ai-b2c/chat, но ответ идёт потоково (Server-Sent Events).
+        На фронте используйте fetch + ReadableStream для получения ответа по частям.
+        
+        **Формат ответа:** text/event-stream (SSE)
+        ```
+        data: {"choices":[{"delta":{"content":"Прив"}}]}
+        data: {"choices":[{"delta":{"content":"ет!"}}]}
+        data: [DONE]
+        ```
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage, message]
+              properties:
+                stage: { type: string, example: chooseTarget }
+                message: { type: string }
+      responses:
+        '200':
+          description: SSE stream с ответом ИИ
+
+  /my/ai-b2c/history:
+    get:
+      summary: Получить историю чата
+      tags: [AiB2C]
+      parameters:
+        - name: stage
+          in: query
+          description: Фильтр по этапу (опционально)
+          schema:
+            type: string
+            example: chooseTarget
+      responses:
+        '200':
+          description: История сообщений
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    stage_key: { type: string }
+                    role: { type: string, enum: [user, assistant] }
+                    content: { type: string }
+                    created_at: { type: string, format: date-time }
+    delete:
+      summary: Очистить историю чата
+      tags: [AiB2C]
+      parameters:
+        - name: stage
+          in: query
+          description: Очистить только конкретный этап (опционально, без параметра очистит всё)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: История очищена
+

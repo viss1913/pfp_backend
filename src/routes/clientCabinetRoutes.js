@@ -3,8 +3,8 @@ const router = express.Router();
 const clientCabinetController = require('../controllers/clientCabinetController');
 const { restrictTo } = require('../middlewares/roleMiddleware');
 
-// All routes here require 'client' role
-router.use(restrictTo('client'));
+// All routes here require 'client' role (or agent/admin acting on behalf)
+router.use(restrictTo('client', 'agent', 'admin', 'super_admin'));
 
 // GET /my/plan — Get my financial plan
 router.get('/plan', clientCabinetController.getMyPlan.bind(clientCabinetController));
@@ -14,5 +14,20 @@ router.post('/plan/first-run', clientCabinetController.createMyPlan.bind(clientC
 
 // POST /my/plan/:goalId/recalculate — Recalculate a specific goal
 router.post('/plan/:goalId/recalculate', clientCabinetController.recalculateGoal.bind(clientCabinetController));
+
+// ==================== AI B2C Chat ====================
+const aiB2cController = require('../controllers/aiB2cController');
+
+// POST /my/ai-b2c/chat — Send message to AI (regular response)
+router.post('/ai-b2c/chat', aiB2cController.sendAiB2cChat.bind(aiB2cController));
+
+// POST /my/ai-b2c/chat/stream — Send message to AI (SSE streaming)
+router.post('/ai-b2c/chat/stream', aiB2cController.sendAiB2cChatStream.bind(aiB2cController));
+
+// GET /my/ai-b2c/history — Get chat history (?stage=PFP1)
+router.get('/ai-b2c/history', aiB2cController.getAiB2cHistory.bind(aiB2cController));
+
+// DELETE /my/ai-b2c/history — Clear chat history (?stage=PFP1)
+router.delete('/ai-b2c/history', aiB2cController.clearAiB2cHistory.bind(aiB2cController));
 
 module.exports = router;

@@ -2276,3 +2276,182 @@ paths:
       responses:
         '200':
           description: Deleted
+
+  # ==================== AI B2C ====================
+
+  /admin/ai-b2c/brain-contexts:
+    get:
+      summary: Получить все Brain Contexts для B2C ИИ
+      tags: [AiB2C]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список brain contexts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    project_id: { type: integer, nullable: true }
+                    title: { type: string }
+                    content: { type: string }
+                    is_active: { type: boolean }
+                    priority: { type: integer }
+                    created_at: { type: string, format: date-time }
+                    updated_at: { type: string, format: date-time }
+    post:
+      summary: Создать Brain Context для B2C ИИ
+      tags: [AiB2C]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, content]
+              properties:
+                title: { type: string, description: 'Название контекста' }
+                content: { type: string, description: 'Текст промпта/инструкции' }
+                is_active: { type: boolean, default: true }
+                priority: { type: integer, default: 0 }
+      responses:
+        '201':
+          description: Создано
+
+  /admin/ai-b2c/brain-contexts/{id}:
+    put:
+      summary: Обновить Brain Context для B2C ИИ
+      tags: [AiB2C]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                content: { type: string }
+                is_active: { type: boolean }
+                priority: { type: integer }
+      responses:
+        '200':
+          description: Обновлено
+    delete:
+      summary: Удалить Brain Context для B2C ИИ
+      tags: [AiB2C]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Удалено
+
+  /admin/ai-b2c/stages:
+    get:
+      summary: Получить все Stage Contexts для B2C ИИ
+      tags: [AiB2C]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список контекстов этапов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    project_id: { type: integer, nullable: true }
+                    stage_key: { type: string, description: 'Ключ этапа (PFP1, chooseTarget, riskProfile)' }
+                    title: { type: string }
+                    content: { type: string }
+                    is_active: { type: boolean }
+                    priority: { type: integer }
+                    created_at: { type: string, format: date-time }
+                    updated_at: { type: string, format: date-time }
+    post:
+      summary: Создать Stage Context для B2C ИИ
+      tags: [AiB2C]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage_key, title, content]
+              properties:
+                stage_key:
+                  type: string
+                  description: 'Уникальный ключ этапа (PFP1, chooseTarget, riskProfile, financialReserve, assets, result)'
+                  example: chooseTarget
+                title: { type: string, description: 'Название этапа для админки' }
+                content: { type: string, description: 'Промпт-инструкция для ИИ на этом этапе' }
+                is_active: { type: boolean, default: true }
+                priority: { type: integer, default: 0 }
+      responses:
+        '201':
+          description: Создано
+        '400':
+          description: stage_key уже существует для этого проекта
+
+  /admin/ai-b2c/stages/{id}:
+    put:
+      summary: Обновить Stage Context для B2C ИИ
+      tags: [AiB2C]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stage_key: { type: string }
+                title: { type: string }
+                content: { type: string }
+                is_active: { type: boolean }
+                priority: { type: integer }
+      responses:
+        '200':
+          description: Обновлено
+        '400':
+          description: stage_key уже существует
+    delete:
+      summary: Удалить Stage Context для B2C ИИ
+      tags: [AiB2C]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Удалено
+
