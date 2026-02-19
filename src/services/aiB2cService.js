@@ -166,7 +166,7 @@ ${clientSection}
         if (!client) return null;
 
         // Загружаем цели клиента
-        const goals = await knex('client_goals').where('client_id', clientId);
+        const goals = await knex('goals').where('client_id', clientId);
 
         // Загружаем последний расчёт
         const lastCalc = await knex('client_calculations')
