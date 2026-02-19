@@ -168,13 +168,7 @@ ${clientSection}
         // Загружаем цели клиента
         const goals = await knex('goals').where('client_id', clientId);
 
-        // Загружаем последний расчёт
-        const lastCalc = await knex('client_calculations')
-            .where('client_id', clientId)
-            .orderBy('created_at', 'desc')
-            .first();
-
-        return { client, goals, lastCalc };
+        return { client, goals };
     }
 
     /**
@@ -194,7 +188,7 @@ ${clientSection}
     _formatClientData(data) {
         if (!data || !data.client) return 'Данных о клиенте пока нет.';
 
-        const { client, goals, lastCalc } = data;
+        const { client, goals } = data;
         let info = [];
 
         if (client.first_name || client.last_name) {
@@ -211,15 +205,16 @@ ${clientSection}
             });
         }
 
-        if (lastCalc && lastCalc.result_json) {
+        if (client.goals_summary) {
             try {
-                const result = typeof lastCalc.result_json === 'string'
-                    ? JSON.parse(lastCalc.result_json)
-                    : lastCalc.result_json;
-                if (result.summary) {
-                    info.push(`\nПоследний расчёт:`);
-                    if (result.summary.total_capital) info.push(`  Итоговый капитал: ${result.summary.total_capital} ₽`);
-                    if (result.summary.total_monthly_investment) info.push(`  Ежемесячные инвестиции: ${result.summary.total_monthly_investment} ₽`);
+                const summary = typeof client.goals_summary === 'string'
+                    ? JSON.parse(client.goals_summary)
+                    : client.goals_summary;
+
+                // If summary is an array of goals (as per migration comment) OR object
+                // Let's just dump it carefully
+                if (summary) {
+                    info.push(`\nСводка расчёта: ${JSON.stringify(summary, null, 2)}`);
                 }
             } catch (e) { /* ignore */ }
         }
