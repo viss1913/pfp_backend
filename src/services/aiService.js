@@ -10,7 +10,16 @@ class AiService {
             key = key.slice(1, -1);
         }
         this.apiKey = key || null;
-        this.baseUrl = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+
+        // Detect provider
+        this.isSiliconFlow = !process.env.OPENROUTER_API_KEY && !!process.env.SILICONFLOW_API_KEY;
+
+        if (this.isSiliconFlow) {
+            this.baseUrl = process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
+        } else {
+            this.baseUrl = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+        }
+
         this.siteUrl = process.env.App_URL || 'https://pfp.app'; // Optional: for OpenRouter rankings
         this.appName = 'PFP Constructor Bot'; // Optional: for OpenRouter rankings
     }
@@ -32,7 +41,11 @@ class AiService {
             throw new Error('OPENROUTER_API_KEY is not set');
         }
 
-        const effectiveModel = model || 'google/gemini-3-flash-preview';
+        const defaultModel = this.isSiliconFlow
+            ? 'deepseek-ai/DeepSeek-V3'
+            : 'google/gemini-3-flash-preview';
+
+        const effectiveModel = model || defaultModel;
 
         const keyFingerprint = this.apiKey ? `${this.apiKey.substring(0, 6)}...${this.apiKey.substring(this.apiKey.length - 6)}` : 'N/A';
 
@@ -121,7 +134,11 @@ class AiService {
         if (!this.apiKey) throw new Error('OPENROUTER_API_KEY is not set');
 
         // Default to Gemini Flash Lite if not specified
-        const effectiveModel = model || 'google/gemini-3-flash-preview';
+        const defaultModel = this.isSiliconFlow
+            ? 'deepseek-ai/DeepSeek-V3'
+            : 'google/gemini-3-flash-preview';
+
+        const effectiveModel = model || defaultModel;
 
         const maxRetries = 3;
         let lastError = null;
