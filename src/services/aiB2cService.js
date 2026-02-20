@@ -108,6 +108,7 @@ class AiB2cService {
         // Собираем финальный промпт
         const systemPrompt = `
 Ты — ИИ-ассистент по финансовому планированию.
+СЕГОДНЯШНЯЯ ДАТА: ${new Date().toISOString().split('T')[0]}
 
 СЛОЙ 1 (ГЛАВНЫЙ МОЗГ — БАЗОВЫЕ ЗНАНИЯ И ИНСТРУКЦИИ):
 ${brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
@@ -189,37 +190,71 @@ ${clientSection}
         if (!data || !data.client) return 'Данных о клиенте пока нет.';
 
         const { client, goals } = data;
-        let info = [];
-
-        if (client.first_name || client.last_name) {
-            info.push(`Имя: ${[client.first_name, client.last_name].filter(Boolean).join(' ')}`);
-        }
-        if (client.age) info.push(`Возраст: ${client.age}`);
-        if (client.monthly_income) info.push(`Доход: ${client.monthly_income} ₽/мес`);
-        if (client.risk_profile) info.push(`Риск-профиль: ${client.risk_profile}`);
-
-        if (goals && goals.length > 0) {
-            info.push(`\nЦели клиента (${goals.length}):`);
-            goals.forEach((g, i) => {
-                info.push(`  ${i + 1}. ${g.name} — ${g.target_amount ? g.target_amount + ' ₽' : 'сумма не указана'}`);
-            });
-        }
+        let summary = null;
 
         if (client.goals_summary) {
             try {
-                const summary = typeof client.goals_summary === 'string'
+                summary = typeof client.goals_summary === 'string'
                     ? JSON.parse(client.goals_summary)
                     : client.goals_summary;
-
-                // If summary is an array of goals (as per migration comment) OR object
-                // Let's just dump it carefully
-                if (summary) {
-                    info.push(`\nСводка расчёта: ${JSON.stringify(summary, null, 2)}`);
-                }
             } catch (e) { /* ignore */ }
         }
 
-        return info.length > 0 ? info.join('\n') : 'Данных о клиенте пока нет.';
+        const sections = [
+            this._formatPersonalProfile(client),
+            this._formatGoalsList(goals),
+            this._formatRecommendations(summary)
+        ];
+
+        return sections.filter(s => s.length > 0).join('\n\n');
+    }
+
+    _formatPersonalProfile(client) {
+        const info = ['### ПРОФИЛЬ КЛИЕНТА:'];
+        if (client.first_name || client.last_name) {
+            info.push(`- Имя: ${[client.first_name, client.last_name].filter(Boolean).join(' ')}`);
+        }
+        if (client.age) info.push(`- Возраст: ${client.age}`);
+        if (client.monthly_income) info.push(`- Доход: ${client.monthly_income} ₽/мес`);
+        if (client.risk_profile) info.push(`- Риск-профиль: ${client.risk_profile}`);
+        if (client.updated_at) {
+            const lastUpdate = new Date(client.updated_at).toISOString().split('T')[0];
+            info.push(`- Дата последнего обновления ПФП: ${lastUpdate}`);
+        }
+        return info.length > 1 ? info.join('\n') : '';
+    }
+
+    _formatGoalsList(goals) {
+        if (!goals || goals.length === 0) return '';
+        const info = ['### ТЕКУЩИЕ ЦЕЛИ:'];
+        goals.forEach((g, i) => {
+            const target = g.target_amount ? `${g.target_amount} ₽` : 'сумма не указана';
+            info.push(`${i + 1}. ${g.name} (Цель: ${target}, Срок: ${g.term_months || '?'} мес)`);
+        });
+        return info.join('\n');
+    }
+
+    _formatRecommendations(summary) {
+        if (!summary || !summary.summary || !summary.summary.consolidated_portfolio) return '';
+        const portfolio = summary.summary.consolidated_portfolio;
+        const info = ['### РЕКОМЕНДАЦИИ ПО ПОПОЛНЕНИЯМ:'];
+
+        const monthlyTotal = portfolio.total_monthly_replenishment || 0;
+        if (monthlyTotal > 0) {
+            info.push(`- ОБЩАЯ СУММА ЕЖЕМЕСЯЧНОГО ПОПОЛНЕНИЯ: ${monthlyTotal} ₽`);
+
+            const allocation = portfolio.cash_flow_allocation || [];
+            if (allocation.length > 0) {
+                info.push('- РАСПРЕДЕЛЕНИЕ ПО АКТИВАМ:');
+                allocation.forEach(asset => {
+                    info.push(`  * ${asset.name}: ${asset.amount} ₽ (доля ${asset.share}%, дох-ть ${asset.yield}%)`);
+                });
+            }
+        } else {
+            info.push('- Ежемесячные пополнения не требуются (план выполняется за счет текущих активов).');
+        }
+
+        return info.join('\n');
     }
 
     /**
