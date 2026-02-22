@@ -33,11 +33,13 @@
     "jsonwebtoken": "^9.0.3",
     "knex": "^3.1.0",
     "mysql2": "^3.15.3",
+    "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.67.0",
     "pdfkit": "^0.17.2",
     "resend": "^6.9.2",
     "swagger-ui-express": "^5.0.1",
     "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {

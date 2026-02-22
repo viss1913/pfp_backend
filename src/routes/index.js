@@ -80,5 +80,9 @@ router.use('/admin/ai-b2c', pfpMiddleware, aiB2cRoutes);
 const clientCabinetRoutes = require('./clientCabinetRoutes');
 router.use('/my', pfpMiddleware, clientCabinetRoutes);
 
+// Macro Data Routes
+const macroRoutes = require('./macroRoutes');
+router.use('/pfp/macro', pfpMiddleware, macroRoutes);
+
 module.exports = router;
 

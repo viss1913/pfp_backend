@@ -134,6 +134,10 @@ async function startServer() {
         // Initialize AI Constructor Bots
         await constructorBotService.initAllBots();
 
+        // Initialize Macro Data Scheduler
+        const macroScheduler = require('./services/macroScheduler');
+        macroScheduler.initScheduler();
+
         app.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📚 Swagger UI: http://localhost:${PORT}/api-docs`);
