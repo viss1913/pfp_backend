@@ -153,39 +153,51 @@ class MacroService {
      * Получить котировки драгметаллов (Золото)
      */
     async fetchCbrGold() {
-        console.log('📡 Fetching CBR Gold Price (SOAP)...');
+        await this.fetchCbrGoldHistory();
+    }
+
+    /**
+     * Получить котировки драгметаллов (Золото) за период
+     */
+    async fetchCbrGoldHistory(from = null, to = null) {
+        if (!from) {
+            from = new Date();
+            from.setDate(from.getDate() - 14);
+        }
+        if (!to) to = new Date();
+
+        const formatDate = (d) => {
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            return `${day}/${month}/${d.getFullYear()}`;
+        };
+
+        const url = `https://www.cbr.ru/scripts/xml_metall.asp?date_req1=${formatDate(from)}&date_req2=${formatDate(to)}`;
+        console.log(`📡 Fetching CBR Gold Price History (XML API): ${url}`);
+
         try {
-            const now = new Date();
-            const weekAgo = new Date();
-            weekAgo.setDate(now.getDate() - 14);
+            const response = await axios.get(url, { timeout: 15000 });
+            const result = await parseStringPromise(response.data, { explicitArray: false });
 
-            const params = `
-                <web:fromDate>${weekAgo.toISOString().split('T')[0]}</web:fromDate>
-                <web:ToDate>${now.toISOString().split('T')[0]}</web:ToDate>
-            `;
-
-            const rawXml = await this.soapRequest('DragMetDynamicXML', params);
-            const result = await parseStringPromise(rawXml, { explicitArray: false });
-
-            const metalsData = result['soap:Envelope']['soap:Body'].DragMetDynamicXMLResponse.DragMetDynamicXMLResult.DragMetData;
-            if (!metalsData || !metalsData.DragMet) {
-                console.error('❌ No gold data found in CBR response');
+            if (!result.Metadata || !result.Metadata.Record) {
+                console.log('No gold data found for this period');
                 return;
             }
 
-            const metalsArray = Array.isArray(metalsData.DragMet) ? metalsData.DragMet : [metalsData.DragMet];
-            const gold = metalsArray.find(m => m.Vcode === '1' || m.$.Vcode === '1');
+            let records = result.Metadata.Record;
+            if (!Array.isArray(records)) records = [records];
 
-            if (gold) {
-                const valueAttr = gold.Vbuy || gold.$.Vbuy;
-                const dateAttr = gold.OnDate || gold.$.OnDate;
-                const value = parseFloat(valueAttr.replace(',', '.'));
-                const date = new Date(dateAttr);
+            // Фильтруем только золото (Code 1)
+            const goldRecords = records.filter(r => r.$.Code === '1');
 
-                await this.saveIndicatorValue('cbr_gold_price', value, date, gold);
+            for (const rec of goldRecords) {
+                const dateParts = rec.$.Date.split('.');
+                const date = new Date(dateParts[2], dateParts[1] - 1, dateParts[0]);
+                const value = parseFloat(rec.Buy.replace(',', '.'));
+                await this.saveIndicatorValue('cbr_gold_price', value, date, rec);
             }
         } catch (error) {
-            console.error('❌ Error fetching CBR Gold:', error.message);
+            console.error('❌ Error fetching CBR Gold History:', error.message);
         }
     }
 
@@ -235,6 +247,12 @@ class MacroService {
             const result = await parseStringPromise(rawXml, { explicitArray: false });
 
             const mainInfo = result['soap:Envelope']['soap:Body'].MainInfoXMLResponse.MainInfoXMLResult;
+
+            if (!mainInfo || !mainInfo.Inflation) {
+                console.error('❌ CBR Inflation data not found in SOAP response');
+                return;
+            }
+
             const value = parseFloat(mainInfo.Inflation.replace(',', '.'));
             const date = new Date(mainInfo.InflationDate);
 

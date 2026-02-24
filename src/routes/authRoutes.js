@@ -12,6 +12,9 @@ router.post('/register', authController.register);
 router.post('/register-client', authController.registerClient);
 router.post('/verify-code', authController.verifyCode);
 
+// Client registration (fast, 1-step without email verification)
+router.post('/register-fast', authController.registerFast);
+
 // Protected routes (auth required)
 router.get('/me', authMiddleware, authController.me);
 

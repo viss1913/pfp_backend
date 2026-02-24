@@ -252,6 +252,82 @@ class AuthService {
             }
         };
     }
+
+    /**
+     * Fast Client registration without email verification
+     * @param {{ email: string, password: string, project_key: string, name?: string }} data
+     */
+    async registerFastClient({ email, password, project_key, name }) {
+        // Double-check user doesn't exist
+        const existingUser = await db('users').where({ email }).first();
+        if (existingUser) {
+            throw { status: 400, message: 'Пользователь с таким email уже существует' };
+        }
+
+        // Find project by public key
+        const project = await projectService.getProjectByPublicKey(project_key);
+        if (!project) {
+            throw { status: 400, message: 'Неверный ключ проекта' };
+        }
+
+        // Parse name into first/last
+        const clientName = name || 'Client';
+        const nameParts = clientName.trim().split(/\s+/);
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+        // Hash password
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        // Create user + client in a transaction
+        const result = await db.transaction(async (trx) => {
+            // Create user
+            const [userId] = await trx('users').insert({
+                project_id: project.id,
+                email,
+                password_hash: passwordHash,
+                name: clientName,
+                role: 'client',
+                is_active: true
+            });
+
+            // Create client record linked to user
+            const [clientId] = await trx('clients').insert({
+                user_id: userId,
+                project_id: project.id,
+                first_name: firstName,
+                last_name: lastName || firstName,
+                email
+            });
+
+            return { userId, clientId };
+        });
+
+        // Generate JWT token (auto-login after registration)
+        const payload = {
+            user_id: result.userId,
+            email,
+            role: 'client',
+            clientId: result.clientId,
+            projectId: project.id
+        };
+
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+        console.log(`[AuthService] Fast Client account created: userId=${result.userId}, clientId=${result.clientId}`);
+
+        return {
+            token,
+            user: {
+                id: result.userId,
+                email,
+                name: clientName,
+                role: 'client',
+                clientId: result.clientId,
+                projectId: project.id
+            }
+        };
+    }
 }
 
 module.exports = new AuthService();

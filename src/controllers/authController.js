@@ -27,6 +27,14 @@ const verifyCodeSchema = Joi.object({
     password: Joi.string().min(6).required()
 });
 
+// Client registration schema (fast)
+const registerFastSchema = Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    password: Joi.string().min(6).required(),
+    project_key: Joi.string().required(),
+    name: Joi.string().min(2).max(255).optional()
+});
+
 class AuthController {
     async login(req, res, next) {
         try {
@@ -88,6 +96,24 @@ class AuthController {
             }
 
             const result = await authService.verifyAndCreateClient(req.body);
+            res.status(201).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Fast Client registration (1-step)
+     * POST /auth/register-fast
+     */
+    async registerFast(req, res, next) {
+        try {
+            const validation = registerFastSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const result = await authService.registerFastClient(req.body);
             res.status(201).json(result);
         } catch (err) {
             next(err);
