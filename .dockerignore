@@ -1,0 +1,20 @@
+node_modules
+.git
+.env
+.npm
+npm-debug.log
+.gemini
+docs
+scripts
+tmp
+max-sdk-temp
+AV Inform
+AI constructor
+Новая папка
+assets
+openapi
+*.md
+database.sqlite
+debug*.js
+test*.js
+*.html
