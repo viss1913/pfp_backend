@@ -25,13 +25,13 @@ class LifeInsuranceCalculator extends BaseCalculator {
         } catch (err) {
             console.warn('NSJ API Error, using fallback:', err.message);
             apiError = err;
-            // Always fallback if API fails to prevent white screen
-            // Create fallback result structure
+            // Заглушка: считаем сами по формулам, пока партнёр не работает
             const termY = Math.ceil(termMonths / 12);
+            const fallbackAnnualPremium = termMonths > 0 ? (targetAmount * 12) / termMonths : targetAmount;
             nsjResult = {
                 success: true,
-                warnings: ['Calculated by Smart Engine (Fallback Mode) - API Unavailable'],
-                total_premium: targetAmount, // Simplification: Premium = Target for fallback
+                _fallback: true,
+                total_premium: fallbackAnnualPremium,
                 term_years: termY,
                 total_limit: targetAmount
             };
@@ -112,13 +112,23 @@ class LifeInsuranceCalculator extends BaseCalculator {
         const deductedCapital = this.resolveInitialCapital({ ...goal, initial_capital: costNow }, context);
 
         // 5. Construct Result with Payment Frequency
+        const isFallback = !!(nsjResult && nsjResult._fallback);
         const risks = (nsjResult && nsjResult.risks && Array.isArray(nsjResult.risks) && nsjResult.risks.length > 0)
             ? nsjResult.risks
-            : [
-                { risk_name: 'Уход из жизни (любая причина)', limit_amount: Math.round(targetAmount) },
-                { risk_name: 'Телесные повреждения (Травма)', limit_amount: Math.round(targetAmount * 0.5) }, // Example default
-                { risk_name: 'Инвалидность I-II гр.', limit_amount: Math.round(targetAmount) }
-            ];
+            : isFallback
+                ? [
+                    { risk_name: 'Уход из жизни (любая причина)', limit_amount: Math.round(targetAmount) },
+                    { risk_name: 'Инвалидность I-II гр.', limit_amount: Math.round(targetAmount) },
+                    { risk_name: 'Критические заболевания', limit_amount: Math.round(targetAmount * 5) }
+                ]
+                : [
+                    { risk_name: 'Уход из жизни (любая причина)', limit_amount: Math.round(targetAmount) },
+                    { risk_name: 'Телесные повреждения (Травма)', limit_amount: Math.round(targetAmount * 0.5) },
+                    { risk_name: 'Инвалидность I-II гр.', limit_amount: Math.round(targetAmount) }
+                ];
+
+        const fallbackInitialCapital = termMonths > 0 ? (targetAmount * 12) / termMonths : 0;
+        const fallbackMonthlyReplenishment = termMonths > 0 ? targetAmount / termMonths : 0;
 
         const result = {
             goal_id: goal.id || goal.goal_type_id,
@@ -130,7 +140,7 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 target_amount_initial: Math.round(targetAmount * 100) / 100,
                 target_amount_future: Math.round(targetAmount * 100) / 100,
 
-                initial_capital: Math.round(deductedCapital * 100) / 100,
+                initial_capital: Math.round((isFallback ? fallbackInitialCapital : deductedCapital) * 100) / 100,
                 premium_frequency: paymentFrequency,
 
                 target_months: termMonths,
@@ -141,15 +151,25 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 total_tax_benefit: Math.round(totalTaxDeductions * 100) / 100
             },
             details: {
-                program_name: nsjResult.program || goal.program || 'Страхование жизни',
-                annual_premium: annualPremium,
+                program_name: nsjResult.program || goal.program || (isFallback ? 'НСЖ Династия' : 'Страхование жизни'),
+                annual_premium: isFallback ? Math.round(fallbackInitialCapital * 100) / 100 : annualPremium,
                 tax_deduction_2026: Math.round(taxDeduction2026 * 100) / 100,
                 total_tax_deductions: Math.round(totalTaxDeductions * 100) / 100,
                 risks: risks
             }
         };
 
-        if (apiError) {
+        if (isFallback) {
+            result.summary.monthly_replenishment = Math.round(fallbackMonthlyReplenishment * 100) / 100;
+            result.details.initial_instruments = [
+                { name: 'НСЖ Династия', share: 100, yield: 5, amount: Math.round(fallbackInitialCapital * 100) / 100 }
+            ];
+            result.details.monthly_instruments = [
+                { name: 'НСЖ Династия', share: 100, yield: 5, amount: Math.round(fallbackMonthlyReplenishment * 100) / 100, payment_frequency: 'monthly' }
+            ];
+        }
+
+        if (apiError && !isFallback) {
             result.error = apiError.originalError ? apiError.originalError.message : apiError.message;
         }
 
