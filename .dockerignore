@@ -12,7 +12,6 @@ AV Inform
 AI constructor
 Новая папка
 assets
-openapi
 *.md
 database.sqlite
 debug*.js
