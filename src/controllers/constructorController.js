@@ -460,18 +460,24 @@ class ConstructorController {
                     }
 
                     if (chatId && text) {
-                        // Сразу уведомляем пользователя, что бот начал "печатать"
-                        maxBotService.sendChatAction(bot.token, chatId, 'typing_on').catch(err =>
-                            console.error('[MAX] Failed to send typing action:', err.message)
-                        );
+                        // «Печатает...» пока бот обрабатывает сообщение
+                        maxBotService.sendChatAction(bot.token, chatId, 'typing_on').catch(() => {});
+                        const typingInterval = setInterval(() => {
+                            maxBotService.sendChatAction(bot.token, chatId, 'typing_on').catch(() => {});
+                        }, 4000);
 
                         const constructorAiService = require('../services/constructorAiService');
-                        const response = await constructorAiService.processMessage(
-                            bot.id,
-                            chatId.toString(),
-                            nickname,
-                            text
-                        );
+                        let response;
+                        try {
+                            response = await constructorAiService.processMessage(
+                                bot.id,
+                                chatId.toString(),
+                                nickname,
+                                text
+                            );
+                        } finally {
+                            clearInterval(typingInterval);
+                        }
 
                         const constructorBotService = require('../services/constructorBotService');
                         const messageContent = typeof response === 'object' ? response : { text: response };

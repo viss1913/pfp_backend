@@ -106,12 +106,23 @@ class ConstructorBotService {
         if (!msg.text) return;
 
         try {
-            const response = await constructorAiService.processMessage(
-                botData.id,
-                msg.from.id.toString(),
-                msg.from.username || msg.from.first_name,
-                msg.text
-            );
+            // «Печатает...» пока бот обрабатывает сообщение
+            await botInstance.sendChatAction(msg.chat.id, 'typing');
+            const typingInterval = setInterval(() => {
+                botInstance.sendChatAction(msg.chat.id, 'typing').catch(() => {});
+            }, 4000);
+
+            let response;
+            try {
+                response = await constructorAiService.processMessage(
+                    botData.id,
+                    msg.from.id.toString(),
+                    msg.from.username || msg.from.first_name,
+                    msg.text
+                );
+            } finally {
+                clearInterval(typingInterval);
+            }
 
             if (typeof response === 'object' && response.document) {
                 await botInstance.sendMessage(msg.chat.id, escapeMarkdown(response.text), { parse_mode: 'Markdown' });
