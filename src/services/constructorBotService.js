@@ -51,9 +51,14 @@ class ConstructorBotService {
                     await this.handleTelegramMessage(botData, botInstance, msg);
                 });
 
+                let lastPollingErrorLog = 0;
                 botInstance.on('polling_error', (error) => {
-                    console.error(`Polling error for bot ${botData.id}:`, error.code);
-                    if (error.code === 'EFATAL' || error.message.includes('401')) {
+                    const now = Date.now();
+                    if (now - lastPollingErrorLog > 5000) {
+                        lastPollingErrorLog = now;
+                        console.error(`Polling error for bot ${botData.id}:`, error.code, error.message || '');
+                    }
+                    if (error.code === 'EFATAL' || error.message?.includes('401')) {
                         this.stopBot(botData.id);
                         knex('constructor_bots').where('id', botData.id).update({ is_active: false }).catch(console.error);
                     }
@@ -116,6 +121,8 @@ class ConstructorBotService {
                 fs.unlink(response.document, (err) => {
                     if (err) console.error('Cleanup failed:', err);
                 });
+            } else if (typeof response === 'object' && response.plain) {
+                await botInstance.sendMessage(msg.chat.id, response.text);
             } else {
                 await botInstance.sendMessage(msg.chat.id, escapeMarkdown(response), { parse_mode: 'Markdown' });
             }

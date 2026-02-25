@@ -14,9 +14,17 @@ async function generateHomeOwnersPdf(data, outputPath) {
             const stream = fs.createWriteStream(outputPath);
             doc.pipe(stream);
 
-            // Шрифты
-            const localFontPath = path.join(__dirname, '../../assets/fonts/Roboto-Regular.ttf');
-            if (fs.existsSync(localFontPath)) doc.font(localFontPath);
+            // Шрифт с кириллицей (без него текст в PDF будет кракозябрами)
+            const fontCandidates = [
+                path.join(__dirname, '../../assets/fonts/Roboto-Regular.ttf'),
+                path.join(process.cwd(), 'assets/fonts/Roboto-Regular.ttf')
+            ];
+            const fontPath = fontCandidates.find(p => fs.existsSync(p));
+            if (fontPath) {
+                doc.font(fontPath);
+            } else {
+                console.warn('[PDF] Шрифт не найден (assets/fonts/Roboto-Regular.ttf). Положи туда TTF с кириллицей — иначе в PDF будет мусор.');
+            }
 
             // 1. ШАПКА С КАРТИНКОЙ
             const heroPath = path.join(__dirname, '../../assets/images/home_insurance_hero.png');

@@ -371,7 +371,7 @@ ${!historyMessages.length ? `
                 console.log(`[Lifecycle] Data for client ${clientToDelete.id} successfully wiped.`);
             }
 
-            return "Ваши данные и история диалога полностью удалены.";
+            return { text: "Ваши данные и история диалога полностью удалены.", plain: true };
         }
 
         let client = await knex('constructor_clients')
