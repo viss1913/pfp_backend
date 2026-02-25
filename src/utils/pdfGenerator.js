@@ -26,8 +26,13 @@ async function generateHomeOwnersPdf(data, outputPath) {
                 path.join(process.cwd(), 'assets/fonts/Roboto-Regular.ttf')
             ];
             const fontPath = fontCandidates.find(p => fs.existsSync(p));
-            if (fontPath) doc.font(fontPath);
-            else console.warn('[PDF] Шрифт не найден (assets/fonts/Roboto-Regular.ttf). Положи туда TTF с кириллицей — иначе в PDF будет мусор.');
+            if (fontPath) {
+                const stat = fs.statSync(fontPath);
+                console.log(`[PDF] Font found: ${fontPath} (${stat.size} bytes)`);
+                doc.font(fontPath);
+            } else {
+                console.warn(`[PDF] Font NOT found. Tried: ${fontCandidates.join(', ')}. __dirname=${__dirname}, cwd=${process.cwd()}`);
+            }
 
             const contentX = 50;
             let currentY = 0;
