@@ -1,8 +1,10 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../config/database');
 const emailService = require('./emailService');
 const projectService = require('./projectService');
+const smmService = require('./smmService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '24h';
@@ -324,6 +326,80 @@ class AuthService {
                 name: clientName,
                 role: 'client',
                 clientId: result.clientId,
+                projectId: project.id
+            }
+        };
+    }
+
+    /**
+     * Self-registration of agent (no email verification).
+     * Body: email, password, first_name, last_name, project_key.
+     */
+    async registerAgent({ email, password, first_name, last_name, project_key }) {
+        const existingUser = await db('users').where({ email }).first();
+        if (existingUser) {
+            throw { status: 400, message: 'Пользователь с таким email уже существует' };
+        }
+
+        const project = await projectService.getProjectByPublicKey(project_key);
+        if (!project) {
+            throw { status: 400, message: 'Неверный ключ проекта' };
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        const name = [first_name, last_name].filter(Boolean).join(' ').trim() || 'Агент';
+        const agentUuid = crypto.randomUUID();
+
+        const result = await db.transaction(async (trx) => {
+            const [agentId] = await trx('agents').insert({
+                project_id: project.id,
+                first_name: first_name || null,
+                last_name: last_name || null,
+                uuid: agentUuid,
+                is_active: true,
+                created_at: new Date(),
+                updated_at: new Date()
+            });
+            const aid = typeof agentId === 'object' ? agentId.id : agentId;
+
+            const [userId] = await trx('users').insert({
+                agent_id: aid,
+                project_id: project.id,
+                email,
+                password_hash: passwordHash,
+                name,
+                role: 'agent',
+                is_active: true,
+                created_at: new Date(),
+                updated_at: new Date()
+            });
+            const uid = typeof userId === 'object' ? userId.id : userId;
+
+            return { userId: uid, agentId: aid };
+        });
+
+        smmService.syncAgent(result.agentId).catch(err => console.error('[AuthService] SMM sync after agent registration failed:', err));
+
+        const payload = {
+            id: agentUuid,
+            user_id: result.userId,
+            email,
+            role: 'agent',
+            agentId: result.agentId,
+            projectId: project.id
+        };
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+        console.log(`[AuthService] Agent self-registered: userId=${result.userId}, agentId=${result.agentId}, project=${project.id}`);
+
+        return {
+            token,
+            user: {
+                id: result.userId,
+                email,
+                name,
+                role: 'agent',
+                agentId: result.agentId,
                 projectId: project.id
             }
         };

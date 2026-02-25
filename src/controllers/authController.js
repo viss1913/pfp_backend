@@ -35,6 +35,15 @@ const registerFastSchema = Joi.object({
     name: Joi.string().min(2).max(255).optional()
 });
 
+// Agent self-registration (no email verification)
+const registerAgentSchema = Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    password: Joi.string().min(6).required(),
+    first_name: Joi.string().max(100).allow('').optional(),
+    last_name: Joi.string().max(100).allow('').optional(),
+    project_key: Joi.string().required()
+});
+
 class AuthController {
     async login(req, res, next) {
         try {
@@ -114,6 +123,25 @@ class AuthController {
             }
 
             const result = await authService.registerFastClient(req.body);
+            res.status(201).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Agent self-registration (no email verification).
+     * POST /auth/register-agent
+     * Body: email, password, first_name, last_name, project_key
+     */
+    async registerAgent(req, res, next) {
+        try {
+            const validation = registerAgentSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const result = await authService.registerAgent(req.body);
             res.status(201).json(result);
         } catch (err) {
             next(err);

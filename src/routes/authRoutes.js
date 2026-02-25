@@ -15,6 +15,9 @@ router.post('/verify-code', authController.verifyCode);
 // Client registration (fast, 1-step without email verification)
 router.post('/register-fast', authController.registerFast);
 
+// Agent self-registration (no email verification)
+router.post('/register-agent', authController.registerAgent);
+
 // Protected routes (auth required)
 router.get('/me', authMiddleware, authController.me);
 
