@@ -59,7 +59,7 @@ class HomeOwnersController {
         try {
             const onlyActive = req.query.all !== 'true';
             const products = await HomeOwnersService.getProducts(onlyActive);
-            res.json(products);
+            res.json({ success: true, data: products });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }

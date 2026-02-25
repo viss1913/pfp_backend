@@ -35,6 +35,10 @@ components:
       properties:
         id:
           type: integer
+        project_id:
+          type: integer
+          nullable: true
+          description: "ID проекта; null — продукт общий для всех проектов"
         name:
           type: string
         description:
@@ -167,9 +171,16 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/HomeOwnersProduct'
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HomeOwnersProduct'
 
   /insurance/home-owners/options:
     get:
@@ -233,9 +244,16 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/HomeOwnersProduct'
+                type: object
+                required: [success, data]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/HomeOwnersProduct'
     post:
       summary: Создать или обновить продукт
       tags: [Admin]

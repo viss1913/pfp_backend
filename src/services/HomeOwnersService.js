@@ -64,11 +64,12 @@ class HomeOwnersService {
      * Admin: Create or update product
      */
     async upsertProduct(data) {
-        const { id, name, description, is_active, rate_constructive, rate_finish, rate_property, rate_civil } = data;
+        const { id, project_id, name, description, is_active, rate_constructive, rate_finish, rate_property, rate_civil } = data;
         const productData = {
             name,
             description,
             is_active,
+            project_id: project_id ?? null,
             rate_constructive: rate_constructive || 0,
             rate_finish: rate_finish || 0,
             rate_property: rate_property || 0,
