@@ -403,28 +403,31 @@ ${!historyMessages.length ? `
         // Нормализация команды для сравнения (убираем регистр и пробелы)
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
 
-        // Если перешли на стадию расчета или получили команду принудительно
-        if (cmdKey === '/homeownerscalc') {
+        // Общая логика расчёта страхования имущества (используется и для /homeownerscalc, и для /firstruninsurance)
+        const runHomeOwnersCalculation = async () => {
             const limits = await this.extractHomeOwnersParams(session, userMessage);
             console.log(`[Flow] Performing Home Owners Calculation with limits:`, limits);
+            const result = await homeOwnersCalculator.calculate({
+                product_id: 1,
+                object_params: {},
+                limits
+            });
+            console.log(`[Flow] Calculation Success. Total Premium: ${result.total_premium}`);
+            return { result, limits };
+        };
 
+        // Если перешли на стадию расчета или получили команду принудительно
+        if (cmdKey === '/homeownerscalc') {
             try {
-                calculationResult = await homeOwnersCalculator.calculate({
-                    product_id: 1, // ID продукта "Домашний уют"
-                    object_params: {},
-                    limits: limits
-                });
-                console.log(`[Flow] Calculation Success. Total Premium: ${calculationResult.total_premium}`);
+                const { result } = await runHomeOwnersCalculation();
+                calculationResult = result;
 
-                // Генерируем PDF
                 const tempDir = path.join(__dirname, '../../temp');
                 if (!fs.existsSync(tempDir)) {
                     fs.mkdirSync(tempDir, { recursive: true });
                 }
-
                 const fileName = `calc_${session.id}_${Date.now()}.pdf`;
                 const tempPath = path.join(tempDir, fileName);
-
                 try {
                     pdfPath = await generateHomeOwnersPdf(calculationResult, tempPath);
                     console.log(`[Flow] PDF Generated: ${pdfPath}`);
@@ -433,6 +436,15 @@ ${!historyMessages.length ? `
                 }
             } catch (calcErr) {
                 console.error('[Flow] Calculation failed:', calcErr);
+            }
+        } else if (cmdKey === '/firstruninsurance') {
+            // Сигнал от классификатора: пользователь ввёл данные → считаем страхование имущества и отдаём JSON в стадию презентации
+            try {
+                const { result } = await runHomeOwnersCalculation();
+                calculationResult = result;
+                console.log(`[Flow] /firstRunInsurance: calculation done, passing to response`);
+            } catch (calcErr) {
+                console.error('[Flow] /firstRunInsurance calculation failed:', calcErr);
             }
         } else if (cmdKey === '/firstrun') {
             console.log('[Flow] DEBUG: /firstRun command detected. Starting extraction...');
@@ -458,7 +470,7 @@ ${!historyMessages.length ? `
                 console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
         } else {
-            console.log(`[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeOwnersCalc or /firstRun`);
+            console.log(`[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeOwnersCalc, /firstRunInsurance or /firstRun`);
         }
 
         // 2. Генерация ответа
