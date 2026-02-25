@@ -22,16 +22,17 @@ async function generateHomeOwnersPdf(data, outputPath) {
             doc.pipe(stream);
 
             const fontCandidates = [
+                path.join(__dirname, '../../assets/fonts/DejaVuSans.ttf'),
+                path.join(process.cwd(), 'assets/fonts/DejaVuSans.ttf'),
                 path.join(__dirname, '../../assets/fonts/Roboto-Regular.ttf'),
                 path.join(process.cwd(), 'assets/fonts/Roboto-Regular.ttf')
             ];
             const fontPath = fontCandidates.find(p => fs.existsSync(p));
             if (fontPath) {
-                const stat = fs.statSync(fontPath);
-                console.log(`[PDF] Font found: ${fontPath} (${stat.size} bytes)`);
+                console.log(`[PDF] Using font: ${fontPath}`);
                 doc.font(fontPath);
             } else {
-                console.warn(`[PDF] Font NOT found. Tried: ${fontCandidates.join(', ')}. __dirname=${__dirname}, cwd=${process.cwd()}`);
+                console.warn(`[PDF] Font NOT found! __dirname=${__dirname}, cwd=${process.cwd()}`);
             }
 
             const contentX = 50;
