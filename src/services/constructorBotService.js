@@ -3,6 +3,16 @@ const knex = require('../config/database');
 const constructorAiService = require('./constructorAiService');
 const maxBotService = require('./maxBotService');
 
+/**
+ * Экранирует подчёркивания в Telegram Markdown, чтобы никнеймы типа alex_vitte не ломали парсер.
+ * (_ в Markdown = курсив, неэкранированный _ даёт "can't find end of entity").
+ * Звёздочки * не трогаем — пусть **жирный** остаётся.
+ */
+function escapeMarkdown(text) {
+    if (typeof text !== 'string') return text;
+    return text.replace(/\\/g, '\\\\').replace(/_/g, '\\_');
+}
+
 class ConstructorBotService {
     constructor() {
         this.bots = new Map(); // botId -> { instance, token, type, secret }
@@ -99,7 +109,7 @@ class ConstructorBotService {
             );
 
             if (typeof response === 'object' && response.document) {
-                await botInstance.sendMessage(msg.chat.id, response.text, { parse_mode: 'Markdown' });
+                await botInstance.sendMessage(msg.chat.id, escapeMarkdown(response.text), { parse_mode: 'Markdown' });
                 await botInstance.sendDocument(msg.chat.id, response.document);
 
                 const fs = require('fs');
@@ -107,7 +117,7 @@ class ConstructorBotService {
                     if (err) console.error('Cleanup failed:', err);
                 });
             } else {
-                await botInstance.sendMessage(msg.chat.id, response, { parse_mode: 'Markdown' });
+                await botInstance.sendMessage(msg.chat.id, escapeMarkdown(response), { parse_mode: 'Markdown' });
             }
         } catch (err) {
             console.error(`Error in bot ${botData.id}:`, err);
