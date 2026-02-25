@@ -1,6 +1,7 @@
 const aiService = require('./aiService');
 const knex = require('../config/database');
 const homeOwnersCalculator = require('./calculators/HomeOwnersCalculator');
+const HomeOwnersService = require('./HomeOwnersService');
 const { generateHomeOwnersPdf } = require('../utils/pdfGenerator');
 const calculationService = require('./calculationService');
 const path = require('path');
@@ -36,7 +37,8 @@ class ConstructorAiService {
             })
             .orderByRaw('bot_id DESC, is_template ASC'); // Бот > Шаблон
 
-        console.log(`[AI Step 1] Found ${commands.length} commands.`);
+        const commandList = commands.map(c => c.command).join(', ');
+        console.log(`[AI Step 1] Available commands: [${commandList}]`);
 
         // 2. Формируем контекст классификатора
         let currentCommand = null;
@@ -68,7 +70,7 @@ class ConstructorAiService {
                 role: 'system',
                 content: `Ты — классификатор стадий диалога. 
 Твоя задача: на основе сообщения пользователя, истории переписки и инструкций определить ключ (command) следующей стадии.
-Доступные команды: ${commands.map(c => c.command).join(', ')}.
+Доступные команды: ${commandList}.
 Инструкции по переключению (текущая стадия: ${currentCommand ? currentCommand.command : 'начало'}): ${classifierInstructions}
 
 ОТВЕТЬ ТОЛЬКО КЛЮЧОМ КОМАНДЫ (например: /meeting). 
@@ -89,16 +91,22 @@ class ConstructorAiService {
 
             const result = await aiService.getCompletion(prompt);
 
-            // Очистка ответа (удаляем точки, кавычки и извлекаем первое слово-команду)
-            const detectedCommand = result.trim().replace(/[."'`#*@]/g, '').split(' ')[0];
+            // Очистка ответа: убираем markdown (**), кавычки, берём первое слово
+            const rawTrimmed = result.trim();
+            const cleaned = rawTrimmed.replace(/[."'`#*@]/g, '').trim();
+            const detectedCommand = (cleaned.startsWith('/') ? cleaned : `/${cleaned}`).split(/\s+/)[0];
 
-            console.log(`[AI Step 1] Detected Command (Raw): "${result}"`);
-            console.log(`[AI Step 1] Detected Command (Clean): "${detectedCommand}"`);
+            console.log(`[AI Step 1] Classifier RAW response: "${rawTrimmed}"`);
+            console.log(`[AI Step 1] Classifier cleaned command: "${detectedCommand}"`);
 
             let nextCommand = commands.find(c => c.command === detectedCommand);
-
-            // Если команда не распознана, остаемся на текущей или выбираем /start
             if (!nextCommand) {
+                nextCommand = commands.find(c => c.command.toLowerCase() === detectedCommand.toLowerCase());
+            }
+
+            // Если команда не распознана — остаёмся на текущей или /start
+            if (!nextCommand) {
+                console.log(`[AI Step 1] Command "${detectedCommand}" not in list; fallback to current or /start`);
                 nextCommand = currentCommand || commands.find(c => c.command === '/start');
             }
 
@@ -133,13 +141,14 @@ class ConstructorAiService {
                 role: 'system',
                 content: `Ты — аналитик данных. Твоя задача: извлечь параметры для расчета страхования квартиры из диалога.
 Ищи следующие значения (суммы страхования):
-1. finish (отделка/ремонт)
-2. property (имущество)
-3. civil (ГО/гражданская ответственность)
+1. constructive (конструктив/стены)
+2. finish (отделка/ремонт)
+3. property (имущество)
+4. civil (ГО/гражданская ответственность)
 
 ОТВЕТЬ ТОЛЬКО ЧИСТЫМ JSON без пояснений. Если значение не найдено, используй 0.
 Если в тексте написано "2 млн", это значит 2000000. Если "500 тыс", это 500000.
-Пример: {"finish": 500000, "property": 300000, "civil": 1000000}
+Пример: {"constructive": 500000, "finish": 300000, "property": 200000, "civil": 1000000}
 `
             },
             {
@@ -158,7 +167,7 @@ class ConstructorAiService {
             return extracted;
         } catch (error) {
             console.error('[AI] Error extracting homeOwners params:', error);
-            return { finish: 0, property: 0, civil: 0 };
+            return { constructive: 0, finish: 0, property: 0, civil: 0 };
         }
     }
 
@@ -293,8 +302,11 @@ ${calculationResult.summary ? `
 2. Пройдись по основным целям в массиве "goals" (назови цель, срок и сколько нужно инвестировать ежемесячно).
 3. Упомяни налоговую выгоду и софинансирование от государства (summary.total_state_benefit).
 4. Если есть "consolidated_portfolio", кратко скажи, что план сбалансирован.
+` : calculationResult.calculations && Array.isArray(calculationResult.calculations) ? `
+Это расчёты СТРАХОВАНИЯ ИМУЩЕСТВА по нескольким программам/компаниям.
+Презентуй по каждой программе из массива "calculations": название (product_name), итоговая премия (total_premium), лимиты (limits). Можно сравнить предложения и выделить выгодный вариант.
 ` : `
-Это расчет СТРАХОВАНИЯ ИМУЩЕСТВА.
+Это расчет СТРАХОВАНИЯ ИМУЩЕСТВА (одна программа).
 Презентуй итоговую стоимость (total_premium) и кратко перечисли лимиты (limits), по которым шел расчет.
 `}
 ` : ''}
@@ -402,49 +414,65 @@ ${!historyMessages.length ? `
 
         // Нормализация команды для сравнения (убираем регистр и пробелы)
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
+        console.log(`[Flow] Command for this turn: "${nextCommand ? nextCommand.command : 'null'}" (cmdKey: ${cmdKey}); will run calculation: ${cmdKey === '/homeownerscalc' || cmdKey === '/firstrun'}`);
 
-        // Общая логика расчёта страхования имущества (используется и для /homeownerscalc, и для /firstruninsurance)
+        // Расчёт страхования имущества по всем активным продуктам (команда /homeownerscalc)
         const runHomeOwnersCalculation = async () => {
             const limits = await this.extractHomeOwnersParams(session, userMessage);
             console.log(`[Flow] Performing Home Owners Calculation with limits:`, limits);
-            const result = await homeOwnersCalculator.calculate({
-                product_id: 1,
-                object_params: {},
-                limits
-            });
-            console.log(`[Flow] Calculation Success. Total Premium: ${result.total_premium}`);
-            return { result, limits };
+            const products = await HomeOwnersService.getProducts(true);
+            if (!products || !products.length) {
+                const single = await homeOwnersCalculator.calculate({
+                    product_id: 1,
+                    object_params: {},
+                    limits
+                });
+                return { calculations: [{ product_id: 1, product_name: 'Страхование', ...single }], limits };
+            }
+            const calculations = [];
+            for (const product of products) {
+                try {
+                    const result = await homeOwnersCalculator.calculate({
+                        product_id: product.id,
+                        object_params: {},
+                        limits
+                    });
+                    calculations.push({
+                        product_id: product.id,
+                        product_name: product.name || product.title || `Продукт ${product.id}`,
+                        ...result
+                    });
+                } catch (err) {
+                    console.error(`[Flow] Calc failed for product ${product.id}:`, err.message);
+                }
+            }
+            console.log(`[Flow] Calculation Success for ${calculations.length} product(s).`);
+            return { calculations, limits };
         };
 
         // Если перешли на стадию расчета или получили команду принудительно
         if (cmdKey === '/homeownerscalc') {
             try {
-                const { result } = await runHomeOwnersCalculation();
-                calculationResult = result;
+                const { calculations, limits } = await runHomeOwnersCalculation();
+                calculationResult = { calculations };
+                console.log('[Flow] /homeownerscalc calculation JSON:', JSON.stringify(calculationResult, null, 2));
 
-                const tempDir = path.join(__dirname, '../../temp');
-                if (!fs.existsSync(tempDir)) {
-                    fs.mkdirSync(tempDir, { recursive: true });
-                }
-                const fileName = `calc_${session.id}_${Date.now()}.pdf`;
-                const tempPath = path.join(tempDir, fileName);
-                try {
-                    pdfPath = await generateHomeOwnersPdf(calculationResult, tempPath);
-                    console.log(`[Flow] PDF Generated: ${pdfPath}`);
-                } catch (pdfErr) {
-                    console.error('[Flow] PDF generation failed:', pdfErr);
+                if (calculations.length > 0) {
+                    const tempDir = path.join(__dirname, '../../temp');
+                    if (!fs.existsSync(tempDir)) {
+                        fs.mkdirSync(tempDir, { recursive: true });
+                    }
+                    const fileName = `calc_${session.id}_${Date.now()}.pdf`;
+                    const tempPath = path.join(tempDir, fileName);
+                    try {
+                        pdfPath = await generateHomeOwnersPdf(calculations[0], tempPath);
+                        console.log(`[Flow] PDF Generated: ${pdfPath}`);
+                    } catch (pdfErr) {
+                        console.error('[Flow] PDF generation failed:', pdfErr);
+                    }
                 }
             } catch (calcErr) {
                 console.error('[Flow] Calculation failed:', calcErr);
-            }
-        } else if (cmdKey === '/firstruninsurance') {
-            // Сигнал от классификатора: пользователь ввёл данные → считаем страхование имущества и отдаём JSON в стадию презентации
-            try {
-                const { result } = await runHomeOwnersCalculation();
-                calculationResult = result;
-                console.log(`[Flow] /firstRunInsurance: calculation done, passing to response`);
-            } catch (calcErr) {
-                console.error('[Flow] /firstRunInsurance calculation failed:', calcErr);
             }
         } else if (cmdKey === '/firstrun') {
             console.log('[Flow] DEBUG: /firstRun command detected. Starting extraction...');
@@ -470,7 +498,7 @@ ${!historyMessages.length ? `
                 console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
         } else {
-            console.log(`[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeOwnersCalc, /firstRunInsurance or /firstRun`);
+            console.log(`[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeOwnersCalc or /firstRun`);
         }
 
         // 2. Генерация ответа
