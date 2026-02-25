@@ -2,78 +2,86 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
+const LIMIT_LABELS = [
+    { key: 'finish', label: 'Внутренняя отделка и ремонт' },
+    { key: 'property', label: 'Движимое имущество' },
+    { key: 'civil', label: 'Гражданская ответственность' },
+    { key: 'constructive', label: 'Конструктивные элементы' }
+];
+
 /**
- * Генерирует PDF-отчет на основе данных расчета
- * @param {Object} data Данные из HomeOwnersCalculator
+ * Генерирует PDF: одна программа (data.limits) или все из data.calculations
+ * @param {Object} data { calculations: [{ product_name, limits, total_premium, ... }] } или один объект расчёта
  * @param {String} outputPath Путь для сохранения файла
  */
 async function generateHomeOwnersPdf(data, outputPath) {
     return new Promise((resolve, reject) => {
         try {
-            const doc = new PDFDocument({ margin: 0 }); // Без полей для полноэкранной шапки
+            const doc = new PDFDocument({ margin: 0 });
             const stream = fs.createWriteStream(outputPath);
             doc.pipe(stream);
 
-            // Шрифт с кириллицей (без него текст в PDF будет кракозябрами)
             const fontCandidates = [
                 path.join(__dirname, '../../assets/fonts/Roboto-Regular.ttf'),
                 path.join(process.cwd(), 'assets/fonts/Roboto-Regular.ttf')
             ];
             const fontPath = fontCandidates.find(p => fs.existsSync(p));
-            if (fontPath) {
-                doc.font(fontPath);
-            } else {
-                console.warn('[PDF] Шрифт не найден (assets/fonts/Roboto-Regular.ttf). Положи туда TTF с кириллицей — иначе в PDF будет мусор.');
-            }
+            if (fontPath) doc.font(fontPath);
+            else console.warn('[PDF] Шрифт не найден (assets/fonts/Roboto-Regular.ttf). Положи туда TTF с кириллицей — иначе в PDF будет мусор.');
 
-            // 1. ШАПКА С КАРТИНКОЙ
-            const heroPath = path.join(__dirname, '../../assets/images/home_insurance_hero.png');
-            if (fs.existsSync(heroPath)) {
-                doc.image(heroPath, 0, 0, { width: 612 }); // Ширина A4
-                doc.rect(0, 0, 612, 150).fillOpacity(0.3).fill('black'); // Затемнение для текста
-            } else {
-                doc.rect(0, 0, 612, 150).fill('#1a237e');
-            }
-
-            // Текст в шапке
-            doc.fillOpacity(1).fill('white')
-                .fontSize(24).text('СТРАХОВОЙ ПОЛИС', 50, 40)
-                .fontSize(14).text('Программа «Домашний Уют»', 50, 75)
-                .fontSize(10).text(`№ расчета: ${data.id || 'HO-' + Date.now().toString().slice(-6)}`, 50, 95);
-
-            // 2. КОНТЕНТ (возвращаем отступы)
             const contentX = 50;
-            let currentY = 180;
+            let currentY = 0;
 
-            doc.fill('black').fontSize(16).text('Данные расчета', contentX, currentY);
-            currentY += 30;
+            // Список программ: один блок или массив
+            const list = data.calculations && Array.isArray(data.calculations)
+                ? data.calculations
+                : [data];
 
-            // Рисуем блоки лимитов
-            const limits = [
-                { label: 'Внутренняя отделка и ремонт', value: data.limits.finish },
-                { label: 'Движимое имущество', value: data.limits.property },
-                { label: 'Гражданская ответственность', value: data.limits.civil },
-                { label: 'Конструктивные элементы', value: data.limits.constructive }
-            ];
+            for (let i = 0; i < list.length; i++) {
+                const item = list[i];
+                const name = item.product_name || `Программа ${i + 1}`;
+                const limits = item.limits || {};
+                const totalPremium = item.total_premium != null ? item.total_premium : 0;
 
-            limits.forEach(item => {
-                // Серый фон блока
-                doc.rect(contentX, currentY, 512, 40).fill('#f5f5f5');
-                doc.fill('#333').fontSize(11).text(item.label, contentX + 15, currentY + 14);
-                doc.fill('#1a237e').fontSize(12).text(`${item.value.toLocaleString('ru-RU')} ₽`, contentX + 350, currentY + 14, { width: 150, align: 'right' });
-                currentY += 45;
-            });
+                if (i === 0) {
+                    const heroPath = path.join(__dirname, '../../assets/images/home_insurance_hero.png');
+                    if (fs.existsSync(heroPath)) {
+                        doc.image(heroPath, 0, 0, { width: 612 });
+                        doc.rect(0, 0, 612, 150).fillOpacity(0.3).fill('black');
+                    } else {
+                        doc.rect(0, 0, 612, 150).fill('#1a237e');
+                    }
+                    doc.fillOpacity(1).fill('white')
+                        .fontSize(24).text('СТРАХОВОЙ ПОЛИС', 50, 40)
+                        .fontSize(14).text('Расчёт по программам', 50, 75)
+                        .fontSize(10).text(`№ расчета: HO-${Date.now().toString().slice(-6)}`, 50, 95);
+                    currentY = 180;
+                } else {
+                    currentY += 35;
+                }
 
-            // 3. ИТОГО
-            currentY += 20;
-            doc.rect(contentX, currentY, 512, 60).fill('#e8eaf6');
-            doc.fill('#1a237e').fontSize(14).text('ИТОГОВАЯ СТОИМОСТЬ (ПРЕМИЯ):', contentX + 20, currentY + 22);
-            doc.fontSize(18).text(`${data.total_premium.toLocaleString('ru-RU')} ₽`, contentX + 350, currentY + 20, { width: 150, align: 'right' });
+                doc.fill('black').fontSize(14).text(name, contentX, currentY);
+                currentY += 28;
 
-            // 4. ПОДВАЛ
+                LIMIT_LABELS.forEach(l => {
+                    const value = limits[l.key] != null ? limits[l.key] : 0;
+                    doc.rect(contentX, currentY, 512, 36).fill('#f5f5f5');
+                    doc.fill('#333').fontSize(10).text(l.label, contentX + 12, currentY + 12);
+                    doc.fill('#1a237e').fontSize(11).text(`${Number(value).toLocaleString('ru-RU')} ₽`, contentX + 350, currentY + 12, { width: 150, align: 'right' });
+                    currentY += 40;
+                });
+
+                currentY += 12;
+                doc.rect(contentX, currentY, 512, 48).fill('#e8eaf6');
+                doc.fill('#1a237e').fontSize(12).text('Итого премия:', contentX + 20, currentY + 16);
+                doc.fontSize(16).text(`${Number(totalPremium).toLocaleString('ru-RU')} ₽`, contentX + 350, currentY + 14, { width: 150, align: 'right' });
+                currentY += 55;
+            }
+
+            currentY = Math.max(currentY, 720);
             doc.fill('#666').fontSize(9).text(
-                'Расчет произведен на основании стандартных тарифов. Данное предложение не является публичной офертой. \nДля оформления полиса свяжитесь с вашим финансовым консультантом.',
-                contentX, 750, { width: 512, align: 'center' }
+                'Расчет произведен на основании стандартных тарифов. Данное предложение не является публичной офертой. Для оформления полиса свяжитесь с вашим финансовым консультантом.',
+                contentX, currentY, { width: 512, align: 'center' }
             );
 
             doc.end();

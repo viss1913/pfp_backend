@@ -465,7 +465,7 @@ ${!historyMessages.length ? `
                     const fileName = `calc_${session.id}_${Date.now()}.pdf`;
                     const tempPath = path.join(tempDir, fileName);
                     try {
-                        pdfPath = await generateHomeOwnersPdf(calculations[0], tempPath);
+                        pdfPath = await generateHomeOwnersPdf({ calculations }, tempPath);
                         console.log(`[Flow] PDF Generated: ${pdfPath}`);
                     } catch (pdfErr) {
                         console.error('[Flow] PDF generation failed:', pdfErr);
