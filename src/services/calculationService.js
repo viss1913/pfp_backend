@@ -835,10 +835,11 @@ class CalculationService {
                 // Asset (Initial Capital)
                 const initialCap = res.summary?.initial_capital || 0;
                 if (initialCap > 0) {
-                    if (!assetsMap[programName]) assetsMap[programName] = { amount: 0, weightedYieldSum: 0 };
+                    if (!assetsMap[programName]) assetsMap[programName] = { amount: 0, weightedYieldSum: 0, weightedShortYieldSum: 0 };
                     assetsMap[programName].amount += initialCap;
                     const yieldP = res.summary?.investment_yield_percent || 0;
                     assetsMap[programName].weightedYieldSum += (initialCap * yieldP);
+                    assetsMap[programName].weightedShortYieldSum += (initialCap * yieldP); // NSJ: short-term = same yield
                     totalInitial += initialCap;
                 }
 
@@ -850,10 +851,11 @@ class CalculationService {
                     const monthlyAmount = annualPrem / 12;
                     const freq = res.summary?.premium_frequency || 'monthly';
 
-                    if (!flowsMap[programName]) flowsMap[programName] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
+                    if (!flowsMap[programName]) flowsMap[programName] = { amount: 0, weightedYieldSum: 0, weightedShortYieldSum: 0, payment_frequency: freq };
                     flowsMap[programName].amount += monthlyAmount;
                     const yieldP = res.summary?.investment_yield_percent || 0;
                     flowsMap[programName].weightedYieldSum += (monthlyAmount * yieldP);
+                    flowsMap[programName].weightedShortYieldSum += (monthlyAmount * yieldP); // NSJ: short-term = same yield
                     totalMonthly += monthlyAmount;
                 }
 
@@ -914,10 +916,12 @@ class CalculationService {
                 const name = inst.name || 'Unknown';
                 const amt = inst.amount || 0;
                 const yieldP = inst.yield || 0;
+                const shortYieldP = inst.short_term_yield !== undefined ? inst.short_term_yield : yieldP;
 
-                if (!assetsMap[name]) assetsMap[name] = { amount: 0, weightedYieldSum: 0 };
+                if (!assetsMap[name]) assetsMap[name] = { amount: 0, weightedYieldSum: 0, weightedShortYieldSum: 0 };
                 assetsMap[name].amount += amt;
                 assetsMap[name].weightedYieldSum += (amt * yieldP);
+                assetsMap[name].weightedShortYieldSum += (amt * shortYieldP);
                 totalInitial += amt;
             });
 
@@ -926,11 +930,13 @@ class CalculationService {
                 const name = inst.name || 'Unknown';
                 const amt = inst.amount || 0; // Monthly amount
                 const yieldP = inst.yield || 0;
+                const shortYieldP = inst.short_term_yield !== undefined ? inst.short_term_yield : yieldP;
                 const freq = inst.payment_frequency || 'monthly'; // Track frequency
 
-                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
+                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0, weightedShortYieldSum: 0, payment_frequency: freq };
                 flowsMap[name].amount += amt;
                 flowsMap[name].weightedYieldSum += (amt * yieldP);
+                flowsMap[name].weightedShortYieldSum += (amt * shortYieldP);
                 // Keep the payment_frequency from instrument (prefer non-monthly if specified)
                 if (freq !== 'monthly' && flowsMap[name].payment_frequency === 'monthly') {
                     flowsMap[name].payment_frequency = freq;
@@ -945,7 +951,8 @@ class CalculationService {
                 name,
                 amount: Math.round(data.amount * 100) / 100,
                 share: totalInitial > 0 ? Math.round((data.amount / totalInitial) * 100) : 0,
-                yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0
+                yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0,
+                short_term_yield: data.amount > 0 ? Math.round((data.weightedShortYieldSum / data.amount) * 100) / 100 : 0
             };
         }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);
 
@@ -956,6 +963,7 @@ class CalculationService {
                 amount: Math.round(data.amount * 100) / 100,
                 share: totalMonthly > 0 ? Math.round((data.amount / totalMonthly) * 100) : 0,
                 yield: data.amount > 0 ? Math.round((data.weightedYieldSum / data.amount) * 100) / 100 : 0,
+                short_term_yield: data.amount > 0 ? Math.round((data.weightedShortYieldSum / data.amount) * 100) / 100 : 0,
                 payment_frequency: data.payment_frequency || 'monthly' // Default to monthly if not specified
             };
         }).filter(a => a.amount > 0).sort((a, b) => b.amount - a.amount);

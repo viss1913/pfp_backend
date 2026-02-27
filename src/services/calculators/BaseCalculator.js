@@ -415,10 +415,19 @@ class BaseCalculator {
 
             const productYield = line ? parseFloat(line.yield_percent) : 0;
 
+            // Short-term yield (доходность на ближайшие 6 месяцев)
+            const SHORT_TERM_MONTHS = 6;
+            const shortTermLine = yields.find(l =>
+                SHORT_TERM_MONTHS >= l.term_from_months &&
+                SHORT_TERM_MONTHS <= l.term_to_months
+            ) || yields.slice().sort((a, b) => a.term_from_months - b.term_from_months)[0];
+            const shortTermYield = shortTermLine ? parseFloat(shortTermLine.yield_percent) : productYield;
+
             const instrumentData = {
                 name: product.name,
                 share: item.share_percent,
-                yield: productYield
+                yield: productYield,
+                short_term_yield: shortTermYield
             };
 
             const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();
