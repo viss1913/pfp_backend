@@ -42,8 +42,13 @@ async function generateHomeOwnersPdf(data, outputPath) {
             const stream = fs.createWriteStream(outputPath);
             doc.pipe(stream);
 
-            const setFont = () => doc.font(fontPath);
-            setFont();
+            // ВАЖНО: после любого .fill() PDFKit сбрасывает шрифт на дефолтный Helvetica.
+            // Поэтому setFont() вызываем КАЖДЫЙ РАЗ перед .text()
+            const setFont = (size) => {
+                doc.font(fontPath);
+                if (size) doc.fontSize(size);
+                return doc;
+            };
 
             const contentX = 50;
             let currentY = 0;
@@ -63,45 +68,58 @@ async function generateHomeOwnersPdf(data, outputPath) {
                     const heroPath = path.join(__dirname, '../../assets/images/home_insurance_hero.png');
                     if (fs.existsSync(heroPath)) {
                         doc.image(heroPath, 0, 0, { width: 612 });
+                        // После .fill() — обязательно восстанавливаем шрифт!
                         doc.rect(0, 0, 612, 150).fillOpacity(0.3).fill('black');
                     } else {
                         doc.rect(0, 0, 612, 150).fill('#1a237e');
                     }
-                    setFont();
-                    doc.fillOpacity(1).fill('white')
-                        .fontSize(24).text('СТРАХОВОЙ ПОЛИС', 50, 40)
-                        .fontSize(14).text('Расчёт по программам', 50, 75)
-                        .fontSize(10).text(`№ расчета: HO-${Date.now().toString().slice(-6)}`, 50, 95);
+
+                    // Восстанавливаем шрифт после fill, fillOpacity обнуляем
+                    setFont(24).fillOpacity(1).fill('white').text('СТРАХОВОЙ \u041f\u041e\u041b\u0418\u0421', 50, 40);
+                    setFont(14).fill('white').text('\u0420\u0430\u0441\u0447\u0451\u0442 \u043f\u043e \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0430\u043c', 50, 75);
+                    setFont(10).fill('white').text(`\u2116 \u0440\u0430\u0441\u0447\u0435\u0442\u0430: HO-${Date.now().toString().slice(-6)}`, 50, 95);
                     currentY = 180;
                 } else {
                     currentY += 35;
                 }
 
-                setFont();
-                doc.fill('black').fontSize(14).text(name, contentX, currentY);
+                // Заголовок программы — шрифт восстанавливаем перед text
+                setFont(14).fill('black').text(name, contentX, currentY);
                 currentY += 28;
 
                 LIMIT_LABELS.forEach(l => {
                     const value = limits[l.key] != null ? limits[l.key] : 0;
+
+                    // Фон ячейки
                     doc.rect(contentX, currentY, 512, 36).fill('#f5f5f5');
-                    setFont();
-                    doc.fill('#333').fontSize(10).text(l.label, contentX + 12, currentY + 12);
-                    doc.fill('#1a237e').fontSize(11).text(`${Number(value).toLocaleString('ru-RU')} ₽`, contentX + 350, currentY + 12, { width: 150, align: 'right' });
+
+                    // После fill — ОБЯЗАТЕЛЬНО восстанавливаем шрифт перед text!
+                    setFont(10).fill('#333').text(l.label, contentX + 12, currentY + 12);
+                    setFont(11).fill('#1a237e').text(
+                        `${Number(value).toLocaleString('ru-RU')} \u20BD`,
+                        contentX + 350, currentY + 12,
+                        { width: 150, align: 'right' }
+                    );
                     currentY += 40;
                 });
 
+                // Итоговая строка
                 currentY += 12;
                 doc.rect(contentX, currentY, 512, 48).fill('#e8eaf6');
-                setFont();
-                doc.fill('#1a237e').fontSize(12).text('Итого премия:', contentX + 20, currentY + 16);
-                doc.fontSize(16).text(`${Number(totalPremium).toLocaleString('ru-RU')} ₽`, contentX + 350, currentY + 14, { width: 150, align: 'right' });
+
+                // После fill — ОБЯЗАТЕЛЬНО восстанавливаем шрифт!
+                setFont(12).fill('#1a237e').text('\u0418\u0442\u043e\u0433\u043e \u043f\u0440\u0435\u043c\u0438\u044f:', contentX + 20, currentY + 16);
+                setFont(16).fill('#1a237e').text(
+                    `${Number(totalPremium).toLocaleString('ru-RU')} \u20BD`,
+                    contentX + 350, currentY + 14,
+                    { width: 150, align: 'right' }
+                );
                 currentY += 55;
             }
 
             currentY = Math.max(currentY, 720);
-            setFont();
-            doc.fill('#666').fontSize(9).text(
-                'Расчет произведен на основании стандартных тарифов. Данное предложение не является публичной офертой. Для оформления полиса свяжитесь с вашим финансовым консультантом.',
+            setFont(9).fill('#666').text(
+                '\u0420\u0430\u0441\u0447\u0435\u0442 \u043f\u0440\u043e\u0438\u0437\u0432\u0435\u0434\u0435\u043d \u043d\u0430 \u043e\u0441\u043d\u043e\u0432\u0430\u043d\u0438\u0438 \u0441\u0442\u0430\u043d\u0434\u0430\u0440\u0442\u043d\u044b\u0445 \u0442\u0430\u0440\u0438\u0444\u043e\u0432. \u0414\u0430\u043d\u043d\u043e\u0435 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u043d\u0435 \u044f\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u043f\u0443\u0431\u043b\u0438\u0447\u043d\u043e\u0439 \u043e\u0444\u0435\u0440\u0442\u043e\u0439. \u0414\u043b\u044f \u043e\u0444\u043e\u0440\u043c\u043b\u0435\u043d\u0438\u044f \u043f\u043e\u043b\u0438\u0441\u0430 \u0441\u0432\u044f\u0436\u0438\u0442\u0435\u0441\u044c \u0441 \u0432\u0430\u0448\u0438\u043c \u0444\u0438\u043d\u0430\u043d\u0441\u043e\u0432\u044b\u043c \u043a\u043e\u043d\u0441\u0443\u043b\u044c\u0442\u0430\u043d\u0442\u043e\u043c.',
                 contentX, currentY, { width: 512, align: 'center' }
             );
 
