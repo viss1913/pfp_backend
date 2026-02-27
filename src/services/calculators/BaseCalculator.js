@@ -415,11 +415,15 @@ class BaseCalculator {
 
             const productYield = line ? parseFloat(line.yield_percent) : 0;
 
-            // Short-term yield: берём строку с минимальным сроком (самая короткая доходность)
-            const shortTermLine = yields.length > 0
-                ? yields.reduce((min, l) =>
-                    (parseFloat(l.term_to_months) || 9999) < (parseFloat(min.term_to_months) || 9999) ? l : min
-                    , yields[0])
+            // Short-term yield: ищем доходность с минимальным сроком для ЭТОЙ суммы
+            const matchingAmountRows = yields.filter(l =>
+                allocatedAmount >= parseFloat(l.amount_from) &&
+                allocatedAmount <= parseFloat(l.amount_to)
+            );
+            const shortTermLine = matchingAmountRows.length > 0
+                ? matchingAmountRows.reduce((min, l) =>
+                    (parseFloat(l.term_to_months) || 999) < (parseFloat(min.term_to_months) || 999) ? l : min
+                    , matchingAmountRows[0])
                 : null;
             const shortTermYield = shortTermLine ? parseFloat(shortTermLine.yield_percent) : productYield;
 

@@ -195,11 +195,15 @@ class PensionCalculator extends BaseCalculator {
 
                 const productYield = line ? parseFloat(line.yield_percent) : (product.yields?.[0]?.yield_percent || 0);
 
-                // Short-term yield: берём строку с минимальным сроком (самая короткая доходность)
-                const shortTermLineP = yields.length > 0
-                    ? yields.reduce((min, l) =>
-                        (parseFloat(l.term_to_months) || 9999) < (parseFloat(min.term_to_months) || 9999) ? l : min
-                        , yields[0])
+                // Short-term yield: ищем доходность с минимальным сроком для ЭТОЙ суммы
+                const matchingAmountRowsP = yields.filter(l =>
+                    allocatedAmount >= parseFloat(l.amount_from) &&
+                    allocatedAmount <= parseFloat(l.amount_to)
+                );
+                const shortTermLineP = matchingAmountRowsP.length > 0
+                    ? matchingAmountRowsP.reduce((min, l) =>
+                        (parseFloat(l.term_to_months) || 999) < (parseFloat(min.term_to_months) || 999) ? l : min
+                        , matchingAmountRowsP[0])
                     : null;
                 const shortTermYieldP = shortTermLineP ? parseFloat(shortTermLineP.yield_percent) : productYield;
 
