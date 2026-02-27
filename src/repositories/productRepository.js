@@ -184,6 +184,11 @@ class ProductRepository {
         if (projectId) query.where({ project_id: projectId });
         return query.update({ is_active: false });
     }
+
+    async findByName(name, projectId = null) {
+        const products = await this.findAll({ projectId, includeDefaults: true });
+        return products.find(p => p.name === name) || null;
+    }
 }
 
 module.exports = new ProductRepository();

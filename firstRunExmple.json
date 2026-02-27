@@ -1,0 +1,206 @@
+{
+    "client_id": 184,
+    "summary": {
+        "goals_count": 3,
+        "total_capital": 36941690.13,
+        "total_state_benefit": 380500,
+        "total_target_amount_initial": 1200000,
+        "total_target_amount_future": 1634281.59,
+        "consolidated_portfolio": {
+            "total_initial_capital": 1000000,
+            "total_monthly_replenishment": 93333.33,
+            "assets_allocation": [
+                {
+                    "name": "ПДС НПФ Будущее",
+                    "amount": 900000,
+                    "share": 90,
+                    "yield": 15.5
+                },
+                {
+                    "name": "Депозит",
+                    "amount": 100000,
+                    "share": 10,
+                    "yield": 14
+                }
+            ],
+            "cash_flow_allocation": [
+                {
+                    "name": "Страхование жизни",
+                    "amount": 83333.33,
+                    "share": 89,
+                    "yield": 5,
+                    "payment_frequency": "monthly"
+                },
+                {
+                    "name": "Депозит",
+                    "amount": 10000,
+                    "share": 11,
+                    "yield": 14,
+                    "payment_frequency": "monthly"
+                }
+            ]
+        },
+        "tax_benefits_summary": {
+            "pds_benefits": {
+                "deduction_2026": 52000,
+                "cofinancing_2026": 36000,
+                "total_deductions": 52000,
+                "total_cofinancing": 36000
+            },
+            "nsj_benefits": {
+                "annual_premium": 1000000,
+                "deduction_2026": 19500,
+                "total_deductions": 292500
+            },
+            "totals": {
+                "deduction_2026": 71500,
+                "cofinancing_2026": 36000,
+                "total_deductions": 344500,
+                "total_cofinancing": 36000,
+                "total_state_benefits": 380500
+            }
+        }
+    },
+    "goals": [
+        {
+            "goal_name": "ГосПенсия",
+            "goal_type": "PENSION",
+            "goal_type_id": 1,
+            "goal_id": 502,
+            "summary": {
+                "status": "OK",
+                "target_amount_initial": 100000,
+                "target_amount_future": 390479.25,
+                "projected_pension_monthly_future": 533537.85,
+                "projected_pension_monthly_present": 136636.67,
+                "inflation_rate": 5.6,
+                "initial_capital": 900000,
+                "initial_capital_ops": 0,
+                "monthly_replenishment": 0,
+                "pension_gap_future": 213920.28,
+                "target_months": 300,
+                "projected_capital_at_retirement": 35697887.79,
+                "required_capital_at_retirement": 21392027.5,
+                "total_tax_benefit": 52000,
+                "total_cofinancing": 36000,
+                "accumulation_yield_percent": 15.5,
+                "payout_yield_percent": 12,
+                "state_pension_monthly_future": 176558.97,
+                "state_pension_monthly_today": 45215.97,
+                "ipk_current": 86.12
+            },
+            "details": {
+                "state_pension": {
+                    "ipk_total": 249.22,
+                    "ipk_current": 86.12,
+                    "ipk_forecast": 163.1,
+                    "point_cost_today": 145.69,
+                    "point_cost_future": 568.89,
+                    "fixed_payment_today": 8907,
+                    "fixed_payment_future": 34779.99,
+                    "retirement_age": 65,
+                    "retirement_year": 2051,
+                    "years_to_pension": 25
+                },
+                "initial_instruments": [
+                    {
+                        "name": "ПДС НПФ Будущее",
+                        "share": 100,
+                        "yield": 15.5,
+                        "amount": 900000
+                    }
+                ],
+                "monthly_instruments": [
+                    {
+                        "name": "ПДС НПФ Будущее",
+                        "share": 100,
+                        "yield": 15.5
+                    }
+                ]
+            },
+            "risk_profile": "BALANCED",
+            "id": 502
+        },
+        {
+            "goal_name": "Финансовый резерв",
+            "goal_type": "FIN_RESERVE",
+            "goal_type_id": 7,
+            "goal_id": 503,
+            "summary": {
+                "status": "OK",
+                "initial_capital": 100000,
+                "monthly_replenishment": 10000,
+                "target_amount_initial": 100000,
+                "target_amount_future": 243802.34,
+                "target_months": 12,
+                "projected_capital_at_end": 243802.34,
+                "accumulation_yield_percent": 14,
+                "total_tax_benefit": 0
+            },
+            "details": {
+                "portfolio_id": 5,
+                "portfolio_name": "финрезерв",
+                "initial_instruments": [
+                    {
+                        "name": "Депозит",
+                        "share": 100,
+                        "yield": 14,
+                        "amount": 100000
+                    }
+                ],
+                "monthly_instruments": [
+                    {
+                        "name": "Депозит",
+                        "share": 100,
+                        "yield": 14,
+                        "amount": 10000,
+                        "payment_frequency": "monthly"
+                    }
+                ]
+            },
+            "risk_profile": "CONSERVATIVE",
+            "id": 503
+        },
+        {
+            "goal_name": "Защита Жизни",
+            "goal_type": "LIFE",
+            "goal_type_id": 5,
+            "goal_id": 504,
+            "summary": {
+                "status": "OK",
+                "target_coverage": 1000000,
+                "target_amount_initial": 1000000,
+                "target_amount_future": 1000000,
+                "initial_capital": 0,
+                "premium_frequency": "monthly",
+                "target_months": 180,
+                "expected_cash_value": 1000000,
+                "investment_yield_percent": 5,
+                "total_tax_benefit": 292500
+            },
+            "details": {
+                "program_name": "Страхование жизни",
+                "annual_premium": 1000000,
+                "tax_deduction_2026": 19500,
+                "total_tax_deductions": 292500,
+                "risks": [
+                    {
+                        "risk_name": "Уход из жизни (любая причина)",
+                        "limit_amount": 1000000
+                    },
+                    {
+                        "risk_name": "Телесные повреждения (Травма)",
+                        "limit_amount": 500000
+                    },
+                    {
+                        "risk_name": "Инвалидность I-II гр.",
+                        "limit_amount": 1000000
+                    }
+                ]
+            },
+            "error": "NSJ API returned error",
+            "risk_profile": "CONSERVATIVE",
+            "id": 504
+        }
+    ]
+}

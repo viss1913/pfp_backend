@@ -25,7 +25,6 @@ class OtherGoalCalculator extends BaseCalculator {
         if (!portfolio) throw new Error('Portfolio for OTHER goals not found');
 
         // Доходность
-        let weightedYieldAnnual = 0;
         let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles || [];
 
         if (typeof riskProfiles === 'string') {
