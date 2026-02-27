@@ -54,6 +54,7 @@ class OtherGoalCalculator extends BaseCalculator {
         const initial_instruments = [];
         const monthly_instruments = [];
         let pdsProductId = null;
+        let weightedYieldAnnual = 0;
 
         let allBuckets = [];
         if (profile.instruments && profile.instruments.length > 0) {

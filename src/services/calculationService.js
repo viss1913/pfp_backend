@@ -643,7 +643,7 @@ class CalculationService {
                 .sort((a, b) => a.index - b.index)
                 .map(item => item.result);
 
-            const consolidated = this._generateConsolidatedPortfolio(results);
+            const consolidatedPortfolio = await portfolioAggregator.aggregate(results, context);
 
             // Calculate Age
             const birthDate = new Date(client.birth_date);
@@ -665,7 +665,7 @@ class CalculationService {
                         return sum + cap;
                     }, 0) * 100) / 100,
 
-                    total_state_benefit: Math.round(goalResults.reduce((sum, r) => {
+                    total_state_benefit: Math.round(results.reduce((sum, r) => {
                         // New format: distinct generic fields
                         const tax = r.summary?.total_tax_benefit || 0;
                         const cofin = r.summary?.total_cofinancing || 0;
@@ -675,18 +675,18 @@ class CalculationService {
                         return sum + Math.max(tax + cofin, legacy);
                     }, 0) * 100) / 100,
 
-                    total_target_amount_initial: Math.round(goalResults.reduce((sum, r) => {
+                    total_target_amount_initial: Math.round(results.reduce((sum, r) => {
                         return sum + (r.summary?.target_amount_initial || r.details?.target_amount_initial || 0);
                     }, 0) * 100) / 100,
 
-                    total_target_amount_future: Math.round(goalResults.reduce((sum, r) => {
+                    total_target_amount_future: Math.round(results.reduce((sum, r) => {
                         return sum + (r.summary?.target_amount_future || r.details?.target_amount_future || 0);
                     }, 0) * 100) / 100,
 
                     consolidated_portfolio: consolidatedPortfolio,
-                    tax_benefits_summary: this._generateTaxBenefitsSummary(goalResults)
+                    tax_benefits_summary: this._generateTaxBenefitsSummary(results)
                 },
-                goals: goalResults
+                goals: results
             };
         } catch (err) {
             console.error('[CalculationService] calculateFirstRun error:', err);
