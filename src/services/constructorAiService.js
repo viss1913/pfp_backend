@@ -459,16 +459,22 @@ ${!historyMessages.length ? `
 
                 if (calculations.length > 0) {
                     const tempDir = path.join(__dirname, '../../temp');
+                    console.log(`[PDF Debug] __dirname: ${__dirname}`);
+                    console.log(`[PDF Debug] tempDir: ${tempDir}`);
                     if (!fs.existsSync(tempDir)) {
                         fs.mkdirSync(tempDir, { recursive: true });
+                        console.log(`[PDF Debug] Created tempDir`);
                     }
                     const fileName = `calc_${session.id}_${Date.now()}.pdf`;
                     const tempPath = path.join(tempDir, fileName);
+                    console.log(`[PDF Debug] Will write PDF to: ${tempPath}`);
                     try {
                         pdfPath = await generateHomeOwnersPdf({ calculations }, tempPath);
-                        console.log(`[Flow] PDF Generated: ${pdfPath}`);
+                        const fileExists = fs.existsSync(pdfPath);
+                        console.log(`[Flow] PDF Generated: ${pdfPath}, exists: ${fileExists}`);
                     } catch (pdfErr) {
-                        console.error('[Flow] PDF generation failed:', pdfErr);
+                        console.error('[Flow] PDF generation FAILED. Full error:', pdfErr.message);
+                        console.error('[Flow] PDF error stack:', pdfErr.stack);
                     }
                 }
             } catch (calcErr) {
