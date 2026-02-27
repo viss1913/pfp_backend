@@ -21,7 +21,10 @@ async function generateHomeOwnersPdf(data, outputPath) {
             const stream = fs.createWriteStream(outputPath);
             doc.pipe(stream);
 
+            // Приоритет: шрифты с полной поддержкой кириллицы
             const fontCandidates = [
+                path.join(__dirname, '../../assets/fonts/PTSans-Regular.ttf'),
+                path.join(process.cwd(), 'assets/fonts/PTSans-Regular.ttf'),
                 path.join(__dirname, '../../assets/fonts/DejaVuSans.ttf'),
                 path.join(process.cwd(), 'assets/fonts/DejaVuSans.ttf'),
                 path.join(__dirname, '../../assets/fonts/Roboto-Regular.ttf'),
