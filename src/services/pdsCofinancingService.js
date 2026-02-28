@@ -170,7 +170,7 @@ class PdsCofinancingService {
         } = config;
 
         // Dynamic require to avoid circular deps if any, and scope it
-        const TaxService = require('./TaxService');
+        const TaxService = require('../algorithms/TaxService');
 
         let clientCapital = pdsInitialCapital;
         let stateCapital = 0;

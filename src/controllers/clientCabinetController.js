@@ -1,6 +1,6 @@
 const calculationService = require('../services/calculationService');
 const clientService = require('../services/clientService');
-const goalRecalculator = require('../services/recalculators');
+const goalRecalculator = require('../algorithms/recalculators');
 const Joi = require('joi');
 
 // Reuse the same validation schema as clientController

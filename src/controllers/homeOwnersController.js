@@ -1,5 +1,5 @@
 const HomeOwnersService = require('../services/HomeOwnersService');
-const HomeOwnersCalculator = require('../services/calculators/HomeOwnersCalculator');
+const HomeOwnersCalculator = require('../algorithms/calculators/HomeOwnersCalculator');
 
 class HomeOwnersController {
     /**

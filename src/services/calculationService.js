@@ -3,16 +3,16 @@ const productRepository = require('../repositories/productRepository');
 const settingsService = require('./settingsService');
 const nsjApiService = require('./nsjApiService');
 const pdsCofinancingService = require('./pdsCofinancingService');
-const TaxService = require('./TaxService');
-const pensionCalculator = require('./calculators/PensionCalculator');
-const investmentCalculator = require('./calculators/InvestmentCalculator');
-const passiveIncomeCalculator = require('./calculators/PassiveIncomeCalculator');
-const lifeInsuranceCalculator = require('./calculators/LifeInsuranceCalculator');
-const finReserveCalculator = require('./calculators/FinReserveCalculator');
-const otherGoalCalculator = require('./calculators/OtherGoalCalculator');
-const rentCalculator = require('./calculators/RentCalculator');
+const TaxService = require('../algorithms/TaxService');
+const pensionCalculator = require('../algorithms/calculators/PensionCalculator');
+const investmentCalculator = require('../algorithms/calculators/InvestmentCalculator');
+const passiveIncomeCalculator = require('../algorithms/calculators/PassiveIncomeCalculator');
+const lifeInsuranceCalculator = require('../algorithms/calculators/LifeInsuranceCalculator');
+const finReserveCalculator = require('../algorithms/calculators/FinReserveCalculator');
+const otherGoalCalculator = require('../algorithms/calculators/OtherGoalCalculator');
+const rentCalculator = require('../algorithms/calculators/RentCalculator');
 const riskProfileService = require('./riskProfileService');
-const portfolioAggregator = require('./PortfolioAggregator');
+const portfolioAggregator = require('../algorithms/PortfolioAggregator');
 
 const CALCULATORS = {
     1: pensionCalculator,     // PENSION

@@ -80,7 +80,7 @@ const calculationRequestSchema = Joi.object({
 });
 
 const clientService = require('../services/clientService');
-const goalRecalculator = require('../services/recalculators');
+const goalRecalculator = require('../algorithms/recalculators');
 
 class ClientController {
     async _syncGoalsWithDatabase(clientId, calculation) {

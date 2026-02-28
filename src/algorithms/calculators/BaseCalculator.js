@@ -1,5 +1,5 @@
 const TaxService = require('../TaxService');
-const settingsService = require('../settingsService');
+const settingsService = require('../../services/settingsService');
 
 class BaseCalculator {
     /**

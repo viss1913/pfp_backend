@@ -1,6 +1,6 @@
 const aiService = require('./aiService');
 const knex = require('../config/database');
-const homeOwnersCalculator = require('./calculators/HomeOwnersCalculator');
+const homeOwnersCalculator = require('../algorithms/calculators/HomeOwnersCalculator');
 const HomeOwnersService = require('./HomeOwnersService');
 const { generateHomeOwnersPdf } = require('../utils/pdfGenerator');
 const calculationService = require('./calculationService');
