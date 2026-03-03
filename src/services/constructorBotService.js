@@ -25,6 +25,8 @@ class ConstructorBotService {
         console.log('🤖 Initializing AI Constructor Bots...');
         try {
             const activeBots = await knex('constructor_bots').where('is_active', true);
+            const totalBots = await knex('constructor_bots').count('* as count').first();
+            console.log(`📊 Found ${activeBots.length} active bots out of ${totalBots.count} total`);
             for (const botData of activeBots) {
                 await this.startBot(botData);
             }
@@ -58,9 +60,10 @@ class ConstructorBotService {
                         lastPollingErrorLog = now;
                         console.error(`Polling error for bot ${botData.id}:`, error.code, error.message || '');
                     }
-                    if (error.code === 'EFATAL' || error.message?.includes('401')) {
+                    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
                         this.stopBot(botData.id);
                         knex('constructor_bots').where('id', botData.id).update({ is_active: false }).catch(console.error);
+                        console.error(`🚫 Bot ${botData.id} deactivated: invalid token (401)`);
                     }
                 });
 
@@ -109,7 +112,7 @@ class ConstructorBotService {
             // «Печатает...» пока бот обрабатывает сообщение
             await botInstance.sendChatAction(msg.chat.id, 'typing');
             const typingInterval = setInterval(() => {
-                botInstance.sendChatAction(msg.chat.id, 'typing').catch(() => {});
+                botInstance.sendChatAction(msg.chat.id, 'typing').catch(() => { });
             }, 4000);
 
             let response;
