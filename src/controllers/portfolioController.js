@@ -13,6 +13,7 @@ const instrumentSchema = Joi.object({
 const riskProfileSchema = Joi.object({
     profile_type: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required(),
     potential_yield_percent: Joi.number().allow(null).optional(),
+    description: Joi.string().allow(null, '').optional(),
     // New format: instruments with bucket_type
     instruments: Joi.array().items(Joi.object({
         product_id: Joi.number().integer().required(),
