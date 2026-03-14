@@ -1,39 +1,34 @@
-const winston = require('winston');
-const { combine, timestamp, printf, colorize, errors, json } = winston.format;
+/**
+ * Логгер без внешних зависимостей (console).
+ * API совместим с winston: info, error, warn, debug.
+ */
+const level = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
+const levels = { error: 0, warn: 1, info: 2, debug: 3 };
+const currentLevel = levels[level] ?? 2;
 
-// Формат для консоли (красивый)
-const consoleFormat = combine(
-    colorize(),
-    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    errors({ stack: true }),
-    printf(({ level, message, timestamp, stack, ...meta }) => {
-        let log = `[${timestamp}] ${level}: ${message}`;
-        if (stack) log += `\n${stack}`;
+function formatMsg(level, args) {
+    const [msg, meta] = args;
+    const ts = new Date().toISOString();
+    let out = `[${ts}] ${level.toUpperCase()}: ${msg}`;
+    if (meta && typeof meta === 'object' && Object.keys(meta).length) {
+        out += ' ' + JSON.stringify(meta);
+    }
+    return out;
+}
 
-        // Добавляем метаданные, если они есть
-        const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-        if (metaStr && metaStr !== '{}') {
-            log += `\n${metaStr}`;
-        }
-        return log;
-    })
-);
-
-// Формат для продакшена (JSON)
-const prodFormat = combine(
-    timestamp(),
-    errors({ stack: true }),
-    json()
-);
-
-// Инициализация логгера
-const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
-    defaultMeta: { service: 'pfp-backend' },
-    format: process.env.NODE_ENV === 'production' ? prodFormat : consoleFormat,
-    transports: [
-        new winston.transports.Console()
-    ],
-});
+const logger = {
+    info(...args) {
+        if (currentLevel >= levels.info) console.log(formatMsg('info', args));
+    },
+    error(...args) {
+        if (currentLevel >= levels.error) console.error(formatMsg('error', args));
+    },
+    warn(...args) {
+        if (currentLevel >= levels.warn) console.warn(formatMsg('warn', args));
+    },
+    debug(...args) {
+        if (currentLevel >= levels.debug) console.debug(formatMsg('debug', args));
+    }
+};
 
 module.exports = logger;
