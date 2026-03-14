@@ -182,6 +182,65 @@ class ClientRepository {
             }
         };
     }
+
+    /**
+     * Все клиенты проекта (для режима "все агенты видят всех") + данные агента для пометки.
+     */
+    async findAllByProject(projectId, options = {}) {
+        const { limit = null, page = 1, sort = 'created_at', order = 'desc', search = '' } = options;
+        const offset = limit ? (page - 1) * limit : 0;
+
+        let query = knex('clients')
+            .leftJoin('agents', 'clients.agent_id', 'agents.id')
+            .where('clients.project_id', projectId)
+            .select(
+                'clients.*',
+                'agents.email as agent_email',
+                'agents.first_name as agent_first_name',
+                'agents.last_name as agent_last_name'
+            );
+
+        if (search) {
+            query = query.where(function () {
+                this.where('clients.first_name', 'like', `%${search}%`)
+                    .orWhere('clients.last_name', 'like', `%${search}%`)
+                    .orWhere('clients.middle_name', 'like', `%${search}%`)
+                    .orWhere('clients.phone', 'like', `%${search}%`)
+                    .orWhere('clients.email', 'like', `%${search}%`)
+                    .orWhere('clients.external_uuid', 'like', `%${search}%`);
+            });
+        }
+
+        const countQuery = knex('clients').where('project_id', projectId);
+        if (search) {
+            countQuery.where(function () {
+                this.where('first_name', 'like', `%${search}%`)
+                    .orWhere('last_name', 'like', `%${search}%`)
+                    .orWhere('middle_name', 'like', `%${search}%`)
+                    .orWhere('phone', 'like', `%${search}%`)
+                    .orWhere('email', 'like', `%${search}%`)
+                    .orWhere('external_uuid', 'like', `%${search}%`);
+            });
+        }
+        const totalResult = await countQuery.count('id as total').first();
+        const total = totalResult ? parseInt(totalResult.total) : 0;
+
+        const orderColumn = sort === 'created_at' ? 'clients.created_at' : (sort.includes('.') ? sort : `clients.${sort}`);
+        let finalQuery = query.orderBy(orderColumn, order);
+        if (limit) finalQuery = finalQuery.limit(limit).offset(offset);
+
+        const data = await finalQuery;
+
+        return {
+            data,
+            pagination: {
+                total,
+                page: limit ? parseInt(page) : 1,
+                limit: limit ? parseInt(limit) : total,
+                totalPages: limit ? Math.ceil(total / limit) : 1
+            }
+        };
+    }
 }
 
 module.exports = new ClientRepository();

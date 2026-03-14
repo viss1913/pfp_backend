@@ -3,11 +3,27 @@ const crypto = require('crypto');
 
 class ProjectService {
     async getAllProjects(filters = {}) {
-        return projectRepository.findAll(filters);
+        const list = await projectRepository.findAll(filters);
+        return (Array.isArray(list) ? list : []).map((p) => {
+            if (p?.settings != null) {
+                try {
+                    p.settings = typeof p.settings === 'string' ? JSON.parse(p.settings) : p.settings;
+                } catch (_) { /* leave as is */ }
+            }
+            return p;
+        });
     }
 
     async getProjectById(id) {
-        return projectRepository.findById(id);
+        const project = await projectRepository.findById(id);
+        if (project?.settings != null) {
+            try {
+                project.settings = typeof project.settings === 'string'
+                    ? JSON.parse(project.settings)
+                    : project.settings;
+            } catch (_) { /* leave as is */ }
+        }
+        return project;
     }
 
     async getProjectByPublicKey(publicKey) {
@@ -34,7 +50,12 @@ class ProjectService {
 
     async updateProject(id, data) {
         if (data.settings && typeof data.settings === 'object') {
-            data.settings = JSON.stringify(data.settings);
+            const existing = await projectRepository.findById(id);
+            const existingSettings = (existing?.settings && typeof existing.settings === 'string')
+                ? JSON.parse(existing.settings)
+                : (existing?.settings && typeof existing.settings === 'object' ? existing.settings : {});
+            const merged = { ...existingSettings, ...data.settings };
+            data.settings = JSON.stringify(merged);
         }
         return projectRepository.update(id, data);
     }

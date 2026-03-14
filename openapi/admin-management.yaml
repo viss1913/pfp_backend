@@ -54,7 +54,19 @@ paths:
               properties:
                 name: { type: string }
                 status: { type: string, enum: [active, suspended] }
-                settings: { type: object }
+                settings:
+                  type: object
+                  description: Настройки проекта (при обновлении мержатся с существующими)
+                  properties:
+                    agents_see_all_clients:
+                      type: boolean
+                      description: |
+                        true — все агенты проекта видят всех клиентов с пометкой (B2C / email агента).
+                        false или не задано — каждый агент видит только своих клиентов.
+                    client_visibility:
+                      type: string
+                      enum: [all, own]
+                      description: 'all = все видят всех, own = только своих (альтернатива agents_see_all_clients)'
       responses:
         '200':
           description: Project updated

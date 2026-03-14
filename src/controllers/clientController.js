@@ -212,7 +212,9 @@ class ClientController {
             }
 
             const page = req.query.page || 1;
-            const limit = req.query.limit || 50;
+            // limit=0 или limit=all — вернуть всех клиентов без пагинации
+            const rawLimit = req.query.limit;
+            const limit = (rawLimit === '0' || rawLimit === 'all' || rawLimit === '') ? null : (parseInt(rawLimit, 10) || 50);
             const { sort, order, search } = req.query;
 
             const clients = await clientService.getClientsByAgent(agentId, projectId, { page, limit, sort, order, search });

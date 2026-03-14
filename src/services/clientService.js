@@ -1,5 +1,15 @@
 const clientRepository = require('../repositories/clientRepository');
+const projectRepository = require('../repositories/projectRepository');
 const knex = require('../config/database');
+
+function ownerLabel(client) {
+    if (!client.agent_id) return 'B2C';
+    const email = client.agent_email;
+    if (email) return email;
+    const name = [client.agent_first_name, client.agent_last_name].filter(Boolean).join(' ').trim();
+    if (name) return name;
+    return `Агент #${client.agent_id}`;
+}
 
 class ClientService {
     async createFullClient(data) {
@@ -275,6 +285,22 @@ class ClientService {
     }
 
     async getClientsByAgent(agentId, projectId = null, options = {}) {
+        if (projectId) {
+            const project = await projectRepository.findById(projectId);
+            let settings = project?.settings;
+            if (settings && typeof settings === 'string') {
+                try { settings = JSON.parse(settings); } catch (_) { settings = null; }
+            }
+            const seeAll = settings && (settings.agents_see_all_clients === true || settings.client_visibility === 'all');
+            if (seeAll) {
+                const result = await clientRepository.findAllByProject(projectId, options);
+                result.data = (result.data || []).map((c) => ({
+                    ...c,
+                    owner_label: ownerLabel(c)
+                }));
+                return result;
+            }
+        }
         return await clientRepository.findAllByAgent(agentId, projectId, options);
     }
 

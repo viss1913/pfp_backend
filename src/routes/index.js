@@ -24,6 +24,9 @@ const pfpMiddleware = [authMiddleware, tenantMiddleware];
 
 // Client Routes (some might be public but first-run is protected)
 router.use('/client', clientRoutes);
+// Agent view on clients (B2C clients hub in Agent LK)
+const agentClientRoutes = require('./agentClientRoutes');
+router.use('/pfp/clients', pfpMiddleware, agentClientRoutes);
 
 // Protected PFP routes (require authentication + project context)
 router.use('/pfp/products', pfpMiddleware, productRoutes);
@@ -36,7 +39,10 @@ router.use('/pfp/agents', pfpMiddleware, agentRoutes);
 const adminAiRoutes = require('./adminAiRoutes');
 router.use('/admin/ai-assistants', pfpMiddleware, adminAiRoutes);
 
-// Agent AI Routes
+// Agent AI Routes (ai-b2c MUST be before /pfp/ai, else /pfp/ai matches /pfp/ai-b2c and 404)
+const agentAiB2cRoutes = require('./agentAiB2cRoutes');
+router.use('/pfp/ai-b2c', pfpMiddleware, agentAiB2cRoutes);
+
 const aiRoutes = require('./aiRoutes');
 router.use('/pfp/ai', pfpMiddleware, aiRoutes);
 // CRM Routes

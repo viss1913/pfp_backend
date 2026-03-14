@@ -1,4 +1,5 @@
 openapi: 3.0.0
+
 info:
   title: PFP Service API
   version: 1.0.0
@@ -296,6 +297,12 @@ components:
           enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
         potential_yield_percent:
           type: number
+        explanation:
+          type: string
+          nullable: true
+          description: >
+            Текстовое объяснение для агента, зачем этот риск-профиль и когда его
+            выбирать. Используется только на фронтенде ЛК агента для подсказок.
         instruments:
           type: array
           items:
@@ -844,6 +851,41 @@ components:
         experience_years:
           type: integer
 
+    Project:
+      type: object
+      description: Проект (мультитенантность). Управление — только super_admin.
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        slug: { type: string }
+        public_key: { type: string }
+        status: { type: string, enum: [active, suspended] }
+        settings:
+          $ref: '#/components/schemas/ProjectSettings'
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ProjectSettings:
+      type: object
+      description: Настройки проекта (при PUT мержатся с существующими)
+      properties:
+        agents_see_all_clients:
+          type: boolean
+          description: |
+            true — все агенты проекта видят всех клиентов с пометкой (B2C / email агента).
+            false или не задано — каждый агент видит только своих клиентов.
+        client_visibility:
+          type: string
+          enum: [all, own]
+          description: 'all = все видят всех, own = только своих (альтернатива agents_see_all_clients)'
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        status: { type: string, enum: [active, suspended] }
+        settings: { $ref: '#/components/schemas/ProjectSettings' }
+
     # Home Owners Insurance
     HomeOwnersProduct:
       type: object
@@ -1163,6 +1205,93 @@ paths:
                     type: string
                   agentId:
                     type: integer
+
+  # ==================== Admin: Projects (Super Admin) ====================
+  /admin/projects:
+    get:
+      summary: Список всех проектов
+      description: Только для роли super_admin.
+      tags: [Admin, Projects]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, suspended] }
+      responses:
+        '200':
+          description: Список проектов (у каждого settings — объект)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Project' }
+    post:
+      summary: Создать проект
+      tags: [Admin, Projects]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                slug: { type: string }
+                settings: { $ref: '#/components/schemas/ProjectSettings' }
+      responses:
+        '201':
+          description: Проект создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+
+  /admin/projects/{id}:
+    get:
+      summary: Получить проект по ID
+      tags: [Admin, Projects]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Проект (settings — объект)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '404':
+          description: Проект не найден
+    put:
+      summary: Обновить проект
+      description: |
+        Настройки (settings) мержатся с существующими: можно передать только нужные ключи
+        (например только agents_see_all_clients для видимости клиентов агентам).
+      tags: [Admin, Projects]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProjectUpdate' }
+      responses:
+        '200':
+          description: Проект обновлён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '404':
+          description: Проект не найден
 
   /pfp/products:
     get:
@@ -2193,6 +2322,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Agent'
+
+  # ==================== Agent: Clients (B2C/CRM hub) ====================
+  /pfp/clients:
+    get:
+      summary: Список клиентов агента (или всех клиентов проекта)
+      description: |
+        Для ролей agent/admin/super_admin. Поведение зависит от настроек проекта (settings.agents_see_all_clients):
+        - Если в проекте включено «все агенты видят всех» — возвращаются все клиенты проекта, у каждого есть owner_label (B2C / email агента).
+        - Иначе — только клиенты текущего агента (по agent_id из токена).
+        Пагинация: по умолчанию limit=50. Передай limit=all или limit=0, чтобы получить всех без пагинации.
+      tags: [Agents, Clients]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 50 }
+          description: '50 по умолчанию. limit=0 или limit=all — вернуть всех клиентов'
+        - in: query
+          name: sort
+          schema: { type: string, default: created_at }
+        - in: query
+          name: order
+          schema: { type: string, enum: [asc, desc], default: desc }
+        - in: query
+          name: search
+          schema: { type: string }
+          description: Поиск по имени, фамилии, email, телефону, external_uuid
+      responses:
+        '200':
+          description: Список клиентов с пагинацией
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      description: Клиент (упрощённый расчёт/профиль). При режиме «все видят всех» добавлено поле owner_label.
+                      properties:
+                        id: { type: integer }
+                        owner_label:
+                          type: string
+                          description: 'Только если в проекте agents_see_all_clients. Значение: B2C | email агента | ФИО | Агент #id'
+                        # остальные поля клиента (first_name, goals_summary, и т.д.)
+                  pagination:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      page: { type: integer }
+                      limit: { type: integer }
+                      totalPages: { type: integer }
+        '400':
+          description: Agent ID not found in token
+
   /admin/constructor/bots:
     get:
       summary: List all AI bots (Admin)

@@ -7,13 +7,25 @@ const path = require('path');
 const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
 const tenantMiddleware = require('./middlewares/tenantMiddleware');
+const logger = require('./utils/logger');
 
 const app = express();
 
 // CORS configuration - must be before other middleware
-// Allow all origins for now to fix CORS issues
+const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+    ? process.env.CORS_ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://localhost:5173']; // Default development origins
+
 app.use(cors({
-    origin: true, // Allow all origins
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        // or allowed origins
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'x-agent-id', 'x-role', 'x-api-key', 'X-Requested-With', 'x-project-key', 'x-project-id'],
@@ -22,17 +34,25 @@ app.use(cors({
     optionsSuccessStatus: 204
 }));
 
-// Helmet configuration - must be after CORS, with CORS-friendly settings
+// Helmet configuration
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    crossOriginEmbedderPolicy: false,
-    contentSecurityPolicy: false // Disable CSP to avoid conflicts
+    // Enable CSP with standard secure defaults, allowing swagger-ui inline scripts if needed
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'"], // Needed for swagger-ui
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'"]
+        }
+    }
 }));
 
 app.use(express.json());
 
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    logger.info(`${req.method} ${req.url}`);
     next();
 });
 
