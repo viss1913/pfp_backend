@@ -11,28 +11,19 @@ const logger = require('./utils/logger');
 
 const app = express();
 
-// CORS configuration - must be before other middleware
+// CORS: если CORS_ALLOWED_ORIGINS не задан — пускаем любой origin (чтобы админка с любого домена работала)
 const allowedOriginsRaw = process.env.CORS_ALLOWED_ORIGINS;
-const allowedOrigins = allowedOriginsRaw
+const hasAllowedList = allowedOriginsRaw && allowedOriginsRaw.trim().length > 0;
+const allowedOrigins = hasAllowedList
     ? allowedOriginsRaw.split(',').map((o) => o.trim()).filter(Boolean)
-    : (process.env.NODE_ENV === 'production'
-        ? [] // в продакшене без env разрешаем любой origin ниже
-        : ['http://localhost:3000', 'http://localhost:5173']);
+    : [];
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Нет origin — запросы с того же домена, Postman, мобилки
-        if (!origin) {
-            return callback(null, true);
-        }
-        // Явно разрешённый список
-        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-            return callback(null, true);
-        }
-        // В продакшене без CORS_ALLOWED_ORIGINS — разрешаем любой origin (чтобы админка с любого домена работала)
-        if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
-            return callback(null, true);
-        }
+        if (!origin) return callback(null, true);
+        // Список не задан — разрешаем любой origin
+        if (allowedOrigins.length === 0) return callback(null, true);
+        if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return callback(null, true);
         callback(null, false);
     },
     credentials: true,
