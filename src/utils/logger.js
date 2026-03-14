@@ -1,6 +1,6 @@
 /**
- * Логгер без внешних зависимостей (console).
- * API совместим с winston: info, error, warn, debug.
+ * Логгер без внешних зависимостей (только console).
+ * API: info, error, warn, debug. Не использует winston.
  */
 const level = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
 const levels = { error: 0, warn: 1, info: 2, debug: 3 };
