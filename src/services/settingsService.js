@@ -33,8 +33,8 @@ class SettingsService {
     }
 
     async updateSetting(key, value, isAdmin, projectId = null) {
-        // Только админ может менять настройки
-        if (!isAdmin) {
+        // Админ может менять любые настройки; агент — только настройки своего проекта (projectId задан)
+        if (!isAdmin && projectId == null) {
             throw { status: 403, message: 'Only admin can update settings' };
         }
 
