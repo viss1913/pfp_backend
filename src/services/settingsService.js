@@ -3,6 +3,23 @@ const tax2ndflRepository = require('../repositories/tax2ndflRepository');
 const pdsSettingsRepository = require('../repositories/pdsSettingsRepository');
 const pdsCofinIncomeBracketsRepository = require('../repositories/pdsCofinIncomeBracketsRepository');
 
+// Ключи, которые настраиваются агентом на уровне проекта (без глобальных дефолтов)
+const AGENT_OWNED_SETTING_KEYS = [
+    'inflation_rate_year',
+    'inflation_rate_matrix',
+    'investment_expense_growth_monthly',
+    'investment_expense_growth_annual',
+    'passive_income_yield'
+];
+
+const AGENT_OWNED_DEFAULTS = {
+    inflation_rate_year: { description: 'Годовая инфляция по умолчанию (%)', category: 'calculation' },
+    inflation_rate_matrix: { description: 'Матрица инфляции по месяцам', category: 'calculation' },
+    investment_expense_growth_monthly: { description: 'Рост расходов на инвестиции (% в месяц)', category: 'calculation' },
+    investment_expense_growth_annual: { description: 'Рост расходов на инвестиции (% годовых)', category: 'calculation' },
+    passive_income_yield: { description: 'Линии доходности пассивного дохода', category: 'passive_income' }
+};
+
 class SettingsService {
     async getAllSettings(projectId = null, category = null) {
         const settings = await settingsRepository.findAll(projectId, category);
@@ -38,8 +55,16 @@ class SettingsService {
             throw { status: 403, message: 'Only admin can update settings' };
         }
 
-        const setting = await settingsRepository.findByKey(key, projectId);
-        if (!setting) throw { status: 404, message: 'Setting not found' };
+        let setting = await settingsRepository.findByKey(key, projectId);
+        if (!setting) {
+            // Агент впервые задаёт настройку проекта из списка «только для проекта»
+            if (projectId && AGENT_OWNED_SETTING_KEYS.includes(key)) {
+                const meta = AGENT_OWNED_DEFAULTS[key] || { description: key, category: 'calculation' };
+                await settingsRepository.create({ key, value, description: meta.description, category: meta.category }, projectId);
+                return this.getSettingByKey(key, projectId);
+            }
+            throw { status: 404, message: `Setting not found: ${key}. Check key name or run migrations.` };
+        }
 
         await settingsRepository.updateByKey(key, value, projectId);
         return this.getSettingByKey(key, projectId);
@@ -629,16 +654,24 @@ class SettingsService {
      */
     // ========== Методы для работы с линиями доходности пассивного дохода ==========
 
+    /** Дефолтные линии доходности, если агент ещё не настроил по проекту */
+    static get DEFAULT_PASSIVE_INCOME_YIELD_LINES() {
+        return [
+            { min_term_months: 0, max_term_months: 60, min_amount: 0, max_amount: 1000000000000, yield_percent: 14.0 }
+        ];
+    }
+
     /**
-     * Получить все линии доходности для пассивного дохода
+     * Получить все линии доходности для пассивного дохода (для проекта или глобально).
+     * Если настройки нет — возвращаем дефолт, чтобы расчёты не падали и агент мог сохранить свои значения.
      */
     async getPassiveIncomeYield(projectId = null) {
         const setting = await settingsRepository.findByKey('passive_income_yield', projectId);
         if (!setting) {
-            throw {
-                status: 404,
-                message: 'Passive income yield settings not found',
-                error: 'Settings not found'
+            return {
+                lines: SettingsService.DEFAULT_PASSIVE_INCOME_YIELD_LINES,
+                updated_at: null,
+                project_id: projectId
             };
         }
         return {
@@ -649,10 +682,11 @@ class SettingsService {
     }
 
     /**
-     * Обновить линии доходности для пассивного дохода
+     * Обновить линии доходности для пассивного дохода.
+     * Админ — любые; агент — только своего проекта (projectId задан).
      */
     async updatePassiveIncomeYield(lines, isAdmin, projectId = null) {
-        if (!isAdmin) {
+        if (!isAdmin && projectId == null) {
             throw {
                 status: 403,
                 message: 'Only administrators can manage passive income yield settings',
@@ -723,7 +757,20 @@ class SettingsService {
             }
         }
 
-        await settingsRepository.updateByKey('passive_income_yield', lines, projectId);
+        const setting = await settingsRepository.findByKey('passive_income_yield', projectId);
+        if (!setting && projectId) {
+            const meta = AGENT_OWNED_DEFAULTS.passive_income_yield;
+            await settingsRepository.create({
+                key: 'passive_income_yield',
+                value: lines,
+                description: meta.description,
+                category: meta.category
+            }, projectId);
+        } else if (setting) {
+            await settingsRepository.updateByKey('passive_income_yield', lines, projectId);
+        } else {
+            throw { status: 403, message: 'Only project-scoped or admin update allowed' };
+        }
         return this.getPassiveIncomeYield(projectId);
     }
 

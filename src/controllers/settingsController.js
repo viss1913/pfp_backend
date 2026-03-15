@@ -392,11 +392,12 @@ class SettingsController {
 
     /**
      * GET /settings/passive-income/yield
-     * Получить все линии доходности для пассивного дохода
+     * Получить все линии доходности для пассивного дохода (по проекту или глобально)
      */
     async getPassiveIncomeYield(req, res, next) {
         try {
-            const yieldSettings = await settingsService.getPassiveIncomeYield();
+            const projectId = req.projectId || req.user?.projectId;
+            const yieldSettings = await settingsService.getPassiveIncomeYield(projectId);
             res.json(yieldSettings);
         } catch (err) {
             next(err);
@@ -445,7 +446,8 @@ class SettingsController {
                 });
             }
 
-            const updated = await settingsService.updatePassiveIncomeYield(req.body.lines, isAdmin);
+            const projectId = req.projectId || req.user?.projectId;
+            const updated = await settingsService.updatePassiveIncomeYield(req.body.lines, isAdmin, projectId);
             res.json(updated);
         } catch (err) {
             console.error('Error in updatePassiveIncomeYield:', err);
