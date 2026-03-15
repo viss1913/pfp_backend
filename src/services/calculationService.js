@@ -206,6 +206,7 @@ class CalculationService {
             'investment_expense_growth_monthly',
             'investment_expense_growth_annual',
             'inflation_rate_year',
+            'inflation_rate_matrix',
             'pension_pfr_contribution_rate_part1',
             'pension_fixed_payment',
             'pension_point_cost',
@@ -228,8 +229,29 @@ class CalculationService {
         const replenishmentIndexationRateDecimal = (annualGrowth != null && annualGrowth !== undefined && annualGrowth !== '')
             ? Math.pow(1 + (Number(annualGrowth) / 100), 1 / 12) - 1
             : ((settings.investment_expense_growth_monthly || 0) / 100);
+        // Годовая % для вывода в ответе (если задана месячная — пересчитываем в годовую)
+        const investmentExpenseGrowthAnnualPercent = (annualGrowth != null && annualGrowth !== undefined && annualGrowth !== '')
+            ? Number(annualGrowth)
+            : (settings.investment_expense_growth_monthly != null && settings.investment_expense_growth_monthly !== '')
+                ? (Math.pow(1 + Number(settings.investment_expense_growth_monthly) / 100, 12) - 1) * 100
+                : null;
         const db_inflation_year_percent = settings.inflation_rate_year || 4.0;
 
+        // Матрица инфляции по месяцам (ranges: [{ fromMonth, toMonthExcl, rateAnnual }]); если пусто — используем одну ставку
+        let inflationMatrix = null;
+        if (settings.inflation_rate_matrix != null) {
+            const raw = settings.inflation_rate_matrix;
+            if (typeof raw === 'object' && Array.isArray(raw.ranges) && raw.ranges.length > 0) {
+                inflationMatrix = raw;
+            } else if (typeof raw === 'string') {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && Array.isArray(parsed.ranges) && parsed.ranges.length > 0) {
+                        inflationMatrix = parsed;
+                    }
+                } catch (_) { /* ignore */ }
+            }
+        }
 
         // Pre-fetch Optimization Data (Cached Settings)
         let pdsSettings = null;
@@ -260,7 +282,9 @@ class CalculationService {
             usePool: usePoolFlag,
             isFirstRun: isFirstRun,
             inflationYear: db_inflation_year_percent,
+            inflationMatrix,
             replenishmentIndexationRate: replenishmentIndexationRateDecimal,
+            investmentExpenseGrowthAnnualPercent,
             client: clientData,
             assets: assets,
             settings: settings,
@@ -699,7 +723,12 @@ class CalculationService {
                     }, 0) * 100) / 100,
 
                     consolidated_portfolio: consolidatedPortfolio,
-                    tax_benefits_summary: this._generateTaxBenefitsSummary(results)
+                    tax_benefits_summary: this._generateTaxBenefitsSummary(results),
+
+                    // Рост расходов на инвестиции (% годовых), использованный в расчёте
+                    investment_expense_growth_annual_percent: context.investmentExpenseGrowthAnnualPercent != null
+                        ? Math.round(context.investmentExpenseGrowthAnnualPercent * 100) / 100
+                        : null
                 },
                 goals: results
             };

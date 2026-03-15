@@ -25,6 +25,24 @@ class BaseCalculator {
     }
 
     /**
+     * Ставка инфляции (годовая %) для месяца m (0-based) из матрицы.
+     * matrix: { ranges: [ { fromMonth, toMonthExcl, rateAnnual }, ... ] }
+     * Если месяц вне всех диапазонов — берётся ставка последней линии.
+     * @returns {number|null} rateAnnual или null если матрицы нет/пуста
+     */
+    getInflationRateForMonth(matrix, m) {
+        if (!matrix || !Array.isArray(matrix.ranges) || matrix.ranges.length === 0) return null;
+        const ranges = matrix.ranges;
+        for (const r of ranges) {
+            const from = r.fromMonth ?? r.from_month ?? 0;
+            const toExcl = r.toMonthExcl ?? r.to_month_excl ?? r.toMonth ?? Infinity;
+            if (m >= from && m < toExcl) return Number(r.rateAnnual ?? r.rate_annual ?? 0);
+        }
+        const last = ranges[ranges.length - 1];
+        return Number(last.rateAnnual ?? last.rate_annual ?? 0);
+    }
+
+    /**
      * Обработка событий ПДС (Софинансирование и Налоговый вычет)
      * @param {number} month - текущий месяц (1-12)
      * @param {number} year - текущий год

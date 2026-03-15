@@ -8,7 +8,11 @@ class OtherGoalCalculator extends BaseCalculator {
         const { portfolioRepository } = repositories;
 
         const termMonths = goal.term_months || 120;
-        const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : (context.inflationYear || 4.0);
+        // Инфляция: цель → матрица по последнему месяцу срока → одна ставка (fallback)
+        const rateFromMatrix = this.getInflationRateForMonth(context.inflationMatrix || null, Math.max(0, termMonths - 1));
+        const inflationRate = goal.inflation_rate !== undefined && goal.inflation_rate !== null
+            ? Number(goal.inflation_rate)
+            : (rateFromMatrix != null ? rateFromMatrix : (context.inflationYear || 4.0));
         const inflationMonthly = this.getMonthlyInflation(inflationRate);
         const targetAmountFuture = (goal.target_amount || 0) * Math.pow(1 + inflationMonthly, termMonths);
 
