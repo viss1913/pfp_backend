@@ -226,7 +226,7 @@ class PensionCalculator extends BaseCalculator {
         }
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
-        const indexationRateDecimal = (settings.investment_expense_growth_monthly || 0.1) / 100;
+        const indexationRateDecimal = context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100);
         // SIMULATION
         let simResult;
         let recommendedReplenishment = 0;

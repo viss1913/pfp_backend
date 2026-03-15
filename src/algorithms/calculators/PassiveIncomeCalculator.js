@@ -70,7 +70,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 monthlyReplenishment: recommendedReplenishment,
                 termMonths,
                 monthlyYieldRate: yieldMonthly,
-                indexationRate: (settings.investment_expense_growth_monthly || 0.1) / 100, // standard indexation for replenishment
+                indexationRate: context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100),
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: goal.avg_monthly_income || (client && client.avg_monthly_income) || 0,
                 pdsProductId
@@ -82,7 +82,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 initialCapital,
                 termMonths,
                 monthlyYieldRate: yieldMonthly,
-                indexationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
+                indexationRate: context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100),
                 pdsProductId,
                 avgMonthlyIncome: goal.avg_monthly_income || (client && client.avg_monthly_income) || 0
             }, context);
@@ -92,7 +92,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 monthlyReplenishment: recommendedReplenishment,
                 termMonths,
                 monthlyYieldRate: yieldMonthly,
-                indexationRate: (settings.investment_expense_growth_monthly || 0.1) / 100,
+                indexationRate: context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100),
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: goal.avg_monthly_income || (client && client.avg_monthly_income) || 0,
                 pdsProductId

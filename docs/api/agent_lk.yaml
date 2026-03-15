@@ -1,0 +1,492 @@
+openapi: 3.0.0
+info:
+  title: Agent LK API (Личный кабинет агента)
+  description: |
+    API для управления инвестиционными продуктами и портфелями со стороны Агента.
+    Авторизация происходит через стандартный `/api/auth/login`. 
+    Все методы работают с привязкой к `project_id` авторизованного агента.
+    Системные (дефолтные) продукты и портфели (где `project_id == null`) доступны Агенту только на чтение и клонирование.
+  version: 1.0.0
+servers:
+  - url: /api
+    description: Main API server
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ==================== ПРОДУКТЫ ====================
+  /pfp/products:
+    get:
+      tags: [ "Продукты Агента" ]
+      summary: Получить список продуктов
+      parameters:
+        - name: includeDefaults
+          in: query
+          schema: { type: boolean, default: true }
+          description: Включать ли в выдачу системные дефолтные продукты
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/Product'
+    post:
+      tags: [ "Продукты Агента" ]
+      summary: Создать новый продукт в своем проекте
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ProductCreate'
+      responses:
+        '201':
+          description: Создано
+          
+  /pfp/products/{id}:
+    get:
+      tags: [ "Продукты Агента" ]
+      summary: Получить продукт по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+    put:
+      tags: [ "Продукты Агента" ]
+      summary: Редактировать свой продукт
+      description: Ошибка 403, если попытка изменить системный дефолтный продукт
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ProductCreate'
+    delete:
+      tags: [ "Продукты Агента" ]
+      summary: Удалить свой продукт
+      description: Ошибка 403, если попытка удалить системный дефолтный продукт
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+
+  /pfp/products/{id}/clone:
+    post:
+      tags: [ "Продукты Агента" ]
+      summary: Клонировать продукт к себе в проект
+      description: Агент может клонировать системные продукты к себе, чтобы потом редактировать их копию
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+
+  /pfp/product-types:
+    get:
+      tags: [ "Продукты Агента (Справочники)" ]
+      summary: Получить список типов продуктов
+
+  # ==================== ПОРТФЕЛИ ====================
+  /pfp/portfolios:
+    get:
+      tags: [ "Портфели Агента" ]
+      summary: Получить список портфелей
+      parameters:
+        - name: includeDefaults
+          in: query
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/Portfolio'
+    post:
+      tags: [ "Портфели Агента" ]
+      summary: Создать новый портфель в своем проекте
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/Portfolio'
+
+  /pfp/portfolios/{id}:
+    get:
+      tags: [ "Портфели Агента" ]
+      summary: Получить портфель по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+    put:
+      tags: [ "Портфели Агента" ]
+      summary: Редактировать свой портфель
+      description: Ошибка 403, если попытка изменить системный портфель
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PortfolioUpdate'
+    delete:
+      tags: [ "Портфели Агента" ]
+      summary: Удалить свой портфель
+      description: Ошибка 403, если попытка удалить системный портфель
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+
+  /pfp/portfolios/{id}/clone:
+    post:
+      tags: [ "Портфели Агента" ]
+      summary: Клонировать портфель к себе в проект
+      description: Агент может взять системный портфель и скопировать в свой проект для редактирования
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+
+  /pfp/portfolios/classes:
+    get:
+      tags: [ "Портфели Агента (Справочники)" ]
+      summary: Получить классы портфелей (для мультиселектов)
+
+  # ==================== НАСТРОЙКИ ПЛАНОВ (ИНФЛЯЦИЯ И ДР.) ====================
+  /pfp/settings:
+    get:
+      tags: [ "Настройки планов и проекта" ]
+      summary: Получить список настроек проекта
+      description: |
+        Возвращает список системных настроек проекта (в т.ч. влияющих на расчёты финансовых планов).
+        Важные для ЛК Агента ключи:
+        - **inflation_rate_matrix** — матрица инфляции по месяцам горизонта (объект с полем ranges).
+          Диапазоны создаёт Агент при настройке проекта; в системе нет дефолтной матрицы.
+          Каждый диапазон: fromMonth, toMonthExcl, rateAnnual (годовая %). Для месяцев вне диапазонов используется ставка последнего диапазона.
+        - **inflation_rate_year** — одна годовая инфляция % (используется, если матрица не задана).
+        - **investment_expense_growth_annual** — рост расходов на инвестиции (% годовых); в расчётах переводится в месячную. Если не задан — используется investment_expense_growth_monthly (% в месяц).
+        - прочие ключи категорий `calculation`, `pension`, `passive-income` и т.д.
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Фильтр по категории (calculation, pension, passive-income и т.п.)
+      responses:
+        '200':
+          description: Успешно
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/SystemSetting'
+
+  /pfp/settings/{key}:
+    get:
+      tags: [ "Настройки планов и проекта" ]
+      summary: Получить настройку по ключу
+      description: |
+        Возвращает конкретную настройку по ключу.
+        Ключи инфляции для расчётов:
+        - **inflation_rate_matrix** — объект по схеме InflationRateMatrix (см. OPENAPI_SPEC.yaml):
+          value.ranges — массив { fromMonth, toMonthExcl, rateAnnual }. Годовая ставка в %; бэкенд переводит в месячную по формуле (1 + rateAnnual/100)^(1/12) - 1.
+        - **inflation_rate_year** — число, одна годовая инфляция % (fallback при отсутствии матрицы).
+        - **investment_expense_growth_annual** — число, рост расходов на инвестиции в % годовых (в расчётах — месячная доля).
+        - **investment_expense_growth_monthly** — число, рост расходов на инвестиции в % в месяц (fallback).
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: inflation_rate_matrix
+      responses:
+        '200':
+          description: Найдена
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/SystemSetting'
+        '404':
+          description: Настройка не найдена
+    put:
+      tags: [ "Настройки планов и проекта" ]
+      summary: Обновить значение настройки
+      description: |
+        Обновляет значение настройки по ключу.
+        Для **inflation_rate_matrix** передайте в value объект: { "ranges": [ { "fromMonth", "toMonthExcl", "rateAnnual" }, ... ] }.
+        Диапазоны создаёт Агент (нет поля «по умолчанию»); месяцы вне диапазонов получают ставку последнего диапазона.
+        Для **inflation_rate_year** передайте число (одна годовая %).
+        Для **investment_expense_growth_annual** — число (рост расходов на инвестиции в % годовых); в расчётах переводится в месячную.
+        В проде доступ может быть ограничен ролями (admin/super_admin).
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+          example: inflation_rate_matrix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - value
+              properties:
+                value:
+                  oneOf:
+                    - type: string
+                    - type: number
+                    - type: object
+            examples:
+              inflation_matrix:
+                summary: Матрица инфляции по месяцам (создаётся Агентом)
+                value:
+                  value:
+                    ranges:
+                      - fromMonth: 0
+                        toMonthExcl: 12
+                        rateAnnual: 7.5
+                      - fromMonth: 12
+                        toMonthExcl: 24
+                        rateAnnual: 6.7
+                      - fromMonth: 24
+                        toMonthExcl: 48
+                        rateAnnual: 6.0
+      responses:
+        '200':
+          description: Обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/SystemSetting'
+        '403':
+          description: Нет прав на изменение настройки
+        '404':
+          description: Настройка не найдена
+
+  # ==================== КЛИЕНТЫ B2C И ИХ ПЛАНЫ ====================
+  /pfp/clients:
+    get:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Список клиентов с финансовыми планами из B2C ЛК
+      description: |
+        Возвращает список клиентов, у которых есть финансовые планы, созданные в B2C личном кабинете.
+        Агент видит только тех клиентов, которые привязаны к его проекту/агентскому коду.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Поиск по имени, email или телефону
+        - name: has_plans
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Фильтр по наличию финансовых планов
+      responses:
+        '200':
+          description: Список клиентов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ClientShort'
+
+  /pfp/clients/{clientId}/plans:
+    get:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Получить финансовые планы клиента из B2C
+      description: |
+        Возвращает список финансовых планов клиента, созданных в B2C ЛК.
+        Используется Агента для выбора плана, с которым он хочет продолжать работать в своём ЛК.
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Список планов клиента
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ClientPlanShort'
+        '404':
+          description: Клиент не найден или у него нет планов
+
+  /pfp/clients/{clientId}/plans/{planId}/take-over:
+    post:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Подхватить (продолжить) финансовый план клиента из B2C в ЛК Агента
+      description: |
+        Позволяет Агента «забрать» существующий финансовый план клиента, созданный в B2C ЛК,
+        и продолжать работу с этим планом уже из ЛК Агента (в т.ч. донастройка целей, продуктов и портфелей).
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: План успешно привязан к ЛК Агента
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ClientPlan'
+        '404':
+          description: Клиент или план не найдены
+
+  # ==================== AI B2C В ЛК АГЕНТА (УПРАВЛЕНИЕ НАСТРОЙКАМИ) ====================
+  /pfp/ai-b2c/brain-contexts:
+    get:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Список brain-contexts для B2C AI в проекте Агента
+      description: |
+        Возвращает список brain-contexts (инструкций/контекстов) B2C AI, доступных в проекте Агента.
+        Это обёртка над административными методами `/admin/ai-b2c/brain-contexts`, но со скоупом конкретного проекта/агента.
+      responses:
+        '200':
+          description: Успешно
+    post:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Создать новый brain-context для B2C AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cBrainContextCreate'
+      responses:
+        '201':
+          description: Создано
+
+  /pfp/ai-b2c/brain-contexts/{id}:
+    put:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Обновить brain-context
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cBrainContextUpdate'
+      responses:
+        '200':
+          description: Успешно обновлено
+    delete:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Удалить brain-context
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Удалено
+
+  /pfp/ai-b2c/stages:
+    get:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Список стейджей (сценариев) B2C AI для проекта Агента
+      responses:
+        '200':
+          description: Успешно
+    post:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Создать новый стейдж
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cStageCreate'
+      responses:
+        '201':
+          description: Создано
+
+  /pfp/ai-b2c/stages/{id}:
+    put:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Обновить стейдж
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cStageUpdate'
+      responses:
+        '200':
+          description: Успешно обновлено
+    delete:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Удалить стейдж
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Удалено
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

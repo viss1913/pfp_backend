@@ -2,6 +2,7 @@ const portfolioRepository = require('../repositories/portfolioRepository');
 const productRepository = require('../repositories/productRepository');
 const settingsService = require('./settingsService');
 const nsjApiService = require('./nsjApiService');
+const logger = require('../utils/logger'); // <-- Added logger
 const pdsCofinancingService = require('./pdsCofinancingService');
 const TaxService = require('../algorithms/TaxService');
 const pensionCalculator = require('../algorithms/calculators/PensionCalculator');
@@ -149,22 +150,23 @@ class CalculationService {
         };
 
         try {
-            console.log('[CalculationService] Calling NSJ API for Life goal:', goal.name);
-            const result = await nsjApiService.calculateLifeInsurance(nsjParams);
+            logger.info(`[CalculationService] Calling NSJ API for Life goal: ${goal.name} (ID: ${goal.id})`);
+            const apiResult = await nsjApiService.calculateLifeInsurance(nsjParams);
             const isSinglePremium = (goal.payment_variant === 0);
 
             if (isSinglePremium) {
-                console.log('[CalculationService] Life goal needs (single premium):', result.total_premium);
-                return result.total_premium || 0;
+                logger.info(`[_calculateLifeInsuranceNeeded] NSJ API Success for Goal ${goal.id}. Required: ${apiResult.data.required_capital}`);
+                return apiResult.data.required_capital;
             } else {
                 // For monthly/annual payments, total_premium_rur already represents the periodic premium
-                const monthlyPremium = result.total_premium_rur || result.total_premium || 0;
-                console.log('[CalculationService] Life goal needs (monthly premium):', monthlyPremium);
+                const monthlyPremium = apiResult.data.total_premium_rur || apiResult.data.total_premium || 0;
+                logger.info(`[_calculateLifeInsuranceNeeded] NSJ API Success for Goal ${goal.id}. Required: ${monthlyPremium} (monthly)`);
                 return monthlyPremium;
             }
-        } catch (err) {
-            console.warn('[CalculationService] NSJ API failed for Life goal, using initial_capital fallback:', err.message);
-            return goal.initial_capital || 0;
+        } catch (error) {
+            logger.error(`[_calculateLifeInsuranceNeeded] NSJ API returned error for Goal ${goal.id}`, { error: error.message });
+            // Fallback (e.g. basic formula)
+            return (goal.target_amount || 0) * 0.9;
         }
     }
 
@@ -202,6 +204,7 @@ class CalculationService {
         const settings = {};
         const allSettingsKeys = [
             'investment_expense_growth_monthly',
+            'investment_expense_growth_annual',
             'inflation_rate_year',
             'pension_pfr_contribution_rate_part1',
             'pension_fixed_payment',
@@ -214,13 +217,17 @@ class CalculationService {
             try {
                 const s = await settingsService.getSettingByKey(key, projectId);
                 settings[key] = s ? s.value : null;
-                if (!s) console.warn(`[CalculationService] Setting ${key} NOT FOUND for project ${projectId}`);
+                if (!s) logger.warn(`[CalculationService] Setting ${key} NOT FOUND for project ${projectId}`);
             } catch (e) {
-                console.warn(`[CalculationService] Could not fetch setting ${key}:`, e.message);
+                logger.warn(`[CalculationService] Could not fetch setting ${key}:`, e.message);
             }
         }
 
-        const m_month_percent = settings.investment_expense_growth_monthly || 0.0;
+        // Рост расходов на инвестиции: в админке задаётся годовая % (investment_expense_growth_annual); считаем месячную долю. Иначе fallback на месячную % (investment_expense_growth_monthly).
+        const annualGrowth = settings.investment_expense_growth_annual;
+        const replenishmentIndexationRateDecimal = (annualGrowth != null && annualGrowth !== undefined && annualGrowth !== '')
+            ? Math.pow(1 + (Number(annualGrowth) / 100), 1 / 12) - 1
+            : ((settings.investment_expense_growth_monthly || 0) / 100);
         const db_inflation_year_percent = settings.inflation_rate_year || 4.0;
 
 
@@ -230,18 +237,18 @@ class CalculationService {
         let taxBrackets = [];
 
         try {
-            console.log('[CalculationService] Pre-fetching optimization settings...');
+            logger.info('[CalculationService] Pre-fetching optimization settings...');
             const [pdsSet, pdsBr, taxBr] = await Promise.all([
-                settingsService.getPdsCofinSettings(projectId).catch(e => { console.warn('Failed to pre-fetch PDS settings:', e.message); return null; }),
-                settingsService.getAllPdsCofinIncomeBrackets(projectId).catch(e => { console.warn('Failed to pre-fetch PDS brackets:', e.message); return []; }),
-                settingsService.getAllTaxBrackets(projectId).catch(e => { console.warn('Failed to pre-fetch Tax brackets:', e.message); return []; })
+                settingsService.getPdsCofinSettings(projectId).catch(e => { logger.warn('Failed to pre-fetch PDS settings:', e.message); return null; }),
+                settingsService.getAllPdsCofinIncomeBrackets(projectId).catch(e => { logger.warn('Failed to pre-fetch PDS brackets:', e.message); return []; }),
+                settingsService.getAllTaxBrackets(projectId).catch(e => { logger.warn('Failed to pre-fetch Tax brackets:', e.message); return []; })
             ]);
             pdsSettings = pdsSet;
             pdsBrackets = pdsBr || [];
             taxBrackets = taxBr || [];
-            console.log(`[CalculationService] Pre-fetched: PDS Settings (${!!pdsSettings}), PDS Brackets (${pdsBrackets.length}), Tax Brackets (${taxBrackets.length})`);
+            logger.info(`[CalculationService] Pre-fetched: PDS Settings (${!!pdsSettings}), PDS Brackets (${pdsBrackets.length}), Tax Brackets (${taxBrackets.length})`);
         } catch (e) {
-            console.error('[CalculationService] Error pre-fetching settings:', e);
+            logger.error('[CalculationService] Error pre-fetching settings:', e);
         }
 
         return {
@@ -253,7 +260,7 @@ class CalculationService {
             usePool: usePoolFlag,
             isFirstRun: isFirstRun,
             inflationYear: db_inflation_year_percent,
-            replenishmentIndexationRate: m_month_percent,
+            replenishmentIndexationRate: replenishmentIndexationRateDecimal,
             client: clientData,
             assets: assets,
             settings: settings,
@@ -311,7 +318,7 @@ class CalculationService {
                 const actualTaken = this._internalDeduct(take, context);
                 goal.smart_initial_capital = actualTaken;
                 tempPool -= actualTaken;
-                console.log(`[CalculationService] Reserved ${actualTaken} for ${goal.name} (Priority ${priority})`);
+                logger.info(`[CalculationService] Reserved ${actualTaken} for ${goal.name} (Priority ${priority})`);
             }
             // Phase 2 & 3 handled after this loop
         }
@@ -339,7 +346,7 @@ class CalculationService {
             investmentGoalObj.goal.smart_initial_capital = currentInit + actualTaken;
 
             tempPool -= actualTaken;
-            console.log(`[CalculationService] Reserved ${actualTaken} for ${investmentGoalObj.goal.name} (Investment Rule)`);
+            logger.info(`[CalculationService] Reserved ${actualTaken} for ${investmentGoalObj.goal.name} (Investment Rule)`);
         }
 
         // 3. Distribute Remaining Pool weighted by Burden (Other Goals)
@@ -409,7 +416,7 @@ class CalculationService {
                     const actualTaken = this._internalDeduct(allocation, context);
                     item.goal.smart_initial_capital = currentInit + actualTaken;
                     tempPool -= actualTaken;
-                    console.log(`[CalculationService] Reserved ${actualTaken} for ${item.goal.name} (Smart allocation, isLast: ${isLast})`);
+                    logger.info(`[CalculationService] Reserved ${actualTaken} for ${item.goal.name} (Smart allocation, isLast: ${isLast})`);
                 }
             } else {
                 // If no burden target, dump to last
@@ -451,6 +458,12 @@ class CalculationService {
      * @param {Object} [options] - Additional options { isFirstRun, usePool }
      */
     async calculateFirstRun(data, targetGoalId = null, previousCalculation = null, options = {}) {
+        logger.info("[CalculationService] calculateFirstRun STARTED");
+        logger.debug("[CalculationService] Request data:", {
+            targetGoalId,
+            isFirstRun: options.isFirstRun,
+            usePool: options.usePool
+        });
         try {
             const { goals, client } = data;
             const isFirstRun = options.isFirstRun !== false; // Default to true for backward compatibility
@@ -461,11 +474,11 @@ class CalculationService {
                 birth_date: client.birth_date || '1985-01-01'
             } : {};
 
-            console.log(`[CalculationService] calculateFirstRun for project: ${clientData.project_id}, Goals: ${goals?.length}`);
+            logger.info(`[CalculationService] calculateFirstRun for project: ${clientData.project_id}, Goals: ${goals?.length}`);
 
             // 1. Prepare Shared Context
             const context = await this._prepareContext(clientData, options);
-            console.log(`[CalculationService] Context prepared. Project: ${context.projectId}`);
+            logger.info(`[CalculationService] Context prepared. Project: ${context.projectId}`);
 
             // Map previous results by goal ID for quick lookup
             const prevGoalsMap = new Map();
@@ -486,7 +499,7 @@ class CalculationService {
                     const currentIncome = clientData.avg_monthly_income || 0;
                     if (currentIncome > 0) {
                         g.desired_monthly_income = currentIncome * 0.7;
-                        console.log(`[CalculationService] Auto-set desired_monthly_income for Pension to 70% of income: ${g.desired_monthly_income}`);
+                        logger.info(`[CalculationService] Auto-set desired_monthly_income for Pension to 70% of income: ${g.desired_monthly_income}`);
                     }
                 }
                 return { goal: g, index: i };
@@ -497,20 +510,22 @@ class CalculationService {
                 return (a.goal.term_months || 0) - (b.goal.term_months || 0);
             });
 
+            logger.info(`[CalculationService] Ordered goals: ${indexedGoals.map(g => g.goal.id).join(', ')}`);
+
             // 2.1. Smart Allocation (Burden-Based)
             // Skip if restricted by options OR if we are in partial mode and have previous results
             // User requested: Smart Allocation only for "First Run" (Onboarding)
             if (isFirstRun && (!targetGoalId || !previousCalculation)) {
-                console.log('[CalculationService] Running Full Smart Allocation (First Run)...');
+                logger.info('[CalculationService] Running Full Smart Allocation (First Run)...');
                 await this._calculateSmartAllocation(indexedGoals, context);
             } else {
-                console.log(`[CalculationService] Skipping Smart Allocation (Recalculate Mode or Target Set). isFirstRun: ${isFirstRun}, target: ${targetGoalId}`);
+                logger.info(`[CalculationService] Skipping Smart Allocation (Recalculate Mode or Target Set). isFirstRun: ${isFirstRun}, target: ${targetGoalId}`);
                 // In partial mode, we must restore smart_initial_capital from previous results for ALL goals
                 // so that deductFromSharedPool works correctly and preserves the "state" of the pool.
                 for (const { goal } of indexedGoals) {
                     const prev = prevGoalsMap.get(String(goal.id || goal.goal_id));
                     if (prev && prev.summary && prev.summary.initial_capital !== undefined) {
-                        // CRITICAL: We also need to PRESERVE the initial_capital of the TARGET goal 
+                        // CRITICAL: We also need to PRESERVE the initial_capital of the TARGET goal
                         // unless it was explicitly changed in the 'goal' object itself.
                         // If targetGoalId is set, 'goal' already contains the latest user input.
                         // If goal.initial_capital is already set (from user), we don't overwrite it with 'prev'.
@@ -521,7 +536,7 @@ class CalculationService {
                         } else {
                             goal.smart_initial_capital = prev.summary.initial_capital;
                         }
-                        console.log(`[CalculationService] Set capital ${goal.smart_initial_capital} for goal ${goal.name} (Frozen/Target)`);
+                        logger.info(`[CalculationService] Set capital ${goal.smart_initial_capital} for goal ${goal.name} (Frozen/Target)`);
                     }
                 }
             }
@@ -545,7 +560,7 @@ class CalculationService {
                         const calculatedProfile = riskProfileService.calculateGoalProfile(answers, term);
 
                         if (calculatedProfile) {
-                            console.log(`[CalculationService] Auto-calculated risk profile for ${goal.name}: ${calculatedProfile} (term: ${term}mo)`);
+                            logger.info(`[CalculationService] Auto-calculated risk profile for ${goal.name}: ${calculatedProfile} (term: ${term}mo)`);
                             goal.risk_profile = calculatedProfile;
                         }
                     }
@@ -570,7 +585,7 @@ class CalculationService {
 
                         resultsIndexed.push({ index, result: wrappedResult });
                     } catch (err) {
-                        console.error(`Calculation error for goal ${goal.name}:`, err);
+                        logger.error(`[CalculationService] Calculation error for goal ${goal.name} (ID: ${goal.id}):`, err);
                         resultsIndexed.push({
                             index,
                             result: {

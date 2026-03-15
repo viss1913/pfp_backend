@@ -105,7 +105,7 @@ class OtherGoalCalculator extends BaseCalculator {
         }
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual || 10);
-        const indexationRate = (settings.investment_expense_growth_monthly || 0.1) / 100;
+        const indexationRate = context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100);
 
         // 3. Resolve Initial Capital (respects reservation)
         const initialCapital = this.resolveInitialCapital(goal, context);

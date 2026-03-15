@@ -35,7 +35,7 @@ class FinReserveCalculator extends BaseCalculator {
         let initialCapital = this.resolveInitialCapital(goal, context);
 
         const monthlyReplenishment = goal.monthly_replenishment || 0;
-        const indexationRate = (settings.investment_expense_growth_monthly || 0.1) / 100;
+        const indexationRate = context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100);
 
         let currentBalance = initialCapital;
         let totalClientInvestment = initialCapital;

@@ -342,6 +342,12 @@ components:
           readOnly: true
     SystemSetting:
       type: object
+      description: |
+        Системная настройка проекта. Ключи, важные для расчётов:
+        - **inflation_rate_year** (number) — годовая инфляция по умолчанию (%). Используется, если не задана матрица.
+        - **inflation_rate_matrix** (object) — матрица инфляции по месяцам горизонта; см. схему InflationRateMatrix. Диапазоны создаёт агент при настройке проекта; в системе нет дефолтной матрицы.
+        - **investment_expense_growth_annual** (number) — рост расходов на инвестиции (% годовых). В расчётах переводится в месячную долю; если не задан — используется investment_expense_growth_monthly (% в месяц).
+        - **investment_expense_growth_monthly** (number) — рост расходов на инвестиции (% в месяц), fallback если не задана годовая.
       properties:
         key:
           type: string
@@ -361,6 +367,45 @@ components:
         updated_at:
           type: string
           format: date-time
+    InflationRateRange:
+      type: object
+      required:
+        - fromMonth
+        - toMonthExcl
+        - rateAnnual
+      description: Один диапазон месяцев с единой годовой ставкой инфляции
+      properties:
+        fromMonth:
+          type: integer
+          minimum: 0
+          description: Начало диапазона (месяц от старта, 0-based, включительно)
+          example: 0
+        toMonthExcl:
+          type: integer
+          minimum: 0
+          description: Конец диапазона (не включая). Например 12 — месяцы 0..11
+          example: 12
+        rateAnnual:
+          type: number
+          minimum: 0
+          description: Годовая инфляция в % для этого диапазона. В расчётах переводится в месячную по формуле (1 + rateAnnual/100)^(1/12) - 1
+          example: 7.5
+    InflationRateMatrix:
+      type: object
+      required:
+        - ranges
+      description: |
+        Матрица инфляции по месяцам горизонта. Создаётся агентом при настройке проекта.
+        Для месяца m (0-based) берётся ставка из диапазона, где fromMonth <= m < toMonthExcl.
+        Если месяц вне всех диапазонов — используется ставка последнего диапазона (продление).
+        Поля rateAnnual везде — годовые проценты.
+      properties:
+        ranges:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/InflationRateRange'
+          description: Диапазоны месяцев и годовая ставка инфляции (%) для каждого
     Tax2ndflBracket:
       type: object
       description: Налоговая ставка 2НДФЛ (прогрессивная шкала налогообложения)
@@ -1667,6 +1712,13 @@ paths:
   /pfp/settings/{key}:
     get:
       summary: Get setting by key
+      description: |
+        Ключи, связанные с инфляцией:
+        - **inflation_rate_matrix** — объект с полем ranges (массив { fromMonth, toMonthExcl, rateAnnual }).
+          Годовая ставка в %; для расчётов бэкенд переводит в месячную по формуле (1 + rateAnnual/100)^(1/12) - 1.
+        - **inflation_rate_year** — число, одна годовая инфляция % (используется, если матрица не задана).
+        - **investment_expense_growth_annual** — число, рост расходов на инвестиции в % годовых; в расчётах переводится в месячную.
+        - **investment_expense_growth_monthly** — число, рост расходов на инвестиции в % в месяц (fallback).
       tags:
         - Settings
       parameters:
@@ -1675,6 +1727,7 @@ paths:
           required: true
           schema:
             type: string
+          description: Ключ настройки (напр. inflation_rate_matrix, inflation_rate_year)
       responses:
         '200':
           description: OK
@@ -1686,6 +1739,11 @@ paths:
           description: Setting not found
     put:
       summary: Update setting value (admin only)
+      description: |
+        Для ключа **inflation_rate_matrix** передайте в value объект по схеме InflationRateMatrix
+        (ranges — массив диапазонов с fromMonth, toMonthExcl, rateAnnual в % годовых).
+        Для ключа **inflation_rate_year** — число (одна годовая ставка %, fallback если матрицы нет).
+        Для ключа **investment_expense_growth_annual** — число (рост расходов на инвестиции в % годовых); в расчётах переводится в месячную. Если не задан — используется investment_expense_growth_monthly (% в месяц).
       tags:
         - Settings
       parameters:
@@ -1694,6 +1752,7 @@ paths:
           required: true
           schema:
             type: string
+          description: Ключ настройки (напр. inflation_rate_matrix, inflation_rate_year)
       requestBody:
         content:
           application/json:
@@ -1707,6 +1766,21 @@ paths:
                     - type: string
                     - type: number
                     - type: object
+            examples:
+              inflation_matrix:
+                summary: Матрица инфляции по месяцам
+                value:
+                  value:
+                    ranges:
+                      - fromMonth: 0
+                        toMonthExcl: 12
+                        rateAnnual: 7.5
+                      - fromMonth: 12
+                        toMonthExcl: 24
+                        rateAnnual: 6.7
+                      - fromMonth: 24
+                        toMonthExcl: 48
+                        rateAnnual: 6.0
       responses:
         '200':
           description: Updated

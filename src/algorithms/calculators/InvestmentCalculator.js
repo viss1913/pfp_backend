@@ -5,7 +5,8 @@ class InvestmentCalculator extends BaseCalculator {
     async calculate(goal, context) {
         const { settings, client, repositories } = context;
         const { portfolioRepository, productRepository } = repositories;
-        const m_month_percent = settings.investment_expense_growth_monthly || 0;
+        // Рост расходов на инвестиции: в контексте уже месячная доля (из годовой или месячной настройки)
+        const replenishmentIndexationDecimal = context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0) / 100);
         const db_inflation_year_percent = settings.inflation_rate_year || 4.0;
 
         // 0. Найти портфель
@@ -43,7 +44,7 @@ class InvestmentCalculator extends BaseCalculator {
             monthlyReplenishment: monthlyReplenishment,
             termMonths: goal.term_months,
             monthlyYieldRate: portfolioYieldMonthly,
-            indexationRate: (m_month_percent || 0.1) / 100,
+            indexationRate: replenishmentIndexationDecimal,
             pdsProductId,
             avgMonthlyIncome,
             startDate
