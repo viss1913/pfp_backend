@@ -239,8 +239,9 @@ class CalculationService {
 
         // Матрица инфляции по месяцам (ranges: [{ fromMonth, toMonthExcl, rateAnnual }]); если пусто — используем одну ставку
         let inflationMatrix = null;
-        if (settings.inflation_rate_matrix != null) {
-            const raw = settings.inflation_rate_matrix;
+        const rawMatrix = settings.inflation_rate_matrix ?? await settingsService.getValue('inflation_rate_matrix', projectId).catch(() => null);
+        if (rawMatrix != null) {
+            const raw = rawMatrix;
             if (typeof raw === 'object' && Array.isArray(raw.ranges) && raw.ranges.length > 0) {
                 inflationMatrix = raw;
             } else if (typeof raw === 'string') {
@@ -252,6 +253,7 @@ class CalculationService {
                 } catch (_) { /* ignore */ }
             }
         }
+        if (inflationMatrix) logger.info(`[CalculationService] Inflation matrix loaded for project ${projectId}, ranges: ${inflationMatrix.ranges.length}`);
 
         // Pre-fetch Optimization Data (Cached Settings)
         let pdsSettings = null;
@@ -690,8 +692,14 @@ class CalculationService {
             const ageDate = new Date(ageDifMs);
             const age = Math.abs(ageDate.getUTCFullYear() - 1970);
 
+            const investmentExpenseGrowthPercent = context.investmentExpenseGrowthAnnualPercent != null
+                ? Math.round(context.investmentExpenseGrowthAnnualPercent * 100) / 100
+                : null;
+
             return {
                 client_id: data.client_id || (client ? client.id : null),
+                // Рост расходов на инвестиции (% годовых) — на верхнем уровне для удобства
+                investment_expense_growth_annual_percent: investmentExpenseGrowthPercent,
                 summary: {
                     goals_count: (goals || []).length,
                     total_capital: Math.round(results.reduce((sum, r) => {
@@ -726,9 +734,7 @@ class CalculationService {
                     tax_benefits_summary: this._generateTaxBenefitsSummary(results),
 
                     // Рост расходов на инвестиции (% годовых), использованный в расчёте
-                    investment_expense_growth_annual_percent: context.investmentExpenseGrowthAnnualPercent != null
-                        ? Math.round(context.investmentExpenseGrowthAnnualPercent * 100) / 100
-                        : null
+                    investment_expense_growth_annual_percent: investmentExpenseGrowthPercent
                 },
                 goals: results
             };
