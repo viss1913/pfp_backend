@@ -179,6 +179,26 @@ class CalculationService {
         let poolBalance = Number(clientData.total_liquid_capital || 0);
         const assets = clientData.assets || [];
 
+        // If total_liquid_capital is not provided (or zero), derive liquid pool from CASH-like assets at month 0
+        if ((!clientData.total_liquid_capital || Number(clientData.total_liquid_capital) === 0) &&
+            poolBalance === 0 &&
+            Array.isArray(assets) &&
+            assets.length > 0) {
+            const derivedLiquid = assets.reduce((sum, a) => {
+                const month = a.unlock_month || a.sell_month || 0;
+                const type = (a.type || '').toUpperCase();
+                if (month === 0 && (type === 'CASH' || type === 'НАЛИЧНЫЕ' || type === 'DEPOSIT' || type === 'DEPOSIT_ACCOUNT')) {
+                    return sum + Number(a.amount || a.current_value || 0);
+                }
+                return sum;
+            }, 0);
+
+            if (derivedLiquid > 0) {
+                poolBalance = derivedLiquid;
+                logger.info(`[CalculationService] Derived poolBalance=${poolBalance} from CASH/DEPOSIT assets at month 0 (no total_liquid_capital provided).`);
+            }
+        }
+
         // Chronological list of shared pool events (unlock_month: 0 is current liquid)
         const sharedPoolEvents = assets
             .filter(a => !a.goal_id)
@@ -330,14 +350,12 @@ class CalculationService {
             if (priority <= 2) {
                 let needed = 0;
 
-                // For Life Insurance (id=5), calculate via NSJ API
-                if (goal.goal_type_id === 5) {
-                    needed = await this._calculateLifeInsuranceNeeded(goal, context);
-                } else {
-                    // For FinReserve or others
-                    needed = goal.initial_capital || 0;
-                    if (priority === 1 && needed === 0) needed = goal.target_amount || 0;
-                }
+                // NEW LOGIC (Partner NSJ fallback):
+                // For both FinReserve and Life (goal_type_id=5) on First Run, we treat
+                // goal.initial_capital as already-calculated upfront cost (e.g. limit/years for NSJ).
+                // We simply deduct this from the shared pool, without extra NSJ reservation here.
+                needed = goal.initial_capital || 0;
+                if (priority === 1 && needed === 0) needed = goal.target_amount || 0;
 
                 const take = Math.min(tempPool, needed);
                 // Real deduction from pool events to reserve the capital
@@ -528,6 +546,7 @@ class CalculationService {
                         logger.info(`[CalculationService] Auto-set desired_monthly_income for Pension to 70% of income: ${g.desired_monthly_income}`);
                     }
                 }
+
                 return { goal: g, index: i };
             }).sort((a, b) => {
                 const pA = a.goal.priority || this._getPriority(a.goal);
