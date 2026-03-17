@@ -25,4 +25,8 @@ router.post('/stages', restrictTo('admin', 'super_admin'), aiB2cController.creat
 router.put('/stages/:id', restrictTo('admin', 'super_admin'), aiB2cController.updateAiB2cStage.bind(aiB2cController));
 router.delete('/stages/:id', restrictTo('admin', 'super_admin'), aiB2cController.deleteAiB2cStage.bind(aiB2cController));
 
+// Assistant Settings
+router.get('/settings', restrictTo('admin', 'super_admin'), aiB2cController.getAiB2cSettings.bind(aiB2cController));
+router.put('/settings', restrictTo('admin', 'super_admin'), aiB2cController.upsertAiB2cSettings.bind(aiB2cController));
+
 module.exports = router;

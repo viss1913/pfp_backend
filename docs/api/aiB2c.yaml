@@ -1,0 +1,198 @@
+openapi: 3.0.0
+info:
+  title: AI B2C API
+  description: API для работы с B2C ИИ-чатами. Включает админские методы для управления контекстами/этапами (stages) и клиентские (B2C) методы для общения с ИИ.
+  version: 1.0.0
+servers:
+  - url: /
+    description: Base URL
+paths:
+  # ==================== ADMIN ROUTES ====================
+  /admin/ai-b2c/brain-contexts:
+    get:
+      summary: Получить список Brain Contexts
+      description: Возвращает список базовых контекстов мозга (промптов) для проектов. Доступно для admin, super_admin.
+      tags:
+        - Admin AI B2C
+    post:
+      summary: Создать новый Brain Context
+      description: Создает новый контекст для ИИ. Требует admin или super_admin.
+      tags:
+        - Admin AI B2C
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                role_prompt: { type: string }
+  /admin/ai-b2c/brain-contexts/{id}:
+    put:
+      summary: Обновить Brain Context
+      description: Обновление существующего контекста по ID.
+      tags:
+        - Admin AI B2C
+    delete:
+      summary: Удалить Brain Context
+      description: Удаление контекста по ID.
+      tags:
+        - Admin AI B2C
+
+  /admin/ai-b2c/stages:
+    get:
+      summary: Получить список Stages (Сценариев/Этапов)
+      description: Стейджи (например, PFP1, PFP2) представляют собой разные этапы или сценарии общения.
+      tags:
+        - Admin AI B2C
+    post:
+      summary: Создать Stage
+      tags:
+        - Admin AI B2C
+  /admin/ai-b2c/stages/{id}:
+    put:
+      summary: Обновить Stage
+      tags:
+        - Admin AI B2C
+
+  /admin/ai-b2c/settings:
+    get:
+      summary: Получить настройки внешнего вида ассистента (имя, аватар, описание)
+      description: Возвращает настройки AI B2C ассистента для текущего проекта (по projectId / токену).
+      tags:
+        - Admin AI B2C
+      responses:
+        '200':
+          description: Текущие настройки или null, если ещё не заданы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiB2cSettings'
+    put:
+      summary: Обновить/Создать настройки внешнего вида ассистента
+      description: Устанавливает имя, аватар и зелёное описание ассистента для проекта.
+      tags:
+        - Admin AI B2C
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: { type: string, description: "Имя ассистента (например, Виктория)" }
+                avatar_url:   { type: string, description: "URL аватара ассистента" }
+                tagline:      { type: string, description: "Короткое зелёное описание/подпись" }
+      responses:
+        '200':
+          description: Обновлённые настройки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiB2cSettings'
+        '201':
+          description: Настройки созданы впервые
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiB2cSettings'
+    delete:
+      summary: Удалить Stage
+      tags:
+        - Admin AI B2C
+
+  # ==================== CLIENT (B2C) ROUTES ====================
+  /my/ai-b2c/chat:
+    post:
+      summary: Отправить сообщение ИИ (Обычный ответ)
+      description: Метод для отправки сообщения пользователя ассистенту без стриминга. Возвращает готовый ответ.
+      tags:
+        - Client AI B2C
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string, description: "Текст сообщения пользователя" }
+                stage: { type: string, description: "Стейдж чата (например, PFP1)" }
+  
+  /my/ai-b2c/chat/stream:
+    post:
+      summary: Отправить сообщение ИИ (Стриминг SSE)
+      description: Метод для отправки сообщения и получения ответа по частям через Server-Sent Events (SSE). Идеально для UX печатной машинки.
+      tags:
+        - Client AI B2C
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string }
+                stage: { type: string }
+  
+  /my/ai-b2c/history:
+    get:
+      summary: Получить историю чата
+      description: Возвращает историю сообщений пользователя в рамках конкретного стейджа проекта.
+      tags:
+        - Client AI B2C
+      parameters:
+        - in: query
+          name: stage
+          schema:
+            type: string
+          description: Название стейджа (например, PFP1). Если не передано, вернет историю по дефолтному стейджу.
+    delete:
+      summary: Очистить историю чата
+      description: Удаляет историю сообщений между клиентом и ИИ в рамках определенного стейджа.
+      tags:
+        - Client AI B2C
+      parameters:
+        - in: query
+          name: stage
+          schema:
+            type: string
+
+  /my/ai-b2c/stages:
+    get:
+      summary: Получить доступные Stages (Этапы) для клиента
+      description: Возвращает список стейджей, доступных текущему клиенту в рамках его проекта.
+      tags:
+        - Client AI B2C
+
+  /my/ai-b2c/settings:
+    get:
+      summary: Получить настройки ассистента для клиента
+      description: Возвращает имя, аватар и зелёное описание ассистента в рамках проекта клиента.
+      tags:
+        - Client AI B2C
+      responses:
+        '200':
+          description: Настройки ассистента (могут быть null, если не настроены)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiB2cSettingsPublic'
+
+components:
+  schemas:
+    AiB2cSettings:
+      type: object
+      properties:
+        id: { type: integer }
+        project_id: { type: integer }
+        display_name: { type: string }
+        avatar_url: { type: string, nullable: true }
+        tagline: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AiB2cSettingsPublic:
+      type: object
+      nullable: true
+      properties:
+        display_name: { type: string }
+        avatar_url: { type: string, nullable: true }
+        tagline: { type: string, nullable: true }

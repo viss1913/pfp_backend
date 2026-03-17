@@ -20,5 +20,9 @@ router.post('/stages', agentAiMiddleware, aiB2cController.createAiB2cStage.bind(
 router.put('/stages/:id', agentAiMiddleware, aiB2cController.updateAiB2cStage.bind(aiB2cController));
 router.delete('/stages/:id', agentAiMiddleware, aiB2cController.deleteAiB2cStage.bind(aiB2cController));
 
+// Assistant Settings — агент настраивает вид ассистента внутри своего проекта
+router.get('/settings', agentAiMiddleware, aiB2cController.getAiB2cSettings.bind(aiB2cController));
+router.put('/settings', agentAiMiddleware, aiB2cController.upsertAiB2cSettings.bind(aiB2cController));
+
 module.exports = router;
 

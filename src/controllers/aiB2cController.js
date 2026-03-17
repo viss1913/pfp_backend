@@ -178,6 +178,76 @@ class AiB2cController {
         }
     }
 
+    // ==================== ADMIN: Assistant Settings (имя, аватар, описание) ====================
+
+    /** GET /admin/ai-b2c/settings — получить настройки ассистента для проекта */
+    async getAiB2cSettings(req, res) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            if (!projectId) {
+                return res.status(400).json({ error: 'projectId is required' });
+            }
+
+            const settings = await knex('ai_b2c_settings')
+                .where({ project_id: projectId })
+                .first();
+
+            res.json(settings || null);
+        } catch (error) {
+            console.error('[AiB2C] Error getting settings:', error);
+            res.status(500).json({ error: 'Failed to get AI B2C settings' });
+        }
+    }
+
+    /** PUT /admin/ai-b2c/settings — обновить/создать настройки ассистента для проекта */
+    async upsertAiB2cSettings(req, res) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            if (!projectId) {
+                return res.status(400).json({ error: 'projectId is required' });
+            }
+
+            const { display_name, avatar_url, tagline } = req.body;
+            if (!display_name && !avatar_url && !tagline) {
+                return res.status(400).json({ error: 'Nothing to update. Pass at least one of display_name, avatar_url, tagline' });
+            }
+
+            const existing = await knex('ai_b2c_settings')
+                .where({ project_id: projectId })
+                .first();
+
+            if (!existing) {
+                const [id] = await knex('ai_b2c_settings').insert({
+                    project_id: projectId,
+                    display_name: display_name || 'AI-ассистент',
+                    avatar_url: avatar_url || null,
+                    tagline: tagline || null
+                });
+
+                const created = await knex('ai_b2c_settings').where({ id }).first();
+                return res.status(201).json(created);
+            }
+
+            await knex('ai_b2c_settings')
+                .where({ project_id: projectId })
+                .update({
+                    ...(display_name !== undefined && { display_name }),
+                    ...(avatar_url !== undefined && { avatar_url }),
+                    ...(tagline !== undefined && { tagline }),
+                    updated_at: knex.fn.now()
+                });
+
+            const updated = await knex('ai_b2c_settings')
+                .where({ project_id: projectId })
+                .first();
+
+            res.json(updated);
+        } catch (error) {
+            console.error('[AiB2C] Error upserting settings:', error);
+            res.status(500).json({ error: 'Failed to save AI B2C settings' });
+        }
+    }
+
     // ==================== B2C: Chat ====================
 
     /** POST /my/ai-b2c/chat — Обычный ответ */
@@ -269,6 +339,30 @@ class AiB2cController {
         } catch (error) {
             console.error('[AiB2C] Get my stages error:', error);
             res.status(500).json({ error: 'Failed to get available stages' });
+        }
+    }
+
+    /** GET /my/ai-b2c/settings — Получить настройки ассистента для клиента */
+    async getMySettings(req, res) {
+        try {
+            const projectId = req.user.projectId;
+            if (!projectId) {
+                return res.status(400).json({ error: 'projectId is required' });
+            }
+
+            const settings = await knex('ai_b2c_settings')
+                .where({ project_id: projectId })
+                .first();
+
+            // Возвращаем только нужные фронту поля
+            res.json(settings ? {
+                display_name: settings.display_name,
+                avatar_url: settings.avatar_url,
+                tagline: settings.tagline
+            } : null);
+        } catch (error) {
+            console.error('[AiB2C] Get my settings error:', error);
+            res.status(500).json({ error: 'Failed to get AI B2C settings' });
         }
     }
 }
