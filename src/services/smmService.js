@@ -4,7 +4,10 @@ const knex = require('../config/database');
 class SmmService {
     constructor() {
         this.apiUrl = process.env.SMM_API_URL || 'http://localhost:4000/api';
-        this.apiKey = process.env.INTERNAL_API_KEY || process.env.SMM_INTERNAL_API_KEY || 'smm-secret-key';
+        this.apiKey = process.env.INTERNAL_API_KEY || process.env.SMM_INTERNAL_API_KEY;
+        if (!this.apiKey) {
+            console.warn('CRITICAL WARNING: SMM_INTERNAL_API_KEY or INTERNAL_API_KEY environment variable is not set!');
+        }
     }
 
     /**

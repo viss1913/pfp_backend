@@ -51,7 +51,10 @@ class AgentService {
 
             // 2. Create user account if email/password provided
             if (email) {
-                const passwordHash = password ? await bcrypt.hash(password, 10) : await bcrypt.hash('agent123', 10);
+                if (!password && !process.env.DEFAULT_AGENT_PASSWORD) {
+                    throw { status: 500, message: 'Server configuration error: DEFAULT_AGENT_PASSWORD is not set' };
+                }
+                const passwordHash = password ? await bcrypt.hash(password, 10) : await bcrypt.hash(process.env.DEFAULT_AGENT_PASSWORD, 10);
                 await trx('users').insert({
                     agent_id: agentId,
                     project_id: projectId,
@@ -133,7 +136,10 @@ class AgentService {
                     });
                 } else if (email) {
                     // Create if didn't exist but email provided
-                    const passwordHash = password ? await bcrypt.hash(password, 10) : await bcrypt.hash('agent123', 10);
+                    if (!password && !process.env.DEFAULT_AGENT_PASSWORD) {
+                        throw { status: 500, message: 'Server configuration error: DEFAULT_AGENT_PASSWORD is not set' };
+                    }
+                    const passwordHash = password ? await bcrypt.hash(password, 10) : await bcrypt.hash(process.env.DEFAULT_AGENT_PASSWORD, 10);
                     await trx('users').insert({
                         agent_id: id,
                         project_id: projectId,

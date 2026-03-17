@@ -4,7 +4,9 @@ const authService = require('../services/authService');
 // Validation schemas
 const loginSchema = Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
-    password: Joi.string().min(6).required()
+    password: Joi.string().min(6).required(),
+    // Допускаем project_key на логине, но дальше его игнорируем.
+    project_key: Joi.string().optional()
 });
 
 const registerSchema = Joi.object({

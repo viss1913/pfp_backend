@@ -6,7 +6,10 @@ const emailService = require('./emailService');
 const projectService = require('./projectService');
 const smmService = require('./smmService');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+if (!process.env.JWT_SECRET) {
+    console.warn('CRITICAL WARNING: JWT_SECRET environment variable is not set!');
+}
+const JWT_SECRET = process.env.JWT_SECRET; // Must be provided via environment
 const JWT_EXPIRES_IN = '24h';
 const VERIFICATION_CODE_TTL_MINUTES = 10;
 

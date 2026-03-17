@@ -3,6 +3,13 @@ const https = require('https');
 const XLSX = require('xlsx');
 const db = require('../config/database');
 
+/** Логирует детали ошибки запроса Росстата */
+function logRosstatError(context, err, extra = '') {
+    const status = err.response?.status;
+    const body = err.response?.data != null ? String(err.response.data).slice(0, 300) : '';
+    console.error(`[rosstat] ${context}:`, err.message, status ? `status ${status}` : '', extra || '', body || '');
+}
+
 /**
  * Расширение для MacroService для работы с данными Росстата
  */
@@ -26,7 +33,7 @@ class RosstatService {
             // Ищем что-то вроде /storage/mediabank/ipc_spr_01-2026.xlsx
             const match = html.match(/\/storage\/mediabank\/ipc_spr_(\d{2})-(\d{4})\.xlsx/);
             if (!match) {
-                console.error('❌ Could not find ipc_spr XLSX link');
+                console.warn('[rosstat] Monthly: ссылка ipc_spr_MM-YYYY.xlsx не найдена. Длина HTML:', html?.length, 'фрагмент:', html?.slice(2000, 2600));
                 return;
             }
 
@@ -43,9 +50,11 @@ class RosstatService {
 
             const workbook = XLSX.read(res.data, { type: 'buffer' });
             // Лист называется MГГГГ (например 12026 для Января 2026)
-            // Но мы можем найти его по шаблону
             const sheetName = workbook.SheetNames.find(s => s.endsWith(year) && s.length <= 6);
-            if (!sheetName) throw new Error(`Sheet for ${year} not found`);
+            if (!sheetName) {
+                console.warn('[rosstat] Monthly: лист с годом', year, 'не найден. Доступные листы:', workbook.SheetNames?.slice(0, 10));
+                return;
+            }
 
             const ws = workbook.Sheets[sheetName];
             const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
@@ -58,9 +67,11 @@ class RosstatService {
 
                 await this.saveIndicatorValue('rosstat_inflation_monthly', value, date, { url: fileUrl });
                 console.log(`✅ Saved Monthly Inflation: ${value}% for ${sheetName}`);
+            } else {
+                console.warn('[rosstat] Monthly: строка "Все товары и услуги" или колонка [3] не найдена. Первые ячейки строк:', data?.slice(0, 10).map(r => r?.[0]));
             }
         } catch (error) {
-            console.error('❌ Rosstat Monthly Error:', error.message);
+            logRosstatError('Monthly', error);
         }
     }
 
@@ -98,10 +109,12 @@ class RosstatService {
                 await this.saveIndicatorValue('rosstat_inflation_weekly', value, date, { text: newsMatch[0] });
                 console.log(`✅ Saved Weekly Inflation: ${value}% for ${date.toISOString().split('T')[0]}`);
             } else {
-                console.log('⚠️ Could not find weekly inflation in news text.');
+                // Показываем фрагмент страницы, где ищем паттерн "составил X%"
+                const snippet = html && html.length > 500 ? html.slice(html.indexOf('индекс'), html.indexOf('индекс') + 600) : html?.slice(0, 400);
+                console.warn('[rosstat] Weekly: паттерн "составил X%" не найден. Фрагмент страницы:', snippet || '(пусто)');
             }
         } catch (error) {
-            console.error('❌ Rosstat Weekly Error:', error.message);
+            logRosstatError('Weekly', error);
         }
     }
 

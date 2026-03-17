@@ -33,4 +33,7 @@ router.get('/ai-b2c/stages', aiB2cController.getMyStages.bind(aiB2cController));
 // DELETE /my/ai-b2c/history — Clear chat history (?stage=PFP1)
 router.delete('/ai-b2c/history', aiB2cController.clearAiB2cHistory.bind(aiB2cController));
 
+// GET /my/ai-b2c/settings — Get assistant settings for current project
+router.get('/ai-b2c/settings', aiB2cController.getMySettings.bind(aiB2cController));
+
 module.exports = router;

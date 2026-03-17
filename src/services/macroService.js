@@ -4,6 +4,17 @@ const { parseStringPromise } = require('xml2js');
 
 const CBR_SOAP_URL = 'https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx';
 
+/** Логирует детали ошибки запроса (статус, тело ответа) */
+function logFetchError(context, err, responseBody = null) {
+    const msg = err.response
+        ? `status ${err.response.status}, body: ${String(responseBody || err.response.data || '').slice(0, 400)}`
+        : err.message;
+    console.error(`[macro] ${context}: ${msg}`);
+    if (err.response && err.response.status) {
+        console.error(`[macro] ${context} response status:`, err.response.status);
+    }
+}
+
 /**
  * Сервис для сбора и хранения макроэкономических данных
  * 
@@ -83,15 +94,20 @@ class MacroService {
   </soap:Body>
 </soap:Envelope>`;
 
-        const response = await axios.post(CBR_SOAP_URL, body, {
-            headers: {
-                'Content-Type': 'text/xml; charset=utf-8',
-                'SOAPAction': `http://web.cbr.ru/${method}`
-            },
-            timeout: 15000
-        });
-
-        return response.data;
+        try {
+            const response = await axios.post(CBR_SOAP_URL, body, {
+                headers: {
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': `http://web.cbr.ru/${method}`
+                },
+                timeout: 15000
+            });
+            return response.data;
+        } catch (err) {
+            const snippet = typeof err.response?.data === 'string' ? err.response.data.slice(0, 500) : JSON.stringify(err.response?.data);
+            logFetchError(`SOAP ${method}`, err, snippet);
+            throw err;
+        }
     }
 
     /**
@@ -145,7 +161,7 @@ class MacroService {
                 await this.saveIndicatorValue('cbr_key_rate', value, date, { rates: rates.slice(0, 5) });
             }
         } catch (error) {
-            console.error('fetchCbrKeyRate error:', error.message);
+            logFetchError('fetchCbrKeyRate', error);
         }
     }
 
@@ -176,11 +192,11 @@ class MacroService {
         console.log(`📡 Fetching CBR Gold Price History (XML API): ${url}`);
 
         try {
-            const response = await axios.get(url, { timeout: 15000 });
+            const response = await axios.get(url, { timeout: 15000, headers: this.commonHeaders });
             const result = await parseStringPromise(response.data, { explicitArray: false });
 
             if (!result.Metadata || !result.Metadata.Record) {
-                console.log('No gold data found for this period');
+                console.warn('[macro] CBR Gold: нет Metadata.Record. Ключи ответа:', result ? Object.keys(result) : 'null');
                 return;
             }
 
@@ -188,7 +204,11 @@ class MacroService {
             if (!Array.isArray(records)) records = [records];
 
             // Фильтруем только золото (Code 1)
-            const goldRecords = records.filter(r => r.$.Code === '1');
+            const goldRecords = records.filter(r => r && r.$ && r.$.Code === '1');
+            if (goldRecords.length === 0) {
+                console.warn('[macro] CBR Gold: записей с Code=1 нет. Всего записей:', records.length, 'пример Code:', records[0]?.$?.Code);
+                return;
+            }
 
             for (const rec of goldRecords) {
                 const dateParts = rec.$.Date.split('.');
@@ -197,7 +217,7 @@ class MacroService {
                 await this.saveIndicatorValue('cbr_gold_price', value, date, rec);
             }
         } catch (error) {
-            console.error('❌ Error fetching CBR Gold History:', error.message);
+            logFetchError('CBR Gold', error, error.response?.data != null ? String(error.response.data).slice(0, 400) : null);
         }
     }
 
@@ -213,9 +233,10 @@ class MacroService {
             const rawXml = await this.soapRequest('GetCursOnDateXML', params);
             const result = await parseStringPromise(rawXml, { explicitArray: false });
 
-            const valuteData = result['soap:Envelope']['soap:Body'].GetCursOnDateXMLResponse.GetCursOnDateXMLResult.ValuteData;
+            const body = result['soap:Envelope']?.['soap:Body'];
+            const valuteData = body?.GetCursOnDateXMLResponse?.GetCursOnDateXMLResult?.ValuteData;
             if (!valuteData || !valuteData.ValuteCursOnDate) {
-                console.error('❌ No currency data found');
+                console.warn('[macro] CBR Currency: нет ValuteData. Ключи body:', body ? Object.keys(body) : 'null');
                 return;
             }
 
@@ -233,7 +254,7 @@ class MacroService {
                 await this.saveIndicatorValue('eur_rub', value, now, eur);
             }
         } catch (error) {
-            console.error('❌ Error fetching CBR Currency Rates:', error.message);
+            logFetchError('CBR Currency', error);
         }
     }
 
@@ -246,19 +267,20 @@ class MacroService {
             const rawXml = await this.soapRequest('MainInfoXML');
             const result = await parseStringPromise(rawXml, { explicitArray: false });
 
-            const mainInfo = result['soap:Envelope']['soap:Body'].MainInfoXMLResponse.MainInfoXMLResult;
+            const body = result['soap:Envelope']?.['soap:Body'];
+            const mainInfo = body?.MainInfoXMLResponse?.MainInfoXMLResult;
 
-            if (!mainInfo || !mainInfo.Inflation) {
-                console.error('❌ CBR Inflation data not found in SOAP response');
+            if (!mainInfo || mainInfo.Inflation === undefined) {
+                console.warn('[macro] CBR Inflation: нет MainInfoXMLResult.Inflation. Ключи mainInfo:', mainInfo ? Object.keys(mainInfo) : 'null');
                 return;
             }
 
-            const value = parseFloat(mainInfo.Inflation.replace(',', '.'));
+            const value = parseFloat(String(mainInfo.Inflation).replace(',', '.'));
             const date = new Date(mainInfo.InflationDate);
 
             await this.saveIndicatorValue('cbr_inflation_annual', value, date, mainInfo);
         } catch (error) {
-            console.error('❌ Error fetching CBR Inflation:', error.message);
+            logFetchError('CBR Inflation', error);
         }
     }
 
@@ -280,13 +302,13 @@ class MacroService {
             const html = response.data;
             const tableMatch = html.match(/<table[^>]*class="data"[^>]*>([\s\S]*?)<\/table>/i);
             if (!tableMatch) {
-                console.error('Could not find data table on avgprocstav page');
+                console.warn('[macro] CBR Deposit: таблица .data не найдена. Длина HTML:', html?.length, 'фрагмент:', html?.slice(0, 300));
                 return;
             }
 
             const rows = tableMatch[1].match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
             if (!rows || rows.length < 2) {
-                console.error('No data rows found');
+                console.warn('[macro] CBR Deposit: строк в таблице нет или одна. rows.length:', rows?.length ?? 0);
                 return;
             }
 
@@ -308,7 +330,7 @@ class MacroService {
                 }
             }
         } catch (error) {
-            console.error('fetchCbrDepositRates error:', error.message);
+            logFetchError('CBR Deposit', error, error.response?.data != null ? String(error.response.data).slice(0, 400) : null);
         }
     }
 
@@ -352,7 +374,7 @@ class MacroService {
                 console.error('Could not find market value for IMOEX');
             }
         } catch (error) {
-            console.error('syncImoex error:', error.message);
+            logFetchError('syncImoex', error);
         }
     }
 
@@ -366,11 +388,15 @@ class MacroService {
             const response = await axios.get(url);
             const data = response.data;
             if (!data.params || !data.params.data || data.params.data.length === 0) {
-                console.error('No yieldcurve params in MOEX response');
+                console.warn('[macro] MOEX OFZ: нет params.data. Ключи ответа:', Object.keys(data || {}));
                 return;
             }
 
             const table = data.securities;
+            if (!table || !table.columns || !table.data?.length) {
+                console.warn('[macro] MOEX OFZ: нет securities.columns/data');
+                return;
+            }
             const expDateIdx = table.columns.indexOf('expdate');
             const yieldIdx = table.columns.indexOf('clcyield');
             const now = new Date();
@@ -401,7 +427,7 @@ class MacroService {
             if (y10) await this.saveIndicatorValue('moex_ofz_gcurve_10y', y10, new Date(), data);
 
         } catch (error) {
-            console.error('syncOfzYields error:', error.message);
+            logFetchError('syncOfzYields', error);
         }
     }
 
@@ -422,7 +448,7 @@ class MacroService {
                 console.error('Could not find market value for RUCBICP');
             }
         } catch (error) {
-            console.error('syncCorpBonds error:', error.message);
+            logFetchError('syncCorpBonds', error);
         }
     }
 
