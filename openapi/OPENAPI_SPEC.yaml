@@ -2759,6 +2759,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AiB2cSettings'
+
+  /pfp/ai-b2c/avatar-upload:
+    post:
+      summary: Загрузка аватара для AI B2C ассистента (агентский ЛК)
+      description: |
+        Загружает картинку (аватар ассистента) и возвращает URL, который можно сохранить в настройках ассистента.
+        Ожидает multipart/form-data с полем **image**.
+      tags: [AiB2C, Agents]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Файл изображения (PNG/JPEG/WebP), до 5 МБ
+      responses:
+        '201':
+          description: Файл загружен успешно
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    description: Публичный URL загруженного файла
+        '400':
+          description: Ошибка валидации (нет файла или не картинка)
     put:
       summary: Обновить или создать настройки внешнего вида AI B2C ассистента
       description: |

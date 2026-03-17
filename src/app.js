@@ -51,6 +51,9 @@ app.use(helmet({
 
 app.use(express.json());
 
+// Static files (uploads)
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.url}`);
     next();
