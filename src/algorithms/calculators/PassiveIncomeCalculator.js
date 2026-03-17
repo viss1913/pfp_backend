@@ -129,6 +129,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 projected_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
                 required_capital_at_end: Math.round(requiredCapitalFuture * 100) / 100,
 
+                inflation_rate: Math.round(inflationRate * 100) / 100,
                 accumulation_yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
                 payout_yield_percent: Math.round(payoutYieldPercent * 100) / 100,
 
