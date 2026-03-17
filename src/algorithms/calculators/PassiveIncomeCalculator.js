@@ -115,6 +115,16 @@ class PassiveIncomeCalculator extends BaseCalculator {
             });
         }
 
+        // 7. Пересчет достижимого дохода при фиксированном пополнении:
+        // если пользователь сам задал monthly_replenishment, считаем,
+        // какой доход в сегодняшних ценах реально достижим при таком пополнении.
+        let effectiveDesiredIncomePresent = initialDesiredIncome;
+        if (goal.monthly_replenishment && goal.monthly_replenishment > 0 && simResult && simResult.totalCapital != null) {
+            const payoutMonthlyFuture = (simResult.totalCapital * payoutYieldPercent / 100) / 12;
+            const discountFactor = Math.pow(1 + (inflationRate / 100), termYears);
+            effectiveDesiredIncomePresent = payoutMonthlyFuture / discountFactor;
+        }
+
         return {
             goal_id: goal.id,
             goal_type_id: 2,
@@ -123,7 +133,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 status: (recommendedReplenishment <= ((goal.avg_monthly_income || (client && client.avg_monthly_income) || 0) * 0.2)) ? 'OK' : 'GAP',
                 initial_capital: Math.round(initialCapital * 100) / 100,
                 monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
-                target_amount_initial: Math.round(initialDesiredIncome * 100) / 100,
+                target_amount_initial: Math.round(effectiveDesiredIncomePresent * 100) / 100,
                 target_amount_future: Math.round(requiredCapitalFuture * 100) / 100,
                 target_months: termMonths,
                 projected_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
