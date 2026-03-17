@@ -776,6 +776,18 @@ components:
           type: string
         is_active:
           type: boolean
+
+    AiB2cSettings:
+      type: object
+      description: Настройки внешнего вида AI B2C ассистента на уровне проекта
+      properties:
+        id: { type: integer }
+        project_id: { type: integer }
+        display_name: { type: string, description: 'Имя ассистента, отображаемое на фронте (например, Виктория)' }
+        avatar_url: { type: string, nullable: true, description: 'URL аватарки ассистента' }
+        tagline: { type: string, nullable: true, description: 'Короткое зелёное зелёное описание/подпись' }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     
     Agent:
       type: object
@@ -1091,6 +1103,8 @@ tags:
   - name: Clients
   - name: AiAssistants
     description: Management of AI Assistants (Admin only)
+  - name: AiB2C
+    description: Настройки и контексты AI B2C (админка / проекты)
   - name: Agents
     description: Management of Agents (Consultants)
   - name: HomeOwnersInsurance
@@ -2728,4 +2742,58 @@ paths:
       responses:
         '200':
           description: Удалено
+
+  /admin/ai-b2c/settings:
+    get:
+      summary: Получить настройки внешнего вида AI B2C ассистента
+      description: |
+        Возвращает настройки ассистента (имя, аватар, зелёное описание) для текущего проекта.
+        Используется админкой / кабинетом агента для управления брендингом ассистента.
+      tags: [AiB2C, Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Текущие настройки или null, если ещё не заданы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiB2cSettings'
+    put:
+      summary: Обновить или создать настройки внешнего вида AI B2C ассистента
+      description: |
+        Обновляет или создаёт запись настроек ассистента для проекта.
+        Достаточно передать только изменяемые поля (display_name, avatar_url, tagline).
+      tags: [AiB2C, Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                  description: 'Имя ассистента (например, Виктория)'
+                avatar_url:
+                  type: string
+                  description: 'URL аватара (может быть null)'
+                tagline:
+                  type: string
+                  description: 'Короткая зелёная подпись/описание под именем'
+      responses:
+        '200':
+          description: Настройки обновлены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiB2cSettings'
+        '201':
+          description: Настройки созданы впервые
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiB2cSettings'
 

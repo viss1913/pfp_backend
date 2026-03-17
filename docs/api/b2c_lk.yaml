@@ -1,0 +1,262 @@
+openapi: 3.0.0
+info:
+  title: B2C API (Личный кабинет клиента)
+  description: Единый API для фронтенда личного кабинета. Включает регистрацию, расчет плана, ИИ-чат и макроэкономические данные.
+  version: 2.0.0
+servers:
+  - url: /api
+    description: Main API server
+
+security:
+  - bearerAuth: []
+
+paths:
+  # ==================== АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛЬ ====================
+  /auth/login:
+    post:
+      tags: [ "Авторизация" ]
+      summary: Клиент Логин
+      description: Авторизация клиента по email и паролю
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ email, password ]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200':
+          description: Успешный вход. Возвращает токен и профиль клиента
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfpB2C.yaml#/components/schemas/AuthResponse'
+
+  /auth/register-client:
+    post:
+      tags: [ "Регистрация" ]
+      summary: Шаг 1. Инициация регистрации (отправка кода на email)
+      parameters:
+        - $ref: '../../openapi/pfpB2C.yaml#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ email, password, password_confirm ]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+                password_confirm: { type: string }
+                role: { type: string, enum: [client], default: client }
+                fio: { type: string, description: "Необязательно на 1 шаге" }
+
+  /auth/verify-code:
+    post:
+      tags: [ "Регистрация" ]
+      summary: Шаг 2. Подтверждение email и создание аккаунта
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ email, code ]
+              properties:
+                email: { type: string }
+                code: { type: string, description: "6-значный код из письма" }
+
+  /auth/register-fast:
+    post:
+      tags: [ "Регистрация" ]
+      summary: Быстрая регистрация (без подтверждения email)
+      parameters:
+        - $ref: '../../openapi/pfpB2C.yaml#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ email, password ]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+                fio: { type: string }
+
+  /my/account:
+    delete:
+      tags: [ "Профиль" ]
+      summary: Удалить аккаунт
+      description: Полное удаление аккаунта пользователя и всех его данных
+
+  # ==================== ФИНАНСОВЫЙ ПЛАН И ЦЕЛИ ====================
+  /my/plan:
+    get:
+      tags: [ "Финансовый План" ]
+      summary: Получить текущий финансовый план
+      description: Возвращает сохраненный план для авторизованного клиента
+  
+  /my/plan/first-run:
+    post:
+      tags: [ "Финансовый План" ]
+      summary: Создать/Обновить финансовый план (Первичный расчет)
+      description: Выполняет полный расчет плана и сохраняет его для авторизованного клиента
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationRequest'
+      responses:
+        '200':
+          description: Расчет успешен
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfp-api-v1.2.yaml#/components/schemas/CalculationResponse'
+
+  /my/plan/{goalId}/recalculate:
+    post:
+      tags: [ "Цели" ]
+      summary: Пересчет конкретной финансовой цели
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationGoal'
+
+  /my/plan/goals:
+    post:
+      tags: [ "Цели" ]
+      summary: Добавить новую цель в план
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationGoal'
+
+  /my/plan/goals/{goalId}:
+    delete:
+      tags: [ "Цели" ]
+      summary: Удалить цель из финансового плана
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema: { type: string }
+
+  # ==================== ПОРТФЕЛЬ ====================
+  /my/portfolio:
+    get:
+      tags: [ "Портфель" ]
+      summary: Получить состав текущего портфеля
+      description: Заглушка. Возвращает мок-данные.
+
+  # ==================== ИИ ЧАТ (AI B2C) ====================
+  /my/ai-b2c/chat:
+    post:
+      tags: [ "AI B2C" ]
+      summary: Отправить сообщение ИИ (Обычный ответ)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string }
+                stage: { type: string, description: "Стейдж чата (например, PFP1)" }
+  
+  /my/ai-b2c/chat/stream:
+    post:
+      tags: [ "AI B2C" ]
+      summary: Отправить сообщение ИИ (Стриминг SSE)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string }
+                stage: { type: string }
+
+  /my/ai-b2c/history:
+    get:
+      tags: [ "AI B2C" ]
+      summary: Получить историю чата
+      parameters:
+        - in: query
+          name: stage
+          schema: { type: string }
+    delete:
+      tags: [ "AI B2C" ]
+      summary: Очистить историю чата
+      parameters:
+        - in: query
+          name: stage
+          schema: { type: string }
+
+  /my/ai-b2c/stages:
+    get:
+      tags: [ "AI B2C" ]
+      summary: Получить доступные Stages (Этапы) для клиента
+
+  /my/ai-b2c/settings:
+    get:
+      tags: [ "AI B2C" ]
+      summary: Получить настройки ассистента (имя, аватар, описание)
+      description: Возвращает фронту отображаемые настройки ассистента в рамках текущего проекта клиента.
+      responses:
+        '200':
+          description: Настройки ассистента или null, если ещё не настроены
+          content:
+            application/json:
+              schema:
+                $ref: '../../docs/api/aiB2c.yaml#/components/schemas/AiB2cSettingsPublic'
+
+  # ==================== МАКРОЭКОНОМИКА ====================
+  /pfp/macro/latest:
+    get:
+      tags: [ "Макро" ]
+      summary: Текущие макроэкономические данные
+      description: Банковские ставки, инфляция (для виджетов)
+
+  /pfp/macro/history/{slug}:
+    get:
+      tags: [ "Макро" ]
+      summary: История показателей
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string, example: "inflation-ru" }
+
+  # ==================== ОТЧЕТЫ ====================
+  /my/reports/{clientId}:
+    get:
+      tags: [ "Отчеты" ]
+      summary: Получить данные для отчета
+      description: Специфичный метод фронта для генерации отчетов.
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema: { type: string }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

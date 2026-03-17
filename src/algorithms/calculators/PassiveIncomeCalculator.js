@@ -134,7 +134,10 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 initial_capital: Math.round(initialCapital * 100) / 100,
                 monthly_replenishment: Math.round(recommendedReplenishment * 100) / 100,
                 target_amount_initial: Math.round(effectiveDesiredIncomePresent * 100) / 100,
-                target_amount_future: Math.round(requiredCapitalFuture * 100) / 100,
+                // Для PASSIVE_INCOME target_amount_future трактуем как
+                // желаемый доход в месяц в ценах будущего (с учётом инфляции),
+                // а не как требуемый капитал.
+                target_amount_future: Math.round(desiredIncomeFuture * 100) / 100,
                 target_months: termMonths,
                 projected_capital_at_end: Math.round(simResult.totalCapital * 100) / 100,
                 required_capital_at_end: Math.round(requiredCapitalFuture * 100) / 100,
