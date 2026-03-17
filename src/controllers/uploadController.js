@@ -5,20 +5,29 @@ const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 let r2Client = null;
 
 function getR2Client() {
-    if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME) {
+    // Поддерживаем две схемы переменных:
+    // 1) R2_ACCOUNT_ID + R2_ACCESS_KEY_ID + R2_SECRET_ACCESS_KEY + R2_BUCKET_NAME (+ R2_ENDPOINT)
+    // 2) S3_API_URL + R2_BUCKET_NAME + R2_ACCESS_KEY_ID + SecretAccessKey
+
+    const bucketName = process.env.R2_BUCKET_NAME;
+    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || process.env.SecretAccessKey;
+    const s3EndpointFromEnv = process.env.R2_ENDPOINT || process.env.S3_API_URL;
+    const accountId = process.env.R2_ACCOUNT_ID;
+
+    if (!bucketName || !accessKeyId || !secretAccessKey || (!s3EndpointFromEnv && !accountId)) {
         return null;
     }
 
     if (!r2Client) {
-        const accountId = process.env.R2_ACCOUNT_ID;
-        const endpoint = process.env.R2_ENDPOINT || `https://${accountId}.r2.cloudflarestorage.com`;
+        const endpoint = s3EndpointFromEnv || `https://${accountId}.r2.cloudflarestorage.com`;
 
         r2Client = new S3Client({
             region: 'auto',
             endpoint,
             credentials: {
-                accessKeyId: process.env.R2_ACCESS_KEY_ID,
-                secretAccessKey: process.env.R2_SECRET_ACCESS_KEY
+                accessKeyId,
+                secretAccessKey
             }
         });
     }
@@ -56,9 +65,9 @@ class UploadController {
                     ACL: 'public-read' // Cloudflare R2 игнорирует ACL, доступ настраивается на бакете
                 }));
 
-                const publicBase = process.env.R2_PUBLIC_BASE_URL || process.env.R2_CDN_BASE_URL;
+                const publicBase = process.env.R2_PUBLIC_BASE_URL || process.env.R2_CDN_BASE_URL || process.env.R2_PUBLIC_DOMAIN;
                 if (!publicBase) {
-                    return res.status(500).json({ error: 'R2_PUBLIC_BASE_URL is not configured' });
+                    return res.status(500).json({ error: 'R2_PUBLIC_BASE_URL (or R2_PUBLIC_DOMAIN) is not configured' });
                 }
 
                 const url = `${publicBase.replace(/\/$/, '')}/${key}`;
