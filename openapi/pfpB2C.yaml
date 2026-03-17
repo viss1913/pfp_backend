@@ -336,3 +336,18 @@ components:
         '200':
           description: История очищена
 
+  /my/ai-b2c/settings:
+    get:
+      summary: Получить настройки ассистента (имя, аватар, описание)
+      tags: [AiB2C]
+      description: |
+        Возвращает настройки AI B2C ассистента в рамках проекта клиента.
+        Используется фронтом ЛК клиента для отображения имени, аватара и зелёной подписи ассистента.
+      responses:
+        '200':
+          description: Настройки ассистента или null, если ещё не настроены
+          content:
+            application/json:
+              schema:
+                $ref: '../docs/api/aiB2c.yaml#/components/schemas/AiB2cSettingsPublic'
+
