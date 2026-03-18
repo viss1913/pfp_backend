@@ -203,6 +203,7 @@ class PortfolioRepository {
             }
 
             // Update Classes: Храним ТОЛЬКО в JSON поле portfolios.classes (просто и понятно!)
+            // Не перезаписываем классы пустым массивом — часто фронт шлёт [] по ошибке и затирает привязку
             if (classIds !== undefined) {
                 // Нормализуем: null или не-массив превращаем в пустой массив
                 let normalizedClassIds = Array.isArray(classIds) ? classIds : [];
@@ -213,6 +214,10 @@ class PortfolioRepository {
                     console.log(`[PortfolioRepository] Extracted IDs from objects array:`, normalizedClassIds);
                 }
 
+                // Пустой массив от фронта — не трогаем классы (сохраняем текущие в БД)
+                if (normalizedClassIds.length === 0) {
+                    console.log(`[PortfolioRepository] classes sent as empty, keeping existing classes for portfolio ${id}`);
+                } else {
                 console.log(`[PortfolioRepository] Updating classes for portfolio ${id}:`, classIds, '-> normalized:', normalizedClassIds);
 
                 // Обновляем JSON поле classes в таблице portfolios
@@ -234,6 +239,7 @@ class PortfolioRepository {
                         await trx('portfolio_class_links').insert(links);
                         console.log(`[PortfolioRepository] Created ${links.length} new class links for portfolio ${id} (sync with JSON field)`);
                     }
+                }
                 }
             } else {
                 console.log(`[PortfolioRepository] classes not provided, skipping update for portfolio ${id}`);

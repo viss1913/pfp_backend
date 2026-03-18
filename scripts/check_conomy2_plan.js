@@ -59,28 +59,32 @@ async function createClientAndPlan(api) {
             {
                 goal_type_id: 1,
                 name: 'Госпенсия',
-                priority: 1
+                priority: 1,
+                risk_profile: 'BALANCED'
             },
             {
                 goal_type_id: 2,
                 name: 'Дом через 5 лет',
                 priority: 2,
                 target_amount: 10000000,
-                term_months: 60
+                term_months: 60,
+                risk_profile: 'BALANCED'
             },
             {
                 goal_type_id: 3,
                 name: 'Финансовый резерв',
                 priority: 3,
                 target_amount: 100000, // уже есть 100к
-                monthly_contribution: 3000
+                monthly_contribution: 3000,
+                risk_profile: 'CONSERVATIVE'
             },
             {
                 goal_type_id: 4,
                 name: 'Страхование жизни',
                 priority: 4,
                 target_amount: 2000000,
-                term_months: 180 // 15 лет
+                term_months: 180, // 15 лет
+                risk_profile: 'BALANCED'
             }
         ]
     };

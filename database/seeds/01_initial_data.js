@@ -121,7 +121,7 @@ exports.seed = async function (knex) {
             amount_from: 0,
             amount_to: 999999999999999, // Без ограничений
             term_from_months: 0,
-            term_to_months: 100,
+            term_to_months: 360, // до 30 лет — чтобы пенсия (до 240 мес) находила портфель
             age_from: null,
             age_to: null,
             investor_type: null,
