@@ -293,9 +293,13 @@ class PortfolioRepository {
             console.error('[PortfolioRepo] Query failed:', e);
             throw e;
         }
-        const found = candidates.find(p => {
+        const targetId = Number(classId);
+        const classLinksTableExists = await db.schema.hasTable('portfolio_class_links');
+
+        for (const p of candidates) {
             let classes = p.classes;
-            // Robust parsing of classes field
+
+            // Robust parsing of classes field (JSON or legacy string)
             if (typeof classes === 'string' && classes.trim() !== '') {
                 try {
                     classes = JSON.parse(classes);
@@ -304,24 +308,36 @@ class PortfolioRepository {
                     classes = classes.split(',').map(c => c.trim());
                 }
             }
+
             if (!Array.isArray(classes)) {
                 classes = classes !== null && classes !== undefined ? [classes] : [];
             }
 
             // Convert everything to numbers for reliable comparison
-            const targetId = Number(classId);
-            const isMatch = classes.some(c => Number(c) === targetId);
-
-            if (!isMatch) {
-                console.log(`[PortfolioRepo] Portfolio ${p.id} classes ${JSON.stringify(classes)} do not contain ${targetId}`);
-            } else {
-                console.log(`[PortfolioRepo] Portfolio ${p.id} matched class ${targetId}`);
+            const isMatchFromJson = classes.some(c => Number(c) === targetId);
+            if (isMatchFromJson) {
+                console.log(`[PortfolioRepo] Portfolio ${p.id} matched class ${targetId} via portfolios.classes`);
+                return this._transformPortfolio(p, db);
             }
 
-            return isMatch;
-        });
+            // If portfolios.classes is empty but portfolio_class_links exists,
+            // then we still need to match classId for calculation selection.
+            if (classLinksTableExists) {
+                const links = await db('portfolio_class_links')
+                    .where({ portfolio_id: p.id })
+                    .select('class_id');
+                const isMatchFromLinks = links.some(l => Number(l.class_id) === targetId);
 
-        return found ? this._transformPortfolio(found, db) : null;
+                if (isMatchFromLinks) {
+                    console.log(`[PortfolioRepo] Portfolio ${p.id} matched class ${targetId} via portfolio_class_links`);
+                    return this._transformPortfolio(p, db);
+                }
+
+                console.log(`[PortfolioRepo] Portfolio ${p.id} has no class ${targetId} in json or links`);
+            }
+        }
+
+        return null;
     }
 }
 
