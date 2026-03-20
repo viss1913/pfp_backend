@@ -17,3 +17,6 @@ yarn-error.log*
 dist/
 build/
 coverage/
+
+# Локальный JWT для test_pdf_cover_upload.mjs (не коммитить)
+scripts/test-pdf-cover-config.local.json

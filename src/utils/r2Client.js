@@ -93,8 +93,9 @@ function keyFromPublicUrl(storedUrl) {
 }
 
 /**
- * Загрузка публичного объекта в R2.
- * @returns {{ ok: true, url: string } | { ok: false, reason: string }}
+ * Загрузка в R2. Публичный URL собираем из R2_PUBLIC_* (Custom Domain / CDN).
+ * Без ACL: у R2 x-amz-acl часто NotImplemented.
+ * @returns {{ ok: true, url: string } | { ok: false, reason: string, detail?: string }}
  */
 async function uploadPublicFile({ key, body, contentType }) {
     const client = getR2Client();
@@ -102,20 +103,29 @@ async function uploadPublicFile({ key, body, contentType }) {
         return { ok: false, reason: 'r2_not_configured' };
     }
 
-    const bucket = process.env.R2_BUCKET_NAME;
-    await client.send(
-        new PutObjectCommand({
-            Bucket: bucket,
-            Key: key,
-            Body: body,
-            ContentType: contentType || 'application/octet-stream',
-            ACL: 'public-read',
-        })
-    );
-
     const bases = getPublicBaseCandidates();
     if (!bases.length) {
+        console.warn(
+            '[R2] Нет R2_PUBLIC_BASE_URL / R2_CDN_BASE_URL / R2_PUBLIC_DOMAIN — публичную ссылку после Put не собрать'
+        );
         return { ok: false, reason: 'r2_public_url_missing' };
+    }
+
+    const bucket = process.env.R2_BUCKET_NAME;
+    try {
+        await client.send(
+            new PutObjectCommand({
+                Bucket: bucket,
+                Key: key,
+                Body: body,
+                ContentType: contentType || 'application/octet-stream',
+                CacheControl: 'public, max-age=31536000',
+            })
+        );
+    } catch (err) {
+        const msg = err.message || String(err);
+        console.error('[R2] PutObject failed:', msg);
+        return { ok: false, reason: 'r2_put_failed', detail: msg };
     }
 
     const k = String(key).replace(/^\/+/, '');

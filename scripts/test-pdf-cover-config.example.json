@@ -1,0 +1,5 @@
+{
+  "apiUrl": "https://pfpbackend-production.up.railway.app",
+  "token": "ВСТАВЬ_JWT_СЮДА_БЕЗ_Bearer",
+  "xProjectKey": ""
+}

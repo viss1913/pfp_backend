@@ -11,6 +11,8 @@ const logger = require('./utils/logger');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // CORS: если CORS_ALLOWED_ORIGINS не задан — пускаем любой origin (чтобы админка с любого домена работала)
 const allowedOriginsRaw = process.env.CORS_ALLOWED_ORIGINS;
 const hasAllowedList = allowedOriginsRaw && allowedOriginsRaw.trim().length > 0;

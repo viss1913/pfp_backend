@@ -33,6 +33,10 @@ class UploadController {
                 contentType: req.file.mimetype || 'image/webp',
             });
 
+            if (!up.ok) {
+                console.warn('[Upload] R2 avatar upload skipped:', up.reason, up.detail || '');
+            }
+
             if (up.ok) {
                 const url = up.url;
 
@@ -72,6 +76,7 @@ class UploadController {
                     error: 'Cloudflare R2 is required (STORAGE_REQUIRE_R2) but upload failed',
                     code: 'STORAGE_R2_REQUIRED',
                     reason: up.reason || 'unknown',
+                    detail: up.detail || undefined,
                 });
             }
 

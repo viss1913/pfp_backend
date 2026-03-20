@@ -88,6 +88,10 @@ class PdfSettingsController {
                 contentType: req.file.mimetype || 'image/jpeg',
             });
 
+            if (!up.ok) {
+                console.warn('[PdfSettings] R2 upload skipped:', up.reason, up.detail || '');
+            }
+
             let publicUrl;
             if (up.ok) {
                 publicUrl = up.url;
@@ -96,6 +100,7 @@ class PdfSettingsController {
                     error: 'Cloudflare R2 is required (STORAGE_REQUIRE_R2) but upload failed',
                     code: 'STORAGE_R2_REQUIRED',
                     reason: up.reason || 'unknown',
+                    detail: up.detail || undefined,
                 });
             } else {
                 const dir = path.join(__dirname, '../../uploads/pdf-report-covers', pid, String(agentId));

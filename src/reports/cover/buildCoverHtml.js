@@ -14,12 +14,14 @@ const GLOBAL_DEFAULTS = {
  */
 function formatCoverDateRu(date = new Date()) {
     const tz = process.env.REPORT_PDF_TZ || 'Europe/Moscow';
-    const formatted = new Intl.DateTimeFormat('ru-RU', {
+    let formatted = new Intl.DateTimeFormat('ru-RU', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
         timeZone: tz,
     }).format(date);
+    // ru-RU часто уже даёт «… 2026 г.» — не дублируем
+    formatted = formatted.replace(/\s*г\.?\s*$/i, '').trim();
     return `${formatted} г.`;
 }
 

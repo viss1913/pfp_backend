@@ -10,7 +10,9 @@
     "seed": "knex seed:run",
     "setup": "npm run migrate && npm run seed",
     "fix-migrations": "node scripts/fix_migrations.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "r2:smoke": "node scripts/r2_smoke_test.js",
+    "r2:upload-sample-image": "node scripts/r2_upload_sample_image.js"
   },
   "keywords": [],
   "author": "",
