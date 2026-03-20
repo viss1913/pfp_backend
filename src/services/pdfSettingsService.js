@@ -133,7 +133,6 @@ class PdfSettingsService {
                 title_band_color: band,
                 cover_title,
                 date_line: date_preview,
-                cover_background_url,
             }),
         };
     }

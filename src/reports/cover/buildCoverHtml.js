@@ -184,7 +184,6 @@ function sanitizeTitleBandColor(hex) {
  * @param {string} o.title_band_color — итоговый #RRGGBB
  * @param {string} o.cover_title
  * @param {string} o.date_line
- * @param {string} [o.cover_background_url] — null если сток
  */
 function buildCoverLayoutPayload(o = {}) {
     const title_band_color = sanitizeTitleBandColor(o.title_band_color ?? GLOBAL_DEFAULTS.titleBandColor);
@@ -213,10 +212,12 @@ function buildCoverLayoutPayload(o = {}) {
             cover_title: o.cover_title ?? GLOBAL_DEFAULTS.coverTitle,
             date_line: o.date_line ?? formatCoverDateRu(),
         },
-        stock_background: {
-            /** если cover_background_url пустой — этот путь на сервере / дефолтный ассет */
-            repo_relative_path: GLOBAL_DEFAULTS.coverBackgroundPath,
-            cover_background_url: o.cover_background_url ?? null,
+        /**
+         * URL картинки не дублируем сюда — только корневое поле ответа `cover_background_url`.
+         * Ниже — что подставит бэк, если в БД фона нет (путь в репо, не публичный URL).
+         */
+        background: {
+            server_fallback_repo_relative_path: GLOBAL_DEFAULTS.coverBackgroundPath,
         },
     };
 }
