@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const knex = require('../config/database');
-const { uploadPublicFile } = require('../utils/r2Client');
+const { uploadPublicFile, isStorageUploadRequireR2 } = require('../utils/r2Client');
 
 class UploadController {
     /**
@@ -65,6 +65,14 @@ class UploadController {
                 }
 
                 return res.status(201).json({ url });
+            }
+
+            if (isStorageUploadRequireR2()) {
+                return res.status(503).json({
+                    error: 'Cloudflare R2 is required (STORAGE_REQUIRE_R2) but upload failed',
+                    code: 'STORAGE_R2_REQUIRED',
+                    reason: up.reason || 'unknown',
+                });
             }
 
             if (up.reason === 'r2_public_url_missing') {

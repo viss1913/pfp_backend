@@ -1,6 +1,34 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 let r2Client = null;
+
+function normalizeBase(b) {
+    if (!b || typeof b !== 'string') return '';
+    return b.trim().replace(/\/+$/, '');
+}
+
+/** https://host или https:// + R2_PUBLIC_DOMAIN без схемы */
+function expandPublicBase(b) {
+    const t = normalizeBase(b);
+    if (!t) return '';
+    if (t.startsWith('http://') || t.startsWith('https://')) return t;
+    return `https://${t}`;
+}
+
+function getPublicBaseCandidates() {
+    const raw = [
+        process.env.R2_PUBLIC_BASE_URL,
+        process.env.R2_CDN_BASE_URL,
+        process.env.R2_PUBLIC_DOMAIN,
+    ];
+    const out = [];
+    for (const r of raw) {
+        const e = expandPublicBase(r);
+        if (e && !out.includes(e)) out.push(e);
+    }
+    return out;
+}
 
 /**
  * Клиент Cloudflare R2 (S3-совместимый). null, если env не задан.
@@ -28,6 +56,42 @@ function getR2Client() {
     return r2Client;
 }
 
+function isR2ClientReady() {
+    return getR2Client() != null;
+}
+
+/** Есть клиент + публичный URL для отдачи ссылок после PUT */
+function isR2PublicUrlReady() {
+    if (!isR2ClientReady()) return false;
+    return getPublicBaseCandidates().length > 0;
+}
+
+/**
+ * Публичный URL объекта по ключу (как после uploadPublicFile).
+ */
+function publicUrlFromKey(key) {
+    const bases = getPublicBaseCandidates();
+    if (!bases.length) return null;
+    const k = String(key).replace(/^\/+/, '');
+    return `${bases[0]}/${k}`;
+}
+
+/**
+ * Если storedUrl — наш CDN/R2 public URL, вернуть S3 key; иначе null.
+ */
+function keyFromPublicUrl(storedUrl) {
+    if (!storedUrl || typeof storedUrl !== 'string') return null;
+    const trimmed = storedUrl.trim();
+    if (!/^https?:\/\//i.test(trimmed)) return null;
+    for (const base of getPublicBaseCandidates()) {
+        const prefix = `${base}/`;
+        if (trimmed.startsWith(prefix)) {
+            return trimmed.slice(prefix.length).split('?')[0];
+        }
+    }
+    return null;
+}
+
 /**
  * Загрузка публичного объекта в R2.
  * @returns {{ ok: true, url: string } | { ok: false, reason: string }}
@@ -49,17 +113,96 @@ async function uploadPublicFile({ key, body, contentType }) {
         })
     );
 
-    const publicBase =
-        process.env.R2_PUBLIC_BASE_URL || process.env.R2_CDN_BASE_URL || process.env.R2_PUBLIC_DOMAIN;
-    if (!publicBase) {
+    const bases = getPublicBaseCandidates();
+    if (!bases.length) {
         return { ok: false, reason: 'r2_public_url_missing' };
     }
 
-    const url = `${publicBase.replace(/\/$/, '')}/${key}`;
+    const k = String(key).replace(/^\/+/, '');
+    const url = `${bases[0]}/${k}`;
     return { ok: true, url };
+}
+
+/**
+ * Подписанный GET (для приватного бакета или временного доступа).
+ * @param {string} key
+ * @param {number} [expiresIn] секунды, по умолчанию 900
+ */
+async function getSignedGetObjectUrl(key, expiresIn = 900) {
+    const client = getR2Client();
+    if (!client) {
+        return { ok: false, reason: 'r2_not_configured' };
+    }
+    const bucket = process.env.R2_BUCKET_NAME;
+    const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
+    const url = await getSignedUrl(client, cmd, { expiresIn });
+    return { ok: true, url, expiresIn };
+}
+
+/**
+ * Скачать объект в Buffer (рендер PDF на сервере и т.п.).
+ */
+async function getObjectBuffer(key) {
+    const client = getR2Client();
+    if (!client) {
+        return { ok: false, reason: 'r2_not_configured' };
+    }
+    const out = await client.send(
+        new GetObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+        })
+    );
+    const chunks = [];
+    for await (const chunk of out.Body) {
+        chunks.push(chunk);
+    }
+    return { ok: true, buffer: Buffer.concat(chunks), contentType: out.ContentType };
+}
+
+async function deleteObjectByKey(key) {
+    const client = getR2Client();
+    if (!client) {
+        return { ok: false, reason: 'r2_not_configured' };
+    }
+    await client.send(
+        new DeleteObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+        })
+    );
+    return { ok: true };
+}
+
+/** В проде можно выставить STORAGE_REQUIRE_R2=1 — без R2 загрузки не падаем на диск, а 503 */
+function isStorageUploadRequireR2() {
+    const v = process.env.STORAGE_REQUIRE_R2;
+    return v === '1' || v === 'true' || v === 'yes';
+}
+
+/** Выдавать подписанный URL для чтения обложки вместо прямого CDN (если бакет приватный) */
+function shouldSignCoverReadUrl() {
+    const v = process.env.R2_SIGN_COVER_URL;
+    return v === '1' || v === 'true' || v === 'yes';
+}
+
+function signedCoverUrlTtlSec() {
+    const n = parseInt(process.env.R2_SIGNED_URL_TTL_SEC || '900', 10);
+    return Number.isFinite(n) && n > 60 ? n : 900;
 }
 
 module.exports = {
     getR2Client,
     uploadPublicFile,
+    getPublicBaseCandidates,
+    publicUrlFromKey,
+    keyFromPublicUrl,
+    getSignedGetObjectUrl,
+    getObjectBuffer,
+    deleteObjectByKey,
+    isR2ClientReady,
+    isR2PublicUrlReady,
+    isStorageUploadRequireR2,
+    shouldSignCoverReadUrl,
+    signedCoverUrlTtlSec,
 };

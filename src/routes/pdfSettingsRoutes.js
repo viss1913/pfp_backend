@@ -25,6 +25,7 @@ function pdfCoverUploadError(err, req, res, next) {
     return next(err);
 }
 
+router.get('/cover-image', (req, res) => pdfSettingsController.getCoverImageAccess(req, res));
 router.get('/', (req, res) => pdfSettingsController.getMy(req, res));
 router.patch('/', (req, res) => pdfSettingsController.patchMy(req, res));
 router.post(

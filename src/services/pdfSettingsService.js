@@ -5,6 +5,12 @@ const {
     formatCoverDateRu,
     sanitizeTitleBandColor,
 } = require('../reports/cover/buildCoverHtml');
+const {
+    keyFromPublicUrl,
+    getSignedGetObjectUrl,
+    shouldSignCoverReadUrl,
+    signedCoverUrlTtlSec,
+} = require('../utils/r2Client');
 
 const TABLE = 'agent_report_pdf_settings';
 
@@ -32,6 +38,12 @@ function buildEditorSchema() {
                             form_field: 'image',
                             max_size_mb: 8,
                             accept_mime: ['image/jpeg', 'image/png', 'image/webp'],
+                        },
+                        read_url: {
+                            method: 'GET',
+                            path: '/api/pfp/pdf-settings/cover-image',
+                            description:
+                                'Прямой URL или подписанный GET к R2 (если R2_SIGN_COVER_URL=1). Для превью в ЛК.',
                         },
                         reset: { patch_key: 'cover_background_url', value: '' },
                     },
@@ -165,6 +177,56 @@ class PdfSettingsService {
             titleBandColor: s.title_band_color,
             coverBackgroundUrl: s.cover_background_url || undefined,
         });
+    }
+
+    /**
+     * URL для отображения фона в ЛК: прямой или временный signed URL к R2.
+     */
+    async getCoverImageAccess(agentId, projectId) {
+        const s = await this.getByAgentId(agentId, projectId);
+        const stored = s.cover_background_url;
+        if (!stored) {
+            const err = new Error('No cover background configured');
+            err.statusCode = 404;
+            throw err;
+        }
+
+        if (!shouldSignCoverReadUrl()) {
+            return {
+                url: stored,
+                access: 'direct',
+                expires_in: null,
+                expires_at: null,
+            };
+        }
+
+        const key = keyFromPublicUrl(stored);
+        if (!key) {
+            return {
+                url: stored,
+                access: 'direct',
+                expires_in: null,
+                expires_at: null,
+            };
+        }
+
+        const ttl = signedCoverUrlTtlSec();
+        const signed = await getSignedGetObjectUrl(key, ttl);
+        if (!signed.ok) {
+            return {
+                url: stored,
+                access: 'direct',
+                expires_in: null,
+                expires_at: null,
+            };
+        }
+
+        return {
+            url: signed.url,
+            access: 'signed',
+            expires_in: signed.expiresIn,
+            expires_at: new Date(Date.now() + ttl * 1000).toISOString(),
+        };
     }
 
     getEditorSchema() {

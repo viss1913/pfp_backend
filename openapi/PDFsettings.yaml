@@ -154,6 +154,7 @@ paths:
       description: |
         `multipart/form-data`, поле **`image`** (jpeg/png/webp, до 8 МБ).
         Файл уходит в R2 (если настроен) или в `/uploads/pdf-report-covers/...`.
+        Если задано `STORAGE_REQUIRE_R2=1`, без R2 вернётся **503** (`STORAGE_R2_REQUIRED`).
         URL сразу записывается в `cover_background_url` агента.
       tags:
         - PDF settings
@@ -200,3 +201,48 @@ paths:
           description: Нет agent_id
         '404':
           description: Агент не найден в проекте
+        '503':
+          description: STORAGE_REQUIRE_R2, а R2 недоступен
+
+  /pfp/pdf-settings/cover-image:
+    get:
+      operationId: getPdfCoverImageUrl
+      summary: URL фона обложки для превью (прямой или signed R2)
+      description: |
+        Ссылка для `<img src>` в ЛК. Обычно совпадает с `cover_background_url` (`access: direct`).
+        При `R2_SIGN_COVER_URL=1` и распознанном префиксе `R2_PUBLIC_*` — временная подпись (`access: signed`, `expires_in`, `expires_at`).
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - url
+                  - access
+                properties:
+                  url:
+                    type: string
+                  access:
+                    type: string
+                    enum: [direct, signed]
+                  expires_in:
+                    type: integer
+                    nullable: true
+                  expires_at:
+                    type: string
+                    format: date-time
+                    nullable: true
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет agent_id
+        '404':
+          description: Фон не задан или агент не найден

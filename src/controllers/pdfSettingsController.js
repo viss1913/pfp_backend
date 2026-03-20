@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Joi = require('joi');
 const pdfSettingsService = require('../services/pdfSettingsService');
-const { uploadPublicFile } = require('../utils/r2Client');
+const { uploadPublicFile, isStorageUploadRequireR2 } = require('../utils/r2Client');
 
 const patchSchema = Joi.object({
     cover_background_url: Joi.string().allow('', null).max(2048),
@@ -91,6 +91,12 @@ class PdfSettingsController {
             let publicUrl;
             if (up.ok) {
                 publicUrl = up.url;
+            } else if (isStorageUploadRequireR2()) {
+                return res.status(503).json({
+                    error: 'Cloudflare R2 is required (STORAGE_REQUIRE_R2) but upload failed',
+                    code: 'STORAGE_R2_REQUIRED',
+                    reason: up.reason || 'unknown',
+                });
             } else {
                 const dir = path.join(__dirname, '../../uploads/pdf-report-covers', pid, String(agentId));
                 fs.mkdirSync(dir, { recursive: true });
@@ -110,6 +116,22 @@ class PdfSettingsController {
             const code = e.statusCode || 500;
             if (code === 500) console.error('[PdfSettings] uploadCoverBackground:', e);
             res.status(code).json({ error: e.message || 'Failed to upload cover background' });
+        }
+    }
+
+    /**
+     * GET /pfp/pdf-settings/cover-image — URL для превью/скачивания фона (прямой CDN или подписанный R2 GET).
+     */
+    async getCoverImageAccess(req, res) {
+        try {
+            const agentId = req.user.agentId;
+            const projectId = req.projectId ?? req.user.projectId ?? null;
+            const data = await pdfSettingsService.getCoverImageAccess(agentId, projectId);
+            res.json(data);
+        } catch (e) {
+            const code = e.statusCode || 500;
+            if (code === 500) console.error('[PdfSettings] getCoverImageAccess:', e);
+            res.status(code).json({ error: e.message || 'Failed to resolve cover image URL' });
         }
     }
 }
