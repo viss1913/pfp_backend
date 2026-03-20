@@ -57,3 +57,13 @@ npm run r2:smoke
 Скрипт печатает, чего не хватает, делает `PutObject` в ключ `diagnostics/r2-smoke-*.txt` и удаляет его (если не задано `R2_SMOKE_KEEP=1`).
 
 На Railway в логах деплоя при ошибках смотри строки **`[R2] PutObject failed:`** и предупреждение про **`R2_PUBLIC_*`**.
+
+## Массовый дефолтный фон обложки
+
+Один файл в R2 (`pdf-report-covers/_shared/default-cover.*`) и запись **`cover_background_url` всем агентам** (таблица `agent_report_pdf_settings`):
+
+```bash
+npm run seed:pdf-cover-default
+```
+
+Только у кого ещё нет своего URL: `SEED_COVER_ONLY_EMPTY=1 npm run seed:pdf-cover-default`
