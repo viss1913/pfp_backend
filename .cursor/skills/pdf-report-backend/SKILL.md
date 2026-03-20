@@ -1,45 +1,63 @@
 ---
 name: pdf-report-backend
-description: Documents backend PDF report cover (Figma-aligned HTML), per-agent pdf-settings API, Cloudflare R2, and DB/scripts. Use when changing PDF отчёт cover, /api/pfp/pdf-settings, buildCoverHtml, agent_report_pdf_settings, R2 uploads, or report preview layout in this repository.
+description: Бэкенд PDF-отчёта PFP (не только обложка): HTML-страницы отчёта, настройки агента, R2, превью в ЛК. Сейчас в коде — обложка + /api/pfp/pdf-settings; при добавлении других страниц отчёта — расширять этот skill. Не путать с pdfGenerator.js (другой продукт).
 ---
 
-# PDF-отчёт (обложка) — бэкенд PFP
+# PDF-отчёт PFP — бэкенд
+
+## Область скилла (зачем он вообще)
+
+Скилл про **весь пайплайн PDF-отчёта PFP** в этом репо: сборка HTML под печать/PDF, настройки из ЛК, ассеты в **Cloudflare R2**, контракты API и превью.
+
+**Сейчас реализовано в коде** — в основном **первая страница (обложка)** и API **`/api/pfp/pdf-settings`**. Когда появятся **другие страницы отчёта** (риски, текстовые блоки, свои шаблоны, отдельные эндпоинты) — их описываем **в этом же skill** (новые секции, файлы, OpenAPI), чтобы один источник правды по отчёту, а не отдельная «только обложка» легенда.
 
 ## Когда включать этот skill
 
-- Правки **первой страницы отчёта** (обложка): HTML, геометрия, градиенты, текст, фон.
-- Эндпоинты **`/api/pfp/pdf-settings`**, загрузка фона, превью картинки.
-- **Cloudflare R2**, переменные `R2_*`, публичные URL, миграция старых ссылок в БД.
-- Таблица **`agent_report_pdf_settings`**, сиды/скрипты для обложек.
+- Любые правки **PDF-отчёта PFP**: новые/существующие **страницы HTML**, генерация, связка с данными агента/клиента.
+- **`/api/pfp/pdf-settings`**, обложка, **`cover_layout`**, **`editor_schema`**, загрузка фонов.
+- **R2** для файлов отчёта (обложки и в будущем — другие медиа), env, Railway, миграции URL в БД.
+- Таблица **`agent_report_pdf_settings`** и родственные сущности отчёта.
+- После появления новых маршрутов/модулей отчёта — **дописать сюда** пути и файлы в PR.
 
 ## Не смешивать с другим PDF в репозитории
 
-- **`src/utils/pdfGenerator.js`** — PDFKit, **другой продукт** (home owners / лимиты страхования). К обложке отчёта PFP **не относится**.
-- Обложка отчёта — это **`src/reports/cover/buildCoverHtml.js`** + **`pdfSettings*`** + R2.
+- **`src/utils/pdfGenerator.js`** — PDFKit, **другой продукт** (home owners / страхование). К **отчёту PFP** не относится.
+- Отчёт PFP живёт в **`src/reports/`** (сейчас **`cover/`** и т.д.) + **`pdfSettings*`** + **`r2Client`** для ассетов.
 
-## Архитектура (коротко)
+## Архитектура: общее и про обложку
 
-1. **Один источник вёрстки обложки** — `COVER_RENDER_SPEC` и функции в `src/reports/cover/buildCoverHtml.js`. Отсюда же собираются HTML для PDF и payload превью для ЛК.
-2. **Настройки на агента** — одна строка на `agent_id` в `agent_report_pdf_settings` (уникальный `agent_id`). Загрузка фона в ЛК обновляет **только этого агента**.
-3. **URL фона** в БД хранится **целиком** (`cover_background_url`). Смена `R2_PUBLIC_*` в env **не переписывает** уже сохранённые строки — нужна новая загрузка, PATCH или скрипт миграции префикса.
-4. **Загрузка файла**: браузер → `multipart`, поле **`image`** → бэк → `PutObject` в R2 под уникальным ключом → публичный URL → `upsert` в БД → ответ фронту.
+**Общие принципы (на будущие страницы тоже):**
 
-## Ключевые файлы
+- HTML страниц отчёта по возможности собирать из **одной спеки/модуля** на страницу (как сейчас `COVER_RENDER_SPEC` для обложки), плюс общие шрифты/размеры страницы при необходимости.
+- Настройки, которые редактирует агент в ЛК, — отдельный контракт (**`editor_schema`**, PATCH, при необходимости новые таблицы/поля).
+- Долгоживущие URL файлов — в **R2** + запись в БД; не подменять тихим диском контейнера без осознанного фолбэка.
+
+**Сейчас конкретно про обложку:**
+
+1. **Один источник вёрстки обложки** — `COVER_RENDER_SPEC` и `src/reports/cover/buildCoverHtml.js` → HTML для PDF и **`buildCoverLayoutPayload`** для превью в API.
+2. **Настройки на агента** — `agent_report_pdf_settings` (одна строка на `agent_id`).
+3. **`cover_background_url`** — полный URL; смена `R2_PUBLIC_*` не обновляет старые строки → перезаливка / PATCH / `r2:migrate-url-prefix`.
+4. Загрузка фона: `multipart` поле **`image`** → **`uploadPublicFile`** → URL в БД.
+
+## Ключевые файлы (сейчас — обложка и PdfSettings)
+
+Когда появятся новые страницы отчёта — **добавить строки** в эту таблицу и секции выше.
 
 | Файл | Роль |
 |------|------|
 | `src/reports/cover/buildCoverHtml.js` | Спека макета (`COVER_RENDER_SPEC`), `GLOBAL_DEFAULTS`, `buildReportCoverHtml`, `buildCoverLayoutPayload`, дата `formatCoverDateRu` (`REPORT_PDF_TZ` / `Europe/Moscow`) |
 | `src/services/pdfSettingsService.js` | БД, `mergeWithDefaults`, `editor_schema`, `cover_layout`, `buildCoverHtmlForAgent`, signed URL для превью |
-| `src/controllers/pdfSettingsController.js` | GET/PATCH, upload, `uploadPublicFile`, fallback на `uploads/` |
+| `src/controllers/pdfSettingsController.js` | GET/PATCH/POST; ответ **`storage`**: `r2` \| `local_disk`; 503 `R2_PUBLIC_URL_MISSING` / `R2_PUT_FAILED` при настроенном R2 |
 | `src/routes/pdfSettingsRoutes.js` | Multer: до 8 МБ, `image/jpeg`, `png`, `webp`; поле формы **`image`** |
-| `src/utils/r2Client.js` | S3-клиент R2, `uploadPublicFile`, приоритет публичной базы: `R2_PUBLIC_BASE_URL` → `R2_CDN_BASE_URL` → `R2_PUBLIC_DOMAIN` |
+| `src/utils/r2Client.js` | `uploadPublicFile` (Put → без `R2_PUBLIC_*` откат Delete), `getR2StartupDiagnostics`, алиасы **`CLOUDFLARE_ACCOUNT_ID`**, `trimEnv`, публичная база `R2_PUBLIC_*` |
+| `src/routes/index.js` | `'/pfp/pdf-settings'` + `pfpMiddleware` |
 | `openapi/PDFsettings.yaml` | Документация API (Swagger: `/api-docs-pdf-settings`) |
 | `docs/env-cloudflare-r2.md` | Все переменные R2, типовые ошибки, скрипты |
 | `src/reports/README.md` | Краткая карта модуля отчётов |
 
-## HTTP API (префикс приложения: `/api`)
+## HTTP API: PdfSettings (префикс приложения: `/api`)
 
-Все под `authMiddleware` + `tenantMiddleware` (JWT + проект).
+Маршрут вешается в `src/routes/index.js`: `router.use('/pfp/pdf-settings', pfpMiddleware, …)`, где `pfpMiddleware = [authMiddleware, tenantMiddleware]`.
 
 | Метод | Путь | Назначение |
 |--------|------|------------|
@@ -73,17 +91,19 @@ description: Documents backend PDF report cover (Figma-aligned HTML), per-agent 
 
 ## Правила для агента (чтобы ничего не сломать)
 
-1. **Не менять геометрию обложки** в одном месте и забыть про другое: правки макета — через **`COVER_RENDER_SPEC`** / функции в `buildCoverHtml.js`; `cover_layout` для API строится из тех же дефолтов/санитайзеров (`sanitizeTitleBandColor`).
-2. **Дефолтный текст плашки** — только в **`GLOBAL_DEFAULTS.coverTitle`** в `buildCoverHtml.js`; затем синхронизировать `openapi/PDFsettings.yaml` и комментарии миграций при необходимости.
-3. **Не переименовывать** поле multipart с файлами: остаётся **`image`** (и в `editor_schema`, и в multer).
-4. **Не подставлять** сборку публичного URL вручную на бэке в обход `uploadPublicFile` / `getPublicBaseCandidates` — иначе расходится с подписанными URL и миграциями.
-5. При работе с БД помнить: **`cover_background_url` хранит полный URL**; смена env не обновляет исторические строки.
+1. **Новая страница отчёта** — по возможности отдельный модуль/спека + запись в этом skill (файлы, API, превью). Не плодить расхождения «HTML для PDF» vs «JSON для ЛК» без общей функции сборки.
+2. **Обложка**: геометрия только через **`COVER_RENDER_SPEC`** / `buildCoverHtml.js`; **`cover_layout`** из тех же дефолтов/санитайзеров (`sanitizeTitleBandColor`).
+3. **Дефолтный текст плашки** — **`GLOBAL_DEFAULTS.coverTitle`**; синхронизировать `openapi/PDFsettings.yaml` и миграции при смене.
+4. Multipart для обложки — поле **`image`** (editor_schema + multer); для будущих загрузок — явно прописать в skill и схеме.
+5. Публичные URL объектов в R2 — через **`uploadPublicFile`** / **`getPublicBaseCandidates`**, не собирать URL вручную.
+6. **`cover_background_url`** и аналоги — полный URL в БД; смена env не чинит старые строки автоматически.
 
 ## Быстрый чеклист перед PR
 
-- [ ] Обложка и `cover_layout` по-прежнему из одного набора констант/функций.
-- [ ] Joi/валидация в контроллере согласована с фронтом (`#RRGGBB` для плашки).
-- [ ] R2: новые сценарии не ломают `STORAGE_REQUIRE_R2` и fallback (если он ещё нужен).
-- [ ] Документация: при смене контракта API — `openapi/PDFsettings.yaml` и при необходимости `docs/env-cloudflare-r2.md`.
+- [ ] Если трогали отчёт — **обновлён этот skill** (новые страницы/эндпоинты/файлы).
+- [ ] Обложка: `cover_layout` и HTML из одной спеки (`COVER_RENDER_SPEC`).
+- [ ] Joi/валидация согласована с фронтом (для обложки — `#RRGGBB` плашки).
+- [ ] R2: не ломаем `STORAGE_REQUIRE_R2`, 503-коды при ошибках, осмысленный фолбэк на диск.
+- [ ] OpenAPI / `docs/env-cloudflare-r2.md` — если менялся контракт или поведение загрузок.
 
 Дополнительно: `src/reports/README.md`.
