@@ -10,7 +10,7 @@ exports.up = function (knex) {
         table.text('cover_background_url').nullable()
             .comment('URL или путь от корня репозитория к фону обложки');
         table.string('cover_title', 500).nullable()
-            .comment('Текст в цветной плашке (дефолт в коде — персональное финансовое планирование)');
+            .comment('Текст в цветной плашке (дефолт в коде — персональное финансовое решение)');
         table.string('title_band_color', 16).nullable()
             .comment('Фон плашки под заголовком, #RRGGBB');
         table.timestamps(true, true);

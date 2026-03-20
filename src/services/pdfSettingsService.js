@@ -2,6 +2,7 @@ const knex = require('../config/database');
 const {
     buildReportCoverHtml,
     GLOBAL_DEFAULTS,
+    buildCoverLayoutPayload,
     formatCoverDateRu,
     sanitizeTitleBandColor,
 } = require('../reports/cover/buildCoverHtml');
@@ -24,7 +25,8 @@ function buildEditorSchema() {
             {
                 id: 'report_cover',
                 title: 'Обложка PDF-отчёта',
-                description: 'Первая страница: фон, заголовок на плашке, цвет плашки. Дата ставится при генерации PDF.',
+                description:
+                    'Первая страница: фон, заголовок на плашке, цвет плашки. Дата ставится при генерации PDF. Полная геометрия, градиенты, типографика и resolved-цвета — в корневом поле ответа `cover_layout` (синхронно с HTML/PDF).',
                 fields: [
                     {
                         id: 'cover_background_url',
@@ -117,12 +119,22 @@ class PdfSettingsService {
         const band = dbRow?.title_band_color
             ? sanitizeTitleBandColor(dbRow.title_band_color)
             : GLOBAL_DEFAULTS.titleBandColor;
+        const cover_title = dbRow?.cover_title ?? GLOBAL_DEFAULTS.coverTitle;
+        const cover_background_url = dbRow?.cover_background_url ?? null;
+        const date_preview = formatCoverDateRu();
         return {
-            cover_background_url: dbRow?.cover_background_url ?? null,
-            cover_title: dbRow?.cover_title ?? GLOBAL_DEFAULTS.coverTitle,
+            cover_background_url,
+            cover_title,
             title_band_color: band,
             /** только для ответа API — в БД не хранится */
-            date_preview: formatCoverDateRu(),
+            date_preview,
+            /** Все параметры превью/PDF одним объектом (те же значения, что в buildReportCoverHtml) */
+            cover_layout: buildCoverLayoutPayload({
+                title_band_color: band,
+                cover_title,
+                date_line: date_preview,
+                cover_background_url,
+            }),
         };
     }
 

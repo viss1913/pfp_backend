@@ -40,8 +40,8 @@ components:
           maxLength: 2048
         cover_title:
           type: string
-          description: Текст в цветной плашке (по умолчанию «персональное финансовое планирование»).
-          example: персональное финансовое планирование
+          description: Текст в цветной плашке (по умолчанию как в Figma «Отчет» — «персональное финансовое решение»).
+          example: персональное финансовое решение
           maxLength: 500
         title_band_color:
           type: string
@@ -53,6 +53,14 @@ components:
           description: Как сейчас отформатировалась бы дата на обложке (Europe/Moscow или REPORT_PDF_TZ). Только для отображения в ЛК, в БД не сохраняется.
           readOnly: true
           example: '20 марта 2026 г.'
+        cover_layout:
+          type: object
+          description: |
+            Полная спека превью/PDF: размеры канваса, слой фона, два градиента (как в Figma), плашка заголовка с **уже подставленным** `title_band.background`,
+            типографика заголовка и даты, `content` (текущий заголовок и дата), `stock_background`, `pdf.default_font_repo_relative_path`.
+            Совпадает с тем, что рендерит `buildReportCoverHtml` на бэке — фронт не должен хардкодить отступы и ширину плашки.
+          readOnly: true
+          additionalProperties: true
 
     PdfCoverSettingsResponse:
       allOf:
