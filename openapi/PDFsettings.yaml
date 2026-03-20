@@ -1,0 +1,202 @@
+openapi: 3.0.0
+info:
+  title: PDF report settings (обложка)
+  version: 1.0.0
+  description: |
+    Настройки первой страницы PDF-отчёта на **агента**: фон, текст плашки, цвет плашки.
+    Дата на обложке при генерации PDF подставляется автоматически (см. `date_preview` в ответе только для превью в ЛК).
+
+servers:
+  - url: /api
+    description: Относительно хоста бэкенда
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ProjectKeyHeader:
+      name: x-project-key
+      in: header
+      required: false
+      schema:
+        type: string
+
+  schemas:
+    PdfCoverSettings:
+      type: object
+      properties:
+        cover_background_url:
+          type: string
+          nullable: true
+          description: |
+            URL картинки (https://…) или путь от **корня репозитория** на сервере (например `assets/reports/rostech/cover-background.jpg`).
+            Пустая строка в PATCH сбрасывает к дефолтному фону.
+          maxLength: 2048
+        cover_title:
+          type: string
+          description: Текст в цветной плашке (по умолчанию «персональное финансовое решение»).
+          example: персональное финансовое решение
+          maxLength: 500
+        title_band_color:
+          type: string
+          description: Цвет фона плашки под заголовком, формат #RRGGBB.
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#722257'
+        date_preview:
+          type: string
+          description: Как сейчас отформатировалась бы дата на обложке (Europe/Moscow или REPORT_PDF_TZ). Только для отображения в ЛК, в БД не сохраняется.
+          readOnly: true
+          example: '20 марта 2026 г.'
+
+    PdfCoverSettingsResponse:
+      allOf:
+        - type: object
+          required:
+            - editor_schema
+          properties:
+            editor_schema:
+              type: object
+              description: |
+                Схема для ЛК: шаблоны, поля, типы (image/text/color/readonly), пути API и дефолты.
+                Фронт может построить экран настроек без хардкода полей.
+        - $ref: '#/components/schemas/PdfCoverSettings'
+
+    PdfCoverSettingsPatch:
+      type: object
+      minProperties: 1
+      properties:
+        cover_background_url:
+          type: string
+          nullable: true
+          maxLength: 2048
+        cover_title:
+          type: string
+          nullable: true
+          maxLength: 500
+        title_band_color:
+          type: string
+          nullable: true
+          description: '#RRGGBB; пусто/null — сброс к дефолту'
+
+paths:
+  /pfp/pdf-settings:
+    get:
+      operationId: getPdfCoverSettings
+      summary: Получить настройки обложки PDF для текущего агента
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      responses:
+        '200':
+          description: Настройки + `editor_schema` для экрана ЛК
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfCoverSettingsResponse'
+        '401':
+          description: Нет токена
+        '403':
+          description: У пользователя нет привязки к агенту (agent_id)
+        '404':
+          description: Агент не найден в проекте
+
+    patch:
+      operationId: patchPdfCoverSettings
+      summary: Частично обновить настройки обложки
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PdfCoverSettingsPatch'
+            examples:
+              colors:
+                value:
+                  title_band_color: '#1a4d8c'
+              resetBackground:
+                value:
+                  cover_background_url: ''
+      responses:
+        '200':
+          description: Обновлённые настройки + актуальный `editor_schema`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfCoverSettingsResponse'
+        '400':
+          description: Ошибка валидации
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет agent_id
+        '404':
+          description: Агент не найден в проекте
+
+  /pfp/pdf-settings/cover-background:
+    post:
+      operationId: uploadPdfCoverBackground
+      summary: Загрузить фон обложки (картинка)
+      description: |
+        `multipart/form-data`, поле **`image`** (jpeg/png/webp, до 8 МБ).
+        Файл уходит в R2 (если настроен) или в `/uploads/pdf-report-covers/...`.
+        URL сразу записывается в `cover_background_url` агента.
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: URL файла и полный ответ настроек
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - url
+                  - editor_schema
+                  - cover_title
+                  - title_band_color
+                  - date_preview
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  editor_schema:
+                    type: object
+        '400':
+          description: Нет файла / неверный тип / слишком большой файл
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет agent_id
+        '404':
+          description: Агент не найден в проекте

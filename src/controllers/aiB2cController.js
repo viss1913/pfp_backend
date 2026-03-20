@@ -199,7 +199,10 @@ class AiB2cController {
         }
     }
 
-    /** PUT /admin/ai-b2c/settings — обновить/создать настройки ассистента для проекта */
+    /** PUT /admin/ai-b2c/settings — обновить/создать настройки ассистента для проекта
+     *  ВАЖНО: avatar_url теперь полностью контролируется бэкендом через /avatar-upload
+     *  и здесь намеренно не читается/не обновляется.
+     */
     async upsertAiB2cSettings(req, res) {
         try {
             const projectId = req.projectId || req.user?.projectId;
@@ -207,9 +210,9 @@ class AiB2cController {
                 return res.status(400).json({ error: 'projectId is required' });
             }
 
-            const { display_name, avatar_url, tagline } = req.body;
-            if (!display_name && !avatar_url && !tagline) {
-                return res.status(400).json({ error: 'Nothing to update. Pass at least one of display_name, avatar_url, tagline' });
+            const { display_name, tagline } = req.body;
+            if (!display_name && !tagline) {
+                return res.status(400).json({ error: 'Nothing to update. Pass at least one of display_name, tagline' });
             }
 
             const existing = await knex('ai_b2c_settings')
@@ -220,7 +223,7 @@ class AiB2cController {
                 const [id] = await knex('ai_b2c_settings').insert({
                     project_id: projectId,
                     display_name: display_name || 'AI-ассистент',
-                    avatar_url: avatar_url || null,
+                    avatar_url: null, // аватар выставляется только через upload
                     tagline: tagline || null
                 });
 
@@ -232,7 +235,6 @@ class AiB2cController {
                 .where({ project_id: projectId })
                 .update({
                     ...(display_name !== undefined && { display_name }),
-                    ...(avatar_url !== undefined && { avatar_url }),
                     ...(tagline !== undefined && { tagline }),
                     updated_at: knex.fn.now()
                 });

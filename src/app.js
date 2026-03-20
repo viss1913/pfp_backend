@@ -66,6 +66,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 const b2cSwaggerDocument = YAML.load(path.join(__dirname, '../openapi/pfpB2C.yaml'));
 app.use('/api-docs-b2c', swaggerUi.serve, swaggerUi.setup(b2cSwaggerDocument));
 
+// PDF-настройки (отдельный спек, пока не вшиваем в pfp-api.yaml)
+const pdfSettingsSwaggerDocument = YAML.load(path.join(__dirname, '../openapi/PDFsettings.yaml'));
+app.use('/api-docs-pdf-settings', swaggerUi.serve, swaggerUi.setup(pdfSettingsSwaggerDocument));
+
 // Routes
 // Note: tenantMiddleware is now applied within routes to benefit from req.user context
 app.use('/api', routes);

@@ -52,6 +52,9 @@ router.use('/pfp/crm', pfpMiddleware, crmRoutes);
 const reportRoutes = require('./reportRoutes');
 router.use('/pfp/reports', pfpMiddleware, reportRoutes);
 
+const pdfSettingsRoutes = require('./pdfSettingsRoutes');
+router.use('/pfp/pdf-settings', pfpMiddleware, pdfSettingsRoutes);
+
 // Constructor Routes
 const constructorRoutes = require('./constructorRoutes');
 router.use('/pfp/constructor', pfpMiddleware, constructorRoutes);
