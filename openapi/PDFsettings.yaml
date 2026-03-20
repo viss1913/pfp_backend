@@ -162,8 +162,9 @@ paths:
       summary: Загрузить фон обложки (картинка)
       description: |
         `multipart/form-data`, поле **`image`** (jpeg/png/webp, до 8 МБ).
-        Файл уходит в R2 (если настроен) или в `/uploads/pdf-report-covers/...`.
-        Если задано `STORAGE_REQUIRE_R2=1`, без R2 вернётся **503** (`STORAGE_R2_REQUIRED`).
+        При настроенном R2 (ключи + бакет) файл идёт в **Cloudflare R2**; в ответе `storage: r2` и публичный `url` на `R2_PUBLIC_*`.
+        Если ключи R2 есть, но нет `R2_PUBLIC_BASE_URL` / `R2_CDN_BASE_URL` / `R2_PUBLIC_DOMAIN` — **503** (`R2_PUBLIC_URL_MISSING`), фолбэк на диск **не** используется.
+        Фолбэк `/uploads/pdf-report-covers/...` только если R2 **не сконфигурирован** (и не задано `STORAGE_REQUIRE_R2=1`).
         URL сразу записывается в `cover_background_url` агента.
       tags:
         - PDF settings
@@ -200,8 +201,14 @@ paths:
                   url:
                     type: string
                     format: uri
+                  storage:
+                    type: string
+                    enum: [r2, local_disk]
+                    description: Откуда реально отдан файл
                   editor_schema:
                     type: object
+        '503':
+          description: R2 обязателен или Put/публичный URL недоступны (`R2_PUBLIC_URL_MISSING`, `R2_PUT_FAILED`, `STORAGE_R2_REQUIRED`)
         '400':
           description: Нет файла / неверный тип / слишком большой файл
         '401':

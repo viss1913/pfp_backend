@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Joi = require('joi');
 const pdfSettingsService = require('../services/pdfSettingsService');
-const { uploadPublicFile, isStorageUploadRequireR2 } = require('../utils/r2Client');
+const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
 
 const patchSchema = Joi.object({
     cover_background_url: Joi.string().allow('', null).max(2048),
@@ -89,12 +89,25 @@ class PdfSettingsController {
             });
 
             if (!up.ok) {
-                console.warn('[PdfSettings] R2 upload skipped:', up.reason, up.detail || '');
+                console.warn('[PdfSettings] R2 upload failed:', up.reason, up.detail || '');
             }
 
             let publicUrl;
+            let storage;
             if (up.ok) {
                 publicUrl = up.url;
+                storage = up.storage || 'r2';
+            } else if (up.reason === 'r2_public_url_missing' || (isR2ClientReady() && up.reason === 'r2_put_failed')) {
+                /** Не подсовываем railway.app/uploads — иначе думают, что R2 сработал */
+                return res.status(503).json({
+                    error:
+                        up.reason === 'r2_public_url_missing'
+                            ? 'R2: не задан публичный URL (R2_PUBLIC_BASE_URL, R2_CDN_BASE_URL или R2_PUBLIC_DOMAIN). Без него ссылку на файл не собрать — см. docs/env-cloudflare-r2.md'
+                            : 'Загрузка в Cloudflare R2 не удалась (PutObject).',
+                    code: up.reason === 'r2_public_url_missing' ? 'R2_PUBLIC_URL_MISSING' : 'R2_PUT_FAILED',
+                    reason: up.reason,
+                    detail: up.detail || undefined,
+                });
             } else if (isStorageUploadRequireR2()) {
                 return res.status(503).json({
                     error: 'Cloudflare R2 is required (STORAGE_REQUIRE_R2) but upload failed',
@@ -110,13 +123,14 @@ class PdfSettingsController {
                 fs.writeFileSync(full, req.file.buffer);
                 const baseUrl = `${req.protocol}://${req.get('host')}`;
                 publicUrl = `${baseUrl}/uploads/pdf-report-covers/${pid}/${agentId}/${fname}`;
+                storage = 'local_disk';
             }
 
             const settings = await pdfSettingsService.upsert(agentId, projectId, {
                 cover_background_url: publicUrl,
             });
             const editor_schema = pdfSettingsService.getEditorSchema();
-            res.status(201).json({ url: publicUrl, editor_schema, ...settings });
+            res.status(201).json({ url: publicUrl, storage, editor_schema, ...settings });
         } catch (e) {
             const code = e.statusCode || 500;
             if (code === 500) console.error('[PdfSettings] uploadCoverBackground:', e);

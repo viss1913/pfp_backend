@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const knex = require('../config/database');
-const { uploadPublicFile, isStorageUploadRequireR2 } = require('../utils/r2Client');
+const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
 
 class UploadController {
     /**
@@ -68,7 +68,19 @@ class UploadController {
                     }
                 }
 
-                return res.status(201).json({ url });
+                return res.status(201).json({ url, storage: up.storage || 'r2' });
+            }
+
+            if (up.reason === 'r2_public_url_missing' || (isR2ClientReady() && up.reason === 'r2_put_failed')) {
+                return res.status(503).json({
+                    error:
+                        up.reason === 'r2_public_url_missing'
+                            ? 'R2: не задан публичный URL (R2_PUBLIC_BASE_URL / R2_CDN_BASE_URL / R2_PUBLIC_DOMAIN). См. docs/env-cloudflare-r2.md'
+                            : 'Загрузка в Cloudflare R2 не удалась (PutObject).',
+                    code: up.reason === 'r2_public_url_missing' ? 'R2_PUBLIC_URL_MISSING' : 'R2_PUT_FAILED',
+                    reason: up.reason,
+                    detail: up.detail || undefined,
+                });
             }
 
             if (isStorageUploadRequireR2()) {
@@ -80,11 +92,7 @@ class UploadController {
                 });
             }
 
-            if (up.reason === 'r2_public_url_missing') {
-                return res.status(500).json({ error: 'R2_PUBLIC_BASE_URL (or R2_PUBLIC_DOMAIN) is not configured' });
-            }
-
-            // Fallback: старое поведение — локальный диск + /uploads
+            // Fallback: только если R2 вообще не сконфигурирован — локальный диск + /uploads
             const filePath = req.file.path;
             const relativePath = filePath.replace(path.join(__dirname, '..', '..'), '').replace(/\\/g, '/');
             const baseUrl = `${req.protocol}://${req.get('host')}`;
@@ -117,7 +125,7 @@ class UploadController {
                 }
             }
 
-            res.status(201).json({ url });
+            res.status(201).json({ url, storage: 'local_disk' });
         } catch (error) {
             console.error('[Upload] Avatar upload error:', error);
             res.status(500).json({ error: 'Failed to upload avatar' });

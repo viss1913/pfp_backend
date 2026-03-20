@@ -52,7 +52,7 @@ description: Documents backend PDF report cover (Figma-aligned HTML), per-agent 
 
 ## Почему в БД URL вида `…railway.app/uploads/pdf-report-covers/…`
 
-Это **нормальный fallback**: файл ушёл на **диск контейнера** (`uploads/`), потому что при аплоаде не сработал R2 (нет переменных / ошибка PutObject). Ссылка рабочая для этого деплоя; для стабильного CDN — настроить R2 и перезалить. См. `docs/env-cloudflare-r2.md`, `STORAGE_REQUIRE_R2`.
+Только если **R2 вообще не сконфигурирован** (клиент S3 не собирается): тогда фолбэк на диск. Если ключи к R2 заданы, а нет **`R2_PUBLIC_*`** или **PutObject** падает — бэк отвечает **503** (`R2_PUBLIC_URL_MISSING` / `R2_PUT_FAILED`), в БД путь Railway **не** подставляется. См. `docs/env-cloudflare-r2.md`, `STORAGE_REQUIRE_R2`.
 
 ## Cloudflare R2 — обязательно понимать
 

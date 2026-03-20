@@ -3,6 +3,12 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 let r2Client = null;
 
+/** Railway/панели часто дают пробел в конце — без trim клиент «есть», Put падает */
+function trimEnv(v) {
+    if (v == null) return '';
+    return String(v).trim();
+}
+
 function normalizeBase(b) {
     if (!b || typeof b !== 'string') return '';
     return b.trim().replace(/\/+$/, '');
@@ -50,11 +56,11 @@ function getR2ConfigGaps() {
  * Клиент Cloudflare R2 (S3-совместимый). null, если env не задан.
  */
 function getR2Client() {
-    const bucketName = process.env.R2_BUCKET_NAME;
-    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || process.env.SecretAccessKey;
-    const s3EndpointFromEnv = process.env.R2_ENDPOINT || process.env.S3_API_URL;
-    const accountId = process.env.R2_ACCOUNT_ID;
+    const bucketName = trimEnv(process.env.R2_BUCKET_NAME);
+    const accessKeyId = trimEnv(process.env.R2_ACCESS_KEY_ID);
+    const secretAccessKey = trimEnv(process.env.R2_SECRET_ACCESS_KEY || process.env.SecretAccessKey);
+    const s3EndpointFromEnv = trimEnv(process.env.R2_ENDPOINT || process.env.S3_API_URL);
+    const accountId = trimEnv(process.env.R2_ACCOUNT_ID);
 
     if (!bucketName || !accessKeyId || !secretAccessKey || (!s3EndpointFromEnv && !accountId)) {
         return null;
@@ -109,9 +115,10 @@ function keyFromPublicUrl(storedUrl) {
 }
 
 /**
- * Загрузка в R2. Публичный URL собираем из R2_PUBLIC_* (Custom Domain / CDN).
+ * Загрузка в R2. Сначала PutObject, затем сборка публичного URL из R2_PUBLIC_*.
+ * Если ключи к R2 есть, а публичного префикса нет — объект откатываем (Delete), чтобы не копить мусор и не врать фолбэком на диск.
  * Без ACL: у R2 x-amz-acl часто NotImplemented.
- * @returns {{ ok: true, url: string } | { ok: false, reason: string, detail?: string }}
+ * @returns {{ ok: true, url: string, storage: 'r2' } | { ok: false, reason: string, detail?: string }}
  */
 async function uploadPublicFile({ key, body, contentType }) {
     const client = getR2Client();
@@ -119,20 +126,14 @@ async function uploadPublicFile({ key, body, contentType }) {
         return { ok: false, reason: 'r2_not_configured' };
     }
 
-    const bases = getPublicBaseCandidates();
-    if (!bases.length) {
-        console.warn(
-            '[R2] Нет R2_PUBLIC_BASE_URL / R2_CDN_BASE_URL / R2_PUBLIC_DOMAIN — публичную ссылку после Put не собрать'
-        );
-        return { ok: false, reason: 'r2_public_url_missing' };
-    }
+    const bucket = trimEnv(process.env.R2_BUCKET_NAME);
+    const k = String(key).replace(/^\/+/, '');
 
-    const bucket = process.env.R2_BUCKET_NAME;
     try {
         await client.send(
             new PutObjectCommand({
                 Bucket: bucket,
-                Key: key,
+                Key: k,
                 Body: body,
                 ContentType: contentType || 'application/octet-stream',
                 CacheControl: 'public, max-age=31536000',
@@ -144,9 +145,28 @@ async function uploadPublicFile({ key, body, contentType }) {
         return { ok: false, reason: 'r2_put_failed', detail: msg };
     }
 
-    const k = String(key).replace(/^\/+/, '');
-    const url = `${bases[0]}/${k}`;
-    return { ok: true, url };
+    const bases = getPublicBaseCandidates();
+    if (bases.length) {
+        const url = `${bases[0]}/${k}`;
+        return { ok: true, url, storage: 'r2' };
+    }
+
+    console.warn(
+        `[R2] PutObject OK для ключа ${k}, но нет R2_PUBLIC_BASE_URL / R2_CDN_BASE_URL / R2_PUBLIC_DOMAIN — удаляю объект`
+    );
+    try {
+        await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: k }));
+    } catch (delErr) {
+        const dm = delErr.message || String(delErr);
+        console.error('[R2] DeleteObject (откат после отсутствия публичного URL) failed:', dm);
+    }
+
+    return {
+        ok: false,
+        reason: 'r2_public_url_missing',
+        detail:
+            'Задай в окружении хотя бы одну переменную: R2_PUBLIC_BASE_URL, R2_CDN_BASE_URL или R2_PUBLIC_DOMAIN (см. docs/env-cloudflare-r2.md).',
+    };
 }
 
 /**
@@ -159,7 +179,7 @@ async function getSignedGetObjectUrl(key, expiresIn = 900) {
     if (!client) {
         return { ok: false, reason: 'r2_not_configured' };
     }
-    const bucket = process.env.R2_BUCKET_NAME;
+    const bucket = trimEnv(process.env.R2_BUCKET_NAME);
     const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
     const url = await getSignedUrl(client, cmd, { expiresIn });
     return { ok: true, url, expiresIn };
@@ -175,7 +195,7 @@ async function getObjectBuffer(key) {
     }
     const out = await client.send(
         new GetObjectCommand({
-            Bucket: process.env.R2_BUCKET_NAME,
+            Bucket: trimEnv(process.env.R2_BUCKET_NAME),
             Key: key,
         })
     );
@@ -193,7 +213,7 @@ async function deleteObjectByKey(key) {
     }
     await client.send(
         new DeleteObjectCommand({
-            Bucket: process.env.R2_BUCKET_NAME,
+            Bucket: trimEnv(process.env.R2_BUCKET_NAME),
             Key: key,
         })
     );
