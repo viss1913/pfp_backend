@@ -40,8 +40,8 @@ components:
           maxLength: 2048
         cover_title:
           type: string
-          description: Текст в цветной плашке (по умолчанию «персональное финансовое решение»).
-          example: персональное финансовое решение
+          description: Текст в цветной плашке (по умолчанию «персональное финансовое планирование»).
+          example: персональное финансовое планирование
           maxLength: 500
         title_band_color:
           type: string

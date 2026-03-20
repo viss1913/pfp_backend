@@ -3,7 +3,7 @@ const { pathToFileURL } = require('url');
 
 /** Дефолты, если у агента нет записи в БД */
 const GLOBAL_DEFAULTS = {
-    coverTitle: 'персональное финансовое решение',
+    coverTitle: 'персональное финансовое планирование',
     titleBandColor: '#722257',
     /** относительный путь от корня репо */
     coverBackgroundPath: 'assets/reports/rostech/cover-background.jpg',
