@@ -1,4 +1,7 @@
-.cursor/
+# Cursor: игнорим всё, кроме project skills (чтобы шарить с командой)
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**
 node_modules/
 .env
 .env.local

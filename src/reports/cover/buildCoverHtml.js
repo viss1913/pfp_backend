@@ -189,6 +189,7 @@ function buildCoverLayoutPayload(o = {}) {
     const title_band_color = sanitizeTitleBandColor(o.title_band_color ?? GLOBAL_DEFAULTS.titleBandColor);
     const spec = COVER_RENDER_SPEC;
     const br = spec.title_band.border_radius_px;
+    const hasCustomBg = Boolean(o.cover_background_url && String(o.cover_background_url).trim());
     return {
         version: spec.version,
         figma: { ...spec.figma },
@@ -213,11 +214,12 @@ function buildCoverLayoutPayload(o = {}) {
             date_line: o.date_line ?? formatCoverDateRu(),
         },
         /**
-         * URL картинки не дублируем сюда — только корневое поле ответа `cover_background_url`.
-         * Ниже — что подставит бэк, если в БД фона нет (путь в репо, не публичный URL).
+         * URL картинки в ответе API не дублируем — только корневое поле `cover_background_url`
+         * (или GET /cover-image для signed). Здесь только справка про сток и флаг.
          */
         background: {
-            server_fallback_repo_relative_path: GLOBAL_DEFAULTS.coverBackgroundPath,
+            uses_custom_upload: hasCustomBg,
+            fallback_repo_relative_path: GLOBAL_DEFAULTS.coverBackgroundPath,
         },
     };
 }
