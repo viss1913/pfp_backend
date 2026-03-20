@@ -62,7 +62,7 @@ description: Documents backend PDF report cover (Figma-aligned HTML), per-agent 
 - Если **`STORAGE_REQUIRE_R2=1`**, без R2 загрузка не уходит в диск — будет 503.
 - Старые URL в БД после смены `pub-….r2.dev`: скрипт **`npm run r2:migrate-url-prefix`** (`R2_PUBLIC_URL_REPLACE_FROM`, опционально `R2_PUBLIC_URL_REPLACE_TO`, `DRY_RUN`).
 
-Подробности и чеклисты: `docs/env-cloudflare-r2.md`.
+Подробности и чеклисты: `docs/env-cloudflare-r2.md`. При старте сервера в логах строка **`[R2] готов к загрузкам: bucket=… public_base=…`** — сверка Railway с локальным `.env`.
 
 ## Скрипты (корень репо)
 

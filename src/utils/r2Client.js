@@ -237,9 +237,27 @@ function signedCoverUrlTtlSec() {
     return Number.isFinite(n) && n > 60 ? n : 900;
 }
 
+/**
+ * Безопасно для логов (без секретов): сверка «как на локали» vs Railway.
+ */
+function getR2StartupDiagnostics() {
+    const gaps = getR2ConfigGaps();
+    const bases = getPublicBaseCandidates();
+    const bucket = trimEnv(process.env.R2_BUCKET_NAME) || null;
+    return {
+        gaps,
+        bucket,
+        publicBase: bases[0] || null,
+        clientReady: isR2ClientReady(),
+        uploadReady: isR2PublicUrlReady(),
+        storageRequireR2: isStorageUploadRequireR2(),
+    };
+}
+
 module.exports = {
     getR2Client,
     getR2ConfigGaps,
+    getR2StartupDiagnostics,
     uploadPublicFile,
     getPublicBaseCandidates,
     publicUrlFromKey,
