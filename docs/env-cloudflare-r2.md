@@ -35,6 +35,20 @@
 - В БД часто лежат **уже сохранённые абсолютные URL**. Если ты поменяла только `R2_PUBLIC_BASE_URL` на Railway, **старые ссылки в ответах API не обновятся сами** — нужна новая загрузка / `PATCH` / массовая замена префикса в `cover_background_url`.
 - Если картинка **не грузится в браузере** с фронта (в Network — blocked / CORS): в R2 для бакета включи публичный доступ и при необходимости настрой **CORS** (разрешить origin фронта и метод `GET` для `pub-….r2.dev`).
 
+### Сменили `pub-….r2.dev`, в API всё ещё старые ссылки и 404
+
+1. В Railway выставь **новый** `R2_PUBLIC_BASE_URL` или `R2_PUBLIC_DOMAIN` (тот, что в дашборде у **этого** бакета).
+2. В БД остаются **старые абсолютные URL**. Замена префикса:
+
+```bash
+# в .env уже новый R2_PUBLIC_*; указать старый хост, который сейчас в БД:
+set R2_PUBLIC_URL_REPLACE_FROM=https://pub-f7e229b86c1940fabdcf50f072f1013a.r2.dev
+# опционально: DRY_RUN=1 npm run r2:migrate-url-prefix
+npm run r2:migrate-url-prefix
+```
+
+Скрипт правит `agent_report_pdf_settings.cover_background_url` и `ai_b2c_settings.avatar_url`.
+
 ## Опционально
 
 | Переменная | Назначение |
