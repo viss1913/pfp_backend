@@ -30,6 +30,22 @@ function getPublicBaseCandidates() {
     return out;
 }
 
+/** Список отсутствующих env (имена), без значений — для логов при старте */
+function getR2ConfigGaps() {
+    const t = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '');
+    const missing = [];
+    if (!t(process.env.R2_BUCKET_NAME)) missing.push('R2_BUCKET_NAME');
+    if (!t(process.env.R2_ACCESS_KEY_ID)) missing.push('R2_ACCESS_KEY_ID');
+    if (!t(process.env.R2_SECRET_ACCESS_KEY) && !t(process.env.SecretAccessKey)) {
+        missing.push('R2_SECRET_ACCESS_KEY');
+    }
+    const hasEp = t(process.env.R2_ENDPOINT) || t(process.env.S3_API_URL);
+    if (!hasEp && !t(process.env.R2_ACCOUNT_ID)) {
+        missing.push('R2_ENDPOINT или R2_ACCOUNT_ID');
+    }
+    return missing;
+}
+
 /**
  * Клиент Cloudflare R2 (S3-совместимый). null, если env не задан.
  */
@@ -203,6 +219,7 @@ function signedCoverUrlTtlSec() {
 
 module.exports = {
     getR2Client,
+    getR2ConfigGaps,
     uploadPublicFile,
     getPublicBaseCandidates,
     publicUrlFromKey,

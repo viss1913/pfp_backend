@@ -10,6 +10,18 @@ const AUTO_SEED = process.env.AUTO_SEED !== 'false'; // Set to 'false' to disabl
 // Run migrations, seeds (if needed), and start server
 async function startServer() {
     try {
+        const { getR2ConfigGaps, isR2PublicUrlReady } = require('./utils/r2Client');
+        const r2Gaps = getR2ConfigGaps();
+        if (r2Gaps.length) {
+            console.warn('[R2] r2_not_configured — в окружении нет:', r2Gaps.join(', '));
+        } else if (!isR2PublicUrlReady()) {
+            console.warn(
+                '[R2] Ключи и endpoint есть, но нет публичной базы (R2_PUBLIC_BASE_URL / R2_CDN_BASE_URL / R2_PUBLIC_DOMAIN) — upload вернёт r2_public_url_missing'
+            );
+        } else {
+            console.log('[R2] Конфигурация для загрузок в бакет и публичных URL выглядит полной');
+        }
+
         console.log('Running database migrations...');
         try {
             const migrations = await db.migrate.latest();
