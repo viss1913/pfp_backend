@@ -9,12 +9,17 @@
  *
  * Переопределение через env (имеют приоритет):
  *   API_URL, AGENT_JWT, JWT, X_PROJECT_KEY, IMAGE_PATH
+ *
+ * Если нет токена, но нужен локальный smoke против боя с тем же JWT_SECRET:
+ *   PDF_COVER_SELF_SIGN_JWT=1  — подписать JWT из .env (JWT_SECRET должен совпадать с продом).
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 
+const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const localConfigPath = path.join(__dirname, 'test-pdf-cover-config.local.json');
@@ -38,7 +43,31 @@ if (fs.existsSync(localConfigPath)) {
 }
 
 const API_URL = normalizeApiUrl(process.env.API_URL || fileCfg.apiUrl);
-let token = process.env.AGENT_JWT || process.env.JWT || fileCfg.token || '';
+const selfSign =
+    process.env.PDF_COVER_SELF_SIGN_JWT === '1' || process.env.PDF_COVER_SELF_SIGN_JWT === 'true';
+
+let tokenRaw = '';
+if (selfSign) {
+    require('dotenv').config({ path: path.join(root, '.env') });
+    const jwt = require('jsonwebtoken');
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        console.error('PDF_COVER_SELF_SIGN_JWT: в .env нет JWT_SECRET');
+        process.exit(1);
+    }
+    const payload = {
+        id: process.env.PDF_COVER_JWT_SUBJECT || '77be4c6c-5762-42a9-86d2-14218433a5dd',
+        user_id: parseInt(process.env.PDF_COVER_JWT_USER_ID || '10001', 10),
+        email: process.env.PDF_COVER_JWT_EMAIL || 'vissarovav@gmail.com',
+        role: 'agent',
+        agentId: parseInt(process.env.PDF_COVER_JWT_AGENT_ID || '10001', 10),
+    };
+    tokenRaw = jwt.sign(payload, secret, { expiresIn: '24h' });
+} else {
+    tokenRaw = process.env.AGENT_JWT || process.env.JWT || fileCfg.token || '';
+}
+
+let token = tokenRaw;
 if (token && !token.startsWith('Bearer ')) {
     token = `Bearer ${token}`;
 }
@@ -92,4 +121,5 @@ if (res.ok && json && json.url) {
     console.log('\nOK — url в настройках:', json.url);
 }
 
-process.exit(res.ok ? 0 : 1);
+const exitCode = res.ok ? 0 : 1;
+setImmediate(() => process.exit(exitCode));
