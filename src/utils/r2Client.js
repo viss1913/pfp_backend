@@ -36,18 +36,24 @@ function getPublicBaseCandidates() {
     return out;
 }
 
+/** Endpoint: явный URL или собирается из account id */
+function getR2EndpointOrAccountFromEnv() {
+    const endpoint = trimEnv(process.env.R2_ENDPOINT || process.env.S3_API_URL);
+    const accountId = trimEnv(process.env.R2_ACCOUNT_ID || process.env.CLOUDFLARE_ACCOUNT_ID);
+    return { endpoint, accountId, hasEndpoint: !!endpoint, hasAccountId: !!accountId };
+}
+
 /** Список отсутствующих env (имена), без значений — для логов при старте */
 function getR2ConfigGaps() {
-    const t = (v) => (v != null && String(v).trim() !== '' ? String(v).trim() : '');
     const missing = [];
-    if (!t(process.env.R2_BUCKET_NAME)) missing.push('R2_BUCKET_NAME');
-    if (!t(process.env.R2_ACCESS_KEY_ID)) missing.push('R2_ACCESS_KEY_ID');
-    if (!t(process.env.R2_SECRET_ACCESS_KEY) && !t(process.env.SecretAccessKey)) {
+    if (!trimEnv(process.env.R2_BUCKET_NAME)) missing.push('R2_BUCKET_NAME');
+    if (!trimEnv(process.env.R2_ACCESS_KEY_ID)) missing.push('R2_ACCESS_KEY_ID');
+    if (!trimEnv(process.env.R2_SECRET_ACCESS_KEY) && !trimEnv(process.env.SecretAccessKey)) {
         missing.push('R2_SECRET_ACCESS_KEY');
     }
-    const hasEp = t(process.env.R2_ENDPOINT) || t(process.env.S3_API_URL);
-    if (!hasEp && !t(process.env.R2_ACCOUNT_ID)) {
-        missing.push('R2_ENDPOINT или R2_ACCOUNT_ID');
+    const { hasEndpoint, hasAccountId } = getR2EndpointOrAccountFromEnv();
+    if (!hasEndpoint && !hasAccountId) {
+        missing.push('R2_ENDPOINT или R2_ACCOUNT_ID (или CLOUDFLARE_ACCOUNT_ID)');
     }
     return missing;
 }
@@ -59,8 +65,7 @@ function getR2Client() {
     const bucketName = trimEnv(process.env.R2_BUCKET_NAME);
     const accessKeyId = trimEnv(process.env.R2_ACCESS_KEY_ID);
     const secretAccessKey = trimEnv(process.env.R2_SECRET_ACCESS_KEY || process.env.SecretAccessKey);
-    const s3EndpointFromEnv = trimEnv(process.env.R2_ENDPOINT || process.env.S3_API_URL);
-    const accountId = trimEnv(process.env.R2_ACCOUNT_ID);
+    const { endpoint: s3EndpointFromEnv, accountId } = getR2EndpointOrAccountFromEnv();
 
     if (!bucketName || !accessKeyId || !secretAccessKey || (!s3EndpointFromEnv && !accountId)) {
         return null;
@@ -244,6 +249,7 @@ function getR2StartupDiagnostics() {
     const gaps = getR2ConfigGaps();
     const bases = getPublicBaseCandidates();
     const bucket = trimEnv(process.env.R2_BUCKET_NAME) || null;
+    const { hasEndpoint, hasAccountId } = getR2EndpointOrAccountFromEnv();
     return {
         gaps,
         bucket,
@@ -251,6 +257,8 @@ function getR2StartupDiagnostics() {
         clientReady: isR2ClientReady(),
         uploadReady: isR2PublicUrlReady(),
         storageRequireR2: isStorageUploadRequireR2(),
+        hasEndpoint,
+        hasAccountId,
     };
 }
 

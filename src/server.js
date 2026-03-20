@@ -14,6 +14,9 @@ async function startServer() {
         const r2 = getR2StartupDiagnostics();
         if (r2.gaps.length) {
             console.warn('[R2] Не хватает переменных:', r2.gaps.join(', '), '— загрузки уйдут на локальный диск (или 503 при STORAGE_REQUIRE_R2)');
+            console.warn(
+                `[R2] endpoint/S3_URL задан=${r2.hasEndpoint}, R2_ACCOUNT_ID или CLOUDFLARE_ACCOUNT_ID задан=${r2.hasAccountId} — на Railway часто забывают один из них (в .env он есть, в Variables сервиса — нет)`
+            );
         } else if (!r2.uploadReady) {
             console.warn(
                 `[R2] bucket="${r2.bucket}" но нет публичного префикса (R2_PUBLIC_BASE_URL / R2_CDN_BASE_URL / R2_PUBLIC_DOMAIN) — POST обложки/аватар → 503 R2_PUBLIC_URL_MISSING`

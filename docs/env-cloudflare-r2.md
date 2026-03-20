@@ -9,9 +9,10 @@
 | `R2_BUCKET_NAME` | Имя бакета |
 | `R2_ACCESS_KEY_ID` | Ключ API |
 | `R2_SECRET_ACCESS_KEY` или `SecretAccessKey` | Секрет |
-| `R2_ACCOUNT_ID` | Аккаунт Cloudflare **или** задайте `R2_ENDPOINT` / `S3_API_URL` полным URL эндпоинта S3 |
+| `R2_ACCOUNT_ID` | ID аккаунта Cloudflare (блок *Account ID* в дашборде). Нужен **если не** задан полный `R2_ENDPOINT`. Алиас в коде: **`CLOUDFLARE_ACCOUNT_ID`** (удобно, если так уже названа переменная на Railway). |
+| `R2_ENDPOINT` или `S3_API_URL` | Полный URL S3 API, например `https://<account_id>.r2.cloudflarestorage.com` — тогда `R2_ACCOUNT_ID` можно не дублировать |
 
-Эндпоинт по умолчанию: `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`.
+Должно быть задано **хотя бы одно**: `R2_ENDPOINT` **или** `R2_ACCOUNT_ID` **или** `CLOUDFLARE_ACCOUNT_ID`. Иначе в логах: «Не хватает … R2_ENDPOINT или R2_ACCOUNT_ID».
 
 ## Публичные URL после загрузки
 
@@ -33,7 +34,7 @@
 
 1. Переменные висят на **том же сервисе**, где крутится Node (не только в Project / другой сервис).
 2. После правок Variables сделай **Redeploy** — процесс читает env только при старте.
-3. Имена **точно** как в `.env`: `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ACCOUNT_ID` (или `R2_ENDPOINT`), плюс **`R2_PUBLIC_BASE_URL`** = полный URL вида `https://pub-….r2.dev` **без** слэша в конце.
+3. Имена **точно** как в `.env`: `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, и **обязательно** либо **`R2_ACCOUNT_ID`**, либо полный **`R2_ENDPOINT`**, либо **`CLOUDFLARE_ACCOUNT_ID`** (тот же hex, что в URL `….r2.cloudflarestorage.com`), плюс **`R2_PUBLIC_BASE_URL`** = `https://pub-….r2.dev` без слэша в конце.
 4. В **Deploy Logs** при старте должна быть строка **`[R2] готов к загрузкам: bucket="…" public_base="https://…"`**. Если видишь предупреждение про «нет публичного префикса» — на Railway реально не подтянулся `R2_PUBLIC_*` (пустая строка, опечатка, переменная в другом сервисе).
 5. Для продакшена имеет смысл **`STORAGE_REQUIRE_R2=1`**: без полного R2 не будет тихого сохранения на диск контейнера.
 
