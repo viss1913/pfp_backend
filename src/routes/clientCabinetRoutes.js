@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const clientCabinetController = require('../controllers/clientCabinetController');
+const clientComonStrategyController = require('../controllers/clientComonStrategyController');
 const { restrictTo } = require('../middlewares/roleMiddleware');
 
 // All routes here require 'client' role (or agent/admin acting on behalf)
@@ -8,6 +9,12 @@ router.use(restrictTo('client', 'agent', 'admin', 'super_admin'));
 
 // GET /my/plan — Get my financial plan
 router.get('/plan', clientCabinetController.getMyPlan.bind(clientCabinetController));
+
+// Стратегии Comon закреплённого за клиентом агента (информация для клиента)
+router.get('/comon-strategies', clientComonStrategyController.list);
+router.get('/comon-strategies/:id/profit/metrics', clientComonStrategyController.metrics);
+router.get('/comon-strategies/:id/profit', clientComonStrategyController.profit);
+router.get('/comon-strategies/:id', clientComonStrategyController.getOne);
 
 // POST /my/plan/first-run — Create/update my financial plan
 router.post('/plan/first-run', clientCabinetController.createMyPlan.bind(clientCabinetController));

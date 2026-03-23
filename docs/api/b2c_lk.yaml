@@ -242,6 +242,79 @@ paths:
           required: true
           schema: { type: string, example: "inflation-ru" }
 
+  # ==================== СТРАТЕГИИ COMON (ЛК КЛИЕНТА) ====================
+  /my/comon-strategies:
+    get:
+      tags: [ "Стратегии консультанта (Comon)" ]
+      summary: Список стратегий агента клиента
+      description: |
+        Только role=client (в токене есть clientId). Данные — из карточек агента (`clients.agent_id`).
+        Если агента нет — пустой `strategies`, `has_linked_agent: false`, текст в `disclaimer_ru`.
+        См. docs/COMON_STRATEGIES_LK.md
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientComonStrategyListResponse"
+        "403":
+          description: Нет clientId в токене
+
+  /my/comon-strategies/{id}:
+    get:
+      tags: [ "Стратегии консультанта (Comon)" ]
+      summary: Одна карточка для клиента
+      description: |
+        `id` — внутренний id записи agent_comon_strategies, не id Comon.
+        Проверяется, что карточка принадлежит агенту клиента.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientComonStrategyOneResponse"
+        "404":
+          description: Нет доступа или запись не найдена
+
+  /my/comon-strategies/{id}/profit:
+    get:
+      tags: [ "Стратегии консультанта (Comon)" ]
+      summary: Ряд для графика (прокси Comon)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: success, data — как у Comon
+        "502":
+          description: Ошибка Comon
+
+  /my/comon-strategies/{id}/profit/metrics:
+    get:
+      tags: [ "Стратегии консультанта (Comon)" ]
+      summary: Метрики доходности + disclaimer_ru
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: success, data.metrics, data.disclaimer_ru
+        "502":
+          description: Ошибка Comon
+
   # ==================== ОТЧЕТЫ ====================
   /my/reports/{clientId}:
     get:
@@ -255,6 +328,84 @@ paths:
           schema: { type: string }
 
 components:
+  schemas:
+    ClientComonPortfolioItem:
+      type: object
+      properties:
+        instrument:
+          type: string
+        share_percent:
+          type: number
+
+    ClientComonStrategyCard:
+      type: object
+      description: Карточка без agent_id; есть risk_profile_label_ru
+      properties:
+        id:
+          type: integer
+          format: int64
+        comon_strategy_id:
+          type: string
+        comon_url:
+          type: string
+          nullable: true
+        comon_profit_api_url:
+          type: string
+          nullable: true
+        name:
+          type: string
+        min_contribution:
+          type: number
+          nullable: true
+        risk_profile:
+          type: string
+        risk_profile_label_ru:
+          type: string
+          example: "Сбалансированный"
+        description:
+          type: string
+          nullable: true
+        portfolio:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientComonPortfolioItem"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ClientComonStrategyListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            strategies:
+              type: array
+              items:
+                $ref: "#/components/schemas/ClientComonStrategyCard"
+            has_linked_agent:
+              type: boolean
+            disclaimer_ru:
+              type: string
+
+    ClientComonStrategyOneResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            strategy:
+              $ref: "#/components/schemas/ClientComonStrategyCard"
+            disclaimer_ru:
+              type: string
+
   securitySchemes:
     bearerAuth:
       type: http

@@ -1134,6 +1134,111 @@ components:
       allOf:
         - $ref: '#/components/schemas/FullClientRequest'
 
+    AgentComonStrategyPortfolioItem:
+      type: object
+      required: [instrument, share_percent]
+      properties:
+        instrument:
+          type: string
+        share_percent:
+          type: number
+
+    AgentComonStrategyCreate:
+      type: object
+      required: [comon_url, name, risk_profile, portfolio]
+      properties:
+        comon_url:
+          type: string
+          description: Ссылка на страницу стратегии на comon.ru
+        name:
+          type: string
+        min_contribution:
+          type: number
+          nullable: true
+        risk_profile:
+          type: string
+          enum: [conservative, balanced, aggressive]
+        description:
+          type: string
+          nullable: true
+        portfolio:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/AgentComonStrategyPortfolioItem'
+
+    AgentComonStrategyPatch:
+      type: object
+      properties:
+        comon_url:
+          type: string
+        name:
+          type: string
+        min_contribution:
+          type: number
+          nullable: true
+        risk_profile:
+          type: string
+          enum: [conservative, balanced, aggressive]
+        description:
+          type: string
+          nullable: true
+        portfolio:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/AgentComonStrategyPortfolioItem'
+
+    AgentComonStrategyCard:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        agent_id:
+          type: integer
+          format: int64
+        comon_strategy_id:
+          type: string
+        comon_url:
+          type: string
+          nullable: true
+        comon_profit_api_url:
+          type: string
+          nullable: true
+          description: Публичный URL JSON Comon для графика доходности
+        name:
+          type: string
+        min_contribution:
+          type: number
+          nullable: true
+        risk_profile:
+          type: string
+        description:
+          type: string
+          nullable: true
+        portfolio:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentComonStrategyPortfolioItem'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ComonResolveBody:
+      type: object
+      properties:
+        url:
+          type: string
+        link:
+          type: string
+      description: Укажите url или link со страницей стратегии Comon
+
 security:
   - bearerAuth: []
   - apiKeyAuth: []
@@ -1802,4 +1907,251 @@ paths:
               schema:
                 type: string
                 format: binary
+
+  /pfp/comon/maintenance-info:
+    get:
+      summary: Comon — служебная информация (maintenance)
+      tags:
+        - Comon
+      responses:
+        '200':
+          description: OK
+        '502':
+          description: Ошибка запроса к Comon
+
+  /pfp/comon/strategies/resolve:
+    post:
+      summary: Разобрать ссылку Comon в strategyId и вспомогательные URL
+      tags:
+        - Comon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComonResolveBody'
+      responses:
+        '200':
+          description: success, data.strategyId и др.
+        '400':
+          description: Невалидная ссылка
+
+  /pfp/comon/strategies/{id}/profit:
+    get:
+      summary: Сырой ряд доходности стратегии Comon (по id Comon)
+      tags:
+        - Comon
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Тело ответа Comon (data.strategy — точки)
+        '502':
+          description: Ошибка Comon
+
+  /pfp/comon/strategies/{id}:
+    get:
+      summary: HTML/Next data страницы стратегии (если доступно)
+      tags:
+        - Comon
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Обёртка с nextData при наличии
+
+  /pfp/agent/comon-strategies:
+    get:
+      summary: Список карточек стратегий Comon текущего агента
+      tags:
+        - Comon Agent LK
+      responses:
+        '200':
+          description: success, data[], risk_profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AgentComonStrategyCard'
+                  risk_profiles:
+                    type: array
+                    items:
+                      type: string
+    post:
+      summary: Создать карточку стратегии
+      tags:
+        - Comon Agent LK
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentComonStrategyCreate'
+      responses:
+        '201':
+          description: Создано
+        '409':
+          description: Стратегия Comon уже привязана
+
+  /pfp/agent/comon-strategies/{id}:
+    get:
+      summary: Карточка по внутреннему id
+      tags:
+        - Comon Agent LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success, data
+    patch:
+      summary: Частичное обновление карточки
+      tags:
+        - Comon Agent LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentComonStrategyPatch'
+      responses:
+        '200':
+          description: OK
+        '409':
+          description: Конфликт comon_strategy_id
+    delete:
+      summary: Удалить карточку
+      tags:
+        - Comon Agent LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success
+
+  /pfp/agent/comon-strategies/{id}/profit:
+    get:
+      summary: Ряд доходности Comon для сохранённой карточки
+      tags:
+        - Comon Agent LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success, data — ответ Comon
+        '502':
+          description: Ошибка Comon
+
+  /pfp/agent/comon-strategies/{id}/profit/metrics:
+    get:
+      summary: Метрики доходности (итог, 30д, CAGR) по карточке
+      tags:
+        - Comon Agent LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success, data.metrics и definitions
+        '502':
+          description: Ошибка Comon
+
+  /my/comon-strategies:
+    get:
+      summary: ЛК клиента — стратегии Comon закреплённого агента
+      tags:
+        - Comon Client LK
+      description: |
+        Только role=client. Внутренний id карточки — для вложенных GET.
+        Подробнее — docs/COMON_STRATEGIES_LK.md
+      responses:
+        '200':
+          description: success, data.strategies, disclaimer_ru, has_linked_agent
+        '403':
+          description: Нет clientId в токене
+
+  /my/comon-strategies/{id}:
+    get:
+      summary: ЛК клиента — одна карточка (+ disclaimer_ru)
+      tags:
+        - Comon Client LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success, data.strategy, disclaimer_ru
+        '404':
+          description: Нет доступа или нет записи
+
+  /my/comon-strategies/{id}/profit:
+    get:
+      summary: ЛК клиента — ряд для графика
+      tags:
+        - Comon Client LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success, data — ответ Comon
+        '502':
+          description: Ошибка Comon
+
+  /my/comon-strategies/{id}/profit/metrics:
+    get:
+      summary: ЛК клиента — метрики + disclaimer_ru
+      tags:
+        - Comon Client LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success, data.metrics, disclaimer_ru
+        '502':
+          description: Ошибка Comon
 

@@ -1,0 +1,207 @@
+const axios = require('axios');
+
+const DEFAULT_BASE = 'https://www.comon.ru';
+const DEFAULT_UA =
+    process.env.COMON_USER_AGENT ||
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+function baseUrl() {
+    const raw = (process.env.COMON_BASE_URL || DEFAULT_BASE).replace(/\/$/, '');
+    return raw;
+}
+
+/** Публичный URL JSON графика доходности: /api/v2/strategies/{id}/profit */
+function strategyProfitApiUrl(comonStrategyId) {
+    const id = String(comonStrategyId == null ? '' : comonStrategyId).trim();
+    if (!/^\d+$/.test(id)) return null;
+    return `${baseUrl()}/api/v2/strategies/${id}/profit`;
+}
+
+function allowedComonHostnames() {
+    const set = new Set(['www.comon.ru', 'comon.ru']);
+    try {
+        set.add(new URL(baseUrl()).hostname.toLowerCase());
+    } catch (_) {
+        /* ignore */
+    }
+    return set;
+}
+
+/**
+ * Из ссылки https://www.comon.ru/strategies/109003/ (или пути /strategies/109003/) достаёт id.
+ * Можно передать просто "109003".
+ */
+function parseStrategyUrlToId(raw) {
+    const trimmed = String(raw).trim();
+    if (!trimmed) {
+        throw new Error('Empty strategy URL');
+    }
+    if (/^\d+$/.test(trimmed)) {
+        return trimmed;
+    }
+
+    const idFromPath = (pathname) => {
+        const m = String(pathname).match(/\/strategies\/(\d+)(?:\/|$|\?|#)/i);
+        return m ? m[1] : null;
+    };
+
+    if (!/^https?:\/\//i.test(trimmed)) {
+        const path = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+        const id = idFromPath(path);
+        if (id) return id;
+        throw new Error('Invalid strategy URL (expected …/strategies/<id>/…)');
+    }
+
+    let u;
+    try {
+        u = new URL(trimmed);
+    } catch {
+        throw new Error('Invalid strategy URL');
+    }
+
+    const host = u.hostname.toLowerCase();
+    if (!allowedComonHostnames().has(host)) {
+        throw new Error('Link must point to comon.ru');
+    }
+
+    const id = idFromPath(u.pathname);
+    if (!id) {
+        throw new Error('No strategy id in URL (expected …/strategies/<id>/…)');
+    }
+    return id;
+}
+
+/** Удобный объект для фронта после разбора ссылки. */
+function resolveStrategyLink(raw) {
+    const strategyId = parseStrategyUrlToId(raw);
+    const b = baseUrl();
+    return {
+        strategyId,
+        pageUrl: `${b}/strategies/${strategyId}/`,
+        profitApiPath: `/api/pfp/comon/strategies/${strategyId}/profit`,
+    };
+}
+
+function extraHeaders() {
+    const json = process.env.COMON_EXTRA_HEADERS_JSON;
+    if (!json || !json.trim()) return {};
+    try {
+        return JSON.parse(json);
+    } catch {
+        return {};
+    }
+}
+
+function cookieHeader() {
+    const c = process.env.COMON_COOKIE;
+    return c && String(c).trim() ? { Cookie: String(c).trim() } : {};
+}
+
+function client() {
+    return axios.create({
+        baseURL: baseUrl(),
+        timeout: Number(process.env.COMON_HTTP_TIMEOUT_MS) || 20000,
+        maxRedirects: 5,
+        validateStatus: () => true,
+        headers: {
+            'User-Agent': DEFAULT_UA,
+            Accept: 'application/json, text/html;q=0.9, */*;q=0.8',
+            'Accept-Language': 'ru-RU,ru;q=0.9,en;q=0.8',
+            ...extraHeaders(),
+            ...cookieHeader(),
+        },
+    });
+}
+
+/**
+ * Публичный endpoint Comon (как в UI): статус обслуживания и т.п.
+ */
+async function getMaintenanceInfo() {
+    const http = client();
+    const res = await http.get('/api/v1/maintenance-info', {
+        headers: { Accept: 'application/json' },
+    });
+    if (res.status < 200 || res.status >= 300) {
+        const body = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+        throw new Error(`Comon maintenance-info HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+    }
+    return res.data;
+}
+
+/**
+ * Достаёт встроенный JSON Next.js из HTML (если страница отдаёт SSR).
+ */
+function extractNextData(html) {
+    if (!html || typeof html !== 'string') return null;
+    const m = html.match(
+        /<script[^>]*id="__NEXT_DATA__"[^>]*type="application\/json"[^>]*>([^<]*)<\/script>/i
+    );
+    if (!m) return null;
+    try {
+        return JSON.parse(m[1]);
+    } catch {
+        return null;
+    }
+}
+
+function assertNumericStrategyId(strategyId) {
+    const id = String(strategyId).trim();
+    if (!/^\d+$/.test(id)) {
+        throw new Error('Invalid strategy id');
+    }
+    return id;
+}
+
+/**
+ * Динамика стратегии (кривая доходности / показатели по дням).
+ * GET https://www.comon.ru/api/v2/strategies/{id}/profit
+ */
+async function getStrategyProfit(strategyId) {
+    const id = assertNumericStrategyId(strategyId);
+    const http = client();
+    const path = `/api/v2/strategies/${id}/profit`;
+    const res = await http.get(path, {
+        headers: { Accept: 'application/json' },
+    });
+    if (res.status < 200 || res.status >= 300) {
+        const body = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+        throw new Error(`Comon strategy profit HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+    }
+    return res.data;
+}
+
+/**
+ * HTML страницы стратегии + распарсенный __NEXT_DATA__ при наличии.
+ */
+async function getStrategyPagePayload(strategyId) {
+    const id = assertNumericStrategyId(strategyId);
+    const http = client();
+    const path = `/strategies/${id}/`;
+    const res = await http.get(path, {
+        headers: { Accept: 'text/html,application/xhtml+xml' },
+    });
+    if (res.status < 200 || res.status >= 300) {
+        const body = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+        throw new Error(`Comon strategy page HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+    }
+    const html = typeof res.data === 'string' ? res.data : '';
+    const nextData = extractNextData(html);
+    return {
+        strategyId: id,
+        pageUrl: `${baseUrl()}${path}`,
+        hasNextData: Boolean(nextData),
+        nextData,
+        htmlLength: html.length,
+    };
+}
+
+module.exports = {
+    getMaintenanceInfo,
+    getStrategyProfit,
+    getStrategyPagePayload,
+    extractNextData,
+    parseStrategyUrlToId,
+    resolveStrategyLink,
+    strategyProfitApiUrl,
+    baseUrl,
+};

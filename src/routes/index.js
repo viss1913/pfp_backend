@@ -10,6 +10,8 @@ const agentRoutes = require('./agentRoutes');
 
 const router = express.Router();
 const tenantMiddleware = require('../middlewares/tenantMiddleware');
+const { restrictTo } = require('../middlewares/roleMiddleware');
+const agentComonStrategyRoutes = require('./agentComonStrategyRoutes');
 
 // Public routes
 router.use('/auth', authRoutes);
@@ -34,6 +36,12 @@ router.use('/pfp/product-types', pfpMiddleware, productTypeRoutes);
 router.use('/pfp/portfolios', pfpMiddleware, portfolioRoutes);
 router.use('/pfp/settings', pfpMiddleware, settingsRoutes);
 router.use('/pfp/agents', pfpMiddleware, agentRoutes);
+router.use(
+    '/pfp/agent/comon-strategies',
+    pfpMiddleware,
+    restrictTo('agent', 'admin', 'super_admin'),
+    agentComonStrategyRoutes
+);
 
 // Admin Routes (reusing authMiddleware for now, should add admin check later)
 const adminAiRoutes = require('./adminAiRoutes');
@@ -70,7 +78,6 @@ router.use('/admin/insurance/home-owners', pfpMiddleware, adminHomeOwnersRoutes)
 const adminPfpRoutes = require('./adminPfpRoutes');
 const adminProjectRoutes = require('./adminProjectRoutes');
 const adminUserRoutes = require('./adminUserRoutes');
-const { restrictTo } = require('../middlewares/roleMiddleware');
 
 router.use('/admin/pfp', pfpMiddleware, adminPfpRoutes);
 router.use('/admin/projects', pfpMiddleware, restrictTo('super_admin'), adminProjectRoutes);
@@ -92,6 +99,10 @@ router.use('/my', pfpMiddleware, clientCabinetRoutes);
 // Macro Data Routes
 const macroRoutes = require('./macroRoutes');
 router.use('/pfp/macro', pfpMiddleware, macroRoutes);
+
+// Comon / Finam strategies (прокси + разбор публичной страницы)
+const comonRoutes = require('./comonRoutes');
+router.use('/pfp/comon', pfpMiddleware, comonRoutes);
 
 module.exports = router;
 

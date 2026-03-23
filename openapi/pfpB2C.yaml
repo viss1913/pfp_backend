@@ -2,7 +2,9 @@ openapi: 3.0.0
 info:
   title: PFP B2C Schemas (Client Cabinet)
   version: 1.0.0
-  description: Shared schemas and parameters for B2C Client Cabinet. Endpoints are documented in docs/api/b2c_lk.yaml.
+  description: |
+    Shared schemas and parameters for B2C Client Cabinet. Endpoints are documented in docs/api/b2c_lk.yaml.
+    Стратегии Comon для клиента — также в openapi/pfp-api.yaml (paths /my/comon-strategies, тег Comon Client LK).
 servers:
   - url: /api
     description: Main API server
