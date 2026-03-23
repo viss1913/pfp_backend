@@ -26,6 +26,11 @@ function pdfCoverUploadError(err, req, res, next) {
 }
 
 router.get('/cover-image', (req, res) => pdfSettingsController.getCoverImageAccess(req, res));
+router.get('/summary-background-image', (req, res) =>
+    pdfSettingsController.getSummaryBackgroundImageAccess(req, res)
+);
+router.get('/summary-logo-image', (req, res) => pdfSettingsController.getSummaryLogoImageAccess(req, res));
+router.get('/summary-preview-html', (req, res) => pdfSettingsController.getSummaryPreviewHtml(req, res));
 router.get('/', (req, res) => pdfSettingsController.getMy(req, res));
 router.patch('/', (req, res) => pdfSettingsController.patchMy(req, res));
 router.post(
@@ -33,6 +38,18 @@ router.post(
     pdfCoverUpload.single('image'),
     pdfCoverUploadError,
     (req, res) => pdfSettingsController.uploadCoverBackground(req, res)
+);
+router.post(
+    '/summary-background',
+    pdfCoverUpload.single('image'),
+    pdfCoverUploadError,
+    (req, res) => pdfSettingsController.uploadSummaryBackground(req, res)
+);
+router.post(
+    '/summary-logo',
+    pdfCoverUpload.single('image'),
+    pdfCoverUploadError,
+    (req, res) => pdfSettingsController.uploadSummaryLogo(req, res)
 );
 
 module.exports = router;

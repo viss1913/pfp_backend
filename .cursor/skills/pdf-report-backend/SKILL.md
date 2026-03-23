@@ -9,7 +9,7 @@ description: Бэкенд PDF-отчёта PFP (не только обложка
 
 Скилл про **весь пайплайн PDF-отчёта PFP** в этом репо: сборка HTML под печать/PDF, настройки из ЛК, ассеты в **Cloudflare R2**, контракты API и превью.
 
-**Сейчас реализовано в коде** — в основном **первая страница (обложка)** и API **`/api/pfp/pdf-settings`**. Когда появятся **другие страницы отчёта** (риски, текстовые блоки, свои шаблоны, отдельные эндпоинты) — их описываем **в этом же skill** (новые секции, файлы, OpenAPI), чтобы один источник правды по отчёту, а не отдельная «только обложка» легенда.
+**Сейчас реализовано в коде** — **обложка** + **вторая страница «Сводная информация»** (HTML + поля в `pdf-settings`) и API **`/api/pfp/pdf-settings`**. Дальнейшие страницы (диаграммы сводной, цели по отдельности и т.д.) — дописывать в этот skill.
 
 ## Когда включать этот skill
 
@@ -46,6 +46,9 @@ description: Бэкенд PDF-отчёта PFP (не только обложка
 | Файл | Роль |
 |------|------|
 | `src/reports/cover/buildCoverHtml.js` | Спека макета (`COVER_RENDER_SPEC`), `GLOBAL_DEFAULTS`, `buildReportCoverHtml`, `buildCoverLayoutPayload`, дата `formatCoverDateRu` (`REPORT_PDF_TZ` / `Europe/Moscow`) |
+| `src/reports/summary/buildSummaryOverviewHtml.js` | `SUMMARY_RENDER_SPEC`, `buildReportSummaryOverviewHtml`, `buildSummaryLayoutPayload`; лого/ИИ — `assets/reports/summary/`; **карточки целей по `goal_type`** — `assets/reports/goal-cards/` (`README.txt`) |
+| `database/migrations/*_add_summary_page_pdf_settings.js` | `summary_logo_url`, `summary_accent_color` (legacy), `summary_ai_avatar_url` (legacy) |
+| `database/migrations/*_add_summary_background_chart_color.js` | `summary_background_url`, `summary_chart_color` |
 | `src/services/pdfSettingsService.js` | БД, `mergeWithDefaults`, `editor_schema`, `cover_layout`, `buildCoverHtmlForAgent`, signed URL для превью |
 | `src/controllers/pdfSettingsController.js` | GET/PATCH/POST; ответ **`storage`**: `r2` \| `local_disk`; 503 `R2_PUBLIC_URL_MISSING` / `R2_PUT_FAILED` при настроенном R2 |
 | `src/routes/pdfSettingsRoutes.js` | Multer: до 8 МБ, `image/jpeg`, `png`, `webp`; поле формы **`image`** |
@@ -61,10 +64,15 @@ description: Бэкенд PDF-отчёта PFP (не только обложка
 
 | Метод | Путь | Назначение |
 |--------|------|------------|
-| GET | `/api/pfp/pdf-settings` | `editor_schema`, поля настроек, `cover_layout`, `date_preview` |
-| PATCH | `/api/pfp/pdf-settings` | Частичное сохранение (`cover_background_url`, `cover_title`, `title_band_color`). Пустая строка сбрасывает к дефолту в БД |
-| POST | `/api/pfp/pdf-settings/cover-background` | Multipart, поле **`image`**. Ключ R2: `pdf-report-covers/{projectId|common}/{agentId}/cover_{timestamp}{ext}` |
-| GET | `/api/pfp/pdf-settings/cover-image` | URL для превью: прямой или подписанный (`R2_SIGN_COVER_URL`) |
+| GET | `/api/pfp/pdf-settings` | `editor_schema`, `cover_layout`, `summary_layout`, `date_preview`, сводная: `summary_background_url`, `summary_logo_url`, `summary_chart_color` |
+| PATCH | `/api/pfp/pdf-settings` | Обложка + сводная (в т.ч. `summary_background_url`, `summary_logo_url`, `summary_chart_color`; пустая строка сбрасывает URL в БД) |
+| POST | `/api/pfp/pdf-settings/cover-background` | Multipart **`image`**. R2: `pdf-report-covers/...` |
+| POST | `/api/pfp/pdf-settings/summary-background` | Multipart **`image`** → `summary_background_url`. R2: `pdf-report-summary/.../background_*` |
+| POST | `/api/pfp/pdf-settings/summary-logo` | Multipart **`image`** → `summary_logo_url`. R2: `pdf-report-summary/.../logo_*` |
+| GET | `/api/pfp/pdf-settings/cover-image` | Превью фона обложки: прямой или signed (`R2_SIGN_COVER_URL`) |
+| GET | `/api/pfp/pdf-settings/summary-background-image` | Превью фона сводной |
+| GET | `/api/pfp/pdf-settings/summary-logo-image` | Превью лого сводной |
+| GET | `/api/pfp/pdf-settings/summary-preview-html` | HTML превью сводной (мок + настройки агента), `text/html` |
 
 Ответы с настройками включают **`editor_schema`** (контракт для ЛК) и **`cover_layout`** (геометрия + resolved цвета/текст). **Публичный URL фона нигде не дублируется:** только корневое поле **`cover_background_url`** (или **`GET /api/pfp/pdf-settings/cover-image`**, если нужен signed). Внутри `cover_layout.background` — лишь `uses_custom_upload` и `fallback_repo_relative_path` к стоковому jpg в репо, когда свой фон не задан.
 

@@ -76,6 +76,9 @@ async function main() {
 
     const targets = [
         { table: 'agent_report_pdf_settings', column: 'cover_background_url' },
+        { table: 'agent_report_pdf_settings', column: 'summary_logo_url' },
+        { table: 'agent_report_pdf_settings', column: 'summary_background_url' },
+        { table: 'agent_report_pdf_settings', column: 'summary_ai_avatar_url' },
         { table: 'ai_b2c_settings', column: 'avatar_url' },
     ];
 

@@ -23,3 +23,6 @@ coverage/
 
 # Локальный JWT для test_pdf_cover_upload.mjs (не коммитить)
 scripts/test-pdf-cover-config.local.json
+
+# Временный клон макета из Figma (не в репо)
+_figma_report_tmp/

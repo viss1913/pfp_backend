@@ -1,0 +1,378 @@
+{
+    "client_id": 320,
+    "investment_expense_growth_annual_percent": 6,
+    "summary": {
+        "goals_count": 4,
+        "total_capital": 47853245.37,
+        "total_state_benefit": 970158.06,
+        "total_target_amount_initial": 13335000,
+        "total_target_amount_future": 17689339.13,
+        "consolidated_portfolio": {
+            "total_initial_capital": 1616666.67,
+            "total_monthly_replenishment": 76204.15,
+            "assets_allocation": [
+                {
+                    "name": "Облигации",
+                    "amount": 632500,
+                    "share": 39,
+                    "yield": 16,
+                    "short_term_yield": 16
+                },
+                {
+                    "name": "Акции Российских компаний",
+                    "amount": 517500,
+                    "share": 32,
+                    "yield": 23,
+                    "short_term_yield": 23
+                },
+                {
+                    "name": "МТС Счёт",
+                    "amount": 300000,
+                    "share": 19,
+                    "yield": 16.5,
+                    "short_term_yield": 16.5
+                },
+                {
+                    "name": "НСЖ Династия",
+                    "amount": 166666.67,
+                    "share": 10,
+                    "yield": 5,
+                    "short_term_yield": 5
+                }
+            ],
+            "cash_flow_allocation": [
+                {
+                    "name": "Облигации",
+                    "amount": 29062.02,
+                    "share": 38,
+                    "yield": 16,
+                    "short_term_yield": 16,
+                    "payment_frequency": "monthly"
+                },
+                {
+                    "name": "Акции Российских компаний",
+                    "amount": 23778.01,
+                    "share": 31,
+                    "yield": 23,
+                    "short_term_yield": 23,
+                    "payment_frequency": "monthly"
+                },
+                {
+                    "name": "НСЖ Династия",
+                    "amount": 13888.89,
+                    "share": 18,
+                    "yield": 5,
+                    "short_term_yield": 5,
+                    "payment_frequency": "monthly"
+                },
+                {
+                    "name": "МТС Счёт",
+                    "amount": 5000,
+                    "share": 7,
+                    "yield": 16.5,
+                    "short_term_yield": 16.5,
+                    "payment_frequency": "monthly"
+                },
+                {
+                    "name": "ПДС Ренессанс Накопления",
+                    "amount": 4475.23,
+                    "share": 6,
+                    "yield": 14,
+                    "short_term_yield": 14,
+                    "payment_frequency": "monthly"
+                }
+            ]
+        },
+        "tax_benefits_summary": {
+            "pds_benefits": {
+                "deduction_2026": 6155.57,
+                "cofinancing_2026": 10259,
+                "total_deductions": 497303.06,
+                "total_cofinancing": 173605
+            },
+            "nsj_benefits": {
+                "annual_premium": 166666.67,
+                "deduction_2026": 19950,
+                "total_deductions": 299250
+            },
+            "totals": {
+                "deduction_2026": 26105.57,
+                "cofinancing_2026": 10259,
+                "total_deductions": 796553.06,
+                "total_cofinancing": 173605,
+                "total_state_benefits": 970158.06
+            }
+        },
+        "investment_expense_growth_annual_percent": 6
+    },
+    "goals": [
+        {
+            "goal_name": "ГосПенсия",
+            "goal_type": "PENSION",
+            "goal_type_id": 1,
+            "goal_id": 929,
+            "summary": {
+                "status": "OK",
+                "target_amount_initial": 135000,
+                "target_amount_future": 620759.65,
+                "projected_pension_monthly_future": 620759.65,
+                "projected_pension_monthly_present": 135000,
+                "inflation_rate": 5.6,
+                "initial_capital": 0,
+                "initial_capital_ops": 0,
+                "monthly_replenishment": 4475.23,
+                "pension_gap_future": 307846.66,
+                "target_months": 336,
+                "projected_capital_at_retirement": 30784665.89,
+                "required_capital_at_retirement": 30784665.78,
+                "total_tax_benefit": 497303.06,
+                "total_cofinancing": 173605,
+                "accumulation_yield_percent": 14,
+                "payout_yield_percent": 12,
+                "state_pension_monthly_future": 312912.99,
+                "state_pension_monthly_today": 68050.9,
+                "ipk_current": 107.92
+            },
+            "details": {
+                "state_pension": {
+                    "ipk_total": 372.97,
+                    "ipk_current": 107.92,
+                    "ipk_forecast": 265.06,
+                    "point_cost_today": 156.76,
+                    "point_cost_future": 720.82,
+                    "fixed_payment_today": 9584,
+                    "fixed_payment_future": 44069.34,
+                    "retirement_age": 65,
+                    "retirement_year": 2054,
+                    "years_to_pension": 28
+                },
+                "initial_instruments": [
+                    {
+                        "name": "ПДС Ренессанс Накопления",
+                        "share": 100,
+                        "yield": 14,
+                        "short_term_yield": 14
+                    }
+                ],
+                "monthly_instruments": [
+                    {
+                        "name": "ПДС Ренессанс Накопления",
+                        "share": 100,
+                        "yield": 14,
+                        "short_term_yield": 14,
+                        "amount": 4475.227219572485
+                    }
+                ]
+            },
+            "risk_profile": "BALANCED",
+            "id": 929
+        },
+        {
+            "goal_name": "Квартира",
+            "goal_type": "OTHER",
+            "goal_type_id": 4,
+            "goal_id": 930,
+            "summary": {
+                "status": "OK",
+                "target_amount_initial": 10400000,
+                "target_amount_future": 14152963.04,
+                "inflation_rate": 4.5,
+                "initial_capital": 1150000,
+                "monthly_replenishment": 52840.03,
+                "target_months": 84,
+                "projected_capital_at_end": 14152963.04,
+                "total_tax_benefit": 0,
+                "total_cofinancing": 0,
+                "accumulation_yield_percent": 19.15
+            },
+            "details": {
+                "portfolio_id": 47,
+                "portfolio_name": "основной от 3 лет",
+                "initial_instruments": [
+                    {
+                        "name": "Облигации",
+                        "share": 55,
+                        "yield": 16,
+                        "amount": 632500
+                    },
+                    {
+                        "name": "Акции Российских компаний",
+                        "share": 45,
+                        "yield": 23,
+                        "amount": 517500
+                    }
+                ],
+                "monthly_instruments": [
+                    {
+                        "name": "Облигации",
+                        "share": 55,
+                        "yield": 16,
+                        "amount": 29062.0168015336
+                    },
+                    {
+                        "name": "Акции Российских компаний",
+                        "share": 45,
+                        "yield": 23,
+                        "amount": 23778.013746709308
+                    }
+                ]
+            },
+            "risk_profile": "BALANCED",
+            "id": 930
+        },
+        {
+            "goal_name": "Финансовый резерв",
+            "goal_type": "FIN_RESERVE",
+            "goal_type_id": 7,
+            "goal_id": 931,
+            "summary": {
+                "status": "OK",
+                "initial_capital": 300000,
+                "monthly_replenishment": 5000,
+                "target_amount_initial": 300000,
+                "target_amount_future": 415616.44,
+                "target_months": 12,
+                "projected_capital_at_end": 415616.44,
+                "accumulation_yield_percent": 16.5,
+                "total_tax_benefit": 0
+            },
+            "details": {
+                "portfolio_id": 45,
+                "portfolio_name": "Фин резерв",
+                "initial_instruments": [
+                    {
+                        "name": "МТС Счёт",
+                        "share": 100,
+                        "yield": 16.5,
+                        "short_term_yield": 16.5,
+                        "amount": 300000
+                    }
+                ],
+                "monthly_instruments": [
+                    {
+                        "name": "МТС Счёт",
+                        "share": 100,
+                        "yield": 16.5,
+                        "short_term_yield": 16.5,
+                        "amount": 5000,
+                        "payment_frequency": "monthly"
+                    }
+                ]
+            },
+            "risk_profile": "CONSERVATIVE",
+            "id": 931
+        },
+        {
+            "goal_name": "Защита Жизни",
+            "goal_type": "LIFE",
+            "goal_type_id": 5,
+            "goal_id": 932,
+            "summary": {
+                "status": "OK",
+                "target_coverage": 2500000,
+                "target_amount_initial": 2500000,
+                "target_amount_future": 2500000,
+                "initial_capital": 166666.67,
+                "premium_frequency": "monthly",
+                "target_months": 180,
+                "expected_cash_value": 2500000,
+                "investment_yield_percent": 5,
+                "total_tax_benefit": 299250,
+                "monthly_replenishment": 13888.89
+            },
+            "details": {
+                "program_name": "НСЖ Династия",
+                "annual_premium": 166666.67,
+                "tax_deduction_2026": 19950,
+                "total_tax_deductions": 299250,
+                "risks": [
+                    {
+                        "risk_name": "Уход из жизни (любая причина)",
+                        "limit_amount": 2500000
+                    },
+                    {
+                        "risk_name": "Инвалидность I-II гр.",
+                        "limit_amount": 2500000
+                    },
+                    {
+                        "risk_name": "Критические заболевания",
+                        "limit_amount": 12500000
+                    }
+                ],
+                "initial_instruments": [
+                    {
+                        "name": "НСЖ Династия",
+                        "share": 100,
+                        "yield": 5,
+                        "amount": 166666.67
+                    }
+                ],
+                "monthly_instruments": [
+                    {
+                        "name": "НСЖ Династия",
+                        "share": 100,
+                        "yield": 5,
+                        "amount": 13888.89,
+                        "payment_frequency": "monthly"
+                    }
+                ]
+            },
+            "risk_profile": "CONSERVATIVE",
+            "id": 932
+        },
+        {
+            "goal_name": "Сохранить и преумножить",
+            "goal_type": "INVESTMENT",
+            "goal_type_id": 3,
+            "goal_id": 941,
+            "id": 941,
+            "details": {
+                "portfolio_id": 47,
+                "portfolio_name": "основной от 3 лет",
+                "initial_instruments": [
+                    {
+                        "name": "Облигации",
+                        "share": 55,
+                        "yield": 16,
+                        "amount": 550000,
+                        "short_term_yield": 16
+                    },
+                    {
+                        "name": "Акции Российских компаний",
+                        "share": 45,
+                        "yield": 23,
+                        "amount": 450000,
+                        "short_term_yield": 23
+                    }
+                ],
+                "monthly_instruments": [
+                    {
+                        "name": "Облигации",
+                        "share": 55,
+                        "yield": 16,
+                        "amount": 5500,
+                        "short_term_yield": 16
+                    },
+                    {
+                        "name": "Акции Российских компаний",
+                        "share": 45,
+                        "yield": 23,
+                        "amount": 4500,
+                        "short_term_yield": 23
+                    }
+                ]
+            },
+            "summary": {
+                "status": "OK",
+                "target_months": 120,
+                "initial_capital": 1000000,
+                "total_cofinancing": 0,
+                "total_tax_benefit": 0,
+                "monthly_replenishment": 10000,
+                "projected_capital_at_end": 9807284.03,
+                "accumulation_yield_percent": 19.15
+            },
+            "risk_profile": "BALANCED"
+        }
+    ]
+}

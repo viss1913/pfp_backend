@@ -1,9 +1,9 @@
 openapi: 3.0.0
 info:
-  title: PDF report settings (обложка)
-  version: 1.0.0
+  title: PDF report settings (обложка и сводная страница)
+  version: 1.1.0
   description: |
-    Настройки первой страницы PDF-отчёта на **агента**: фон, текст плашки, цвет плашки.
+    Настройки PDF-отчёта на **агента**: обложка (фон, плашка) и страница **«Сводная информация»** (лого, аватар ИИ, акцентный цвет).
     Дата на обложке при генерации PDF подставляется автоматически (см. `date_preview` в ответе только для превью в ЛК).
 
 servers:
@@ -62,6 +62,42 @@ components:
             Совпадает с тем, что рендерит `buildReportCoverHtml` на бэке — фронт не должен хардкодить отступы и ширину плашки.
           readOnly: true
           additionalProperties: true
+        summary_background_url:
+          type: string
+          nullable: true
+          description: |
+            Фон страницы «Сводная информация» после загрузки (POST summary-background) или путь от корня репо.
+            Пустая строка в PATCH — градиент по умолчанию без своей картинки.
+          maxLength: 2048
+        summary_logo_url:
+          type: string
+          nullable: true
+          description: Логотип на сводной странице (POST summary-logo). Пустая строка — сток из макета.
+          maxLength: 2048
+        summary_chart_color:
+          type: string
+          description: |
+            Цвет графиков (будущие диаграммы) и акцента заголовков секций на сводной (#RRGGBB).
+            Если задан только устаревший `summary_accent_color` в БД — он учитывается как запасной вариант до миграции ЛК.
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#8b5cf6'
+        summary_ai_avatar_url:
+          type: string
+          nullable: true
+          description: Устарело; в ЛК не редактируется — аватар ИИ из стока. Поле может остаться в БД.
+          maxLength: 2048
+        summary_accent_color:
+          type: string
+          nullable: true
+          description: Устарело в пользу `summary_chart_color`; при отсутствии chart в БД значение может подмешиваться в ответ.
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        summary_layout:
+          type: object
+          description: |
+            Спека второй страницы: A4, `branding.chart_color`, `uses_custom_summary_background`, `uses_custom_logo`, goal-cards.
+            Картинки — корневые `summary_background_url`, `summary_logo_url` или GET summary-*-image (signed при R2_SIGN_COVER_URL).
+          readOnly: true
+          additionalProperties: true
 
     PdfCoverSettingsResponse:
       allOf:
@@ -92,12 +128,32 @@ components:
           type: string
           nullable: true
           description: '#RRGGBB; пусто/null — сброс к дефолту'
+        summary_background_url:
+          type: string
+          nullable: true
+          maxLength: 2048
+        summary_logo_url:
+          type: string
+          nullable: true
+          maxLength: 2048
+        summary_chart_color:
+          type: string
+          nullable: true
+          description: '#RRGGBB; пусто/null — сброс к дефолту'
+        summary_ai_avatar_url:
+          type: string
+          nullable: true
+          maxLength: 2048
+        summary_accent_color:
+          type: string
+          nullable: true
+          description: 'legacy #RRGGBB'
 
 paths:
   /pfp/pdf-settings:
     get:
       operationId: getPdfCoverSettings
-      summary: Получить настройки обложки PDF для текущего агента
+      summary: Получить настройки PDF-отчёта (обложка + сводная страница) для текущего агента
       tags:
         - PDF settings
       security:
@@ -120,7 +176,7 @@ paths:
 
     patch:
       operationId: patchPdfCoverSettings
-      summary: Частично обновить настройки обложки
+      summary: Частично обновить настройки PDF-отчёта (обложка и/или сводная страница)
       tags:
         - PDF settings
       security:
@@ -262,3 +318,152 @@ paths:
           description: Нет agent_id
         '404':
           description: Фон не задан или агент не найден
+
+  /pfp/pdf-settings/summary-background:
+    post:
+      operationId: uploadPdfSummaryBackground
+      summary: Загрузить фон страницы «Сводная информация»
+      description: |
+        `multipart/form-data`, поле **`image`** (jpeg/png/webp, до 8 МБ). Ключ R2: `pdf-report-summary/{projectId|common}/{agentId}/background_{timestamp}{ext}`.
+        URL записывается в `summary_background_url`.
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: URL и полный ответ настроек
+          content:
+            application/json:
+              schema:
+                type: object
+        '400':
+          description: Нет файла / тип / размер
+        '503':
+          description: R2 / STORAGE_REQUIRE_R2
+
+  /pfp/pdf-settings/summary-logo:
+    post:
+      operationId: uploadPdfSummaryLogo
+      summary: Загрузить логотип для сводной страницы
+      description: |
+        Поле **`image`**. Ключ R2: `pdf-report-summary/.../logo_{timestamp}{ext}`. URL в `summary_logo_url`.
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: OK
+        '400':
+          description: Ошибка загрузки
+        '503':
+          description: R2
+
+  /pfp/pdf-settings/summary-background-image:
+    get:
+      operationId: getPdfSummaryBackgroundImageUrl
+      summary: URL фона сводной для превью (direct или signed)
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, access]
+                properties:
+                  url: { type: string }
+                  access: { type: string, enum: [direct, signed] }
+                  expires_in: { type: integer, nullable: true }
+                  expires_at: { type: string, format: date-time, nullable: true }
+        '404':
+          description: Фон сводной не задан
+
+  /pfp/pdf-settings/summary-logo-image:
+    get:
+      operationId: getPdfSummaryLogoImageUrl
+      summary: URL логотипа сводной для превью (direct или signed)
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url, access]
+                properties:
+                  url: { type: string }
+                  access: { type: string, enum: [direct, signed] }
+                  expires_in: { type: integer, nullable: true }
+                  expires_at: { type: string, format: date-time, nullable: true }
+        '404':
+          description: Логотип не задан
+
+  /pfp/pdf-settings/summary-preview-html:
+    get:
+      operationId: getPdfSummaryPreviewHtml
+      summary: HTML-превью страницы «Сводная информация» (мок-данные + настройки агента)
+      description: |
+        Возвращает **полный HTML** (`text/html`) одной страницы A4: фиксированный пример клиента и целей из `previewMockPayload.json`,
+        плюс текущие `summary_background_url`, `summary_logo_url`, `summary_chart_color` агента.
+        ЛК: `<iframe src="…" />` с заголовком `Authorization: Bearer …` не подставит токен — открывайте в новой вкладке, проксируйте с бэка или используйте `srcdoc` после fetch с токеном.
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+      responses:
+        '200':
+          description: HTML-документ
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет agent_id
+        '404':
+          description: Агент не найден в проекте
