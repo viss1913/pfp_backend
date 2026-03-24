@@ -139,6 +139,13 @@ components:
             
             Рекомендуем настроить автопополнение, чтобы не пропускать взносы.
 
+        pdf_summary_layout:
+          type: object
+          description: >
+            Единый блок для вёрстки сводного PDF на фронте: продолжение основных целей после первых двух
+            на HTML-сводной, пироги «распределение капитала / пополнений» по целям, подсказки page-break.
+          additionalProperties: true
+
         goals_detailed:
           type: array
           description: "List of calculated goals with their specific summaries"

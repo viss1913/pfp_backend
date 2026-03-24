@@ -1,6 +1,7 @@
 const clientService = require('./clientService');
 const aiService = require('./aiService');
 const calculationService = require('./calculationService');
+const { buildSummaryPdfLayoutModel } = require('../reports/summary/buildSummaryPdfLayoutModel');
 
 class ReportService {
     async getClientReportData(clientId, projectId = null) {
@@ -134,6 +135,8 @@ class ReportService {
         // 6. Section: AI Executive Summary
         const aiSummary = await this._generateExecutiveSummary(client, overallPlan, goalsReport);
 
+        const pdfSummaryPayload = { goals: goalsReport, goals_detailed: goalsReport, summary };
+
         return {
             client_info: {
                 id: client.id,
@@ -145,7 +148,9 @@ class ReportService {
             current_situation: currentStats,
             overall_plan: overallPlan,
             goals_detailed: goalsReport,
-            ai_executive_summary: aiSummary
+            ai_executive_summary: aiSummary,
+            /** Сводный PDF: целиком блок для фронта (продолжение целей + пироги), без фиксированной A4-обрезки */
+            pdf_summary_layout: buildSummaryPdfLayoutModel(pdfSummaryPayload),
         };
     }
 

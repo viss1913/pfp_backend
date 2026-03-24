@@ -47,6 +47,7 @@ description: Бэкенд PDF-отчёта PFP (не только обложка
 |------|------|
 | `src/reports/cover/buildCoverHtml.js` | Спека макета (`COVER_RENDER_SPEC`), `GLOBAL_DEFAULTS`, `buildReportCoverHtml`, `buildCoverLayoutPayload`, дата `formatCoverDateRu` (`REPORT_PDF_TZ` / `Europe/Moscow`) |
 | `src/reports/summary/buildSummaryOverviewHtml.js` | `SUMMARY_RENDER_SPEC`, `buildReportSummaryOverviewHtml`, `buildSummaryLayoutPayload`; лого/ИИ — `assets/reports/summary/`; **карточки целей по `goal_type`** — `assets/reports/goal-cards/` (`README.txt`) |
+| `src/reports/summary/buildSummaryPdfLayoutModel.js` | `buildSummaryPdfLayoutModel` — JSON для фронта: продолжение целей + распределение капитала по целям; в API отчёта поле **`pdf_summary_layout`** |
 | `database/migrations/*_add_summary_page_pdf_settings.js` | `summary_logo_url`, `summary_accent_color` (legacy), `summary_ai_avatar_url` (legacy) |
 | `database/migrations/*_add_summary_background_chart_color.js` | `summary_background_url`, `summary_chart_color` |
 | `src/services/pdfSettingsService.js` | БД, `mergeWithDefaults`, `editor_schema`, `cover_layout`, `buildCoverHtmlForAgent`, signed URL для превью |

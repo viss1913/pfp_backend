@@ -232,7 +232,7 @@ function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
     const gt = goal.goal_type || 'OTHER';
     const img = escapeHtml(resolveGoalCardImageSrc(gt, rootDir, inlineLocalAssets));
     const title = escapeHtml(goal.goal_name || 'Цель');
-    const months = Number(goal.summary?.target_months);
+    const months = Number(goal.summary?.target_months ?? goal.summary?.term_months);
     const years = Number.isFinite(months) ? Math.max(1, Math.round(months / 12)) : '—';
     let rightLabel = 'Стоимость:';
     let rightVal = '—';
@@ -241,8 +241,9 @@ function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
         const p = goal.summary?.projected_pension_monthly_present;
         rightVal = Number.isFinite(Number(p)) ? `${formatMoneyRu(p)}/мес` : '—';
     } else {
-        const t = Number(goal.summary?.target_amount_initial);
-        rightVal = Number.isFinite(t) ? `${(t / 1_000_000).toFixed(1)}М ₽` : '—';
+        const t = Number(goal.summary?.target_amount_initial ?? goal.details?.target_amount_initial);
+        rightVal =
+            Number.isFinite(t) && t > 0 ? `${(t / 1_000_000).toFixed(1)}М ₽` : '—';
     }
     return `<div class="goal-card goal-card--tall">
       <img class="goal-card__bg" src="${img}" alt="" />
@@ -386,7 +387,7 @@ function buildReportSummaryOverviewHtml(options = {}) {
       font-family: ${S.font.family_stack_css};
       font-size: 14px;
       line-height: 1.45;
-      color: #1e293b;
+      color: #ffffff;
       background: #0f172a;
     }
     .page__bg {
@@ -414,9 +415,9 @@ function buildReportSummaryOverviewHtml(options = {}) {
       inset: 0;
       background: linear-gradient(
         135deg,
-        rgba(15, 23, 42, 0.88) 0%,
-        rgba(30, 41, 59, 0.82) 45%,
-        rgba(15, 23, 42, 0.9) 100%
+        rgba(15, 23, 42, 0.58) 0%,
+        rgba(30, 41, 59, 0.5) 45%,
+        rgba(15, 23, 42, 0.62) 100%
       );
     }
     .page__inner {
@@ -434,8 +435,8 @@ function buildReportSummaryOverviewHtml(options = {}) {
       margin-bottom: 20px;
       padding: 20px;
       border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.55);
-      background: rgba(255,255,255,0.38);
+      border: 1px solid rgba(255,255,255,0.28);
+      background: rgba(15, 23, 42, 0.42);
       box-shadow: 0 10px 28px rgba(0,0,0,0.18);
     }
     .ai-panel__avatar {
@@ -447,13 +448,13 @@ function buildReportSummaryOverviewHtml(options = {}) {
       border: 2px solid rgba(255,255,255,0.85);
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-    .ai-panel__text { font-size: 13px; color: #1e293b; }
+    .ai-panel__text { font-size: 13px; color: #ffffff; }
     .client-panel {
       margin-bottom: 18px;
       padding: 14px;
       border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.55);
-      background: rgba(255,255,255,0.38);
+      border: 1px solid rgba(255,255,255,0.28);
+      background: rgba(15, 23, 42, 0.42);
       box-shadow: 0 10px 28px rgba(0,0,0,0.18);
     }
     .client-panel__title {
@@ -461,8 +462,8 @@ function buildReportSummaryOverviewHtml(options = {}) {
       font-weight: 700;
       margin: 0 0 12px 0;
       padding-bottom: 8px;
-      border-bottom: 1px solid rgba(100,116,139,0.45);
-      color: #0f172a;
+      border-bottom: 1px solid rgba(255,255,255,0.22);
+      color: #ffffff;
     }
     .client-grid {
       display: grid;
@@ -472,18 +473,18 @@ function buildReportSummaryOverviewHtml(options = {}) {
     .client-cell {
       padding: 10px;
       border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.65);
-      background: rgba(255,255,255,0.48);
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(15, 23, 42, 0.35);
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
     .client-cell__label {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: #64748b;
+      color: rgba(255,255,255,0.72);
       margin-bottom: 4px;
     }
-    .client-cell__val { font-weight: 600; color: #0f172a; font-size: 13px; }
+    .client-cell__val { font-weight: 600; color: #ffffff; font-size: 13px; }
     .section { margin-bottom: 14px; }
     .section--grow { flex: 1; min-height: 0; }
     .h2 {
@@ -596,4 +597,5 @@ module.exports = {
     resolveGoalCardImageSrc,
     extractGoals,
     extractTotalMonthlyReplenishment,
+    formatMoneyRu,
 };
