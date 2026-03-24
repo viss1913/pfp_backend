@@ -321,6 +321,8 @@ class PdfSettingsService {
             summaryLogoUrl: s.summary_logo_url || undefined,
             summaryBackgroundUrl: s.summary_background_url || undefined,
             summaryChartColor: s.summary_chart_color,
+            /** ЛК открывает HTML в браузере — file:// с сервера недоступен, вшиваем ассеты */
+            inlineLocalAssets: true,
         });
     }
 

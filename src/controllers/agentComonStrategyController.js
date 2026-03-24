@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const { agentComonStrategyService, RISK_PROFILES } = require('../services/agentComonStrategyService');
+const { sendComonUpstreamIfAny } = require('../utils/comonUpstreamResponse');
 
 const portfolioItemSchema = Joi.object({
     instrument: Joi.string().trim().min(1).max(255).required(),
@@ -122,6 +123,27 @@ async function remove(req, res, next) {
     }
 }
 
+/** Экран просмотра во ЛК агента: карточка + график + метрики одним ответом. */
+async function preview(req, res, next) {
+    try {
+        const agentId = requireAgentId(req, res);
+        if (agentId == null) return;
+        const projectId = req.projectId ?? req.user.projectId ?? null;
+        const payload = await agentComonStrategyService.getPreviewForRow(
+            req.params.id,
+            agentId,
+            projectId
+        );
+        res.json({ success: true, data: payload });
+    } catch (e) {
+        if (e.status === 404) {
+            return res.status(404).json({ success: false, error: e.message });
+        }
+        if (sendComonUpstreamIfAny(res, e)) return;
+        next(e);
+    }
+}
+
 async function profitMetrics(req, res, next) {
     try {
         const agentId = requireAgentId(req, res);
@@ -137,9 +159,7 @@ async function profitMetrics(req, res, next) {
         if (e.status === 404) {
             return res.status(404).json({ success: false, error: e.message });
         }
-        if (e.message && String(e.message).includes('Comon strategy profit HTTP')) {
-            return res.status(502).json({ success: false, error: e.message });
-        }
+        if (sendComonUpstreamIfAny(res, e)) return;
         next(e);
     }
 }
@@ -159,9 +179,7 @@ async function profit(req, res, next) {
         if (e.status === 404) {
             return res.status(404).json({ success: false, error: e.message });
         }
-        if (e.message && String(e.message).includes('Comon strategy profit HTTP')) {
-            return res.status(502).json({ success: false, error: e.message });
-        }
+        if (sendComonUpstreamIfAny(res, e)) return;
         next(e);
     }
 }
@@ -172,6 +190,7 @@ module.exports = {
     create,
     patch,
     remove,
+    preview,
     profitMetrics,
     profit,
     RISK_PROFILES,

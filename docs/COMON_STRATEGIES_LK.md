@@ -10,8 +10,9 @@
 
 - `GET/POST /pfp/agent/comon-strategies`
 - `GET/PATCH/DELETE /pfp/agent/comon-strategies/:id`
-- `GET /pfp/agent/comon-strategies/:id/profit` — сырой ряд Comon
-- `GET /pfp/agent/comon-strategies/:id/profit/metrics` — итог, 30 дней, CAGR
+- `GET /pfp/agent/comon-strategies/:id/preview` — **одним запросом** карточка + ряд Comon + метрики (удобно показать агенту график и цифры во ЛК)
+- `GET /pfp/agent/comon-strategies/:id/profit` — только сырой ряд Comon
+- `GET /pfp/agent/comon-strategies/:id/profit/metrics` — только метрики
 - `POST /pfp/comon/strategies/resolve` — разбор ссылки в id (общий Comon-роут)
 
 **Поля:** `comon_url`, `name`, `min_contribution`, `risk_profile` (conservative | balanced | aggressive), `description`, `portfolio` (2× `instrument` + `share_percent`).
@@ -48,6 +49,14 @@
 ## Окружение
 
 `COMON_BASE_URL`, при необходимости `COMON_COOKIE` / `COMON_EXTRA_HEADERS_JSON`.
+
+## 403 / 502 с Railway и других датацентров
+
+Comon может отвечать **403 HTML** («Forbidden», «If you are not a bot») на запросы **с IP сервера** (Railway, AWS и т.д.) — это защита у них, не «баг» нашего кода. Бэкенд отдаёт **502** с `code: COMON_FORBIDDEN` и пояснением в `error` / `message`.
+
+**Что делать:** (1) График и сырые точки запрашивать **с фронта** по полю `comon_profit_api_url` (браузерный IP часто не режут; нужен доступный CORS у Comon). (2) Либо выставить **`COMON_COOKIE`** — куки с залогиненной сессии comon.ru (хрупко, ротация). (3) Либо договориться с Comon про **allowlist IP** или официальный API.
+
+На запросах к `/api/v2/strategies/.../profit` бэкенд дополнительно шлёт **Referer** и **Origin** как со страницы стратегии — иногда этого достаточно, часто — нет.
 
 ## OpenAPI (Swagger)
 

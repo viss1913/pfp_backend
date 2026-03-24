@@ -1,7 +1,7 @@
 /**
  * Статический снимок сводной страницы по умолчанию (без настроек агента).
  * Запуск: node scripts/render_summary_preview_default.mjs
- * Открой src/reports/summary/preview-default.html в браузере (шрифт — file:// к Roboto).
+ * Открой src/reports/summary/preview-default.html в браузере (ассеты вшиты data:, как в ЛК).
  */
 import fs from 'fs';
 import path from 'path';
@@ -24,6 +24,7 @@ const html = buildReportSummaryOverviewHtml({
         income: '280 000 ₽',
         currentCapital: '1 617 000 ₽',
     },
+    inlineLocalAssets: true,
 });
 
 const out = path.join(root, 'src/reports/summary/preview-default.html');

@@ -186,6 +186,25 @@ class AgentComonStrategyService {
             metrics,
         };
     }
+
+    /**
+     * Один экран «посмотреть у себя» во ЛК агента: карточка + ряд Comon + метрики (один HTTP к Comon).
+     */
+    async getPreviewForRow(id, agentId, projectId) {
+        const strategy = await this.getById(id, agentId, projectId);
+        if (!strategy) {
+            const err = new Error('Strategy not found');
+            err.status = 404;
+            throw err;
+        }
+        const comon_profit = await comonService.getStrategyProfit(strategy.comon_strategy_id);
+        const metrics = computeComonProfitMetrics(comon_profit);
+        return {
+            strategy,
+            comon_profit,
+            metrics,
+        };
+    }
 }
 
 module.exports = {

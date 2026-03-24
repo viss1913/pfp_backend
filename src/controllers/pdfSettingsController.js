@@ -3,6 +3,7 @@ const path = require('path');
 const Joi = require('joi');
 const pdfSettingsService = require('../services/pdfSettingsService');
 const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
+const { bufferToWebp } = require('../utils/imageToWebp');
 
 /**
  * Multipart `image` → R2 или диск → PATCH поля в pdf-settings.
@@ -23,13 +24,28 @@ async function uploadPdfSettingImage(req, res, { patchKey, r2KeyPrefix, localDir
         ext = '.jpg';
     }
 
+    let uploadBody = req.file.buffer;
+    let contentType = req.file.mimetype || 'image/jpeg';
+    if (ext === '.png' || contentType === 'image/png') {
+        try {
+            uploadBody = await bufferToWebp(uploadBody);
+            ext = '.webp';
+            contentType = 'image/webp';
+        } catch (e) {
+            console.warn('[PdfSettings] PNG→WebP failed, оригинал PNG:', e.message);
+            uploadBody = req.file.buffer;
+            ext = '.png';
+            contentType = 'image/png';
+        }
+    }
+
     const pid = projectId != null ? String(projectId) : 'common';
     const key = `${r2KeyPrefix}/${pid}/${agentId}/${filePrefix}_${Date.now()}${ext}`;
 
     const up = await uploadPublicFile({
         key,
-        body: req.file.buffer,
-        contentType: req.file.mimetype || 'image/jpeg',
+        body: uploadBody,
+        contentType,
     });
 
     if (!up.ok) {
@@ -63,7 +79,7 @@ async function uploadPdfSettingImage(req, res, { patchKey, r2KeyPrefix, localDir
         fs.mkdirSync(dir, { recursive: true });
         const fname = `${filePrefix}_${Date.now()}${ext}`;
         const full = path.join(dir, fname);
-        fs.writeFileSync(full, req.file.buffer);
+        fs.writeFileSync(full, uploadBody);
         const baseUrl = `${req.protocol}://${req.get('host')}`;
         publicUrl = `${baseUrl}/uploads/${localDirName}/${pid}/${agentId}/${fname}`;
         storage = 'local_disk';

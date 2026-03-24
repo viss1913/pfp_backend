@@ -637,6 +637,29 @@ paths:
         "404":
           description: Не найдено
 
+  /pfp/agent/comon-strategies/{id}/preview:
+    get:
+      tags: [ "Стратегии Comon (агент)" ]
+      summary: Экран «посмотреть у себя» — карточка + ряд Comon + метрики (один вызов к Comon)
+      description: Удобно для ЛК агента (график и цифры без трёх отдельных запросов).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: success, data.strategy, data.comon_profit, data.metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentComonStrategyPreviewResponse"
+        "404":
+          description: Не найдено
+        "502":
+          description: Ошибка Comon
+
   /pfp/agent/comon-strategies/{id}/profit:
     get:
       tags: [ "Стратегии Comon (агент)" ]
@@ -825,6 +848,23 @@ components:
           type: boolean
         data:
           $ref: "#/components/schemas/AgentComonStrategyCard"
+
+    AgentComonStrategyPreviewResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            strategy:
+              $ref: "#/components/schemas/AgentComonStrategyCard"
+            comon_profit:
+              type: object
+              description: Сырой JSON ответа Comon /api/v2/strategies/.../profit
+            metrics:
+              type: object
+              description: Результат computeComonProfitMetrics (ok, total_return_pct, cagr_annualized_pct, definitions, …)
 
   securitySchemes:
     bearerAuth:

@@ -113,6 +113,15 @@ function client() {
     });
 }
 
+/** Заголовки как у вкладки на странице стратегии — часть WAF пропускает только такие запросы. */
+function strategyPageLikeHeaders(comonNumericId) {
+    const b = baseUrl();
+    return {
+        Referer: `${b}/strategies/${comonNumericId}/`,
+        Origin: b,
+    };
+}
+
 /**
  * Публичный endpoint Comon (как в UI): статус обслуживания и т.п.
  */
@@ -161,11 +170,26 @@ async function getStrategyProfit(strategyId) {
     const http = client();
     const path = `/api/v2/strategies/${id}/profit`;
     const res = await http.get(path, {
-        headers: { Accept: 'application/json' },
+        headers: {
+            Accept: 'application/json',
+            ...strategyPageLikeHeaders(id),
+        },
     });
     if (res.status < 200 || res.status >= 300) {
         const body = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-        throw new Error(`Comon strategy profit HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+        if (res.status === 403) {
+            const err = new Error(
+                'Comon вернул 403: запрос с IP сервера часто режут (датацентры вроде Railway). ' +
+                    'Варианты: строить график на фронте по полю comon_profit_api_url; задать COMON_COOKIE из залогиненной сессии на comon.ru; ' +
+                    'согласовать доступ / allowlist IP с Comon. Техническое тело: ' +
+                    String(body).slice(0, 280)
+            );
+            err.comonHttpStatus = 403;
+            throw err;
+        }
+        const err = new Error(`Comon strategy profit HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+        err.comonHttpStatus = res.status;
+        throw err;
     }
     return res.data;
 }
@@ -178,11 +202,16 @@ async function getStrategyPagePayload(strategyId) {
     const http = client();
     const path = `/strategies/${id}/`;
     const res = await http.get(path, {
-        headers: { Accept: 'text/html,application/xhtml+xml' },
+        headers: {
+            Accept: 'text/html,application/xhtml+xml',
+            ...strategyPageLikeHeaders(id),
+        },
     });
     if (res.status < 200 || res.status >= 300) {
         const body = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-        throw new Error(`Comon strategy page HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+        const err = new Error(`Comon strategy page HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+        err.comonHttpStatus = res.status;
+        throw err;
     }
     const html = typeof res.data === 'string' ? res.data : '';
     const nextData = extractNextData(html);

@@ -34,18 +34,44 @@ class ProjectService {
         return projectRepository.findByPublicKey(publicKey);
     }
 
-    async createProject(data) {
-        if (!data.slug) {
-            data.slug = data.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-        }
+    _normalizeProjectSlug(raw) {
+        if (raw == null || raw === '') return '';
+        return String(raw)
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
 
+    async createProject(data) {
         if (!data.public_key) {
             data.public_key = 'pk_' + crypto.randomBytes(12).toString('hex');
         }
 
+        let slug = this._normalizeProjectSlug(data.slug);
+        if (!slug) {
+            slug = this._normalizeProjectSlug(data.name);
+        }
+        // Кириллица и прочие не-latin дают пустой slug; плейсхолдеры вида "___" / "---" тоже
+        if (!slug || !/[a-z0-9]/.test(slug)) {
+            slug = 'p-' + data.public_key.replace(/^pk_/, '').slice(0, 12);
+        }
+
+        const baseSlug = slug;
+        let candidate = baseSlug;
+        let guard = 0;
+        while (await projectRepository.findBySlug(candidate)) {
+            guard += 1;
+            candidate = `${baseSlug}-${crypto.randomBytes(3).toString('hex')}`;
+            if (guard > 50) {
+                throw new Error('Could not allocate unique project slug');
+            }
+        }
+        slug = candidate;
+
         const project = await projectRepository.create({
             name: data.name,
-            slug: data.slug,
+            slug,
             public_key: data.public_key,
             status: data.status || 'active',
             settings: data.settings ? JSON.stringify(data.settings) : null

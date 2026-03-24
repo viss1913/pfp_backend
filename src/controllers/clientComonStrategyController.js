@@ -1,4 +1,5 @@
 const { clientComonStrategyService } = require('../services/clientComonStrategyService');
+const { sendComonUpstreamIfAny } = require('../utils/comonUpstreamResponse');
 
 function requireClientId(req, res) {
     const clientId = req.user?.clientId;
@@ -58,9 +59,7 @@ async function profit(req, res, next) {
         if (e.status === 404) {
             return res.status(404).json({ success: false, error: e.message });
         }
-        if (e.message && String(e.message).includes('Comon strategy profit HTTP')) {
-            return res.status(502).json({ success: false, error: e.message });
-        }
+        if (sendComonUpstreamIfAny(res, e)) return;
         next(e);
     }
 }
@@ -80,9 +79,7 @@ async function metrics(req, res, next) {
         if (e.status === 404) {
             return res.status(404).json({ success: false, error: e.message });
         }
-        if (e.message && String(e.message).includes('Comon strategy profit HTTP')) {
-            return res.status(502).json({ success: false, error: e.message });
-        }
+        if (sendComonUpstreamIfAny(res, e)) return;
         next(e);
     }
 }

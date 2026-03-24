@@ -3,6 +3,13 @@ const clientService = require('../services/clientService');
 const goalRecalculator = require('../algorithms/recalculators');
 const Joi = require('joi');
 
+/** Не даём телу запроса из ЛК клиента менять привязку к агенту/юзеру (иначе agent_id мог уехать в NULL). */
+function stripClientOwnershipFields(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    delete obj.agent_id;
+    delete obj.user_id;
+}
+
 // Reuse the same validation schema as clientController
 const calculationRequestSchema = Joi.object({
     goals: Joi.array().items(Joi.object({
@@ -118,6 +125,7 @@ class ClientCabinetController {
                 },
                 goals: req.body.goals
             };
+            stripClientOwnershipFields(updateData.client);
             await clientService.updateFullClient(clientId, updateData);
 
             // Sync goal IDs
@@ -226,6 +234,7 @@ class ClientCabinetController {
             // Also update client profile if new data (like answers) was provided
             if (req.body.client) {
                 const clientUpdate = { ...req.body.client };
+                stripClientOwnershipFields(clientUpdate);
                 if (clientUpdate.risk_profile_answers) {
                     clientUpdate.risk_profile_answers = JSON.stringify(clientUpdate.risk_profile_answers);
                 }

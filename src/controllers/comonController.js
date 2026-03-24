@@ -1,4 +1,5 @@
 const comonService = require('../services/comonService');
+const { sendComonUpstreamIfAny } = require('../utils/comonUpstreamResponse');
 
 const resolveStrategyFromUrl = async (req, res) => {
     try {
@@ -29,7 +30,11 @@ const getStrategyProfit = async (req, res) => {
         res.json({ success: true, data: payload });
     } catch (error) {
         const invalid = error.message === 'Invalid strategy id';
-        res.status(invalid ? 400 : 502).json({ success: false, message: error.message });
+        if (invalid) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
+        if (sendComonUpstreamIfAny(res, error, { useMessageKey: true })) return;
+        res.status(502).json({ success: false, message: error.message });
     }
 };
 
@@ -40,7 +45,11 @@ const getStrategy = async (req, res) => {
         res.json({ success: true, data: payload });
     } catch (error) {
         const invalid = error.message === 'Invalid strategy id';
-        res.status(invalid ? 400 : 502).json({ success: false, message: error.message });
+        if (invalid) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
+        if (sendComonUpstreamIfAny(res, error, { useMessageKey: true })) return;
+        res.status(502).json({ success: false, message: error.message });
     }
 };
 

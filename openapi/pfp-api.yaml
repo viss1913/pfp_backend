@@ -2056,6 +2056,23 @@ paths:
         '200':
           description: success
 
+  /pfp/agent/comon-strategies/{id}/preview:
+    get:
+      summary: Просмотр во ЛК агента — карточка + ряд Comon + метрики (один запрос к Comon)
+      tags:
+        - Comon Agent LK
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success, data.strategy, data.comon_profit, data.metrics
+        '502':
+          description: Ошибка Comon
+
   /pfp/agent/comon-strategies/{id}/profit:
     get:
       summary: Ряд доходности Comon для сохранённой карточки

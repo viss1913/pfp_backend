@@ -50,11 +50,40 @@ function sanitizeSummaryAccentColor(hex) {
     return sanitizeSummaryChartColor(hex);
 }
 
-function resolveAssetSrc(ref, rootDir) {
+function mimeTypeForLocalFile(absPath) {
+    const ext = path.extname(absPath).toLowerCase();
+    const map = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.ttf': 'font/ttf',
+    };
+    return map[ext] || 'application/octet-stream';
+}
+
+function localFileToDataUrl(absPath) {
+    const buf = fs.readFileSync(absPath);
+    const mime = mimeTypeForLocalFile(absPath);
+    return `data:${mime};base64,${buf.toString('base64')}`;
+}
+
+/**
+ * @param {boolean} [inlineLocalAssets] — для HTML в браузере ЛК: вшить локальные файлы как data:, иначе file:// (Puppeteer на сервере)
+ */
+function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
     if (ref == null || !String(ref).trim()) return null;
     const s = String(ref).trim();
     if (/^https?:\/\//i.test(s)) return s;
     const abs = path.isAbsolute(s) ? s : path.resolve(rootDir, s);
+    if (inlineLocalAssets && fs.existsSync(abs)) {
+        try {
+            return localFileToDataUrl(abs);
+        } catch {
+            return pathToFileURL(abs).href;
+        }
+    }
     return pathToFileURL(abs).href;
 }
 
@@ -120,11 +149,7 @@ function buildSummaryLayoutPayload(o = {}) {
     };
 }
 
-/**
- * Фон карточки цели: сначала ищем файл по типу цели, потом DEFAULT.
- * @param {string} goalType — как в API: PENSION, LIFE, FIN_RESERVE, INVESTMENT, OTHER, …
- */
-function resolveGoalCardImageSrc(goalType, rootDir) {
+function findGoalCardImagePath(goalType, rootDir) {
     const base = path.join(rootDir, GOAL_CARDS_DIR);
     const raw = goalType != null ? String(goalType).trim() : '';
     const safe = raw.replace(/[^A-Za-z0-9_]/g, '') || 'DEFAULT';
@@ -133,21 +158,34 @@ function resolveGoalCardImageSrc(goalType, rootDir) {
     for (const name of candidates) {
         for (const ext of exts) {
             const p = path.join(base, `${name}${ext}`);
-            if (fs.existsSync(p)) {
-                return pathToFileURL(p).href;
-            }
+            if (fs.existsSync(p)) return p;
         }
     }
     const legacy = path.join(rootDir, 'assets/reports/summary/goal-default.png');
-    if (fs.existsSync(legacy)) {
-        return pathToFileURL(legacy).href;
-    }
-    return '';
+    return fs.existsSync(legacy) ? legacy : null;
 }
 
-function renderProtectionCardFinReserve(goal, rootDir) {
+/**
+ * Фон карточки цели: сначала ищем файл по типу цели, потом DEFAULT.
+ * @param {string} goalType — как в API: PENSION, LIFE, FIN_RESERVE, INVESTMENT, OTHER, …
+ * @param {boolean} [inlineLocalAssets]
+ */
+function resolveGoalCardImageSrc(goalType, rootDir, inlineLocalAssets = false) {
+    const p = findGoalCardImagePath(goalType, rootDir);
+    if (!p) return '';
+    if (inlineLocalAssets) {
+        try {
+            return localFileToDataUrl(p);
+        } catch {
+            return pathToFileURL(p).href;
+        }
+    }
+    return pathToFileURL(p).href;
+}
+
+function renderProtectionCardFinReserve(goal, rootDir, inlineLocalAssets) {
     const s = goal.summary || {};
-    const img = escapeHtml(resolveGoalCardImageSrc('FIN_RESERVE', rootDir));
+    const img = escapeHtml(resolveGoalCardImageSrc('FIN_RESERVE', rootDir, inlineLocalAssets));
     const title = escapeHtml(goal.goal_name || 'Финансовый резерв');
     const cap = formatMoneyRu(s.initial_capital);
     const mon = formatMoneyRu(s.monthly_replenishment);
@@ -165,10 +203,10 @@ function renderProtectionCardFinReserve(goal, rootDir) {
     </div>`;
 }
 
-function renderProtectionCardLife(goal, rootDir) {
+function renderProtectionCardLife(goal, rootDir, inlineLocalAssets) {
     const risks = goal.details?.risks;
     const list = Array.isArray(risks) ? risks.slice(0, 2) : [];
-    const img = escapeHtml(resolveGoalCardImageSrc('LIFE', rootDir));
+    const img = escapeHtml(resolveGoalCardImageSrc('LIFE', rootDir, inlineLocalAssets));
     const title = escapeHtml(goal.goal_name || 'Защита жизни');
     const rows = list
         .map((r) => {
@@ -190,9 +228,9 @@ function renderProtectionCardLife(goal, rootDir) {
     </div>`;
 }
 
-function renderMainGoalCard(goal, rootDir) {
+function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
     const gt = goal.goal_type || 'OTHER';
-    const img = escapeHtml(resolveGoalCardImageSrc(gt, rootDir));
+    const img = escapeHtml(resolveGoalCardImageSrc(gt, rootDir, inlineLocalAssets));
     const title = escapeHtml(goal.goal_name || 'Цель');
     const months = Number(goal.summary?.target_months);
     const years = Number.isFinite(months) ? Math.max(1, Math.round(months / 12)) : '—';
@@ -230,30 +268,40 @@ function renderMainGoalCard(goal, rootDir) {
  * @param {string} [options.summaryChartColor] — #RRGGBB (графики + акцент заголовков секций)
  * @param {string} [options.summaryAccentColor] — устар., то же что chart
  * @param {string} [options.fontPath] — TTF
+ * @param {boolean} [options.inlineLocalAssets] — true для превью в браузере ЛК: картинки/шрифт с диска как data:, не file://
  */
 function buildReportSummaryOverviewHtml(options = {}) {
     const root = path.join(__dirname, '../../..');
+    const inlineLocalAssets = Boolean(options.inlineLocalAssets);
     const chartColor = sanitizeSummaryChartColor(
         options.summaryChartColor ?? options.summaryAccentColor
     );
     const fontPath =
         options.fontPath || path.join(root, SUMMARY_RENDER_SPEC.pdf.default_font_repo_relative_path);
-    const fontUrl = pathToFileURL(path.resolve(fontPath)).href;
+    const fontPathResolved = path.resolve(fontPath);
+    let fontUrl = pathToFileURL(fontPathResolved).href;
+    if (inlineLocalAssets && fs.existsSync(fontPathResolved)) {
+        try {
+            fontUrl = localFileToDataUrl(fontPathResolved);
+        } catch {
+            /* оставляем file:// */
+        }
+    }
 
     const logoRef =
         options.summaryLogoUrl && String(options.summaryLogoUrl).trim()
             ? options.summaryLogoUrl
             : GLOBAL_DEFAULTS.stockLogoPath;
-    const logoSrc = escapeHtml(resolveAssetSrc(logoRef, root));
+    const logoSrc = escapeHtml(resolveAssetSrc(logoRef, root, inlineLocalAssets));
 
     const avatarRef = GLOBAL_DEFAULTS.stockAiAvatarPath;
-    const avatarSrc = escapeHtml(resolveAssetSrc(avatarRef, root));
+    const avatarSrc = escapeHtml(resolveAssetSrc(avatarRef, root, inlineLocalAssets));
 
     const customBg =
         options.summaryBackgroundUrl && String(options.summaryBackgroundUrl).trim()
             ? String(options.summaryBackgroundUrl).trim()
             : '';
-    const bgSrc = customBg ? escapeHtml(resolveAssetSrc(customBg, root)) : '';
+    const bgSrc = customBg ? escapeHtml(resolveAssetSrc(customBg, root, inlineLocalAssets)) : '';
 
     const payload = options.reportPayload || {};
     const goals = extractGoals(payload);
@@ -280,10 +328,10 @@ function buildReportSummaryOverviewHtml(options = {}) {
 
     const protectionHtml = [];
     if (financialReserveGoal) {
-        protectionHtml.push(renderProtectionCardFinReserve(financialReserveGoal, root));
+        protectionHtml.push(renderProtectionCardFinReserve(financialReserveGoal, root, inlineLocalAssets));
     }
     if (lifeProtectionGoal) {
-        protectionHtml.push(renderProtectionCardLife(lifeProtectionGoal, root));
+        protectionHtml.push(renderProtectionCardLife(lifeProtectionGoal, root, inlineLocalAssets));
     }
     const protectionSection =
         protectionHtml.length > 0
@@ -297,7 +345,7 @@ function buildReportSummaryOverviewHtml(options = {}) {
         firstPageGoals.length > 0
             ? `<section class="section section--grow">
         <h2 class="h2" style="border-bottom-color: ${escapeHtml(chartColor)}">Основные цели</h2>
-        <div class="grid-2">${firstPageGoals.map((g) => renderMainGoalCard(g, root)).join('')}</div>
+        <div class="grid-2">${firstPageGoals.map((g) => renderMainGoalCard(g, root, inlineLocalAssets)).join('')}</div>
       </section>`
             : '';
 

@@ -14,7 +14,8 @@
     "r2:smoke": "node scripts/r2_smoke_test.js",
     "r2:upload-sample-image": "node scripts/r2_upload_sample_image.js",
     "seed:pdf-cover-default": "node scripts/seed_default_report_cover_all_agents.js",
-    "r2:migrate-url-prefix": "node scripts/migrate_r2_public_url_prefix.js"
+    "r2:migrate-url-prefix": "node scripts/migrate_r2_public_url_prefix.js",
+    "img:png2webp": "node scripts/png_to_webp.js"
   },
   "keywords": [],
   "author": "",
@@ -44,6 +45,7 @@
     "node-telegram-bot-api": "^0.67.0",
     "pdfkit": "^0.17.2",
     "resend": "^6.9.2",
+    "sharp": "^0.34.5",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0",
     "xlsx": "^0.18.5",
