@@ -1,11 +1,14 @@
 'use strict';
 
 const path = require('path');
+const { publicUrlFromKey } = require('../../utils/r2Client');
 const {
     extractGoals,
     formatMoneyRu,
     getGoalCardImageRepoRelative,
+    getGoalCardImageR2Key,
     GOAL_CARDS_DIR,
+    GOAL_CARDS_R2_PREFIX,
 } = require('./buildSummaryOverviewHtml');
 
 const DEFAULT_MAIN_ON_OVERVIEW = 2;
@@ -46,7 +49,16 @@ function goalInitialMonthly(g) {
 function goalCardFields(goal, repoRoot) {
     const gt = goal.goal_type || 'OTHER';
     const imgRel = repoRoot ? getGoalCardImageRepoRelative(gt, repoRoot) : null;
-    const goal_card_image = imgRel ? { repo_relative_path: imgRel } : null;
+    const r2Key = repoRoot ? getGoalCardImageR2Key(gt, repoRoot) : null;
+    const public_url = r2Key ? publicUrlFromKey(r2Key) : null;
+    let goal_card_image = null;
+    if (imgRel || r2Key) {
+        goal_card_image = {
+            ...(imgRel ? { repo_relative_path: imgRel } : {}),
+            ...(r2Key ? { r2_object_key: r2Key } : {}),
+            ...(public_url ? { public_url } : {}),
+        };
+    }
 
     const months = Number(goal.summary?.target_months ?? goal.summary?.term_months);
     const years = Number.isFinite(months) ? Math.max(1, Math.round(months / 12)) : null;
@@ -148,8 +160,9 @@ function buildSummaryPdfLayoutModel(reportPayload = {}, options = {}) {
         version: 1,
         goal_card_assets: {
             directory_repo_relative: GOAL_CARDS_DIR,
+            r2_key_prefix: GOAL_CARDS_R2_PREFIX,
             rule:
-                'Файл = goal_type (латиница, как в API), расширение .png / .jpg / .jpeg / .webp; если нет — DEFAULT.*. Поле goal_card_image.repo_relative_path — фактический файл на бэке.',
+                'Локально: goal_type + расширение, иначе DEFAULT.*. В R2 после seed: ключи pdf-report-goal-cards/{имя_файла}. В API у карточки: public_url (CDN), если задан R2_PUBLIC_* и файлы залиты.',
         },
         layout_hints: {
             /** не резать между страницами целиком */

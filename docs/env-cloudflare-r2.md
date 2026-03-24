@@ -70,6 +70,7 @@ npm run r2:migrate-url-prefix
 
 - `POST /api/pfp/ai-b2c/avatar-upload` — аватар ассистента → R2 ключ `ai-b2c-avatars/...`
 - `POST /api/pfp/pdf-settings/cover-background` — фон обложки → `pdf-report-covers/{projectId}/{agentId}/...`
+- **Картинки карточек целей (общие для всех агентов):** ключи `pdf-report-goal-cards/PENSION.png`, `…/LIFE.webp` и т.д. — заливка один раз: **`npm run seed:pdf-goal-cards-r2`** (из `assets/reports/goal-cards/`). После этого в **`pdf_summary_layout`** у карточек появляется **`goal_card_image.public_url`**, а HTML-сводная подставляет CDN вместо `file://`, если задан `R2_PUBLIC_*`.
 
 Чтение для ЛК: **`GET /api/pfp/pdf-settings/cover-image`** (прямой или signed URL).
 

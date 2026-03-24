@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { publicUrlFromKey } = require('../../utils/r2Client');
 
 /**
  * Вторая страница PDF («Сводная информация») — первая A4 из макета Figma PlanOverviewPage
@@ -21,6 +22,8 @@ const SUMMARY_RENDER_SPEC = {
 
 /** Картинки карточек целей: `assets/reports/goal-cards/{GOAL_TYPE}.png` — см. README в папке */
 const GOAL_CARDS_DIR = 'assets/reports/goal-cards';
+/** Общий префикс ключей в R2 после `npm run seed:pdf-goal-cards-r2` — `pdf-report-goal-cards/PENSION.png` и т.д. */
+const GOAL_CARDS_R2_PREFIX = 'pdf-report-goal-cards';
 
 const GLOBAL_DEFAULTS = {
     /** Акцент секций и будущих диаграмм (пироги и т.д.) */
@@ -181,11 +184,26 @@ function getGoalCardImageRepoRelative(goalType, rootDir) {
 }
 
 /**
+ * Ключ объекта в R2 (имя файла как в репо: PENSION.png, LIFE.webp …).
+ * @returns {string|null}
+ */
+function getGoalCardImageR2Key(goalType, rootDir) {
+    const abs = findGoalCardImagePath(goalType, rootDir);
+    if (!abs) return null;
+    return `${GOAL_CARDS_R2_PREFIX}/${path.basename(abs)}`;
+}
+
+/**
  * Фон карточки цели: сначала ищем файл по типу цели, потом DEFAULT.
  * @param {string} goalType — как в API: PENSION, LIFE, FIN_RESERVE, INVESTMENT, OTHER, …
  * @param {boolean} [inlineLocalAssets]
  */
 function resolveGoalCardImageSrc(goalType, rootDir, inlineLocalAssets = false) {
+    const r2Key = getGoalCardImageR2Key(goalType, rootDir);
+    if (r2Key && !inlineLocalAssets) {
+        const pub = publicUrlFromKey(r2Key);
+        if (pub) return pub;
+    }
     const p = findGoalCardImagePath(goalType, rootDir);
     if (!p) return '';
     if (inlineLocalAssets) {
@@ -604,8 +622,10 @@ function buildReportSummaryOverviewHtml(options = {}) {
 module.exports = {
     SUMMARY_RENDER_SPEC,
     GOAL_CARDS_DIR,
+    GOAL_CARDS_R2_PREFIX,
     GLOBAL_DEFAULTS,
     getGoalCardImageRepoRelative,
+    getGoalCardImageR2Key,
     buildReportSummaryOverviewHtml,
     buildSummaryLayoutPayload,
     sanitizeSummaryChartColor,

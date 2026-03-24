@@ -95,6 +95,7 @@ description: Бэкенд PDF-отчёта PFP (не только обложка
 
 - `npm run r2:smoke` — проверка конфигурации R2 локально.
 - `npm run seed:pdf-cover-default` — общий файл в R2 + заполнение `cover_background_url` агентам (опция `SEED_COVER_ONLY_EMPTY`).
+- `npm run seed:pdf-goal-cards-r2` — картинки `assets/reports/goal-cards/*` → R2 `pdf-report-goal-cards/{имя файла}`; после этого в `pdf_summary_layout` и HTML-сводной доступен `public_url` на CDN.
 - `npm run r2:migrate-url-prefix` — замена префикса URL в БД.
 - `scripts/test_pdf_cover_upload.mjs` — ручной тест POST обложки (см. файл, JWT).
 
