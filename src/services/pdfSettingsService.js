@@ -1,3 +1,4 @@
+const path = require('path');
 const knex = require('../config/database');
 const {
     buildReportCoverHtml,
@@ -9,6 +10,7 @@ const {
 const {
     buildReportSummaryOverviewHtml,
     buildSummaryLayoutPayload,
+    buildGoalCardAssetsForAgentLK,
     GLOBAL_DEFAULTS: SUMMARY_DEFAULTS,
     sanitizeSummaryChartColor,
 } = require('../reports/summary/buildSummaryOverviewHtml');
@@ -22,6 +24,7 @@ const {
 } = require('../utils/r2Client');
 
 const TABLE = 'agent_report_pdf_settings';
+const REPO_ROOT = path.join(__dirname, '..', '..');
 
 /**
  * Описание шаблона для ЛК агента: какие поля редактируемы и как к ним ходить.
@@ -86,7 +89,7 @@ function buildEditorSchema() {
                 id: 'report_summary_overview',
                 title: 'Сводная информация (страница 2)',
                 description:
-                    'Только брендинг: фон страницы, логотип (один на сводную), цвет графиков и акцента секций. Тексты, клиент, цели, аватар ИИ — из расчётов/стока. Геометрия — в `summary_layout`.',
+                    'Только брендинг: фон страницы, логотип (один на сводную), цвет графиков и акцента секций. Тексты, клиент, цели, аватар ИИ — из расчётов/стока. Геометрия — в `summary_layout`. Картинки внутри карточек целей (тип PENSION, LIFE, …) — **не настраиваются в ЛК**; для красивого превью макета в ответе API смотри корневое поле **`goal_card_assets`** (`cards[].public_url`, `goal_type`).',
                 fields: [
                     {
                         id: 'summary_background_url',
@@ -228,6 +231,8 @@ class PdfSettingsService {
                 summary_background_url,
                 summary_logo_url,
             }),
+            /** Иллюстрации карточек целей: ссылки для превью макета в ЛК (не PATCH, не из БД) */
+            goal_card_assets: buildGoalCardAssetsForAgentLK(REPO_ROOT),
         };
     }
 

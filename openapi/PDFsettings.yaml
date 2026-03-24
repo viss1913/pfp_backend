@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: PDF report settings (обложка и сводная страница)
-  version: 1.1.0
+  version: 1.2.0
   description: |
     Настройки PDF-отчёта на **агента**: обложка (фон, плашка) и страница **«Сводная информация»** (лого, аватар ИИ, акцентный цвет).
     Дата на обложке при генерации PDF подставляется автоматически (см. `date_preview` в ответе только для превью в ЛК).
@@ -97,6 +97,14 @@ components:
             Спека второй страницы: A4, `branding.chart_color`, `uses_custom_summary_background`, `uses_custom_logo`, goal-cards.
             Картинки — корневые `summary_background_url`, `summary_logo_url` или GET summary-*-image (signed при R2_SIGN_COVER_URL).
           readOnly: true
+          additionalProperties: true
+        goal_card_assets:
+          type: object
+          readOnly: true
+          description: |
+            Общие иллюстрации карточек целей по типу (`PENSION`, `LIFE`, `DEFAULT`, …). **Не редактируются в ЛК и не в PATCH.**
+            Массив `cards`: у каждого элемента `goal_type`, `filename`, `public_url` (CDN после `npm run seed:pdf-goal-cards-r2` и `R2_PUBLIC_*`), `r2_object_key`, `repo_relative_path`.
+            Для превью макета сводной в ЛК подставлять в карточку по `goal_type` из отчёта.
           additionalProperties: true
 
     PdfCoverSettingsResponse:

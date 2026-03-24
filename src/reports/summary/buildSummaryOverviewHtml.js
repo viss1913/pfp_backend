@@ -193,6 +193,47 @@ function getGoalCardImageR2Key(goalType, rootDir) {
     return `${GOAL_CARDS_R2_PREFIX}/${path.basename(abs)}`;
 }
 
+const GOAL_CARD_FILE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
+
+/**
+ * Манифест картинок карточек целей для ЛК агента (превью макета). Редактирование в ЛК не предусмотрено.
+ * @param {string} rootDir — корень репозитория
+ */
+function buildGoalCardAssetsForAgentLK(rootDir) {
+    const dir = path.join(rootDir, GOAL_CARDS_DIR);
+    const cards = [];
+    try {
+        if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
+            const names = fs
+                .readdirSync(dir)
+                .filter((n) => GOAL_CARD_FILE_EXT.has(path.extname(n).toLowerCase()));
+            for (const name of names.sort()) {
+                const stem = path.basename(name, path.extname(name));
+                const r2Key = `${GOAL_CARDS_R2_PREFIX}/${name}`;
+                const pub = publicUrlFromKey(r2Key);
+                cards.push({
+                    goal_type: stem,
+                    filename: name,
+                    r2_object_key: r2Key,
+                    public_url: pub || null,
+                    repo_relative_path: `${GOAL_CARDS_DIR}/${name}`.replace(/\\/g, '/'),
+                });
+            }
+        }
+    } catch {
+        /* пустой cards */
+    }
+    return {
+        version: 1,
+        editable: false,
+        r2_key_prefix: GOAL_CARDS_R2_PREFIX,
+        directory_repo_relative: GOAL_CARDS_DIR,
+        hint:
+            'Общие иллюстрации по типу цели (имя файла = goal_type). В ЛК не меняются; для превью используйте public_url (после seed в R2).',
+        cards,
+    };
+}
+
 /**
  * Фон карточки цели: сначала ищем файл по типу цели, потом DEFAULT.
  * @param {string} goalType — как в API: PENSION, LIFE, FIN_RESERVE, INVESTMENT, OTHER, …
@@ -626,6 +667,7 @@ module.exports = {
     GLOBAL_DEFAULTS,
     getGoalCardImageRepoRelative,
     getGoalCardImageR2Key,
+    buildGoalCardAssetsForAgentLK,
     buildReportSummaryOverviewHtml,
     buildSummaryLayoutPayload,
     sanitizeSummaryChartColor,

@@ -65,7 +65,7 @@ description: Бэкенд PDF-отчёта PFP (не только обложка
 
 | Метод | Путь | Назначение |
 |--------|------|------------|
-| GET | `/api/pfp/pdf-settings` | `editor_schema`, `cover_layout`, `summary_layout`, `date_preview`, сводная: `summary_background_url`, `summary_logo_url`, `summary_chart_color` |
+| GET | `/api/pfp/pdf-settings` | `editor_schema`, `cover_layout`, `summary_layout`, **`goal_card_assets`** (картинки карточек целей для превью ЛК: `cards[].public_url` по `goal_type`), `date_preview`, сводная: `summary_background_url`, `summary_logo_url`, `summary_chart_color` |
 | PATCH | `/api/pfp/pdf-settings` | Обложка + сводная (в т.ч. `summary_background_url`, `summary_logo_url`, `summary_chart_color`; пустая строка сбрасывает URL в БД) |
 | POST | `/api/pfp/pdf-settings/cover-background` | Multipart **`image`**. R2: `pdf-report-covers/...` |
 | POST | `/api/pfp/pdf-settings/summary-background` | Multipart **`image`** → `summary_background_url`. R2: `pdf-report-summary/.../background_*` |
