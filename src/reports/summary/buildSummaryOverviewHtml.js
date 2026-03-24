@@ -166,6 +166,21 @@ function findGoalCardImagePath(goalType, rootDir) {
 }
 
 /**
+ * Путь к картинке карточки цели от корня репозитория (слэши `/`), для JSON на фронт/PDF.
+ * Логика имён та же, что у HTML-сводной: `{GOAL_TYPE}.{png|jpg|jpeg|webp}` → иначе `DEFAULT.*`.
+ * @returns {string|null}
+ */
+function getGoalCardImageRepoRelative(goalType, rootDir) {
+    const abs = findGoalCardImagePath(goalType, rootDir);
+    if (!abs) return null;
+    const root = path.resolve(rootDir);
+    const resolved = path.resolve(abs);
+    const rel = path.relative(root, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
+    return rel.split(path.sep).join('/');
+}
+
+/**
  * Фон карточки цели: сначала ищем файл по типу цели, потом DEFAULT.
  * @param {string} goalType — как в API: PENSION, LIFE, FIN_RESERVE, INVESTMENT, OTHER, …
  * @param {boolean} [inlineLocalAssets]
@@ -590,6 +605,7 @@ module.exports = {
     SUMMARY_RENDER_SPEC,
     GOAL_CARDS_DIR,
     GLOBAL_DEFAULTS,
+    getGoalCardImageRepoRelative,
     buildReportSummaryOverviewHtml,
     buildSummaryLayoutPayload,
     sanitizeSummaryChartColor,

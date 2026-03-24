@@ -1,6 +1,12 @@
 'use strict';
 
-const { extractGoals, formatMoneyRu } = require('./buildSummaryOverviewHtml');
+const path = require('path');
+const {
+    extractGoals,
+    formatMoneyRu,
+    getGoalCardImageRepoRelative,
+    GOAL_CARDS_DIR,
+} = require('./buildSummaryOverviewHtml');
 
 const DEFAULT_MAIN_ON_OVERVIEW = 2;
 const DEFAULT_CONTINUATION_CHUNK = 2;
@@ -33,11 +39,15 @@ function goalInitialMonthly(g) {
 }
 
 /**
- * Поля карточки цели для PDF/фронта (срок + вторая строка как на сводной).
+ * Поля карточки цели для PDF/фронта (срок + вторая строка как на сводной + путь к фону карточки).
  * @param {object} goal
+ * @param {string} repoRoot — абсолютный путь к корню репо (как в buildReportSummaryOverviewHtml)
  */
-function goalCardFields(goal) {
+function goalCardFields(goal, repoRoot) {
     const gt = goal.goal_type || 'OTHER';
+    const imgRel = repoRoot ? getGoalCardImageRepoRelative(gt, repoRoot) : null;
+    const goal_card_image = imgRel ? { repo_relative_path: imgRel } : null;
+
     const months = Number(goal.summary?.target_months ?? goal.summary?.term_months);
     const years = Number.isFinite(months) ? Math.max(1, Math.round(months / 12)) : null;
     if (gt === 'PENSION') {
@@ -49,6 +59,7 @@ function goalCardFields(goal) {
             term_years: years,
             row_right_label: 'Желаемый доход:',
             row_right_display: Number.isFinite(p) ? `${formatMoneyRu(p)}/мес` : '—',
+            goal_card_image,
         };
     }
     const t = Number(goal.summary?.target_amount_initial ?? goal.details?.target_amount_initial);
@@ -60,6 +71,7 @@ function goalCardFields(goal) {
         term_years: years,
         row_right_label: 'Стоимость:',
         row_right_display: ok ? `${(t / 1_000_000).toFixed(1)}М ₽` : '—',
+        goal_card_image,
     };
 }
 
@@ -71,8 +83,11 @@ function goalCardFields(goal) {
  * @param {object} [options]
  * @param {number} [options.mainGoalsOnOverviewPage=2] — сколько основных целей уже на HTML-сводной (buildReportSummaryOverviewHtml)
  * @param {number} [options.goalsPerContinuationPage=2] — подсказка, сколько карточек влезает в ряд/страницу
+ * @param {string} [options.repoRoot] — корень репозитория для резолва путей к `assets/reports/goal-cards/*`
  */
 function buildSummaryPdfLayoutModel(reportPayload = {}, options = {}) {
+    const repoRoot = options.repoRoot != null ? String(options.repoRoot) : path.join(__dirname, '../../..');
+
     const goals = extractGoals(reportPayload);
     const mainGoals = mainGoalsExcludingProtection(goals);
     const firstN = options.mainGoalsOnOverviewPage ?? DEFAULT_MAIN_ON_OVERVIEW;
@@ -85,7 +100,7 @@ function buildSummaryPdfLayoutModel(reportPayload = {}, options = {}) {
     for (let i = 0; i < continuationMain.length; i += chunk) {
         continuationPages.push({
             page_index: continuationPages.length,
-            goals: continuationMain.slice(i, i + chunk).map(goalCardFields),
+            goals: continuationMain.slice(i, i + chunk).map((g) => goalCardFields(g, repoRoot)),
         });
     }
 
@@ -131,13 +146,18 @@ function buildSummaryPdfLayoutModel(reportPayload = {}, options = {}) {
 
     return {
         version: 1,
+        goal_card_assets: {
+            directory_repo_relative: GOAL_CARDS_DIR,
+            rule:
+                'Файл = goal_type (латиница, как в API), расширение .png / .jpg / .jpeg / .webp; если нет — DEFAULT.*. Поле goal_card_image.repo_relative_path — фактический файл на бэке.',
+        },
         layout_hints: {
             /** не резать между страницами целиком */
             keep_blocks_together: ['capital_distribution'],
             main_goals_on_first_overview_html: firstN,
             suggested_goals_per_continuation_page: chunk,
         },
-        overview_main_goal_cards: overviewMain.map(goalCardFields),
+        overview_main_goal_cards: overviewMain.map((g) => goalCardFields(g, repoRoot)),
         goals_continuation:
             continuationPages.length > 0
                 ? {
