@@ -1,10 +1,12 @@
 openapi: 3.0.0
 info:
   title: PDF report settings (обложка и сводная страница)
-  version: 1.2.0
+  version: 1.2.1
   description: |
-    Настройки PDF-отчёта на **агента**: обложка (фон, плашка) и страница **«Сводная информация»** (лого, аватар ИИ, акцентный цвет).
+    **Единственная OpenAPI-спека** для настроек PDF-отчёта агента: обложка, сводная страница, загрузки в R2, превью HTML.
+    Настройки PDF-отчёта на **агента**: обложка (фон, плашка) и страница **«Сводная информация»** (лого, акцентный цвет).
     Дата на обложке при генерации PDF подставляется автоматически (см. `date_preview` в ответе только для превью в ЛК).
+    Иллюстрации карточек целей по типу (`goal_card_assets`) — только read-only в `GET`/`PATCH` response, для превью макета в ЛК.
 
 servers:
   - url: /api
@@ -28,6 +30,68 @@ components:
         type: string
 
   schemas:
+    GoalCardAssetItem:
+      type: object
+      description: Одна картинка карточки цели (имя файла = тип цели в API).
+      readOnly: true
+      required:
+        - goal_type
+        - filename
+        - r2_object_key
+        - repo_relative_path
+      properties:
+        goal_type:
+          type: string
+          description: Совпадает с `goal_type` в отчёте (PENSION, LIFE, FIN_RESERVE, …, DEFAULT).
+          example: PENSION
+        filename:
+          type: string
+          example: PENSION.png
+        r2_object_key:
+          type: string
+          description: Ключ в R2 после `npm run seed:pdf-goal-cards-r2`.
+          example: pdf-report-goal-cards/PENSION.png
+        public_url:
+          type: string
+          nullable: true
+          format: uri
+          description: Публичный URL (CDN). `null`, если не задан `R2_PUBLIC_*` на сервере или файл не залит.
+        repo_relative_path:
+          type: string
+          example: assets/reports/goal-cards/PENSION.png
+
+    GoalCardAssetsManifest:
+      type: object
+      description: Манифест для ЛК; не хранится в БД, не принимается в PATCH.
+      readOnly: true
+      required:
+        - version
+        - editable
+        - r2_key_prefix
+        - directory_repo_relative
+        - hint
+        - cards
+      properties:
+        version:
+          type: integer
+          example: 1
+        editable:
+          type: boolean
+          enum: [false]
+          description: Замена картинок только через релиз/seed на бэке.
+        r2_key_prefix:
+          type: string
+          example: pdf-report-goal-cards
+        directory_repo_relative:
+          type: string
+          example: assets/reports/goal-cards
+        hint:
+          type: string
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalCardAssetItem'
+
     PdfCoverSettings:
       type: object
       properties:
@@ -99,13 +163,7 @@ components:
           readOnly: true
           additionalProperties: true
         goal_card_assets:
-          type: object
-          readOnly: true
-          description: |
-            Общие иллюстрации карточек целей по типу (`PENSION`, `LIFE`, `DEFAULT`, …). **Не редактируются в ЛК и не в PATCH.**
-            Массив `cards`: у каждого элемента `goal_type`, `filename`, `public_url` (CDN после `npm run seed:pdf-goal-cards-r2` и `R2_PUBLIC_*`), `r2_object_key`, `repo_relative_path`.
-            Для превью макета сводной в ЛК подставлять в карточку по `goal_type` из отчёта.
-          additionalProperties: true
+          $ref: '#/components/schemas/GoalCardAssetsManifest'
 
     PdfCoverSettingsResponse:
       allOf:

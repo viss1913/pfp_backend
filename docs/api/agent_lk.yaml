@@ -6,6 +6,8 @@ info:
     Авторизация происходит через стандартный `/api/auth/login`. 
     Все методы работают с привязкой к `project_id` авторизованного агента.
     Системные (дефолтные) продукты и портфели (где `project_id == null`) доступны Агенту только на чтение и клонирование.
+
+    **Настройки PDF-отчёта** (обложка, сводная, `goal_card_assets` для превью карточек целей): отдельная спека **`openapi/PDFsettings.yaml`**, Swagger UI: `/api-docs-pdf-settings`, префикс путей `/api/pfp/pdf-settings`.
   version: 1.0.0
 servers:
   - url: /api
