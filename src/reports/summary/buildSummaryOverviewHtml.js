@@ -25,6 +25,17 @@ const GOAL_CARDS_DIR = 'assets/reports/goal-cards';
 /** Общий префикс ключей в R2 после `npm run seed:pdf-goal-cards-r2` — `pdf-report-goal-cards/PENSION.png` и т.д. */
 const GOAL_CARDS_R2_PREFIX = 'pdf-report-goal-cards';
 
+/**
+ * Расширения картинок целей в R2 (и в assets/goal-cards/).
+ * Важно: в прод-контейнере может не быть этих картинок в файловой системе,
+ * поэтому резолвим R2 ключ детерминированно без fs.existsSync.
+ */
+const GOAL_CARD_EXT_BY_TYPE = {
+    FIN_RESERVE: 'webp',
+    LIFE: 'webp',
+    DEFAULT: 'png',
+};
+
 /** R2 ключи стоковых ассетов для превью сводной (logo/avatar/font) */
 const SUMMARY_STOCK_ASSETS_R2_PREFIX = 'pdf-report-summary-stock-assets';
 
@@ -241,9 +252,10 @@ function getGoalCardImageRepoRelative(goalType, rootDir) {
  * @returns {string|null}
  */
 function getGoalCardImageR2Key(goalType, rootDir) {
-    const abs = findGoalCardImagePath(goalType, rootDir);
-    if (!abs) return null;
-    return `${GOAL_CARDS_R2_PREFIX}/${path.basename(abs)}`;
+    const raw = goalType != null ? String(goalType).trim() : '';
+    const safe = raw.replace(/[^A-Za-z0-9_]/g, '') || 'DEFAULT';
+    const ext = GOAL_CARD_EXT_BY_TYPE[safe.toUpperCase()] || 'png';
+    return `${GOAL_CARDS_R2_PREFIX}/${safe}.${ext}`;
 }
 
 const GOAL_CARD_FILE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
