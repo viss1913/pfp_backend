@@ -25,6 +25,9 @@ const GOAL_CARDS_DIR = 'assets/reports/goal-cards';
 /** Общий префикс ключей в R2 после `npm run seed:pdf-goal-cards-r2` — `pdf-report-goal-cards/PENSION.png` и т.д. */
 const GOAL_CARDS_R2_PREFIX = 'pdf-report-goal-cards';
 
+/** R2 ключи стоковых ассетов для превью сводной (logo/avatar/font) */
+const SUMMARY_STOCK_ASSETS_R2_PREFIX = 'pdf-report-summary-stock-assets';
+
 const GLOBAL_DEFAULTS = {
     /** Акцент секций и будущих диаграмм (пироги и т.д.) */
     summaryChartColor: '#8b5cf6',
@@ -104,14 +107,25 @@ function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
     const s = String(ref).trim();
     if (/^https?:\/\//i.test(s)) return s;
     const abs = path.isAbsolute(s) ? s : path.resolve(rootDir, s);
+
+    // 1) Если локально читается и inlineLocalAssets включён — вшиваем data:
     if (inlineLocalAssets && fs.existsSync(abs)) {
         try {
             return localFileToDataUrl(abs);
         } catch {
-            return pathToFileURL(abs).href;
+            // дальше попробуем R2
         }
     }
-    return pathToFileURL(abs).href;
+
+    // 2) Если file:// отдавать нельзя (iframe srcDoc на фронте) — фолбэк на публичный CDN из R2
+    const basename = path.basename(abs);
+    const r2Key = `${SUMMARY_STOCK_ASSETS_R2_PREFIX}/${basename}`;
+    const pub = publicUrlFromKey(r2Key);
+    if (pub) return pub;
+
+    // 3) Последняя попытка: file:// (для server-side PDF-рендера может быть ок)
+    if (fs.existsSync(abs)) return pathToFileURL(abs).href;
+    return '';
 }
 
 function formatMoneyRu(n) {
@@ -280,7 +294,7 @@ function buildGoalCardAssetsForAgentLK(rootDir) {
  */
 function resolveGoalCardImageSrc(goalType, rootDir, inlineLocalAssets = false) {
     const r2Key = getGoalCardImageR2Key(goalType, rootDir);
-    if (r2Key && !inlineLocalAssets) {
+    if (r2Key) {
         const pub = publicUrlFromKey(r2Key);
         if (pub) return pub;
     }
@@ -476,8 +490,16 @@ function buildReportSummaryOverviewHtml(options = {}) {
         try {
             fontUrl = localFileToDataUrl(fontPathResolved);
         } catch {
-            /* оставляем file:// */
+            /* попробуем R2 ниже */
         }
+    }
+
+    // 2) Если inline не получилось — пробуем публичный URL шрифта из R2
+    if (inlineLocalAssets) {
+        const fontBase = path.basename(fontPathResolved);
+        const r2Key = `${SUMMARY_STOCK_ASSETS_R2_PREFIX}/${fontBase}`;
+        const pub = publicUrlFromKey(r2Key);
+        if (pub) fontUrl = pub;
     }
 
     // Для превью в ЛК фронт кладёт HTML в `iframe srcDoc`. В таком случае CSP родителя
