@@ -480,6 +480,21 @@ function buildReportSummaryOverviewHtml(options = {}) {
         }
     }
 
+    // Для превью в ЛК фронт кладёт HTML в `iframe srcDoc`. В таком случае CSP родителя
+    // может запрещать `data:` для `img-src`/`font-src`, и base64-картинки не отобразятся.
+    // meta CSP внутри документа гарантирует разрешение нужных источников.
+    const cspMeta = inlineLocalAssets
+        ? `<meta http-equiv="Content-Security-Policy" content="
+default-src 'none';
+img-src 'self' data: https: blob:;
+style-src 'self' 'unsafe-inline';
+font-src 'self' data: https:;
+script-src 'none';
+object-src 'none';
+base-uri 'none';
+">`
+        : '';
+
     const avatarRef = GLOBAL_DEFAULTS.stockAiAvatarPath;
     const avatarSrc = escapeHtml(resolveAssetSrc(avatarRef, root, inlineLocalAssets));
 
@@ -575,6 +590,7 @@ function buildReportSummaryOverviewHtml(options = {}) {
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
+  ${cspMeta}
   <title>Сводная информация</title>
   <style>
     @font-face {
