@@ -11,7 +11,7 @@ const {
     GOAL_CARDS_R2_PREFIX,
 } = require('./buildSummaryOverviewHtml');
 
-const DEFAULT_MAIN_ON_OVERVIEW = 2;
+const DEFAULT_MAIN_ON_OVERVIEW = 3;
 const DEFAULT_CONTINUATION_CHUNK = 2;
 
 /**
@@ -93,7 +93,7 @@ function goalCardFields(goal, repoRoot) {
  *
  * @param {object} [reportPayload] — как ответ отчёта: `goals` / `goals_detailed` + опционально `summary`
  * @param {object} [options]
- * @param {number} [options.mainGoalsOnOverviewPage=2] — сколько основных целей уже на HTML-сводной (buildReportSummaryOverviewHtml)
+ * @param {number} [options.mainGoalsOnOverviewPage=3] — сколько основных целей уже на HTML-сводной (buildReportSummaryOverviewHtml)
  * @param {number} [options.goalsPerContinuationPage=2] — подсказка, сколько карточек влезает в ряд/страницу
  * @param {string} [options.repoRoot] — корень репозитория для резолва путей к `assets/reports/goal-cards/*`
  */

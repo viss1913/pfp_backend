@@ -16,7 +16,8 @@
     "seed:pdf-cover-default": "node scripts/seed_default_report_cover_all_agents.js",
     "seed:pdf-goal-cards-r2": "node scripts/seed_report_goal_cards_r2.js",
     "r2:migrate-url-prefix": "node scripts/migrate_r2_public_url_prefix.js",
-    "img:png2webp": "node scripts/png_to_webp.js"
+    "img:png2webp": "node scripts/png_to_webp.js",
+    "preview:summary": "node scripts/serve_summary_preview.mjs"
   },
   "keywords": [],
   "author": "",

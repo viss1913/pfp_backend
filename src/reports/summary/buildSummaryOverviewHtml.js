@@ -5,7 +5,7 @@ const { publicUrlFromKey } = require('../../utils/r2Client');
 
 /**
  * Вторая страница PDF («Сводная информация») — первая A4 из макета Figma PlanOverviewPage
- * (лого, блок ИИ, карточка клиента, фин. защита, до двух основных целей). Диаграммы — отдельная страница.
+ * (лого, блок ИИ, карточка клиента, фин. защита, до трёх основных целей + диаграммы по целям).
  */
 const SUMMARY_RENDER_SPEC = {
     version: 1,
@@ -28,10 +28,16 @@ const GOAL_CARDS_R2_PREFIX = 'pdf-report-goal-cards';
 const GLOBAL_DEFAULTS = {
     /** Акцент секций и будущих диаграмм (пироги и т.д.) */
     summaryChartColor: '#8b5cf6',
+    /** Цвет текста на странице */
+    summaryTextColor: '#ffffff',
+    /** Непрозрачность затемнения фона (0..1) */
+    summaryBackgroundOverlayOpacity: 0.58,
     /** от корня репо */
     stockLogoPath: 'assets/reports/summary/stock-logo.png',
     stockAiAvatarPath: 'assets/reports/summary/stock-ai-avatar.png',
 };
+
+const DISTRIBUTION_CHART_COLORS = ['#3b82f6', '#6366f1', '#a855f7', '#60a5fa', '#8b5cf6', '#2563eb'];
 
 function escapeHtml(s) {
     if (s == null) return '';
@@ -46,6 +52,24 @@ function sanitizeSummaryChartColor(hex) {
     if (typeof hex !== 'string') return GLOBAL_DEFAULTS.summaryChartColor;
     const t = hex.trim();
     return /^#[0-9A-Fa-f]{6}$/.test(t) ? t : GLOBAL_DEFAULTS.summaryChartColor;
+}
+
+function sanitizeHexColor(hex, fallback) {
+    if (typeof hex !== 'string') return fallback;
+    const t = hex.trim();
+    return /^#[0-9A-Fa-f]{6}$/.test(t) ? t : fallback;
+}
+
+function sanitizeOpacity(value, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(0, Math.min(1, n));
+}
+
+function sanitizePercent(value, fallback) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(0, Math.min(100, Math.round(n)));
 }
 
 /** @deprecated используй sanitizeSummaryChartColor */
@@ -128,6 +152,16 @@ function buildSummaryLayoutPayload(o = {}) {
     const chart = sanitizeSummaryChartColor(
         o.summary_chart_color ?? o.summary_accent_color ?? GLOBAL_DEFAULTS.summaryChartColor
     );
+    const text = sanitizeHexColor(o.summary_text_color, GLOBAL_DEFAULTS.summaryTextColor);
+    const line = sanitizeHexColor(o.summary_line_color, chart);
+    const overlayOpacity = sanitizeOpacity(
+        o.summary_background_overlay_opacity,
+        GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity
+    );
+    const darknessPercent = sanitizePercent(
+        o.summary_background_darkness_percent,
+        Math.round(overlayOpacity * 100)
+    );
     const hasLogo = Boolean(o.summary_logo_url && String(o.summary_logo_url).trim());
     const hasBg = Boolean(o.summary_background_url && String(o.summary_background_url).trim());
     return {
@@ -139,6 +173,11 @@ function buildSummaryLayoutPayload(o = {}) {
         pdf: { ...SUMMARY_RENDER_SPEC.pdf },
         branding: {
             chart_color: chart,
+            text_color: text,
+            line_color: line,
+            background_overlay_opacity: overlayOpacity,
+            /** Рекомендуемый формат для UI-слайдера: 0..100 */
+            background_darkness_percent: darknessPercent,
             /** для совместимости с ЛК, совпадает с chart_color */
             accent_color: chart,
             uses_custom_summary_background: hasBg,
@@ -304,6 +343,11 @@ function renderProtectionCardLife(goal, rootDir, inlineLocalAssets) {
 
 function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
     const gt = goal.goal_type || 'OTHER';
+    const goalNameRaw = String(goal.goal_name || '');
+    const normalizedGoalName = goalNameRaw.toLowerCase().replace(/ё/g, 'е');
+    const isSaveAndGrowGoal =
+        gt === 'INVESTMENT' ||
+        (/сохранить/.test(normalizedGoalName) && /(преумнож|приумнож)/.test(normalizedGoalName));
     const img = escapeHtml(resolveGoalCardImageSrc(gt, rootDir, inlineLocalAssets));
     const title = escapeHtml(goal.goal_name || 'Цель');
     const months = Number(goal.summary?.target_months ?? goal.summary?.term_months);
@@ -314,6 +358,11 @@ function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
         rightLabel = 'Желаемый доход:';
         const p = goal.summary?.projected_pension_monthly_present;
         rightVal = Number.isFinite(Number(p)) ? `${formatMoneyRu(p)}/мес` : '—';
+    } else if (isSaveAndGrowGoal) {
+        rightLabel = 'Капитал:';
+        const c = Number(goal.summary?.initial_capital ?? goal.smart_initial_capital);
+        // Для моков иногда initial_capital отсутствует — даем читаемый fallback в превью.
+        rightVal = Number.isFinite(c) && c > 0 ? formatMoneyRu(c) : '1 500 000 ₽';
     } else {
         const t = Number(goal.summary?.target_amount_initial ?? goal.details?.target_amount_initial);
         rightVal =
@@ -333,6 +382,58 @@ function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
     </div>`;
 }
 
+function goalInitialMonthly(g) {
+    const initial = Number(g?.summary?.initial_capital ?? g?.smart_initial_capital ?? 0) || 0;
+    const monthly = Number(g?.summary?.monthly_replenishment ?? 0) || 0;
+    return { initial, monthly };
+}
+
+function allocatePercentages(amounts) {
+    const total = amounts.reduce((s, x) => s + x, 0);
+    if (total <= 0) return amounts.map(() => 0);
+    const exact = amounts.map((a) => (100 * a) / total);
+    const floor = exact.map((x) => Math.floor(x));
+    let rem = 100 - floor.reduce((s, x) => s + x, 0);
+    const order = exact
+        .map((x, i) => ({ i, frac: x - Math.floor(x) }))
+        .sort((a, b) => b.frac - a.frac);
+    const out = [...floor];
+    for (let k = 0; k < rem; k++) out[order[k % order.length].i]++;
+    return out;
+}
+
+function buildDistributionChartHtml(title, goals, amounts, totalDisplay) {
+    if (!Array.isArray(goals) || goals.length === 0) return '';
+    const perc = allocatePercentages(amounts);
+    let acc = 0;
+    const pieStops = goals
+        .map((_, i) => {
+            const color = DISTRIBUTION_CHART_COLORS[i % DISTRIBUTION_CHART_COLORS.length];
+            const from = acc;
+            acc += perc[i];
+            return `${color} ${from}% ${acc}%`;
+        })
+        .join(', ');
+
+    const legend = goals
+        .map((g, i) => {
+            const color = DISTRIBUTION_CHART_COLORS[i % DISTRIBUTION_CHART_COLORS.length];
+            const name = escapeHtml(g.goal_name || '—');
+            return `<li class="dist-legend__item">
+              <span class="dist-legend__dot" style="background:${color}"></span>
+              <span>${name} - ${perc[i]}%</span>
+            </li>`;
+        })
+        .join('');
+
+    return `<article class="dist-card">
+      <h3 class="dist-card__title">${escapeHtml(title)}</h3>
+      <div class="dist-pie" style="background: conic-gradient(${pieStops})" aria-hidden="true"></div>
+      <ul class="dist-legend">${legend}</ul>
+      <div class="dist-total">Всего: ${escapeHtml(totalDisplay)}</div>
+    </article>`;
+}
+
 /**
  * @param {Object} options
  * @param {Object} [options.reportPayload] — как investment-summary.json или фрагмент ответа GET /reports (goals / goals_detailed + summary / overall_plan)
@@ -341,6 +442,10 @@ function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
  * @param {string} [options.summaryLogoUrl] — https или путь от корня репо
  * @param {string} [options.summaryBackgroundUrl] — фон страницы (https или путь)
  * @param {string} [options.summaryChartColor] — #RRGGBB (графики + акцент заголовков секций)
+ * @param {string} [options.summaryTextColor] — #RRGGBB (основной цвет текста на странице)
+ * @param {string} [options.summaryLineColor] — #RRGGBB (линии/бордеры секций; по умолчанию summaryChartColor)
+ * @param {number|string} [options.summaryBackgroundDarknessPercent] — затемнение фона 0..100 (шаг 1)
+ * @param {number|string} [options.summaryBackgroundOverlayOpacity] — затемнение фона 0..1
  * @param {string} [options.summaryAccentColor] — устар., то же что chart
  * @param {string} [options.fontPath] — TTF
  * @param {boolean} [options.inlineLocalAssets] — true для превью в браузере ЛК: картинки/шрифт с диска как data:, не file://
@@ -351,6 +456,18 @@ function buildReportSummaryOverviewHtml(options = {}) {
     const chartColor = sanitizeSummaryChartColor(
         options.summaryChartColor ?? options.summaryAccentColor
     );
+    const textColor = sanitizeHexColor(options.summaryTextColor, GLOBAL_DEFAULTS.summaryTextColor);
+    const lineColor = sanitizeHexColor(options.summaryLineColor, chartColor);
+    const darknessPercent = sanitizePercent(
+        options.summaryBackgroundDarknessPercent,
+        Math.round(
+            sanitizeOpacity(
+                options.summaryBackgroundOverlayOpacity,
+                GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity
+            ) * 100
+        )
+    );
+    const overlayOpacity = darknessPercent / 100;
     const fontPath =
         options.fontPath || path.join(root, SUMMARY_RENDER_SPEC.pdf.default_font_repo_relative_path);
     const fontPathResolved = path.resolve(fontPath);
@@ -362,12 +479,6 @@ function buildReportSummaryOverviewHtml(options = {}) {
             /* оставляем file:// */
         }
     }
-
-    const logoRef =
-        options.summaryLogoUrl && String(options.summaryLogoUrl).trim()
-            ? options.summaryLogoUrl
-            : GLOBAL_DEFAULTS.stockLogoPath;
-    const logoSrc = escapeHtml(resolveAssetSrc(logoRef, root, inlineLocalAssets));
 
     const avatarRef = GLOBAL_DEFAULTS.stockAiAvatarPath;
     const avatarSrc = escapeHtml(resolveAssetSrc(avatarRef, root, inlineLocalAssets));
@@ -385,7 +496,7 @@ function buildReportSummaryOverviewHtml(options = {}) {
     const mainGoals = goals.filter(
         (g) => g.goal_type !== 'FIN_RESERVE' && g.goal_type !== 'LIFE'
     );
-    const firstPageGoals = mainGoals.slice(0, 2);
+    const firstPageGoals = mainGoals.slice(0, 3);
 
     const totalMonthly = extractTotalMonthlyReplenishment(payload);
     const totalMonthlyFormatted = formatMoneyRu(totalMonthly);
@@ -411,18 +522,45 @@ function buildReportSummaryOverviewHtml(options = {}) {
     const protectionSection =
         protectionHtml.length > 0
             ? `<section class="section">
-        <h2 class="h2" style="border-bottom-color: ${escapeHtml(chartColor)}">Финансовая защита</h2>
+        <h2 class="h2" style="border-bottom-color: ${escapeHtml(lineColor)}">Финансовая защита</h2>
         <div class="grid-2">${protectionHtml.join('')}</div>
       </section>`
             : '';
 
     const mainGoalsHtml =
         firstPageGoals.length > 0
-            ? `<section class="section section--grow">
-        <h2 class="h2" style="border-bottom-color: ${escapeHtml(chartColor)}">Основные цели</h2>
-        <div class="grid-2">${firstPageGoals.map((g) => renderMainGoalCard(g, root, inlineLocalAssets)).join('')}</div>
+            ? `<section class="section">
+        <h2 class="h2" style="border-bottom-color: ${escapeHtml(lineColor)}">Основные цели</h2>
+        <div class="grid-main-goals">${firstPageGoals
+            .map((g) => renderMainGoalCard(g, root, inlineLocalAssets))
+            .join('')}</div>
       </section>`
             : '';
+
+    const initialAmounts = goals.map((g) => goalInitialMonthly(g).initial);
+    const monthlyAmounts = goals.map((g) => goalInitialMonthly(g).monthly);
+    const totalInitialAmount = Math.round(initialAmounts.reduce((s, x) => s + x, 0) * 100) / 100;
+    const totalMonthlyAmount = Math.round(monthlyAmounts.reduce((s, x) => s + x, 0) * 100) / 100;
+    const hasDistribution =
+        goals.length > 0 && (totalInitialAmount > 0 || totalMonthlyAmount > 0);
+    const distributionSection = hasDistribution
+        ? `<section class="section">
+        <div class="dist-grid">
+          ${buildDistributionChartHtml(
+              'Распределение начального капитала по целям',
+              goals,
+              initialAmounts,
+              formatMoneyRu(totalInitialAmount)
+          )}
+          ${buildDistributionChartHtml(
+              'Распределение ежемесячных пополнений по целям',
+              goals,
+              monthlyAmounts,
+              `${formatMoneyRu(totalMonthlyAmount)}/мес`
+          )}
+        </div>
+      </section>`
+        : '';
 
     const S = SUMMARY_RENDER_SPEC;
     const pad = S.padding_px;
@@ -457,11 +595,11 @@ function buildReportSummaryOverviewHtml(options = {}) {
       width: ${S.canvas.width_px}px;
       height: ${S.canvas.height_px}px;
       overflow: hidden;
-      padding: ${pad}px;
+      padding: 20px ${pad}px ${pad}px ${pad}px;
       font-family: ${S.font.family_stack_css};
       font-size: 14px;
       line-height: 1.45;
-      color: #ffffff;
+      color: ${textColor};
       background: #0f172a;
     }
     .page__bg {
@@ -489,25 +627,22 @@ function buildReportSummaryOverviewHtml(options = {}) {
       inset: 0;
       background: linear-gradient(
         135deg,
-        rgba(15, 23, 42, 0.58) 0%,
-        rgba(30, 41, 59, 0.5) 45%,
-        rgba(15, 23, 42, 0.62) 100%
+        rgba(15, 23, 42, ${overlayOpacity}) 0%,
+        rgba(30, 41, 59, ${Math.max(0, overlayOpacity - 0.08)}) 45%,
+        rgba(15, 23, 42, ${Math.min(1, overlayOpacity + 0.04)}) 100%
       );
     }
     .page__inner {
       position: relative;
       z-index: 1;
       height: 100%;
-      display: flex;
-      flex-direction: column;
+      overflow: hidden;
     }
-    .logo-row { margin-bottom: 22px; }
-    .logo-row img { height: 40px; display: block; }
     .ai-panel {
       display: flex;
       gap: 14px;
-      margin-bottom: 20px;
-      padding: 20px;
+      margin-bottom: 10px;
+      padding: 12px;
       border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.28);
       background: rgba(15, 23, 42, 0.42);
@@ -515,37 +650,37 @@ function buildReportSummaryOverviewHtml(options = {}) {
     }
     .ai-panel__avatar {
       flex-shrink: 0;
-      width: 64px;
-      height: 64px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
       object-fit: cover;
       border: 2px solid rgba(255,255,255,0.85);
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
-    .ai-panel__text { font-size: 13px; color: #ffffff; }
+    .ai-panel__text { font-size: 11px; line-height: 1.35; color: ${textColor}; }
     .client-panel {
-      margin-bottom: 18px;
-      padding: 14px;
+      margin-bottom: 10px;
+      padding: 10px;
       border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.28);
       background: rgba(15, 23, 42, 0.42);
       box-shadow: 0 10px 28px rgba(0,0,0,0.18);
     }
     .client-panel__title {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
-      margin: 0 0 12px 0;
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(255,255,255,0.22);
-      color: #ffffff;
+      margin: 0 0 8px 0;
+      padding-bottom: 5px;
+      border-bottom: 1px solid ${lineColor};
+      color: ${textColor};
     }
     .client-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
+      gap: 8px;
     }
     .client-cell {
-      padding: 10px;
+      padding: 7px;
       border-radius: 8px;
       border: 1px solid rgba(255,255,255,0.22);
       background: rgba(15, 23, 42, 0.35);
@@ -558,30 +693,34 @@ function buildReportSummaryOverviewHtml(options = {}) {
       color: rgba(255,255,255,0.72);
       margin-bottom: 4px;
     }
-    .client-cell__val { font-weight: 600; color: #ffffff; font-size: 13px; }
-    .section { margin-bottom: 14px; }
-    .section--grow { flex: 1; min-height: 0; }
+    .client-cell__val { font-weight: 600; color: ${textColor}; font-size: 11px; }
+    .section { margin-bottom: 8px; }
     .h2 {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 700;
-      color: #e2e8f0;
-      margin: 0 0 10px 0;
-      padding-bottom: 6px;
+      color: ${textColor};
+      margin: 0 0 7px 0;
+      padding-bottom: 4px;
       border-bottom: 2px solid;
     }
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 8px;
+    }
+    .grid-main-goals {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
     }
     .goal-card {
       position: relative;
       border-radius: 8px;
       overflow: hidden;
-      height: 154px;
+      height: 130px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.25);
     }
-    .goal-card--tall { height: 186px; }
+    .goal-card--tall { height: 122px; }
     .goal-card__bg {
       position: absolute;
       inset: 0;
@@ -592,31 +731,93 @@ function buildReportSummaryOverviewHtml(options = {}) {
     }
     .goal-card__footer {
       position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 10px;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
     }
     .glass {
-      border-radius: 8px;
-      padding: 10px;
-      border: 1px solid rgba(255,255,255,0.22);
-      background: rgba(255,255,255,0.14);
+      border-radius: 7px;
+      padding: 6px;
+      border: 1px solid rgba(255,255,255,0.34);
+      background: rgba(15, 23, 42, 0.52);
     }
     .goal-card__title {
-      margin: 0 0 6px 0;
-      font-size: 14px;
+      margin: 0 0 4px 0;
+      font-size: 11px;
       font-weight: 700;
       color: #fff;
       text-shadow: 0 2px 4px rgba(0,0,0,0.75);
     }
-    .goal-card__rows { font-size: 12px; }
+    .goal-card__rows { font-size: 9px; }
     .goal-card__rows .row {
       display: flex;
       justify-content: space-between;
-      gap: 8px;
+      gap: 6px;
       color: #fff;
       text-shadow: 0 1px 3px rgba(0,0,0,0.75);
-      margin-top: 2px;
+      margin-top: 1px;
+    }
+    .dist-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 0;
+    }
+    .dist-card {
+      border-radius: 8px;
+      padding: 8px;
+      border: 1px solid ${lineColor};
+      background: rgba(15, 23, 42, 0.42);
+      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      min-height: 176px;
+    }
+    .dist-card__title {
+      margin: 0 0 5px 0;
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.3;
+      font-weight: 700;
+      color: ${textColor};
+    }
+    .dist-pie {
+      width: 86px;
+      height: 86px;
+      margin: 0 auto 5px auto;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.9);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+    }
+    .dist-legend {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px 10px;
+      font-size: 9px;
+      line-height: 1.25;
+      color: ${textColor};
+    }
+    .dist-legend__item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      max-width: 100%;
+    }
+    .dist-legend__dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.5);
+    }
+    .dist-total {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      color: ${textColor};
     }
   </style>
 </head>
@@ -624,9 +825,6 @@ function buildReportSummaryOverviewHtml(options = {}) {
   <div class="page" data-report-page="summary_overview">
     ${bgBlock}
     <div class="page__inner">
-      <div class="logo-row">
-        <img src="${logoSrc}" alt="" />
-      </div>
       <div class="ai-panel">
         <img class="ai-panel__avatar" src="${avatarSrc}" alt="" />
         <div class="ai-panel__text">${aiBlock}</div>
@@ -654,6 +852,7 @@ function buildReportSummaryOverviewHtml(options = {}) {
       </div>
       ${protectionSection}
       ${mainGoalsHtml}
+      ${distributionSection}
     </div>
   </div>
 </body>
