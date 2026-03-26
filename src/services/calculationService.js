@@ -594,19 +594,28 @@ class CalculationService {
                 const isTarget = !targetGoalId || currentGoalId === String(targetGoalId);
 
                 // [RISK PROFILE] Auto-calculate risk profile based on Dengina methodology
-                if (clientData.risk_profile_answers) {
+                if (isTarget && clientData.risk_profile_answers) {
                     let answers = clientData.risk_profile_answers;
                     if (typeof answers === 'string') {
                         try { answers = JSON.parse(answers); } catch (e) { }
                     }
 
                     if (answers && typeof answers === 'object') {
+                        // Front может присылать `{}` (нет ответов). Тогда не должны затирать `goal.risk_profile`,
+                        // потому что авто-методика использует ответы Q2-Q10 + баллы за горизонт (Q1).
+                        const hasAnyQ2toQ10Answer = ['q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10']
+                            .some(k => answers[k] !== undefined && answers[k] !== null && answers[k] !== '');
+
+                        if (!hasAnyQ2toQ10Answer) {
+                            // Nothing to auto-calculate; keep risk_profile coming from the goal (front).
+                        } else {
                         const term = goal.term_months || 0;
                         const calculatedProfile = riskProfileService.calculateGoalProfile(answers, term);
 
                         if (calculatedProfile) {
                             logger.info(`[CalculationService] Auto-calculated risk profile for ${goal.name}: ${calculatedProfile} (term: ${term}mo)`);
                             goal.risk_profile = calculatedProfile;
+                        }
                         }
                     }
                 }
