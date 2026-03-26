@@ -89,7 +89,7 @@ function buildEditorSchema() {
                 id: 'report_summary_overview',
                 title: 'Сводная информация (страница 2)',
                 description:
-                    'Только брендинг: фон страницы, логотип (один на сводную), цвет графиков и акцента секций. Тексты, клиент, цели, аватар ИИ — из расчётов/стока. Геометрия — в `summary_layout`. Картинки внутри карточек целей (тип PENSION, LIFE, …) — **не настраиваются в ЛК**; для красивого превью макета в ответе API смотри корневое поле **`goal_card_assets`** (`cards[].public_url`, `goal_type`).',
+                    'Брендинг: фон страницы (и затемнение/оверлей), логотип (один на сводную), цвет графиков/акцента секций, цвет текста и линий. Тексты, клиент, цели, аватар ИИ — из расчётов/стока. Геометрия — в `summary_layout`. Картинки внутри карточек целей (тип PENSION, LIFE, …) — **не настраиваются в ЛК**; для красивого превью макета в ответе API смотри корневое поле **`goal_card_assets`** (`cards[].public_url`, `goal_type`).',
                 fields: [
                     {
                         id: 'summary_background_url',
@@ -141,6 +141,40 @@ function buildEditorSchema() {
                         format: 'hex6',
                         reset: { patch_key: 'summary_chart_color', value: '' },
                     },
+                    {
+                        id: 'summary_background_darkness_percent',
+                        type: 'text',
+                        label: 'Степень затемнения фона',
+                        hint: 'Число 0..100. Чем больше — тем темнее оверлей поверх картинки.',
+                        patch_key: 'summary_background_darkness_percent',
+                        reset: { patch_key: 'summary_background_darkness_percent', value: '' },
+                    },
+                    {
+                        id: 'summary_background_overlay_opacity',
+                        type: 'text',
+                        label: 'Прозрачность оверлея фона',
+                        hint: 'Число 0..1. Используется, если затемнение (percent) не задано.',
+                        patch_key: 'summary_background_overlay_opacity',
+                        reset: { patch_key: 'summary_background_overlay_opacity', value: '' },
+                    },
+                    {
+                        id: 'summary_text_color',
+                        type: 'color',
+                        label: 'Цвет текста',
+                        hint: 'Формат #RRGGBB.',
+                        patch_key: 'summary_text_color',
+                        format: 'hex6',
+                        reset: { patch_key: 'summary_text_color', value: '' },
+                    },
+                    {
+                        id: 'summary_line_color',
+                        type: 'color',
+                        label: 'Цвет линий/бордеров',
+                        hint: 'Формат #RRGGBB. По умолчанию совпадает с акцентом.',
+                        patch_key: 'summary_line_color',
+                        format: 'hex6',
+                        reset: { patch_key: 'summary_line_color', value: '' },
+                    },
                 ],
             },
         ],
@@ -159,6 +193,10 @@ function buildEditorSchema() {
             title_band_color: GLOBAL_DEFAULTS.titleBandColor,
             cover_background_url: null,
             summary_chart_color: SUMMARY_DEFAULTS.summaryChartColor,
+            summary_background_darkness_percent: Math.round(SUMMARY_DEFAULTS.summaryBackgroundOverlayOpacity * 100),
+            summary_background_overlay_opacity: SUMMARY_DEFAULTS.summaryBackgroundOverlayOpacity,
+            summary_text_color: SUMMARY_DEFAULTS.summaryTextColor,
+            summary_line_color: SUMMARY_DEFAULTS.summaryChartColor,
             summary_background_url: null,
             summary_logo_url: null,
             stock_background_hint:
@@ -205,6 +243,14 @@ class PdfSettingsService {
         );
         const summary_background_url = dbRow?.summary_background_url ?? null;
         const summary_logo_url = dbRow?.summary_logo_url ?? null;
+        const summary_background_overlay_opacity =
+            dbRow?.summary_background_overlay_opacity ?? SUMMARY_DEFAULTS.summaryBackgroundOverlayOpacity;
+        const summary_background_darkness_percent =
+            dbRow?.summary_background_darkness_percent != null
+                ? Number(dbRow.summary_background_darkness_percent)
+                : Math.round(summary_background_overlay_opacity * 100);
+        const summary_text_color = dbRow?.summary_text_color ?? SUMMARY_DEFAULTS.summaryTextColor;
+        const summary_line_color = dbRow?.summary_line_color ?? summary_chart_color;
         /** в ЛК не показываем; колонки остаются для совместимости */
         const summary_ai_avatar_url = dbRow?.summary_ai_avatar_url ?? null;
         const summary_accent_color_legacy = dbRow?.summary_accent_color ?? null;
@@ -215,6 +261,10 @@ class PdfSettingsService {
             summary_background_url,
             summary_logo_url,
             summary_chart_color,
+            summary_background_overlay_opacity,
+            summary_background_darkness_percent,
+            summary_text_color,
+            summary_line_color,
             summary_ai_avatar_url,
             summary_accent_color: summary_accent_color_legacy,
             /** только для ответа API — в БД не хранится */
@@ -230,6 +280,10 @@ class PdfSettingsService {
                 summary_chart_color,
                 summary_background_url,
                 summary_logo_url,
+                summary_background_overlay_opacity,
+                summary_background_darkness_percent,
+                summary_text_color,
+                summary_line_color,
             }),
             /** Иллюстрации карточек целей: ссылки для превью макета в ЛК (не PATCH, не из БД) */
             goal_card_assets: buildGoalCardAssetsForAgentLK(REPO_ROOT),
@@ -272,6 +326,22 @@ class PdfSettingsService {
         if (payload.summary_chart_color !== undefined) {
             const v = payload.summary_chart_color;
             patch.summary_chart_color = v === '' || v == null ? null : String(v).trim();
+        }
+        if (payload.summary_background_darkness_percent !== undefined) {
+            const v = payload.summary_background_darkness_percent;
+            patch.summary_background_darkness_percent = v === '' || v == null ? null : Number(v);
+        }
+        if (payload.summary_background_overlay_opacity !== undefined) {
+            const v = payload.summary_background_overlay_opacity;
+            patch.summary_background_overlay_opacity = v === '' || v == null ? null : Number(v);
+        }
+        if (payload.summary_text_color !== undefined) {
+            const v = payload.summary_text_color;
+            patch.summary_text_color = v === '' || v == null ? null : String(v).trim();
+        }
+        if (payload.summary_line_color !== undefined) {
+            const v = payload.summary_line_color;
+            patch.summary_line_color = v === '' || v == null ? null : String(v).trim();
         }
         if (payload.summary_accent_color !== undefined) {
             const v = payload.summary_accent_color;
@@ -326,6 +396,10 @@ class PdfSettingsService {
             summaryLogoUrl: s.summary_logo_url || undefined,
             summaryBackgroundUrl: s.summary_background_url || undefined,
             summaryChartColor: s.summary_chart_color,
+            summaryBackgroundDarknessPercent: s.summary_background_darkness_percent,
+            summaryBackgroundOverlayOpacity: s.summary_background_overlay_opacity,
+            summaryTextColor: s.summary_text_color,
+            summaryLineColor: s.summary_line_color,
             /** ЛК открывает HTML в браузере — file:// с сервера недоступен, вшиваем ассеты */
             inlineLocalAssets: true,
         });
@@ -355,6 +429,10 @@ class PdfSettingsService {
             summaryLogoUrl: s.summary_logo_url || undefined,
             summaryBackgroundUrl: s.summary_background_url || undefined,
             summaryChartColor: s.summary_chart_color,
+            summaryBackgroundDarknessPercent: s.summary_background_darkness_percent,
+            summaryBackgroundOverlayOpacity: s.summary_background_overlay_opacity,
+            summaryTextColor: s.summary_text_color,
+            summaryLineColor: s.summary_line_color,
         });
     }
 

@@ -127,6 +127,48 @@ const patchSchema = Joi.object({
             }
             return value;
         }),
+    summary_background_darkness_percent: Joi.any()
+        .allow('', null)
+        .optional()
+        .custom((value, helpers) => {
+            if (value === '' || value == null) return value;
+            const n = Number(value);
+            if (!Number.isFinite(n)) return helpers.message('summary_background_darkness_percent must be a number');
+            if (n < 0 || n > 100)
+                return helpers.message('summary_background_darkness_percent must be in range 0..100');
+            return n;
+        }),
+    summary_background_overlay_opacity: Joi.any()
+        .allow('', null)
+        .optional()
+        .custom((value, helpers) => {
+            if (value === '' || value == null) return value;
+            const n = Number(value);
+            if (!Number.isFinite(n)) return helpers.message('summary_background_overlay_opacity must be a number');
+            if (n < 0 || n > 1)
+                return helpers.message('summary_background_overlay_opacity must be in range 0..1');
+            return n;
+        }),
+    summary_text_color: Joi.string()
+        .allow('', null)
+        .max(16)
+        .custom((value, helpers) => {
+            if (value === '' || value == null) return value;
+            if (!/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                return helpers.message('summary_text_color must be #RRGGBB');
+            }
+            return value;
+        }),
+    summary_line_color: Joi.string()
+        .allow('', null)
+        .max(16)
+        .custom((value, helpers) => {
+            if (value === '' || value == null) return value;
+            if (!/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                return helpers.message('summary_line_color must be #RRGGBB');
+            }
+            return value;
+        }),
 }).min(1);
 
 class PdfSettingsController {

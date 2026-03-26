@@ -145,6 +145,36 @@ components:
             Если задан только устаревший `summary_accent_color` в БД — он учитывается как запасной вариант до миграции ЛК.
           pattern: '^#[0-9A-Fa-f]{6}$'
           example: '#8b5cf6'
+        summary_background_darkness_percent:
+          type: integer
+          nullable: true
+          description: |
+            Затемнение фона поверх картинки для затемняющего оверлея (0..100).
+            Если null — используется дефолт (из overlay opacity).
+          minimum: 0
+          maximum: 100
+          example: 58
+        summary_background_overlay_opacity:
+          type: number
+          nullable: true
+          description: |
+            Прозрачность (opacity) затемняющего оверлея фона (0..1).
+            Если null — используется дефолт (и затемнение может быть вычислено).
+          minimum: 0
+          maximum: 1
+          example: 0.58
+        summary_text_color:
+          type: string
+          nullable: true
+          description: Цвет основного текста на странице (#RRGGBB).
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#ffffff'
+        summary_line_color:
+          type: string
+          nullable: true
+          description: Цвет линий/бордеров (#RRGGBB). По умолчанию совпадает с `summary_chart_color`.
+          pattern: '^#[0-9A-Fa-f]{6}$'
+          example: '#8b5cf6'
         summary_ai_avatar_url:
           type: string
           nullable: true
@@ -206,6 +236,28 @@ components:
           type: string
           nullable: true
           description: '#RRGGBB; пусто/null — сброс к дефолту'
+        summary_background_darkness_percent:
+          type: integer
+          nullable: true
+          description: '0..100; пусто/null — сброс к дефолту'
+          minimum: 0
+          maximum: 100
+        summary_background_overlay_opacity:
+          type: number
+          nullable: true
+          description: '0..1; пусто/null — сброс к дефолту'
+          minimum: 0
+          maximum: 1
+        summary_text_color:
+          type: string
+          nullable: true
+          description: '#RRGGBB; пусто/null — сброс к дефолту'
+          pattern: '^#[0-9A-Fa-f]{6}$'
+        summary_line_color:
+          type: string
+          nullable: true
+          description: '#RRGGBB; пусто/null — сброс к дефолту'
+          pattern: '^#[0-9A-Fa-f]{6}$'
         summary_ai_avatar_url:
           type: string
           nullable: true

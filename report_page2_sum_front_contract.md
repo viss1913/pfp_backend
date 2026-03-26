@@ -62,11 +62,15 @@
 1) `summary_background_url` — фон страницы (картинка)
 2) `summary_logo_url` — логотип (картинка)
 3) `summary_chart_color` — цвет акцента секций/диаграмм
+4) `summary_background_darkness_percent` — степень затемнения фона (0..100)
+5) `summary_background_overlay_opacity` — прозрачность оверлея фона (0..1)
+6) `summary_text_color` — цвет текста
+7) `summary_line_color` — цвет линий/бордеров
 
 С помощью этих полей бэк возвращает HTML в `summary-preview-html`.
 
 ## Статусы “новых параметров” (важно для фронта)
-Мы добавляли параметры затемнения/цвета текста в генератор HTML (`buildSummaryOverviewHtml.js`) для локального контроля, но **в текущем контракте pdf-settings для сохранения в БД/обмена с ЛК** эти поля пока **не заведены** (в `editor_schema` сейчас только background/logo/chart color).
+Новые параметры затемнения/цвета текста заведены в контракт и идут через `pdf-settings` (см. `editor_schema` и OpenAPI): они применяются и для превью, и для генерации PDF.
 
 Поэтому фронт сейчас НЕ должен ожидать, что ЛК агент может отправить:
 - затемнение фона в формате `0..100`
@@ -82,5 +86,15 @@
 ## Быстрый чек-лист для команды фронта
 1) Для превью: используйте `GET /api/pfp/pdf-settings/summary-preview-html` и `iframe.srcdoc`.
 2) Для карточек целей (если фронт рисует сам): берите `goal_card_assets.cards[].public_url` по `goal_type`.
-3) Для фона/лого/акцента: сейчас поддерживаются поля `summary_background_url`, `summary_logo_url`, `summary_chart_color`.
+3) Для фона/лого/стиля: поддерживаются поля `summary_background_url`, `summary_background_darkness_percent`, `summary_background_overlay_opacity`, `summary_logo_url`, `summary_chart_color`, `summary_text_color`, `summary_line_color`.
 
+## Применение к страницам целей (FIN_RESERVE/LIFE/INVESTMENT/OTHER)
+Для отдельных HTML-шаблонов страниц целей (печать/PDF на фронте) сейчас используются те же поля `pdf-settings`:
+1) `summary_background_url` — фон страницы.
+2) `summary_logo_url` — логотип.
+3) `summary_chart_color` — цвет акцента/графиков.
+
+Поэтому в шаблонах страниц целей (FIN_RESERVE/LIFE/INVESTMENT/OTHER) и в сводной управляются:
+- `summary_background_url` + затемнение/overlay (`summary_background_darkness_percent` / `summary_background_overlay_opacity`)
+- цвет текста (`summary_text_color`)
+- цвет линий/бордеров (`summary_line_color`)
