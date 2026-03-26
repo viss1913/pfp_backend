@@ -14,7 +14,7 @@ const calculationRequestSchema = Joi.object({
             .description('Срок достижения цели в месяцах. Для PENSION можно не указывать (будет рассчитан автоматически до выхода на пенсию)'),
         desired_monthly_income: Joi.number().min(0).optional()
             .description('Желаемый ежемесячный доход (для PASSIVE_INCOME)'),
-        risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required()
+        risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').optional()
             .description('Риск-профиль: CONSERVATIVE, BALANCED или AGGRESSIVE'),
         initial_capital: Joi.number().min(0).optional().default(0)
             .description('Начальный капитал (опционально, по умолчанию 0)'),

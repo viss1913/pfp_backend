@@ -118,7 +118,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '../../openapi/pfp-api-v1.2.yaml#/components/schemas/CalculationResponse'
+                $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationResponse'
 
   /my/plan/{goalId}/recalculate:
     post:
@@ -135,6 +135,13 @@ paths:
           application/json:
             schema:
               $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationGoal'
+      responses:
+        '200':
+          description: Пересчет успешен
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationResponse'
 
   /my/plan/goals:
     post:
@@ -146,6 +153,13 @@ paths:
           application/json:
             schema:
               $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationGoal'
+      responses:
+        '200':
+          description: Цель добавлена
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationResponse'
 
   /my/plan/goals/{goalId}:
     delete:
@@ -156,6 +170,16 @@ paths:
           in: path
           required: true
           schema: { type: string }
+      responses:
+        '200':
+          description: Цель удалена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
 
   # ==================== ПОРТФЕЛЬ ====================
   /my/portfolio:

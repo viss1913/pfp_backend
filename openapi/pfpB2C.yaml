@@ -12,6 +12,90 @@ servers:
 security:
   - bearerAuth: []
 
+paths:
+  /my/plan/first-run:
+    post:
+      tags: [ClientPlan]
+      summary: Create or update financial plan (first run)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculationRequest'
+      responses:
+        '200':
+          description: Calculation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResponse'
+
+  /my/plan/{goalId}/recalculate:
+    post:
+      tags: [ClientPlan]
+      summary: Recalculate one goal
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculationGoal'
+      responses:
+        '200':
+          description: Recalculation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResponse'
+
+  /my/plan/goals:
+    post:
+      tags: [ClientPlan]
+      summary: Add a new goal to plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalculationGoal'
+      responses:
+        '200':
+          description: Goal added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalculationResponse'
+
+  /my/plan/goals/{goalId}:
+    delete:
+      tags: [ClientPlan]
+      summary: Delete goal from plan
+      parameters:
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Goal deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
 components:
   securitySchemes:
     bearerAuth:
@@ -95,7 +179,6 @@ components:
       required:
         - goal_type_id
         - name
-        - risk_profile
       properties:
         goal_type_id:
           type: integer
