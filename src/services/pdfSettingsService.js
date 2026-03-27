@@ -30,6 +30,93 @@ const REPO_ROOT = path.join(__dirname, '..', '..');
  * Описание шаблона для ЛК агента: какие поля редактируемы и как к ним ходить.
  */
 function buildEditorSchema() {
+    const sharedGoalPageBrandingFields = [
+        {
+            id: 'summary_background_url',
+            type: 'image',
+            label: 'Фон страницы',
+            hint: 'Вертикальное изображение под A4. Поверх - тёмный градиент для читаемости.',
+            patch_key: 'summary_background_url',
+            upload: {
+                method: 'POST',
+                path: '/api/pfp/pdf-settings/summary-background',
+                form_field: 'image',
+                max_size_mb: 8,
+                accept_mime: ['image/jpeg', 'image/png', 'image/webp'],
+            },
+            read_url: {
+                method: 'GET',
+                path: '/api/pfp/pdf-settings/summary-background-image',
+                description:
+                    'Прямой URL или подписанный GET (R2_SIGN_COVER_URL=1), как у обложки.',
+            },
+            reset: { patch_key: 'summary_background_url', value: '' },
+        },
+        {
+            id: 'summary_logo_url',
+            type: 'image',
+            label: 'Логотип',
+            hint: 'Общий файл для сводной и страниц целей (пока shared-режим брендинга).',
+            patch_key: 'summary_logo_url',
+            upload: {
+                method: 'POST',
+                path: '/api/pfp/pdf-settings/summary-logo',
+                form_field: 'image',
+                max_size_mb: 8,
+                accept_mime: ['image/jpeg', 'image/png', 'image/webp'],
+            },
+            read_url: {
+                method: 'GET',
+                path: '/api/pfp/pdf-settings/summary-logo-image',
+                description: 'Превью лого: прямой или signed URL.',
+            },
+            reset: { patch_key: 'summary_logo_url', value: '' },
+        },
+        {
+            id: 'summary_chart_color',
+            type: 'color',
+            label: 'Цвет графиков и акцента секций',
+            hint: 'Формат #RRGGBB. Пока один общий цвет для сводной и страниц целей.',
+            patch_key: 'summary_chart_color',
+            format: 'hex6',
+            reset: { patch_key: 'summary_chart_color', value: '' },
+        },
+        {
+            id: 'summary_background_darkness_percent',
+            type: 'text',
+            label: 'Степень затемнения фона',
+            hint: 'Число 0..100. Чем больше - тем темнее оверлей поверх картинки.',
+            patch_key: 'summary_background_darkness_percent',
+            reset: { patch_key: 'summary_background_darkness_percent', value: '' },
+        },
+        {
+            id: 'summary_background_overlay_opacity',
+            type: 'text',
+            label: 'Прозрачность оверлея фона',
+            hint: 'Число 0..1. Используется, если затемнение (percent) не задано.',
+            patch_key: 'summary_background_overlay_opacity',
+            reset: { patch_key: 'summary_background_overlay_opacity', value: '' },
+        },
+        {
+            id: 'summary_text_color',
+            type: 'color',
+            label: 'Цвет текста',
+            hint: 'Формат #RRGGBB.',
+            patch_key: 'summary_text_color',
+            format: 'hex6',
+            reset: { patch_key: 'summary_text_color', value: '' },
+        },
+        {
+            id: 'summary_line_color',
+            type: 'color',
+            label: 'Цвет линий/бордеров',
+            hint: 'Формат #RRGGBB. По умолчанию совпадает с акцентом.',
+            patch_key: 'summary_line_color',
+            format: 'hex6',
+            reset: { patch_key: 'summary_line_color', value: '' },
+        },
+    ];
+
     return {
         version: 1,
         templates: [
@@ -90,92 +177,35 @@ function buildEditorSchema() {
                 title: 'Сводная информация (страница 2)',
                 description:
                     'Брендинг: фон страницы (и затемнение/оверлей), логотип (один на сводную), цвет графиков/акцента секций, цвет текста и линий. Тексты, клиент, цели, аватар ИИ — из расчётов/стока. Геометрия — в `summary_layout`. Картинки внутри карточек целей (тип PENSION, LIFE, …) — **не настраиваются в ЛК**; для красивого превью макета в ответе API смотри корневое поле **`goal_card_assets`** (`cards[].public_url`, `goal_type`).',
-                fields: [
-                    {
-                        id: 'summary_background_url',
-                        type: 'image',
-                        label: 'Фон страницы',
-                        hint: 'Вертикальное изображение под A4. Поверх — тёмный градиент для читаемости.',
-                        patch_key: 'summary_background_url',
-                        upload: {
-                            method: 'POST',
-                            path: '/api/pfp/pdf-settings/summary-background',
-                            form_field: 'image',
-                            max_size_mb: 8,
-                            accept_mime: ['image/jpeg', 'image/png', 'image/webp'],
-                        },
-                        read_url: {
-                            method: 'GET',
-                            path: '/api/pfp/pdf-settings/summary-background-image',
-                            description:
-                                'Прямой URL или подписанный GET (R2_SIGN_COVER_URL=1), как у обложки.',
-                        },
-                        reset: { patch_key: 'summary_background_url', value: '' },
-                    },
-                    {
-                        id: 'summary_logo_url',
-                        type: 'image',
-                        label: 'Логотип',
-                        hint: 'Один файл на страницу «Сводная информация» (и далее можно переиспользовать в отчёте).',
-                        patch_key: 'summary_logo_url',
-                        upload: {
-                            method: 'POST',
-                            path: '/api/pfp/pdf-settings/summary-logo',
-                            form_field: 'image',
-                            max_size_mb: 8,
-                            accept_mime: ['image/jpeg', 'image/png', 'image/webp'],
-                        },
-                        read_url: {
-                            method: 'GET',
-                            path: '/api/pfp/pdf-settings/summary-logo-image',
-                            description: 'Превью лого: прямой или signed URL.',
-                        },
-                        reset: { patch_key: 'summary_logo_url', value: '' },
-                    },
-                    {
-                        id: 'summary_chart_color',
-                        type: 'color',
-                        label: 'Цвет графиков и акцента секций',
-                        hint: 'Формат #RRGGBB. Используется для заголовков блоков на сводной и для диаграмм, когда появятся на следующих страницах.',
-                        patch_key: 'summary_chart_color',
-                        format: 'hex6',
-                        reset: { patch_key: 'summary_chart_color', value: '' },
-                    },
-                    {
-                        id: 'summary_background_darkness_percent',
-                        type: 'text',
-                        label: 'Степень затемнения фона',
-                        hint: 'Число 0..100. Чем больше — тем темнее оверлей поверх картинки.',
-                        patch_key: 'summary_background_darkness_percent',
-                        reset: { patch_key: 'summary_background_darkness_percent', value: '' },
-                    },
-                    {
-                        id: 'summary_background_overlay_opacity',
-                        type: 'text',
-                        label: 'Прозрачность оверлея фона',
-                        hint: 'Число 0..1. Используется, если затемнение (percent) не задано.',
-                        patch_key: 'summary_background_overlay_opacity',
-                        reset: { patch_key: 'summary_background_overlay_opacity', value: '' },
-                    },
-                    {
-                        id: 'summary_text_color',
-                        type: 'color',
-                        label: 'Цвет текста',
-                        hint: 'Формат #RRGGBB.',
-                        patch_key: 'summary_text_color',
-                        format: 'hex6',
-                        reset: { patch_key: 'summary_text_color', value: '' },
-                    },
-                    {
-                        id: 'summary_line_color',
-                        type: 'color',
-                        label: 'Цвет линий/бордеров',
-                        hint: 'Формат #RRGGBB. По умолчанию совпадает с акцентом.',
-                        patch_key: 'summary_line_color',
-                        format: 'hex6',
-                        reset: { patch_key: 'summary_line_color', value: '' },
-                    },
-                ],
+                fields: sharedGoalPageBrandingFields,
+            },
+            {
+                id: 'report_fin_reserve',
+                title: 'Финансовый резерв',
+                description:
+                    'Страница FIN_RESERVE. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
+                fields: sharedGoalPageBrandingFields,
+            },
+            {
+                id: 'report_life',
+                title: 'Защита жизни',
+                description:
+                    'Страница LIFE. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
+                fields: sharedGoalPageBrandingFields,
+            },
+            {
+                id: 'report_investment',
+                title: 'Сохранить и приумножить',
+                description:
+                    'Страница INVESTMENT. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
+                fields: sharedGoalPageBrandingFields,
+            },
+            {
+                id: 'report_other',
+                title: 'Прочая цель',
+                description:
+                    'Страница OTHER. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
+                fields: sharedGoalPageBrandingFields,
             },
         ],
         endpoints: {
