@@ -58,6 +58,24 @@
 
 `GET /api/pfp/pdf-settings/summary-preview-html` возвращает HTML с учетом этих настроек.
 
+## Preview endpoint'ы в ЛК агента (без clientId)
+
+Для экрана настроек (editor) превью доступны без выбора клиента:
+
+- `GET /api/pfp/pdf-settings/summary-preview-html`
+  - превью страницы `SUMMARY` (исторический endpoint, оставлен для совместимости).
+- `GET /api/pfp/pdf-settings/pages/:pageType/preview-html`
+  - универсальный endpoint превью по типу страницы.
+  - `pageType`: `SUMMARY` | `FIN_RESERVE` | `LIFE` | `INVESTMENT` | `OTHER`.
+
+Все preview endpoint'ы:
+- используют текущие `pdf-settings` агента (фон, логотип, цвета),
+- рендерят мок-данные (без `clientId`),
+- возвращают `text/html` для `iframe/srcdoc`.
+
+Важно: боевой HTML с данными реального клиента остается отдельным:
+- `GET /api/pfp/reports/:clientId/pages/:pageType/html?inline=1`.
+
 ## Спец-правило карточки "Сохранить и преумножить"
 
 Для цели типа `INVESTMENT` в основной карточке:
