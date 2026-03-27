@@ -1,4 +1,6 @@
+const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const knex = require('../config/database');
 const {
     buildReportCoverHtml,
@@ -14,9 +16,11 @@ const {
     GLOBAL_DEFAULTS: SUMMARY_DEFAULTS,
     sanitizeSummaryChartColor,
 } = require('../reports/summary/buildSummaryOverviewHtml');
+const { buildGoalPageHtml } = require('../reports/goalPages/buildGoalPagesHtml');
 const reportService = require('./reportService');
 const previewMockPayload = require('../reports/summary/previewMockPayload.json');
 const {
+    publicUrlFromKey,
     keyFromPublicUrl,
     getSignedGetObjectUrl,
     shouldSignCoverReadUrl,
@@ -25,6 +29,56 @@ const {
 
 const TABLE = 'agent_report_pdf_settings';
 const REPO_ROOT = path.join(__dirname, '..', '..');
+const STOKK_SUMMARY_ASSETS_R2_PREFIX = 'pdf-report-summary-stock-assets';
+
+function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
+    if (ref == null || !String(ref).trim()) return '';
+    const s = String(ref).trim();
+    if (/^https?:\/\//i.test(s)) return s;
+
+    const abs = path.isAbsolute(s) ? s : path.resolve(rootDir, s);
+
+    if (inlineLocalAssets && fs.existsSync(abs)) {
+        try {
+            const ext = path.extname(abs).toLowerCase();
+            const mime =
+                ext === '.png'
+                    ? 'image/png'
+                    : ext === '.jpg' || ext === '.jpeg'
+                      ? 'image/jpeg'
+                      : ext === '.webp'
+                        ? 'image/webp'
+                        : ext === '.gif'
+                          ? 'image/gif'
+                          : 'application/octet-stream';
+            const buf = fs.readFileSync(abs);
+            return `data:${mime};base64,${buf.toString('base64')}`;
+        } catch {
+            // noop
+        }
+    }
+
+    const basename = path.basename(abs);
+    const r2Key = `${STOKK_SUMMARY_ASSETS_R2_PREFIX}/${basename}`;
+    const pub = publicUrlFromKey(r2Key);
+    if (pub) return pub;
+
+    if (fs.existsSync(abs)) return pathToFileURL(abs).href;
+    return '';
+}
+
+function normalizePreviewPageType(pageType) {
+    const upper = String(pageType || '')
+        .trim()
+        .toUpperCase();
+    if (!upper) return '';
+    if (upper === 'SUMMARY') return 'SUMMARY';
+    if (upper === 'FIN_RESERVE') return 'FIN_RESERVE';
+    if (upper === 'LIFE') return 'LIFE';
+    if (upper === 'INVESTMENT') return 'INVESTMENT';
+    if (upper === 'OTHER') return 'OTHER';
+    return '';
+}
 
 /**
  * Описание шаблона для ЛК агента: какие поля редактируемы и как к ним ходить.
@@ -216,6 +270,12 @@ function buildEditorSchema() {
                 path: '/api/pfp/pdf-settings/summary-preview-html',
                 description:
                     'Полная HTML-страница сводной (мок-данные клиента/целей + твои фон, лого, цвет). Для iframe в ЛК или новой вкладке с Bearer.',
+            },
+            preview_page_html: {
+                method: 'GET',
+                path: '/api/pfp/pdf-settings/pages/:pageType/preview-html',
+                description:
+                    'Полная HTML-страница превью по типу: SUMMARY|FIN_RESERVE|LIFE|INVESTMENT|OTHER (мок-данные + текущие настройки).',
             },
         },
         defaults: {
@@ -432,6 +492,52 @@ class PdfSettingsService {
             summaryLineColor: s.summary_line_color,
             /** ЛК открывает HTML в браузере — file:// с сервера недоступен, вшиваем ассеты */
             inlineLocalAssets: true,
+        });
+    }
+
+    /**
+     * Превью конкретной страницы (без clientId) на мок-данных, но с настройками агента.
+     * pageType: SUMMARY | FIN_RESERVE | LIFE | INVESTMENT | OTHER
+     */
+    async buildPagePreviewHtml(agentId, projectId, pageTypeRaw) {
+        await this.assertAgentInProject(agentId, projectId);
+        const pageType = normalizePreviewPageType(pageTypeRaw);
+        if (!pageType) {
+            const err = new Error('Unknown pageType');
+            err.statusCode = 400;
+            throw err;
+        }
+        if (pageType === 'SUMMARY') {
+            return this.buildSummaryPreviewHtml(agentId, projectId);
+        }
+
+        const s = await this.getByAgentId(agentId, projectId);
+        const goal = (previewMockPayload?.goals || []).find((g) => g?.goal_type === pageType);
+        if (!goal) {
+            const err = new Error(`Preview goal for pageType ${pageType} not found`);
+            err.statusCode = 404;
+            throw err;
+        }
+
+        const backgroundSrc = resolveAssetSrc(s.summary_background_url, REPO_ROOT, true);
+        const logoSrc = resolveAssetSrc(s.summary_logo_url, REPO_ROOT, true);
+        const aiAvatarSrc = resolveAssetSrc('assets/reports/summary/stock-ai-avatar.png', REPO_ROOT, true);
+
+        return buildGoalPageHtml({
+            goalType: pageType,
+            goal,
+            clientName: 'Алексей Петров',
+            options: {
+                inlineLocalAssets: true,
+                accentColor: s.summary_chart_color,
+                textColor: s.summary_text_color,
+                lineColor: s.summary_line_color,
+                backgroundSrc: backgroundSrc || '',
+                logoSrc: logoSrc || undefined,
+                aiAvatarSrc: aiAvatarSrc || undefined,
+                backgroundOverlayOpacity: s.summary_background_overlay_opacity,
+                backgroundDarknessPercent: s.summary_background_darkness_percent,
+            },
         });
     }
 

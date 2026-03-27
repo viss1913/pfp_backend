@@ -31,6 +31,7 @@ router.get('/summary-background-image', (req, res) =>
 );
 router.get('/summary-logo-image', (req, res) => pdfSettingsController.getSummaryLogoImageAccess(req, res));
 router.get('/summary-preview-html', (req, res) => pdfSettingsController.getSummaryPreviewHtml(req, res));
+router.get('/pages/:pageType/preview-html', (req, res) => pdfSettingsController.getPagePreviewHtml(req, res));
 router.get('/', (req, res) => pdfSettingsController.getMy(req, res));
 router.patch('/', (req, res) => pdfSettingsController.patchMy(req, res));
 router.post(

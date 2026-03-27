@@ -324,6 +324,26 @@ class PdfSettingsController {
             res.status(code).json({ error: e.message || 'Failed to build summary preview' });
         }
     }
+
+    /**
+     * GET /pfp/pdf-settings/pages/:pageType/preview-html — HTML превью страницы по типу.
+     * pageType: SUMMARY | FIN_RESERVE | LIFE | INVESTMENT | OTHER
+     */
+    async getPagePreviewHtml(req, res) {
+        try {
+            const agentId = req.user.agentId;
+            const projectId = req.projectId ?? req.user.projectId ?? null;
+            const pageType = req.params.pageType;
+            const html = await pdfSettingsService.buildPagePreviewHtml(agentId, projectId, pageType);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Cache-Control', 'private, no-store');
+            res.send(html);
+        } catch (e) {
+            const code = e.statusCode || 500;
+            if (code === 500) console.error('[PdfSettings] getPagePreviewHtml:', e);
+            res.status(code).json({ error: e.message || 'Failed to build page preview' });
+        }
+    }
 }
 
 module.exports = new PdfSettingsController();
