@@ -1,6 +1,14 @@
 const TaxService = require('../TaxService');
 const settingsService = require('../../services/settingsService');
 
+/** @param {Date} d */
+function formatScheduleDate(d) {
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${mo}-${day}`;
+}
+
 class BaseCalculator {
     /**
      * @param {Object} goal - Goal data
@@ -121,7 +129,8 @@ class BaseCalculator {
             indexationRate,
             pdsProductId,
             avgMonthlyIncome,
-            startDate = new Date()
+            startDate = new Date(),
+            collectMonthlySchedule = false
         } = params;
 
         let currentBalance = initialCapital;
@@ -141,6 +150,7 @@ class BaseCalculator {
         const yearlyContributions = {};
         const yearly_breakdown_log = [];
         const pdsEventsLog = {}; // Track {year: {cofin, refund}}
+        const monthlySchedule = [];
 
         if (initialCapital > 0) {
             yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + initialCapital;
@@ -168,6 +178,9 @@ class BaseCalculator {
                 }
             }
 
+            let monthCofin = 0;
+            let monthRefund = 0;
+
             // 3. ПДС события
             if (pdsProductId) {
                 // Создаем временный контекст для handlePdsEvents
@@ -177,6 +190,8 @@ class BaseCalculator {
                     usedTaxBasePerYear: localUsedTaxBase
                 };
                 const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, tempContext);
+                monthCofin = cofin;
+                monthRefund = refund;
                 currentBalance += (cofin + refund);
                 totalCofinancing += cofin;
                 totalTaxRefund += refund;
@@ -186,6 +201,16 @@ class BaseCalculator {
                 if (!pdsEventsLog[year]) pdsEventsLog[year] = { cofin: 0, refund: 0 };
                 pdsEventsLog[year].cofin += cofin;
                 pdsEventsLog[year].refund += refund;
+            }
+
+            if (collectMonthlySchedule) {
+                monthlySchedule.push({
+                    date: formatScheduleDate(currentDate),
+                    replenishment: Math.round(indexedReplenishment * 100) / 100,
+                    total_capital: Math.round(currentBalance * 100) / 100,
+                    tax_deduction: Math.round(monthRefund * 100) / 100,
+                    cofinancing: Math.round(monthCofin * 100) / 100
+                });
             }
 
             // 4. Log for breakdown
@@ -217,7 +242,8 @@ class BaseCalculator {
             // Возвращаем обновленные лимиты
             usedCofinancingPerYear: localUsedCofinancing,
             usedTaxBasePerYear: localUsedTaxBase,
-            yearlyBreakdown: yearly_breakdown_log // Return the log
+            yearlyBreakdown: yearly_breakdown_log, // Return the log
+            monthlySchedule
         };
     }
 
@@ -234,7 +260,8 @@ class BaseCalculator {
         const check = async (mReplen) => {
             const res = await this.runSimulation({
                 ...simParams,
-                monthlyReplenishment: mReplen
+                monthlyReplenishment: mReplen,
+                collectMonthlySchedule: false
             }, context);
             return res.totalCapital;
         };

@@ -1,7 +1,9 @@
-# Cursor: игнорим всё, кроме project skills (чтобы шарить с командой)
+# Cursor: игнорим всё, кроме project skills и agents (чтобы шарить с командой)
 .cursor/*
 !.cursor/skills/
 !.cursor/skills/**
+!.cursor/agents/
+!.cursor/agents/**
 node_modules/
 .env
 .env.local

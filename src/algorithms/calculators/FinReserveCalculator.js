@@ -2,6 +2,14 @@ const BaseCalculator = require('./BaseCalculator');
 const productRepository = require('../../repositories/productRepository');
 const portfolioRepository = require('../../repositories/portfolioRepository');
 
+/** @param {Date} d */
+function formatScheduleDate(d) {
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${mo}-${day}`;
+}
+
 class FinReserveCalculator extends BaseCalculator {
     async calculate(goal, context) {
         const { settings, repositories } = context;
@@ -40,6 +48,11 @@ class FinReserveCalculator extends BaseCalculator {
         let currentBalance = initialCapital;
         let totalClientInvestment = initialCapital;
 
+        const scheduleStart = goal.start_date ? new Date(goal.start_date) : new Date();
+        let currentDate = new Date(scheduleStart);
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        const monthly_schedule = [];
+
         // 3. Simulation Loop (12 months)
         for (let m = 1; m <= termMonths; m++) {
             // Growth
@@ -50,6 +63,15 @@ class FinReserveCalculator extends BaseCalculator {
             const indexedReplenishment = monthlyReplenishment * Math.pow(1 + indexationRate, m - 1);
             currentBalance += indexedReplenishment;
             totalClientInvestment += indexedReplenishment;
+
+            monthly_schedule.push({
+                date: formatScheduleDate(currentDate),
+                replenishment: Math.round(indexedReplenishment * 100) / 100,
+                total_capital: Math.round(currentBalance * 100) / 100,
+                tax_deduction: 0,
+                cofinancing: 0
+            });
+            currentDate.setMonth(currentDate.getMonth() + 1);
         }
 
         // Ensure instruments exist for Consolidated Portfolio
@@ -107,7 +129,8 @@ class FinReserveCalculator extends BaseCalculator {
                 portfolio_name: portfolio.name,
                 initial_instruments: initial_capital_instruments,
                 monthly_instruments: monthly_savings_instruments,
-                yearly_breakdown: [] // FinReserve uses simple loop, no breakdown yet
+                yearly_breakdown: [], // FinReserve uses simple loop, no breakdown yet
+                monthly_schedule
             }
         };
     }

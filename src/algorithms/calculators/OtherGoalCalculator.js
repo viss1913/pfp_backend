@@ -156,7 +156,8 @@ class OtherGoalCalculator extends BaseCalculator {
                 avgMonthlyIncome: client.avg_monthly_income,
                 startDate: new Date(),
                 inflows: allInflowsForSimulation,
-                totalTargetAmount: targetAmountFuture // Just for reference
+                totalTargetAmount: targetAmountFuture, // Just for reference
+                collectMonthlySchedule: true
             }, context);
         }
         // REVERSE CALCULATION (Backward)
@@ -183,7 +184,8 @@ class OtherGoalCalculator extends BaseCalculator {
                 avgMonthlyIncome: client.avg_monthly_income,
                 startDate: new Date(),
                 inflows: allInflowsForSimulation,
-                totalTargetAmount: targetAmountFuture
+                totalTargetAmount: targetAmountFuture,
+                collectMonthlySchedule: true
             }, context);
         }
 
@@ -228,7 +230,8 @@ class OtherGoalCalculator extends BaseCalculator {
                 portfolio_name: portfolio.name,
                 initial_instruments: initial_instruments,
                 monthly_instruments: monthly_instruments,
-                yearly_breakdown: simResult.yearlyBreakdown
+                yearly_breakdown: simResult.yearlyBreakdown,
+                monthly_schedule: simResult.monthlySchedule || []
             }
         };
     }

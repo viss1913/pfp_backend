@@ -1,5 +1,46 @@
 const BaseCalculator = require('./BaseCalculator');
 
+/** @param {Date} d */
+function formatScheduleDate(d) {
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${mo}-${day}`;
+}
+
+/**
+ * В графике: ежемесячно 0 по пополнению, раз в год — годовая премия (или единый взнос в 1-й месяц).
+ */
+function buildLifeMonthlySchedule({
+    termMonths,
+    startDate,
+    expectedCashValue,
+    isSinglePremium,
+    singlePremiumAmount,
+    annualPremiumAmount
+}) {
+    const schedule = [];
+    let currentDate = new Date(startDate);
+    currentDate.setMonth(currentDate.getMonth() + 1);
+    for (let m = 1; m <= termMonths; m++) {
+        let replenishment = 0;
+        if (isSinglePremium) {
+            if (m === 1) replenishment = singlePremiumAmount;
+        } else if (m % 12 === 0 || (m === termMonths && termMonths % 12 !== 0)) {
+            replenishment = annualPremiumAmount;
+        }
+        schedule.push({
+            date: formatScheduleDate(currentDate),
+            replenishment: Math.round(replenishment * 100) / 100,
+            total_capital: Math.round(expectedCashValue * 100) / 100,
+            tax_deduction: 0,
+            cofinancing: 0
+        });
+        currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    return schedule;
+}
+
 class LifeInsuranceCalculator extends BaseCalculator {
     async calculate(goal, context) {
         const { client, services, assets, settings } = context;
@@ -168,6 +209,15 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 { name: 'НСЖ Династия', share: 100, yield: 5, amount: Math.round(fallbackMonthlyReplenishment * 100) / 100, payment_frequency: 'monthly' }
             ];
         }
+
+        result.details.monthly_schedule = buildLifeMonthlySchedule({
+            termMonths,
+            startDate: goal.start_date ? new Date(goal.start_date) : new Date(),
+            expectedCashValue: result.summary.expected_cash_value,
+            isSinglePremium,
+            singlePremiumAmount: Math.round(totalPremium * 100) / 100,
+            annualPremiumAmount: result.details.annual_premium
+        });
 
         if (apiError && !isFallback) {
             result.error = apiError.originalError ? apiError.originalError.message : apiError.message;

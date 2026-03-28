@@ -73,7 +73,8 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 indexationRate: context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100),
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: goal.avg_monthly_income || (client && client.avg_monthly_income) || 0,
-                pdsProductId
+                pdsProductId,
+                collectMonthlySchedule: true
             }, context);
         } else {
             // Обратный расчет (подбор пополнения)
@@ -95,7 +96,8 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 indexationRate: context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100),
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: goal.avg_monthly_income || (client && client.avg_monthly_income) || 0,
-                pdsProductId
+                pdsProductId,
+                collectMonthlySchedule: true
             }, context);
         }
 
@@ -164,7 +166,8 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 portfolio_name: portfolio.name,
                 initial_instruments: initial_instruments,
                 monthly_instruments: monthly_instruments,
-                yearly_breakdown: simResult.yearlyBreakdown
+                yearly_breakdown: simResult.yearlyBreakdown,
+                monthly_schedule: simResult.monthlySchedule || []
             }
         };
     }

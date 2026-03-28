@@ -4,6 +4,19 @@ const calculationService = require('./calculationService');
 const { buildSummaryPdfLayoutModel } = require('../reports/summary/buildSummaryPdfLayoutModel');
 
 class ReportService {
+    calculateAge(birthDate) {
+        if (!birthDate) return null;
+        const dt = new Date(birthDate);
+        if (Number.isNaN(dt.getTime())) return null;
+        const now = new Date();
+        let age = now.getFullYear() - dt.getFullYear();
+        const m = now.getMonth() - dt.getMonth();
+        if (m < 0 || (m === 0 && now.getDate() < dt.getDate())) {
+            age -= 1;
+        }
+        return age >= 0 ? age : null;
+    }
+
     async getClientReportData(clientId, projectId = null) {
         // 1. Fetch Client Data
         const client = await clientService.getFullClient(clientId, projectId);
@@ -148,10 +161,51 @@ class ReportService {
             current_situation: currentStats,
             overall_plan: overallPlan,
             goals_detailed: goalsReport,
+            goal_type_parameter_catalog: this._buildGoalTypeParameterCatalog(goalsReport),
             ai_executive_summary: aiSummary,
             /** Сводный PDF: целиком блок для фронта (продолжение целей + пироги), без фиксированной A4-обрезки */
             pdf_summary_layout: buildSummaryPdfLayoutModel(pdfSummaryPayload),
         };
+    }
+
+    _buildGoalTypeParameterCatalog(goals) {
+        const byType = {};
+        const sharedTemplateSettings = [
+            'summary_background_url',
+            'summary_background_darkness_percent',
+            'summary_logo_url',
+            'summary_chart_color',
+            'summary_text_color',
+            'summary_line_color',
+        ];
+
+        for (const goal of Array.isArray(goals) ? goals : []) {
+            const goalType = String(goal?.goal_type || 'OTHER').toUpperCase();
+            if (!byType[goalType]) {
+                byType[goalType] = {
+                    summary_fields: new Set(),
+                    details_fields: new Set(),
+                    template_settings: [...sharedTemplateSettings],
+                };
+            }
+
+            const summary = goal?.summary && typeof goal.summary === 'object' ? goal.summary : {};
+            const details = goal?.details && typeof goal.details === 'object' ? goal.details : {};
+
+            Object.keys(summary).forEach((k) => byType[goalType].summary_fields.add(k));
+            Object.keys(details).forEach((k) => byType[goalType].details_fields.add(k));
+        }
+
+        return Object.fromEntries(
+            Object.entries(byType).map(([goalType, value]) => [
+                goalType,
+                {
+                    summary_fields: [...value.summary_fields].sort(),
+                    details_fields: [...value.details_fields].sort(),
+                    template_settings: value.template_settings,
+                },
+            ])
+        );
     }
 
     async _generateExecutiveSummary(client, plan, goals) {

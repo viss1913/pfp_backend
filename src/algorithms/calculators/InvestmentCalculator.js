@@ -47,7 +47,8 @@ class InvestmentCalculator extends BaseCalculator {
             indexationRate: replenishmentIndexationDecimal,
             pdsProductId,
             avgMonthlyIncome,
-            startDate
+            startDate,
+            collectMonthlySchedule: true
         }, context);
 
         // ВАЖНО: Обновляем глобальные лимиты ПДС
@@ -99,7 +100,8 @@ class InvestmentCalculator extends BaseCalculator {
                 portfolio_name: portfolio.name,
                 initial_instruments: initial_instruments,
                 monthly_instruments: monthly_instruments,
-                yearly_breakdown: simResult.yearlyBreakdown
+                yearly_breakdown: simResult.yearlyBreakdown,
+                monthly_schedule: simResult.monthlySchedule || []
             }
         };
     }

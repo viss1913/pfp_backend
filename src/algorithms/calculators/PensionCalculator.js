@@ -245,7 +245,8 @@ class PensionCalculator extends BaseCalculator {
                 indexationRate: infl_month_decimal,
                 totalTargetAmount: desiredPensionMonthlyFuture, // Passed for logging/check, not used in direct flow
                 avgMonthlyIncome: clientWithIncome.avg_monthly_income,
-                pdsProductId: pdsProductId
+                pdsProductId: pdsProductId,
+                collectMonthlySchedule: true
             }, context);
 
         } else {
@@ -272,7 +273,8 @@ class PensionCalculator extends BaseCalculator {
                 indexationRate: infl_month_decimal,
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: clientWithIncome.avg_monthly_income,
-                pdsProductId: pdsProductId
+                pdsProductId: pdsProductId,
+                collectMonthlySchedule: true
             }, context);
         }
 
@@ -370,7 +372,8 @@ class PensionCalculator extends BaseCalculator {
                 },
                 initial_instruments: initial_instruments,
                 monthly_instruments: monthly_instruments,
-                yearly_breakdown: simResult.yearlyBreakdown
+                yearly_breakdown: simResult.yearlyBreakdown,
+                monthly_schedule: simResult.monthlySchedule || []
             }
         };
     }

@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
@@ -233,16 +234,42 @@ function gradientsToCssBackgroundImage(overlayLayers) {
         .join(',\n        ');
 }
 
+function mimeTypeForLocalFile(absPath) {
+    const ext = path.extname(absPath).toLowerCase();
+    const map = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.ttf': 'font/ttf',
+    };
+    return map[ext] || 'application/octet-stream';
+}
+
+function localFileToDataUrl(absPath) {
+    const buf = fs.readFileSync(absPath);
+    const mime = mimeTypeForLocalFile(absPath);
+    return `data:${mime};base64,${buf.toString('base64')}`;
+}
+
 /**
  * URL для <img src>: http(s) как есть, иначе путь на диске → file://
  */
-function resolveCoverImageSrc(coverRef, rootDir) {
+function resolveCoverImageSrc(coverRef, rootDir, inlineLocalAssets = false) {
     const fallback = path.join(rootDir, GLOBAL_DEFAULTS.coverBackgroundPath);
     const ref = (coverRef && String(coverRef).trim()) || fallback;
     if (/^https?:\/\//i.test(ref)) {
         return ref;
     }
     const abs = path.isAbsolute(ref) ? ref : path.resolve(rootDir, ref);
+    if (inlineLocalAssets && fs.existsSync(abs)) {
+        try {
+            return localFileToDataUrl(abs);
+        } catch {
+            // fallthrough to file://
+        }
+    }
     return pathToFileURL(abs).href;
 }
 
@@ -258,6 +285,7 @@ function resolveCoverImageSrc(coverRef, rootDir) {
  */
 function buildReportCoverHtml(options = {}) {
     const root = path.join(__dirname, '../../..');
+    const inlineLocalAssets = Boolean(options.inlineLocalAssets);
     const opts = {
         coverTitle: options.coverTitle ?? GLOBAL_DEFAULTS.coverTitle,
         titleBandColor: sanitizeTitleBandColor(options.titleBandColor ?? GLOBAL_DEFAULTS.titleBandColor),
@@ -266,8 +294,12 @@ function buildReportCoverHtml(options = {}) {
         fontPath: options.fontPath || path.join(root, 'assets/fonts/Roboto-Regular.ttf'),
     };
 
-    const coverSrc = resolveCoverImageSrc(opts.coverBackgroundUrl, root);
-    const fontUrl = pathToFileURL(path.resolve(opts.fontPath)).href;
+    const coverSrc = resolveCoverImageSrc(opts.coverBackgroundUrl, root, inlineLocalAssets);
+    const fontAbs = path.resolve(opts.fontPath);
+    const fontUrl =
+        inlineLocalAssets && fs.existsSync(fontAbs)
+            ? localFileToDataUrl(fontAbs)
+            : pathToFileURL(fontAbs).href;
 
     const title = escapeHtml(opts.coverTitle);
     const dateLine = escapeHtml(opts.dateLine);
