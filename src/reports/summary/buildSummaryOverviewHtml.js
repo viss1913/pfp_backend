@@ -618,7 +618,8 @@ base-uri 'none';
       <img class="page__bg-img" src="${bgSrc}" alt="" />
       <div class="page__bg-overlay"></div>
     </div>`
-        : `<div class="page__bg page__bg--fallback" aria-hidden="true"></div>`;
+        : `<div class="page__bg page__bg--fallback" aria-hidden="true"></div>
+    <div class="page__bg-overlay" aria-hidden="true"></div>`;
 
     return `<!DOCTYPE html>
 <html lang="ru">
@@ -675,6 +676,8 @@ base-uri 'none';
     .page__bg-overlay {
       position: absolute;
       inset: 0;
+      z-index: 0;
+      pointer-events: none;
       background: linear-gradient(
         135deg,
         rgba(15, 23, 42, ${overlayOpacity}) 0%,

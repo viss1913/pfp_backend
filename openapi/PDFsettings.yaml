@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: PDF report settings (обложка и сводная страница)
-  version: 1.2.1
+  version: 1.2.2
   description: |
     **Единственная OpenAPI-спека** для настроек PDF-отчёта агента: обложка, сводная страница, загрузки в R2, превью HTML.
     Настройки PDF-отчёта на **агента**: обложка (фон, плашка) и страница **«Сводная информация»** (лого, акцентный цвет).
@@ -91,6 +91,32 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GoalCardAssetItem'
+
+    PdfSettingsImageReadUrl:
+      type: object
+      description: |
+        Ответ GET `cover-image`, `summary-background-image`, `summary-logo-image`.
+        Если файл не загружен (`*_url` в настройках пустой) — **200** с `url: null`, `access: none` (не 404), чтобы ЛК не получал «красные» запросы.
+      required:
+        - url
+        - access
+        - expires_in
+        - expires_at
+      properties:
+        url:
+          type: string
+          nullable: true
+          description: Прямой или signed URL; `null`, если изображение не задано.
+        access:
+          type: string
+          enum: [direct, signed, none]
+        expires_in:
+          type: integer
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
 
     PdfCoverSettings:
       type: object
@@ -205,7 +231,9 @@ components:
               type: object
               description: |
                 Схема для ЛК: шаблоны, поля, типы (image/text/color/readonly), пути API и дефолты.
-                Фронт может построить экран настроек без хардкода полей.
+                У каждого элемента `templates[]` при необходимости: **`preview_page_type`** (`SUMMARY` | `FIN_RESERVE` | … или `null` для обложки)
+                и **`preview_html`** (`method`, `path`, `description`) — куда ходить за полным HTML-превью вкладки (мок + настройки агента).
+                Фронт может построить экран настроек без хардкода полей и путей превью.
         - $ref: '#/components/schemas/PdfCoverSettings'
 
     PdfCoverSettingsPatch:
@@ -399,7 +427,8 @@ paths:
       operationId: getPdfCoverImageUrl
       summary: URL фона обложки для превью (прямой или signed R2)
       description: |
-        Ссылка для `<img src>` в ЛК. Обычно совпадает с `cover_background_url` (`access: direct`).
+        JSON для ЛК: поле `url` подставить в `<img src>`, если не `null`.
+        Если фон не загружен — **200** с `url: null`, `access: none` (раньше был 404).
         При `R2_SIGN_COVER_URL=1` и распознанном префиксе `R2_PUBLIC_*` — временная подпись (`access: signed`, `expires_in`, `expires_at`).
       tags:
         - PDF settings
@@ -413,29 +442,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required:
-                  - url
-                  - access
-                properties:
-                  url:
-                    type: string
-                  access:
-                    type: string
-                    enum: [direct, signed]
-                  expires_in:
-                    type: integer
-                    nullable: true
-                  expires_at:
-                    type: string
-                    format: date-time
-                    nullable: true
+                $ref: '#/components/schemas/PdfSettingsImageReadUrl'
         '401':
           description: Нет токена
         '403':
           description: Нет agent_id
         '404':
-          description: Фон не задан или агент не найден
+          description: Агент не найден в проекте
 
   /pfp/pdf-settings/summary-background:
     post:
@@ -510,6 +523,8 @@ paths:
     get:
       operationId: getPdfSummaryBackgroundImageUrl
       summary: URL фона сводной для превью (direct или signed)
+      description: |
+        Если фон не задан — HTTP 200, поля url null и access none (не 404).
       tags:
         - PDF settings
       security:
@@ -522,20 +537,20 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [url, access]
-                properties:
-                  url: { type: string }
-                  access: { type: string, enum: [direct, signed] }
-                  expires_in: { type: integer, nullable: true }
-                  expires_at: { type: string, format: date-time, nullable: true }
+                $ref: '#/components/schemas/PdfSettingsImageReadUrl'
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет agent_id
         '404':
-          description: Фон сводной не задан
+          description: Агент не найден в проекте
 
   /pfp/pdf-settings/summary-logo-image:
     get:
       operationId: getPdfSummaryLogoImageUrl
       summary: URL логотипа сводной для превью (direct или signed)
+      description: |
+        Если лого не задано — HTTP 200, url null, access none (не 404).
       tags:
         - PDF settings
       security:
@@ -548,15 +563,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                required: [url, access]
-                properties:
-                  url: { type: string }
-                  access: { type: string, enum: [direct, signed] }
-                  expires_in: { type: integer, nullable: true }
-                  expires_at: { type: string, format: date-time, nullable: true }
+                $ref: '#/components/schemas/PdfSettingsImageReadUrl'
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет agent_id
         '404':
-          description: Логотип не задан
+          description: Агент не найден в проекте
 
   /pfp/pdf-settings/summary-preview-html:
     get:
@@ -585,3 +598,47 @@ paths:
           description: Нет agent_id
         '404':
           description: Агент не найден в проекте
+
+  /pfp/pdf-settings/pages/{pageType}/preview-html:
+    get:
+      operationId: getPdfPagePreviewHtml
+      summary: HTML-превью любой страницы отчёта (мок + настройки агента)
+      description: |
+        Возвращает **полный HTML** (`text/html`) одной страницы A4.
+
+        - **`SUMMARY`** — то же, что `GET /pfp/pdf-settings/summary-preview-html` (мок из `previewMockPayload.json`).
+        - **`FIN_RESERVE`**, **`LIFE`**, **`INVESTMENT`**, **`OTHER`** — страница цели на мок-цели из `goals[]` того же файла (`goal_type` должен совпадать), плюс текущие `summary_*` агента (фон, лого, цвета).
+
+        ЛК с `<iframe src="…" />` не передаёт Bearer — см. замечание у `summary-preview-html`.
+      tags:
+        - PDF settings
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ProjectKeyHeader'
+        - name: pageType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - SUMMARY
+              - FIN_RESERVE
+              - LIFE
+              - INVESTMENT
+              - OTHER
+      responses:
+        '200':
+          description: HTML-документ
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Неизвестный pageType
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет agent_id
+        '404':
+          description: Агент не найден в проекте или в моке нет цели для данного pageType

@@ -31,6 +31,24 @@ const TABLE = 'agent_report_pdf_settings';
 const REPO_ROOT = path.join(__dirname, '..', '..');
 const STOKK_SUMMARY_ASSETS_R2_PREFIX = 'pdf-report-summary-stock-assets';
 
+/** Ответ read_url-эндпоинтов, когда в БД нет загруженного файла (ЛК не должен трактовать как сетевую ошибку). */
+const EMPTY_IMAGE_READ_RESULT = {
+    url: null,
+    access: 'none',
+    expires_in: null,
+    expires_at: null,
+};
+
+function previewHtmlEndpointForPageType(pageType) {
+    if (!pageType) return null;
+    return {
+        method: 'GET',
+        path: `/api/pfp/pdf-settings/pages/${pageType}/preview-html`,
+        description:
+            'Полный HTML превью страницы (мок + настройки агента). Authorization: Bearer; для iframe — fetch и srcdoc/blob.',
+    };
+}
+
 function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
     if (ref == null || !String(ref).trim()) return '';
     const s = String(ref).trim();
@@ -102,7 +120,7 @@ function buildEditorSchema() {
                 method: 'GET',
                 path: '/api/pfp/pdf-settings/summary-background-image',
                 description:
-                    'Прямой URL или подписанный GET (R2_SIGN_COVER_URL=1), как у обложки.',
+                    'JSON: url + access. Если фон не загружен — 200 и url:null, access:none (не 404). Иначе прямой или signed (R2_SIGN_COVER_URL=1).',
             },
             reset: { patch_key: 'summary_background_url', value: '' },
         },
@@ -122,7 +140,8 @@ function buildEditorSchema() {
             read_url: {
                 method: 'GET',
                 path: '/api/pfp/pdf-settings/summary-logo-image',
-                description: 'Превью лого: прямой или signed URL.',
+                description:
+                    'JSON: url + access. Если лого не загружено — 200, url:null, access:none. Иначе прямой или signed.',
             },
             reset: { patch_key: 'summary_logo_url', value: '' },
         },
@@ -177,8 +196,10 @@ function buildEditorSchema() {
             {
                 id: 'report_cover',
                 title: 'Обложка PDF-отчёта',
+                preview_page_type: null,
+                preview_html: null,
                 description:
-                    'Первая страница: фон, заголовок на плашке, цвет плашки. Дата ставится при генерации PDF. Полная геометрия, градиенты, типографика и resolved-цвета — в корневом поле ответа `cover_layout` (синхронно с HTML/PDF).',
+                    'Первая страница: фон, заголовок на плашке, цвет плашки. Дата ставится при генерации PDF. Полная геометрия, градиенты, типографика и resolved-цвета — в корневом поле ответа `cover_layout` (синхронно с HTML/PDF). Отдельного HTML-превью обложки нет — ориентир `cover_layout` + сток из `cover_layout.background.fallback_repo_relative_path`.',
                 fields: [
                     {
                         id: 'cover_background_url',
@@ -197,7 +218,7 @@ function buildEditorSchema() {
                             method: 'GET',
                             path: '/api/pfp/pdf-settings/cover-image',
                             description:
-                                'Прямой URL или подписанный GET к R2 (если R2_SIGN_COVER_URL=1). Для превью в ЛК.',
+                                'JSON: url + access. Если фон не загружен — 200, url:null, access:none. Иначе прямой или signed (R2_SIGN_COVER_URL=1).',
                         },
                         reset: { patch_key: 'cover_background_url', value: '' },
                     },
@@ -229,6 +250,8 @@ function buildEditorSchema() {
             {
                 id: 'report_summary_overview',
                 title: 'Сводная информация (страница 2)',
+                preview_page_type: 'SUMMARY',
+                preview_html: previewHtmlEndpointForPageType('SUMMARY'),
                 description:
                     'Брендинг: фон страницы (и затемнение/оверлей), логотип (один на сводную), цвет графиков/акцента секций, цвет текста и линий. Тексты, клиент, цели, аватар ИИ — из расчётов/стока. Геометрия — в `summary_layout`. Картинки внутри карточек целей (тип PENSION, LIFE, …) — **не настраиваются в ЛК**; для красивого превью макета в ответе API смотри корневое поле **`goal_card_assets`** (`cards[].public_url`, `goal_type`).',
                 fields: sharedGoalPageBrandingFields,
@@ -236,6 +259,8 @@ function buildEditorSchema() {
             {
                 id: 'report_fin_reserve',
                 title: 'Финансовый резерв',
+                preview_page_type: 'FIN_RESERVE',
+                preview_html: previewHtmlEndpointForPageType('FIN_RESERVE'),
                 description:
                     'Страница FIN_RESERVE. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
                 fields: sharedGoalPageBrandingFields,
@@ -243,6 +268,8 @@ function buildEditorSchema() {
             {
                 id: 'report_life',
                 title: 'Защита жизни',
+                preview_page_type: 'LIFE',
+                preview_html: previewHtmlEndpointForPageType('LIFE'),
                 description:
                     'Страница LIFE. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
                 fields: sharedGoalPageBrandingFields,
@@ -250,6 +277,8 @@ function buildEditorSchema() {
             {
                 id: 'report_investment',
                 title: 'Сохранить и приумножить',
+                preview_page_type: 'INVESTMENT',
+                preview_html: previewHtmlEndpointForPageType('INVESTMENT'),
                 description:
                     'Страница INVESTMENT. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
                 fields: sharedGoalPageBrandingFields,
@@ -257,6 +286,8 @@ function buildEditorSchema() {
             {
                 id: 'report_other',
                 title: 'Прочая цель',
+                preview_page_type: 'OTHER',
+                preview_html: previewHtmlEndpointForPageType('OTHER'),
                 description:
                     'Страница OTHER. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
                 fields: sharedGoalPageBrandingFields,
@@ -622,34 +653,30 @@ class PdfSettingsService {
         const s = await this.getByAgentId(agentId, projectId);
         const stored = s.cover_background_url;
         if (!stored) {
-            const err = new Error('No cover background configured');
-            err.statusCode = 404;
-            throw err;
+            return { ...EMPTY_IMAGE_READ_RESULT };
         }
         const resolved = await this.resolveStoredImageReadUrl(stored);
-        return resolved;
+        return resolved || { ...EMPTY_IMAGE_READ_RESULT };
     }
 
     async getSummaryBackgroundImageAccess(agentId, projectId) {
         const s = await this.getByAgentId(agentId, projectId);
         const stored = s.summary_background_url;
         if (!stored) {
-            const err = new Error('No summary background configured');
-            err.statusCode = 404;
-            throw err;
+            return { ...EMPTY_IMAGE_READ_RESULT };
         }
-        return await this.resolveStoredImageReadUrl(stored);
+        const resolved = await this.resolveStoredImageReadUrl(stored);
+        return resolved || { ...EMPTY_IMAGE_READ_RESULT };
     }
 
     async getSummaryLogoImageAccess(agentId, projectId) {
         const s = await this.getByAgentId(agentId, projectId);
         const stored = s.summary_logo_url;
         if (!stored) {
-            const err = new Error('No summary logo configured');
-            err.statusCode = 404;
-            throw err;
+            return { ...EMPTY_IMAGE_READ_RESULT };
         }
-        return await this.resolveStoredImageReadUrl(stored);
+        const resolved = await this.resolveStoredImageReadUrl(stored);
+        return resolved || { ...EMPTY_IMAGE_READ_RESULT };
     }
 
     getEditorSchema() {

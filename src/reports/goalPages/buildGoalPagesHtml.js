@@ -317,7 +317,8 @@ base-uri 'none';
       <img class="page__bg-img" src="${escapeHtml(backgroundSrc)}" alt="" />
       <div class="page__bg-overlay"></div>
     </div>`
-        : `<div class="page__bg page__bg--fallback" aria-hidden="true"></div>`;
+        : `<div class="page__bg page__bg--fallback" aria-hidden="true"></div>
+    <div class="page__bg-overlay" aria-hidden="true"></div>`;
 
     return `<!DOCTYPE html>
 <html lang="ru">
@@ -344,7 +345,7 @@ base-uri 'none';
     .page__bg--fallback { background: linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #0f172a 100%); }
     .page__bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
     .page__bg-overlay {
-      position: absolute; inset: 0;
+      position: absolute; inset: 0; z-index: 0; pointer-events: none;
       background: linear-gradient(
         135deg,
         rgba(15,23,42,${overlayOpacity}) 0%,
