@@ -18,6 +18,7 @@
     "seed:pdf-goal-cards-r2": "node scripts/seed_report_goal_cards_r2.js",
     "r2:migrate-url-prefix": "node scripts/migrate_r2_public_url_prefix.js",
     "img:png2webp": "node scripts/png_to_webp.js",
+    "fetch:report-pdf": "node scripts/fetch_report_pdf.js",
     "preview:summary": "node scripts/serve_summary_preview.mjs",
     "seed:pdf-summary-stock-assets-r2": "node scripts/seed_pdf_summary_stock_assets_r2.js"
   },
