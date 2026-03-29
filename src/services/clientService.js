@@ -1,6 +1,7 @@
 const clientRepository = require('../repositories/clientRepository');
 const projectRepository = require('../repositories/projectRepository');
 const knex = require('../config/database');
+const { mergeGoalsWithSnapshot } = require('../utils/mergeGoalsWithSnapshot');
 
 function ownerLabel(client) {
     if (!client.agent_id) return 'B2C';
@@ -155,6 +156,8 @@ class ClientService {
                 // ignore
             }
         }
+
+        mergeGoalsWithSnapshot(clientObj);
 
         return clientObj;
     }
