@@ -153,7 +153,9 @@ class ReportPdfService {
                     clientInfo: {
                         name: clientName,
                         age: report.client_info?.age != null ? String(report.client_info.age) : '—',
-                        income: '—',
+                        income: report.client_info?.income_display != null
+                            ? String(report.client_info.income_display)
+                            : '—',
                         currentCapital: capitalStr,
                     },
                     summaryLogoUrl: pdfSettings?.summary_logo_url || undefined,

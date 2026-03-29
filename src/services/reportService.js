@@ -83,9 +83,11 @@ class ReportService {
             }
         }
 
-        const calcData = calculationResult || {};
-        const goalsReport = calcData.goals || [];
-        const summary = calcData.summary || {};
+        // calculateFirstRun отдаёт плоский объект { goals, summary }; из снимка кладём { calculation: calcPart }
+        const rawCalc = calculationResult || {};
+        const calcData = rawCalc.calculation != null ? rawCalc.calculation : rawCalc;
+        const goalsReport = Array.isArray(calcData.goals) ? calcData.goals : [];
+        const summary = calcData.summary && typeof calcData.summary === 'object' ? calcData.summary : {};
 
         // 4. Section: Current Situation (Assets & Net Worth)
         // Recalculating from client data strictly to ensure consistency
@@ -150,13 +152,19 @@ class ReportService {
 
         const pdfSummaryPayload = { goals: goalsReport, goals_detailed: goalsReport, summary };
 
+        const incomeNum = client.avg_monthly_income != null ? Number(client.avg_monthly_income) : NaN;
+        const incomeDisplay = Number.isFinite(incomeNum) && incomeNum > 0
+            ? `${Math.round(incomeNum).toLocaleString('ru-RU')} ₽/мес`
+            : null;
+
         return {
             client_info: {
                 id: client.id,
                 full_name: `${client.last_name || ''} ${client.first_name || ''} ${client.middle_name || ''}`.trim(),
                 age: this.calculateAge(client.birth_date),
                 email: client.email,
-                avatar_url: client.avatar_url
+                avatar_url: client.avatar_url,
+                income_display: incomeDisplay,
             },
             current_situation: currentStats,
             overall_plan: overallPlan,
