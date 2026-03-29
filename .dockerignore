@@ -11,7 +11,7 @@ max-sdk-temp
 AV Inform
 AI constructor
 Новая папка
-assets
+# assets/ нужны для PDF (шрифты, goal-cards, stock-изображения)
 *.md
 database.sqlite
 debug*.js

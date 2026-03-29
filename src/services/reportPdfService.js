@@ -79,6 +79,8 @@ function getDefaultExecutablePath() {
     const candidates = [
         process.env.PUPPETEER_EXECUTABLE_PATH,
         process.env.CHROME_BIN,
+        '/usr/bin/chromium',
+        '/usr/bin/google-chrome-stable',
         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
         'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
@@ -89,16 +91,37 @@ function getDefaultExecutablePath() {
 }
 
 class ReportPdfService {
+    /**
+     * @param {object} opts
+     * @param {number} opts.clientId
+     * @param {number} [opts.agentId] — для pdf-settings из JWT агента (если не передан brandingAgentId)
+     * @param {number|null|undefined} [opts.brandingAgentId] — если задан (в т.ч. null): брендинг с этого агента или дефолты; если undefined — как раньше, через agentId
+     */
     async generateClientReportPdf({
         clientId,
         agentId,
+        brandingAgentId,
         projectId = null,
         includeCover = true,
         includeSummary = true,
         goalTypes = null,
     }) {
         const report = await reportService.getClientReportData(clientId, projectId);
-        const pdfSettings = await pdfSettingsService.getByAgentId(agentId, projectId);
+
+        let pdfSettings;
+        if (brandingAgentId !== undefined) {
+            const bid =
+                brandingAgentId != null && brandingAgentId !== ''
+                    ? Number(brandingAgentId)
+                    : NaN;
+            if (Number.isFinite(bid) && bid > 0) {
+                pdfSettings = await pdfSettingsService.getByAgentId(bid, projectId);
+            } else {
+                pdfSettings = pdfSettingsService.getDefaultsMerged();
+            }
+        } else {
+            pdfSettings = await pdfSettingsService.getByAgentId(agentId, projectId);
+        }
 
         const pageHtmlList = [];
 
@@ -178,7 +201,13 @@ class ReportPdfService {
         const executablePath = getDefaultExecutablePath();
         const launchOptions = {
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--disable-software-rasterizer',
+            ],
         };
 
         if (executablePath) {
