@@ -219,8 +219,18 @@ class ReportPdfService {
         const browser = await puppeteer.launch(launchOptions);
         try {
             const page = await browser.newPage();
+            const pdfNavTimeoutMs = Math.min(
+                Math.max(Number(process.env.REPORT_PDF_NAV_TIMEOUT_MS) || 120000, 15000),
+                300000
+            );
+            page.setDefaultNavigationTimeout(pdfNavTimeoutMs);
+            page.setDefaultTimeout(pdfNavTimeoutMs);
             await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
-            await page.setContent(mergedHtml, { waitUntil: 'networkidle0' });
+            // load — быстрее networkidle0; вёрстка отчёта с data:-картинками не ждёт сеть
+            await page.setContent(mergedHtml, {
+                waitUntil: 'load',
+                timeout: pdfNavTimeoutMs,
+            });
             await new Promise((resolve) => setTimeout(resolve, 450));
             return await page.pdf({
                 printBackground: true,
