@@ -459,9 +459,11 @@ base-uri 'none';
       border-bottom: 2px solid rgba(${lineRgb},0.55);
     }
 
-    .pie-wrap { display:flex; align-items:flex-start; gap: 12px; }
+    .pie-wrap { display:flex; align-items:center; gap: 12px; }
     .pie-legend { list-style:none; padding:0; margin: 0; }
     .pie-legend li { display:flex; align-items:flex-start; gap: 8px; margin: 3px 0; font-size: 10px; line-height: 1.2; }
+    /* В flex-контейнере запретим "сжимать" круг иначе он визуально становится овалом */
+    .pie { flex-shrink: 0; aspect-ratio: 1 / 1; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display:inline-block; }
     /* Перенос названий, чтобы не отрезало в одну "простыню" */
     .lg-name {
@@ -484,7 +486,7 @@ base-uri 'none';
     /* Фиксируем область карточек с диаграммами, чтобы правая диаграмма не уезжала за низ страницы */
     .pie-card {
       padding: 10px !important;
-      height: 176px;
+      height: 196px;
       overflow: hidden;
     }
     .pie-card__title {
