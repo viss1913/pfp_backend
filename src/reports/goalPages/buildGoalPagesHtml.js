@@ -182,18 +182,39 @@ function buildAreaChartSvg(data, {
         .map((gy) => `<line x1="${x0}" y1="${gy}" x2="${x1}" y2="${gy}" stroke="rgba(255,255,255,0.10)" stroke-width="1" />`)
         .join('\n');
 
-    // X labels: только 0..months с шагом
+    // X labels: разрежаем подписи, чтобы на длинных горизонтах не было "простыни" месяцев.
+    // Сейчас data содержит точки каждый месяц, но подписывать каждый месяц — плохо читается в PDF.
+    const maxXLabels = 7;
     const lastMonth = data[data.length - 1]?.month ?? (data.length - 1);
-    const step = lastMonth <= 6 ? 1 : lastMonth <= 12 ? 2 : 3;
+
+    // Набор "красивых" шагов. Выбираем минимальный шаг, который даёт <= maxXLabels подписей.
+    const stepChoices = [1, 2, 3, 4, 6, 12, 18, 24, 30, 36, 48, 60, 72, 84, 96, 120];
+    let step = stepChoices[stepChoices.length - 1];
+    for (const s of stepChoices) {
+        const labelsCount = Math.floor(lastMonth / s) + 1;
+        if (labelsCount <= maxXLabels) {
+            step = s;
+            break;
+        }
+    }
+
+    // Для больших сроков показываем "годы" вместо "месяцев".
+    const useYears = lastMonth >= 60;
+    const labelY = height - 10; // фикс внутри SVG, чтобы не налезало на график
+    const mCandidates = new Set([0]);
+    for (let m = 0; m <= lastMonth; m += step) mCandidates.add(m);
+    mCandidates.add(lastMonth);
+
     const xLabels = [];
-    for (let m = 0; m <= lastMonth; m += step) {
-        // Ищем ближайший индекс по month
+    const sortedMs = [...mCandidates].sort((a, b) => a - b);
+    for (const m of sortedMs) {
         const idx = data.findIndex((d) => d.month === m);
         if (idx < 0) continue;
         const px = points[idx]?.x;
         if (px == null) continue;
+        const labelText = useYears ? Math.round(m / 12) : m;
         xLabels.push(
-            `<text x="${px}" y="${y1 + 22}" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="10">${m}</text>`
+            `<text x="${px}" y="${labelY}" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="${useYears ? 9 : 8}">${labelText}</text>`
         );
     }
 
@@ -214,7 +235,7 @@ function buildAreaChartSvg(data, {
   <rect x="0" y="0" width="${width}" height="${height}" fill="transparent" />
   ${grid}
   <path d="${areaPath}" fill="url(#fillArea)" stroke="none" />
-  <path d="${linePath}" fill="none" stroke="${accentColor}" stroke-width="2.2" stroke-linecap="round" />
+  <path d="${linePath}" fill="none" stroke="${accentColor}" stroke-width="2.8" stroke-linecap="round" />
   <path d="${targetPath}" fill="none" stroke="${targetColor}" stroke-width="2" stroke-dasharray="6 4" />
   <g>
     ${xLabels.join('\n')}
