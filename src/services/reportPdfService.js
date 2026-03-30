@@ -138,7 +138,14 @@ class ReportPdfService {
         }
 
         const clientName = report?.client_info?.full_name || '—';
-        if (includeSummary) {
+        const goalFilter = normalizeGoalTypes(goalTypes);
+        const targetGoalTypes = goalFilter && goalFilter.length > 0 ? goalFilter : SUPPORTED_GOAL_TYPES;
+        const isRostechPensionOnly =
+            themeKey === 'rostech' &&
+            targetGoalTypes.length === 1 &&
+            String(targetGoalTypes[0]).toUpperCase() === 'PENSION';
+
+        if (includeSummary && !isRostechPensionOnly) {
             const net = report.current_situation?.net_worth;
             const capitalStr =
                 net != null && Number.isFinite(Number(net))
@@ -171,9 +178,6 @@ class ReportPdfService {
                 })
             );
         }
-
-        const goalFilter = normalizeGoalTypes(goalTypes);
-        const targetGoalTypes = goalFilter && goalFilter.length > 0 ? goalFilter : SUPPORTED_GOAL_TYPES;
 
         for (const goalType of targetGoalTypes) {
             const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
