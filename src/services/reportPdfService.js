@@ -140,10 +140,15 @@ class ReportPdfService {
         const clientName = report?.client_info?.full_name || '—';
         const goalFilter = normalizeGoalTypes(goalTypes);
         const targetGoalTypes = goalFilter && goalFilter.length > 0 ? goalFilter : SUPPORTED_GOAL_TYPES;
+        const reportGoalTypes = new Set(
+            (report.goals_detailed || [])
+                .map((g) => String(g?.goal_type || '').toUpperCase())
+                .filter(Boolean)
+        );
         const isRostechPensionOnly =
             themeKey === 'rostech' &&
-            targetGoalTypes.length === 1 &&
-            String(targetGoalTypes[0]).toUpperCase() === 'PENSION';
+            reportGoalTypes.size === 1 &&
+            reportGoalTypes.has('PENSION');
 
         if (includeSummary && !isRostechPensionOnly) {
             const net = report.current_situation?.net_worth;
