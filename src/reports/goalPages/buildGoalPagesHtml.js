@@ -743,6 +743,82 @@ function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
     );
 }
 
+function buildPensionPageHtml({ goal, clientName, options = {} }) {
+    const root = path.join(__dirname, '../../..');
+    const inlineLocalAssets = Boolean(options.inlineLocalAssets);
+
+    const accentColor = options.accentColor ?? GLOBAL_DEFAULTS.summaryChartColor;
+    const textColor = options.textColor ?? GLOBAL_DEFAULTS.summaryTextColor;
+    const lineColor = options.lineColor ?? options.accentColor ?? GLOBAL_DEFAULTS.summaryChartColor;
+    const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
+    const backgroundDarknessPercent =
+        options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
+    const bgSrc = options.backgroundSrc || '';
+    const aiAvatarSrc =
+        options.aiAvatarSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockAiAvatarPath, root, inlineLocalAssets);
+    const logoSrc = options.logoSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockLogoPath, root, inlineLocalAssets);
+
+    const cardImg = resolveGoalCardImageSrc('PENSION', root, inlineLocalAssets);
+
+    const s = goal?.summary || {};
+    const initCapital = Number(s.initial_capital ?? 0);
+    const monthlyReplenishment = Number(s.monthly_replenishment ?? 0);
+    const projectedPensionMonthlyPresent = Number(s.projected_pension_monthly_present ?? 0);
+    const yearsToPension = Number(goal?.details?.state_pension?.years_to_pension ?? 0);
+
+    const html = buildBasePageHtml({
+        clientName,
+        logoSrc,
+        aiAvatarSrc,
+        backgroundSrc: bgSrc,
+        accentColor,
+        textColor,
+        lineColor,
+        backgroundOverlayOpacity,
+        backgroundDarknessPercent,
+        inlineLocalAssets,
+    });
+
+    // Заглушка до точной верстки по Figma: базовые карточки/метрики и общий стиль.
+    return (
+        html +
+        `
+        <div class="goal-hero">
+          <div class="goal-hero__row">
+            <div class="goal-hero__img"><img src="${escapeHtml(cardImg)}" alt="" /></div>
+            <div>
+              <div class="goal-hero__title">${escapeHtml(goal?.goal_name || 'Госпенсия')}</div>
+              <div class="goal-hero__sub">Пенсионная стратегия • до пенсии ${escapeHtml(String(yearsToPension))} лет</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics">
+          <div class="metric" style="background: rgba(147,51,234,0.14); border-color: rgba(147,51,234,0.35);">
+            <div class="metric__label">Начальный капитал</div>
+            <div class="metric__value">${escapeHtml(Math.round(initCapital).toLocaleString('ru-RU'))} ₽</div>
+          </div>
+          <div class="metric" style="background: rgba(59,130,246,0.14); border-color: rgba(59,130,246,0.35);">
+            <div class="metric__label">Ежемесячно</div>
+            <div class="metric__value">${escapeHtml(Math.round(monthlyReplenishment).toLocaleString('ru-RU'))} ₽</div>
+          </div>
+          <div class="metric" style="background: rgba(16,185,129,0.14); border-color: rgba(16,185,129,0.35);">
+            <div class="metric__label">Желаемый доход</div>
+            <div class="metric__value">${escapeHtml(Math.round(projectedPensionMonthlyPresent).toLocaleString('ru-RU'))} ₽</div>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <div class="chart-title">Прогноз пенсионного дохода</div>
+          <div style="font-size:12px; opacity:0.86; line-height:1.6;">
+            Доход (в ценах сегодня): <b>${escapeHtml(Math.round(projectedPensionMonthlyPresent).toLocaleString('ru-RU'))} ₽</b> в месяц
+          </div>
+        </div>
+` +
+        buildGoalPageFinishHtml()
+    );
+}
+
 function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
@@ -858,7 +934,7 @@ function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
  * Генерирует HTML "страницы цели" для PDF-превью/печати.
  *
  * @param {object} args
- * @param {'FIN_RESERVE'|'LIFE'|'INVESTMENT'|'OTHER'} args.goalType
+ * @param {'FIN_RESERVE'|'LIFE'|'INVESTMENT'|'OTHER'|'PENSION'} args.goalType
  * @param {object} args.goal
  * @param {string} args.clientName
  * @param {{ inlineLocalAssets?: boolean, accentColor?: string, textColor?: string, backgroundSrc?: string, aiAvatarSrc?: string }} [args.options]
@@ -866,6 +942,7 @@ function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
 function buildGoalPageHtml({ goalType, goal, clientName, options = {} }) {
     if (goalType === 'FIN_RESERVE') return buildFinReservePageHtml({ goal, clientName, reportPayload: null, options });
     if (goalType === 'LIFE') return buildLifeProtectionPageHtml({ goal, clientName, options });
+    if (goalType === 'PENSION') return buildPensionPageHtml({ goal, clientName, options });
     if (goalType === 'INVESTMENT') return buildInOutPageHtml({ goal, clientName, pageLabel: 'INVESTMENT', options });
     if (goalType === 'OTHER') return buildInOutPageHtml({ goal, clientName, pageLabel: 'OTHER', options });
     throw new Error(`Unknown goalType for goal page: ${goalType}`);

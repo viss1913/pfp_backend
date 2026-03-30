@@ -10,13 +10,13 @@ const {
     sanitizeTitleBandColor,
 } = require('../reports/cover/buildCoverHtml');
 const {
-    buildReportSummaryOverviewHtml,
     buildSummaryLayoutPayload,
     buildGoalCardAssetsForAgentLK,
     GLOBAL_DEFAULTS: SUMMARY_DEFAULTS,
     sanitizeSummaryChartColor,
 } = require('../reports/summary/buildSummaryOverviewHtml');
-const { buildGoalPageHtml } = require('../reports/goalPages/buildGoalPagesHtml');
+const { buildSummaryOverviewHtmlByTheme, buildGoalPageHtmlByTheme } = require('../reports/themes/reportRenderers');
+const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 const reportService = require('./reportService');
 const previewMockPayload = require('../reports/summary/previewMockPayload.json');
 const {
@@ -93,6 +93,7 @@ function normalizePreviewPageType(pageType) {
     if (upper === 'SUMMARY') return 'SUMMARY';
     if (upper === 'FIN_RESERVE') return 'FIN_RESERVE';
     if (upper === 'LIFE') return 'LIFE';
+    if (upper === 'PENSION') return 'PENSION';
     if (upper === 'INVESTMENT') return 'INVESTMENT';
     if (upper === 'OTHER') return 'OTHER';
     return '';
@@ -292,6 +293,15 @@ function buildEditorSchema() {
                     'Страница OTHER. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
                 fields: sharedGoalPageBrandingFields,
             },
+            {
+                id: 'report_pension',
+                title: 'Госпенсия',
+                preview_page_type: 'PENSION',
+                preview_html: previewHtmlEndpointForPageType('PENSION'),
+                description:
+                    'Страница PENSION. Сейчас использует общий брендинг со сводной: фон/лого/цвета shared через summary_* поля.',
+                fields: sharedGoalPageBrandingFields,
+            },
         ],
         endpoints: {
             load: { method: 'GET', path: '/api/pfp/pdf-settings' },
@@ -418,6 +428,13 @@ class PdfSettingsService {
     }
 
     /**
+     * Только дефолты (без БД и без assert) — PDF для клиента без привязанного агента.
+     */
+    getDefaultsMerged() {
+        return this.mergeWithDefaults(null);
+    }
+
+    /**
      * Частичное обновление. Пустая строка для url/title сбрасывает к дефолту (null в БД).
      */
     async upsert(agentId, projectId, payload) {
@@ -505,8 +522,10 @@ class PdfSettingsService {
      */
     async buildSummaryPreviewHtml(agentId, projectId) {
         await this.assertAgentInProject(agentId, projectId);
+        const themeKey = resolveReportThemeKey(projectId);
         const s = await this.getByAgentId(agentId, projectId);
-        return buildReportSummaryOverviewHtml({
+        return buildSummaryOverviewHtmlByTheme({
+            themeKey,
             reportPayload: previewMockPayload,
             clientInfo: {
                 name: 'Алексей Петров',
@@ -532,6 +551,7 @@ class PdfSettingsService {
      */
     async buildPagePreviewHtml(agentId, projectId, pageTypeRaw) {
         await this.assertAgentInProject(agentId, projectId);
+        const themeKey = resolveReportThemeKey(projectId);
         const pageType = normalizePreviewPageType(pageTypeRaw);
         if (!pageType) {
             const err = new Error('Unknown pageType');
@@ -554,7 +574,8 @@ class PdfSettingsService {
         const logoSrc = resolveAssetSrc(s.summary_logo_url, REPO_ROOT, true);
         const aiAvatarSrc = resolveAssetSrc('assets/reports/summary/stock-ai-avatar.png', REPO_ROOT, true);
 
-        return buildGoalPageHtml({
+        return buildGoalPageHtmlByTheme({
+            themeKey,
             goalType: pageType,
             goal,
             clientName: 'Алексей Петров',
@@ -573,6 +594,7 @@ class PdfSettingsService {
     }
 
     async buildSummaryOverviewHtmlForClient(agentId, projectId, clientId, extra = {}) {
+        const themeKey = resolveReportThemeKey(projectId);
         const report = await reportService.getClientReportData(clientId, projectId);
         const s = await this.getByAgentId(agentId, projectId);
         const net = report.current_situation?.net_worth;
@@ -586,7 +608,8 @@ class PdfSettingsService {
             income: '—',
             currentCapital: capitalStr,
         };
-        return buildReportSummaryOverviewHtml({
+        return buildSummaryOverviewHtmlByTheme({
+            themeKey,
             reportPayload: extra.reportPayload || {
                 goals_detailed: report.goals_detailed,
                 overall_plan: report.overall_plan,

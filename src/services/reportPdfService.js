@@ -5,10 +5,10 @@ const puppeteer = require('puppeteer');
 const reportService = require('./reportService');
 const pdfSettingsService = require('./pdfSettingsService');
 const { buildReportCoverHtml } = require('../reports/cover/buildCoverHtml');
-const { buildReportSummaryOverviewHtml } = require('../reports/summary/buildSummaryOverviewHtml');
-const { buildGoalPageHtml } = require('../reports/goalPages/buildGoalPagesHtml');
+const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('../reports/themes/reportRenderers');
+const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 
-const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'INVESTMENT', 'OTHER'];
+const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'OTHER'];
 
 function normalizeGoalTypes(goalTypesRaw) {
     if (!goalTypesRaw) return null;
@@ -107,6 +107,7 @@ class ReportPdfService {
         goalTypes = null,
     }) {
         const report = await reportService.getClientReportData(clientId, projectId);
+        const themeKey = resolveReportThemeKey(projectId);
 
         let pdfSettings;
         if (brandingAgentId !== undefined) {
@@ -145,7 +146,8 @@ class ReportPdfService {
                     : '—';
 
             pageHtmlList.push(
-                buildReportSummaryOverviewHtml({
+                buildSummaryOverviewHtmlByTheme({
+                    themeKey,
                     reportPayload: {
                         goals_detailed: report.goals_detailed,
                         overall_plan: report.overall_plan,
@@ -176,23 +178,25 @@ class ReportPdfService {
         for (const goalType of targetGoalTypes) {
             const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
             if (!goal) continue;
-            pageHtmlList.push(
-                buildGoalPageHtml({
-                    goalType,
-                    goal,
-                    clientName,
-                    options: {
-                        inlineLocalAssets: true,
-                        accentColor: pdfSettings?.summary_chart_color || undefined,
-                        textColor: pdfSettings?.summary_text_color || '#ffffff',
-                        logoSrc: pdfSettings?.summary_logo_url || undefined,
-                        backgroundSrc: pdfSettings?.summary_background_url || '',
-                        lineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#8b5cf6',
-                        backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
-                        backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
-                    },
-                })
-            );
+            const pageHtmls = buildGoalPagesHtmlByTheme({
+                themeKey,
+                goalType,
+                goal,
+                clientName,
+                options: {
+                    inlineLocalAssets: true,
+                    accentColor: pdfSettings?.summary_chart_color || undefined,
+                    textColor: pdfSettings?.summary_text_color || '#ffffff',
+                    logoSrc: pdfSettings?.summary_logo_url || undefined,
+                    backgroundSrc: pdfSettings?.summary_background_url || '',
+                    lineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#8b5cf6',
+                    backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
+                    backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
+                },
+            });
+            if (Array.isArray(pageHtmls) && pageHtmls.length > 0) {
+                pageHtmlList.push(...pageHtmls.filter((x) => typeof x === 'string' && x.trim()));
+            }
         }
 
         if (pageHtmlList.length === 0) {
