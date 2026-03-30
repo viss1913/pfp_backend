@@ -459,19 +459,35 @@ base-uri 'none';
       border-bottom: 2px solid rgba(${lineRgb},0.55);
     }
 
-    .pie-wrap { display:flex; align-items:center; gap: 12px; }
-    .pie-legend { list-style:none; padding:0; margin: 0; }
-    .pie-legend li { display:flex; align-items:flex-start; gap: 8px; margin: 3px 0; font-size: 10px; line-height: 1.2; }
+    /* Как на summary: круг сверху, описание долей внизу (переносится и не уезжает). */
+    .pie-wrap { display:flex; flex-direction: column; align-items:center; gap: 8px; }
+    .pie-legend {
+      list-style:none;
+      padding:0;
+      margin: 0;
+      width: 100%;
+      display:flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 4px 12px;
+    }
+    .pie-legend li {
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      margin: 0;
+      font-size: 9px;
+      line-height: 1.25;
+      white-space: normal;
+    }
     /* В flex-контейнере запретим "сжимать" круг иначе он визуально становится овалом */
     .pie { flex-shrink: 0; aspect-ratio: 1 / 1; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display:inline-block; }
     /* Перенос названий, чтобы не отрезало в одну "простыню" */
     .lg-name {
-      flex: 1;
       white-space: normal;
       overflow:hidden;
-      text-overflow: ellipsis;
-      max-width: 120px;
+      max-width: 110px;
       word-break: break-word;
     }
     .lg-pct { font-weight: 800; }
