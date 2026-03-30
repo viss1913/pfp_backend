@@ -459,12 +459,40 @@ base-uri 'none';
       border-bottom: 2px solid rgba(${lineRgb},0.55);
     }
 
-    .pie-wrap { display:flex; align-items:flex-start; gap: 16px; }
+    .pie-wrap { display:flex; align-items:flex-start; gap: 12px; }
     .pie-legend { list-style:none; padding:0; margin: 0; }
-    .pie-legend li { display:flex; align-items:center; gap: 8px; margin: 5px 0; font-size: 11px; }
+    .pie-legend li { display:flex; align-items:flex-start; gap: 8px; margin: 3px 0; font-size: 10px; line-height: 1.2; }
     .dot { width: 8px; height: 8px; border-radius: 50%; display:inline-block; }
-    .lg-name { flex: 1; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; max-width: 220px; }
+    /* Перенос названий, чтобы не отрезало в одну "простыню" */
+    .lg-name {
+      flex: 1;
+      white-space: normal;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+      word-break: break-word;
+    }
     .lg-pct { font-weight: 800; }
+
+    .pie-grid {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+      align-items: start;
+    }
+    /* Фиксируем область карточек с диаграммами, чтобы правая диаграмма не уезжала за низ страницы */
+    .pie-card {
+      padding: 10px !important;
+      height: 176px;
+      overflow: hidden;
+    }
+    .pie-card__title {
+      font-weight: 900;
+      font-size: 12px;
+      margin-bottom: 6px;
+      line-height: 1.15;
+    }
 
     .footer {
       position: absolute;
@@ -742,8 +770,9 @@ function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
         ? goal.details.monthly_instruments.map((x) => ({ name: x.name, value: Number(x.share ?? x.value ?? 0) }))
         : [];
 
-    const pieInitial = buildConicPieHtml(portfolioInitial, { size: 116 });
-    const pieMonthly = buildConicPieHtml(portfolioMonthly, { size: 116 });
+    // Уменьшаем круги, чтобы легенда и подписи поместились в фиксированной области карточек (PDF жёстко клипается)
+    const pieInitial = buildConicPieHtml(portfolioInitial, { size: 104 });
+    const pieMonthly = buildConicPieHtml(portfolioMonthly, { size: 104 });
 
     const html = buildBasePageHtml({
         clientName,
@@ -794,13 +823,13 @@ function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
           </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;">
-          <div class="chart-wrap" style="padding: 12px;">
-            <div style="font-weight:900; font-size:12px; margin-bottom: 8px;">Портфель начального капитала</div>
+        <div class="pie-grid">
+          <div class="chart-wrap pie-card">
+            <div class="pie-card__title">Портфель начального капитала</div>
             ${pieInitial}
           </div>
-          <div class="chart-wrap" style="padding: 12px;">
-            <div style="font-weight:900; font-size:12px; margin-bottom: 8px;">Портфель пополнений</div>
+          <div class="chart-wrap pie-card">
+            <div class="pie-card__title">Портфель пополнений</div>
             ${pieMonthly}
           </div>
         </div>
