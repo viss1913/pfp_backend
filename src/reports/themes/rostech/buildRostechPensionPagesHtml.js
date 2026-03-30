@@ -152,45 +152,6 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
 
     // 15 кадров по заданным node-id (офлайн-версия без зависимостей от Figma URLs).
     return [
-        // 59:1296
-        buildShell({
-            title: 'Персональное финансовое решение',
-            subtitle: 'Обложка отчёта Госпенсия',
-            logoSrc,
-            bgSrc,
-            bodyHtml: `
-              <div style="margin-top:420px; max-width:360px; background:#722257; color:#fff; border-radius:0 8px 8px 0; padding:18px;">
-                <div style="font-size:42px; line-height:1.05; font-weight:700;">Госпенсия</div>
-                <div style="margin-top:8px; font-size:20px;">для проекта Ростех</div>
-              </div>
-            `,
-        }),
-        // 59:28
-        buildShell({
-            title: 'Ваш финансовый план',
-            subtitle: 'Рост стоимости цели с учетом инфляции',
-            logoSrc,
-            bgSrc,
-            bodyHtml: `
-              ${commonIntro}
-              <div style="margin-bottom:8px;font-size:12px;color:#555;">Ваш текущий прогноз: Госпенсия ${esc(moneyPerMonth(projectedPresent))}, цель ${esc(moneyPerMonth(targetPresent))}.</div>
-              <div class="card" style="border-color:#a95b8d;">
-                <div style="text-align:center;font-size:16px;font-weight:700;margin-bottom:8px;">Рост стоимости цели с учетом инфляции</div>
-                <div style="display:flex;justify-content:space-evenly;align-items:flex-end;gap:28px;padding-top:8px;">
-                  <div style="width:180px;text-align:center;">
-                    <div style="font-size:34px;font-weight:700;">${esc(moneyPerMonth(targetPresent))}</div>
-                    <div style="height:76px;width:54px;background:#8f8f8c;margin:8px auto 0;"></div>
-                    <div class="muted" style="margin-top:8px;">Желаемая пенсия<br/>в сегодняшних деньгах</div>
-                  </div>
-                  <div style="width:180px;text-align:center;">
-                    <div style="font-size:34px;font-weight:700;">${esc(moneyPerMonth(projectedFuture))}</div>
-                    <div style="height:118px;width:54px;background:#722257;margin:8px auto 0;"></div>
-                    <div class="muted" style="margin-top:8px;">Желаемая пенсия в будущем<br/>с учетом инфляции</div>
-                  </div>
-                </div>
-              </div>
-            `,
-        }),
         // 59:285
         buildShell({
             title: 'Достойная пенсия',
