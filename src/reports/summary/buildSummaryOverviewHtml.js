@@ -835,6 +835,8 @@ base-uri 'none';
     .dist-pie {
       width: 86px;
       height: 86px;
+      display: block;
+      aspect-ratio: 1 / 1;
       margin: 0 auto 5px auto;
       border-radius: 50%;
       border: 1px solid rgba(255,255,255,0.9);
