@@ -539,9 +539,7 @@ base-uri 'none';
           <div>Принял в расчёт ваши параметры и собрал прогноз по выбранной цели.</div>
         </div>
       </div>
-      <div class="client-panel">
-        <div class="client-panel__title">Клиент: ${escapeHtml(clientName || '—')}</div>
-      </div>
+      <!-- Блок клиента удалён по ТЗ: в печатных страницах целей он не нужен -->
 `;
 }
 
