@@ -201,6 +201,7 @@ class ReportPdfService {
                     lineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#8b5cf6',
                     backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
                     backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
+                    overallPlan: report?.overall_plan || null,
                 },
             });
             if (Array.isArray(pageHtmls) && pageHtmls.length > 0) {

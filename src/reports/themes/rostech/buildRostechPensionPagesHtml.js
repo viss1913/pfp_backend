@@ -23,6 +23,23 @@ function moneyPerMonth(v) {
     return m === '—' ? m : `${m}/мес.`;
 }
 
+function moneyWithPrecision(v, digits = 2) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    return `${n.toLocaleString('ru-RU', {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+    })} ₽`;
+}
+
+function pickPositive(primary, fallback) {
+    const p = Number(primary);
+    if (Number.isFinite(p) && p > 0) return p;
+    const f = Number(fallback);
+    if (Number.isFinite(f) && f > 0) return f;
+    return 0;
+}
+
 function buildShell({
     title,
     subtitle,
@@ -32,6 +49,8 @@ function buildShell({
     useBackground = false,
     footerText = 'НПФ Ростех • Госпенсия',
     footerLogoSrc = '',
+    pagePaddingTop = 30,
+    showTop = true,
 }) {
     return `<!DOCTYPE html>
 <html lang="ru">
@@ -48,13 +67,13 @@ function buildShell({
       height: 842px;
       overflow: hidden;
       background: #fff;
-      padding: 30px;
+      padding: ${Number(pagePaddingTop)}px 30px 30px;
     }
     .bg {
       position: absolute;
       inset: 0;
       z-index: 0;
-      background: #f7f7f7;
+      background: #ffffff;
     }
     .bg img {
       width: 100%;
@@ -129,13 +148,17 @@ function buildShell({
   <div class="page">
     <div class="bg">${useBackground && bgSrc ? `<img src="${esc(bgSrc)}" alt="" />` : ''}</div>
     <div class="inner">
-      <div class="top">
+      ${
+          showTop
+              ? `<div class="top">
         <div>
           <h1 class="h1">${esc(title)}</h1>
           ${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ''}
         </div>
         ${logoSrc ? `<img class="logo" src="${esc(logoSrc)}" alt="" />` : ''}
-      </div>
+      </div>`
+              : ''
+      }
       ${bodyHtml}
     </div>
     <div class="footer">
@@ -201,6 +224,13 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
     const totalCapital = Number(s.projected_capital_at_retirement ?? 0);
     const taxBenefit = Number(s.total_tax_benefit ?? 0);
     const cofin = Number(s.total_cofinancing ?? 0);
+    const taxBenefitsTotals =
+        options?.overallPlan?.tax_benefits?.totals ||
+        options?.overallPlan?.summary?.tax_benefits_summary?.totals ||
+        {};
+    const deduction2026 = pickPositive(s.deduction_2026, taxBenefitsTotals.deduction_2026);
+    const cofinancing2026 = pickPositive(s.cofinancing_2026, taxBenefitsTotals.cofinancing_2026);
+    const nextCalendarYear = new Date().getFullYear() + 1;
     const targetMonths = Number(s.target_months ?? s.term_months ?? 0);
     const horizonYears = Number.isFinite(yearsToPension) && yearsToPension > 0
         ? yearsToPension
@@ -229,7 +259,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
       <div style="display:flex;gap:12px;align-items:flex-start;margin-top:12px;">
         <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:70px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
         <div style="flex:1;border:1px solid #e2e2e2;border-radius:12px;background:#fff;padding:10px 12px;">
-          <div style="font-size:30px;line-height:1.25;color:#212121;font-weight:400;margin-bottom:8px;">${esc(title)}</div>
+          <div style="font-size:22px;line-height:1.25;color:#212121;font-weight:400;margin-bottom:8px;">Достойная пенсия</div>
           <div style="display:flex;gap:14px;align-items:flex-start;">
             <img src="${esc(rostechGoal59Src || cardImg)}" alt="" style="width:145px;height:82px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
             <div style="font-size:13px;line-height:1.3;color:#424242;">
@@ -243,6 +273,14 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
     const chartMaxStatePension = Math.max(statePensionMonthlyToday, statePensionMonthlyFuture, 1);
     const chartTodayBarHeight = Math.max(18, Math.round((statePensionMonthlyToday / chartMaxStatePension) * 70));
     const chartFutureBarHeight = Math.max(18, Math.round((statePensionMonthlyFuture / chartMaxStatePension) * 70));
+    const ownFundsForPlan = Math.max(initial + monthly * Math.max(targetMonths, 0), 0);
+    const incomeAndBenefitsForPlan = Math.max(totalCapital - ownFundsForPlan, 0);
+    const totalPlanBase = Math.max(ownFundsForPlan, 1);
+    const totalYieldPercent = Math.max((incomeAndBenefitsForPlan / totalPlanBase) * 100, 0);
+    const maxPlanBarValue = Math.max(ownFundsForPlan, incomeAndBenefitsForPlan, totalCapital, 1);
+    const ownFundsBarHeight = Math.max(20, Math.round((ownFundsForPlan / maxPlanBarValue) * 88));
+    const incomeBarHeight = Math.max(20, Math.round((incomeAndBenefitsForPlan / maxPlanBarValue) * 88));
+    const totalBarHeight = Math.max(20, Math.round((totalCapital / maxPlanBarValue) * 88));
 
     // 15 кадров по заданным node-id (офлайн-версия без зависимостей от Figma URLs).
     return [
@@ -305,16 +343,19 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
             subtitle: 'Прогноз Госпенсии',
             logoSrc: logoFromSettings,
             bgSrc,
+            showTop: false,
+            pagePaddingTop: 14,
             bodyHtml: `
-              ${pensionIntroCard59290}
-              <div class="card">
+              <div style="margin-top:4px;">${pensionIntroCard59290}</div>
+              <div style="font-size:14px;line-height:1.25;font-weight:700;color:#212121;margin:12px 0 8px;">Прогноз Госпенсии</div>
+              <div class="card" style="margin-bottom:14px;">
                 <div style="font-size:13px;line-height:1.5;">
                   С учетом Вашего возраста и зарплаты, по моему прогнозу Вы будете получать <b>${esc(moneyPerMonth(statePensionMonthlyToday))}</b> в сегодняшних деньгах,
                   а с учетом инфляции эта сумма составит <b>${esc(moneyPerMonth(statePensionMonthlyFuture))}</b>.<br/><br/>
                   Более подробную методику расчета я добавила на стр. 7.
                 </div>
               </div>
-              <div class="card" style="border-color:#a95b8d;margin-top:20px;">
+              <div class="card" style="border-color:#a95b8d;margin-top:0;margin-bottom:14px;">
                 <div style="display:flex;justify-content:space-between;gap:24px;align-items:flex-end;">
                   <div style="flex:1;text-align:center;">
                     <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(statePensionMonthlyToday))}</div>
@@ -328,7 +369,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
                   </div>
                 </div>
               </div>
-              <div style="margin-top:14px;font-size:13px;line-height:1.45;color:#212121;">
+              <div style="margin-top:0;font-size:13px;line-height:1.45;color:#212121;">
                 Как видите, для достойной пенсии не хватает ${esc(moneyPerMonth(pensionGapToday))} в сегодняшних деньгах,
                 а с учетом инфляции нужно создать план для получения дополнительного ежемесячного дохода в размере ${esc(moneyPerMonth(pensionGapFuture))}.
               </div>
@@ -340,34 +381,65 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
             subtitle: 'График формирования пенсионного капитала',
             logoSrc: logoFromSettings,
             bgSrc,
+            showTop: false,
+            pagePaddingTop: 16,
             bodyHtml: `
-              ${commonIntro}
-              <div class="card">
-                <div style="font-size:14px;font-weight:700;line-height:1.25;margin-bottom:10px;">Параметры вашего пенсионного плана</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                  <div style="border:1px solid #e8e8e8;border-radius:10px;padding:10px;background:#fff;">
-                    <div class="muted" style="font-size:12px;margin-bottom:6px;">Первоначальный капитал</div>
-                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(money(initial))}</div>
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
+                <div style="flex:1;border:1px solid #e2e2e2;border-radius:10px;background:#fff;padding:8px 10px;">
+                  <div style="font-size:12px;line-height:1.25;color:#424242;">
+                    Итак, я добавила в план создание дополнительного ежемесячного дохода - ${esc(moneyPerMonth(pensionGapToday))} в сегодняшних деньгах
                   </div>
-                  <div style="border:1px solid #e8e8e8;border-radius:10px;padding:10px;background:#fff;">
-                    <div class="muted" style="font-size:12px;margin-bottom:6px;">Ежемесячное пополнение</div>
-                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(monthly))}</div>
+                  <div style="display:flex;gap:10px;align-items:flex-start;margin-top:6px;">
+                    <img src="${esc(rostechGoal59Src || cardImg)}" alt="" style="width:100px;height:58px;object-fit:cover;border-radius:8px;flex-shrink:0;filter:grayscale(100%);" />
+                    <div style="font-size:12px;line-height:1.28;color:#424242;">
+                      Дата достижения — ${Number.isFinite(retirementYear) && retirementYear > 0 ? retirementYear : '2051'} г.<br/><br/>
+                      Дополнительный ежемесячный доход с учетом инфляции (${esc(Number.isFinite(inflationRate) && inflationRate > 0 ? `${inflationRate.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%` : '5,6%')}) - ${esc(moneyPerMonth(pensionGapFuture))}
+                    </div>
                   </div>
-                </div>
-                <div style="margin-top:12px;font-size:13px;line-height:1.5;">
-                  До выхода на пенсию осталось <b>${esc(horizonYears > 0 ? String(horizonYears) : '—')} лет</b>.
-                  На этом горизонте регулярные взносы и стартовый капитал формируют основу будущей пенсии.
                 </div>
               </div>
-              <div class="card">
-                <div style="font-size:14px;font-weight:700;line-height:1.25;margin-bottom:10px;">Что даёт план к моменту выхода на пенсию</div>
-                <div style="font-size:13px;line-height:1.55;">
-                  Налоговые вычеты: <b>${esc(money(taxBenefit))}</b><br/>
-                  Государственное софинансирование: <b>${esc(money(cofin))}</b><br/>
-                  Прогнозный капитал на дату выхода: <b>${esc(money(totalCapital))}</b><br/>
-                  Дополнительный доход к госпенсии: <b>${esc(moneyPerMonth(pensionGap))}</b>
-                </div>
-                <div class="pill" style="margin-top:14px;">Расчёт учитывает капитал, регулярные взносы, вычеты и софинансирование</div>
+              <div style="font-size:11px;line-height:1.28;color:#212121;margin-top:8px;">
+                <b>Предлагаемый план:</b><br/>
+                1. Заключить договор долгосрочных сбережений (ПДС) в АО «НПФ «Ростех».<br/>
+                Плюсы:<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет добавлять до 36 000 ₽/год в течение 10 лет.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Налоговые вычеты (до 22% в год со взносов в пределах 400 000 ₽).<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Капитал застрахован (до 2,8 млн ₽).<br/>
+                2. Дальнейшие шаги:<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал - ${esc(money(initial))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В следующие месяцы пополнять по ${esc(moneyPerMonth(monthly))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Получить ${esc(money(cofinancing2026))} в ${nextCalendarYear} году от государства.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В ${nextCalendarYear} г. подать на налоговый вычет ${esc(moneyWithPrecision(deduction2026, 2))} (рассчитан по ставке 13% НДФЛ).<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Прогнозируемая доходность с учетом софинансирования, налогового вычета, доходности от инвестиций за ${Number.isFinite(horizonYears) && horizonYears > 0 ? horizonYears : '25'} год(а): <b>${esc(totalYieldPercent.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}%</b>.<br/>
+                3. Как растет капитал?<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• За счет пополнения, софинансирования, инвестиционного дохода Вы накопите ${esc(money(totalCapital))}.<br/>
+                В нашем плане мы закладываем доходность на уровне 12% годовых и 1% в месяц.
+              </div>
+              <div style="margin-top:8px;font-size:10px;line-height:1.15;color:#212121;text-align:center;font-weight:700;">
+                График формирования пенсионного<br/>капитала с учетом пополнения:
+              </div>
+              <div style="position:relative;height:138px;margin-top:6px;border-bottom:1px solid #d9d9d9;">
+                <div style="position:absolute;left:0;right:0;top:16px;border-top:1px dashed #d9d9d9;"></div>
+                <div style="position:absolute;left:0;right:0;top:36px;border-top:1px dashed #d9d9d9;"></div>
+                <div style="position:absolute;left:0;right:0;top:56px;border-top:1px dashed #d9d9d9;"></div>
+                <div style="position:absolute;left:0;right:0;top:76px;border-top:1px dashed #d9d9d9;"></div>
+                <div style="position:absolute;left:0;right:0;top:96px;border-top:1px dashed #d9d9d9;"></div>
+                <div style="position:absolute;left:0;right:0;top:116px;border-top:1px dashed #d9d9d9;"></div>
+                <div style="position:absolute;left:62px;bottom:0;width:102px;height:${ownFundsBarHeight}px;background:#9f9f9f;border-radius:3px 3px 0 0;"></div>
+                <div style="position:absolute;left:172px;bottom:0;width:102px;height:${incomeBarHeight}px;background:#000000;border-radius:3px 3px 0 0;"></div>
+                <div style="position:absolute;left:282px;bottom:0;width:102px;height:${totalBarHeight}px;background:#722257;border-radius:3px 3px 0 0;"></div>
+                <div style="position:absolute;left:62px;bottom:4px;width:102px;text-align:center;font-size:10px;color:#fff;">${esc(money(ownFundsForPlan))}</div>
+                <div style="position:absolute;left:172px;bottom:4px;width:102px;text-align:center;font-size:10px;color:#fff;">${esc(money(incomeAndBenefitsForPlan))}</div>
+                <div style="position:absolute;left:282px;bottom:4px;width:102px;text-align:center;font-size:10px;color:#fff;">${esc(money(totalCapital))}</div>
+              </div>
+              <div style="display:flex;justify-content:center;gap:14px;margin-top:6px;font-size:10px;color:#424242;line-height:1.2;">
+                <span><span style="display:inline-block;width:8px;height:8px;background:#9f9f9f;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Собственные средства</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#000000;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Процентный доход, софинансирование, вычеты</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#722257;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Итого капитал</span>
+              </div>
+              <div style="margin-top:8px;border:1px solid #8a2d69;border-radius:8px;padding:6px 10px;text-align:center;font-size:18px;line-height:1.15;color:#722257;font-weight:700;">
+                Расчетная доходность Вашего плана на весь срок - ${esc(totalYieldPercent.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))}% годовых
               </div>
             `,
         }),
