@@ -240,7 +240,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
                   </div>
                 </div>
               </div>
-              <div style="position:relative;border:1px solid #8a2d69;border-radius:12px;padding:34px 20px 14px;background:#fff;margin-top:28px;">
+              <div style="position:relative;border:1px solid #8a2d69;border-radius:12px;padding:34px 20px 14px;background:#fff;margin-top:40px;">
                 <div style="position:absolute;left:0;right:0;top:-1px;height:1px;">
                   <div style="position:absolute;left:0;top:0;width:138px;height:1px;background:#8a2d69;"></div>
                   <div style="position:absolute;right:0;top:0;width:138px;height:1px;background:#8a2d69;"></div>
@@ -279,19 +279,19 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
                   Чтобы достичь целевого уровня <b>${esc(moneyPerMonth(targetPresent))}</b>,
                   нужен дополнительный доход <b>${esc(moneyPerMonth(pensionGap))}</b>.
                 </div>
-                <div class="pill">Более подробная методика расчета — на следующей странице</div>
+                <div class="pill" style="margin-top:14px;">Более подробная методика расчета — на следующей странице</div>
               </div>
-              <div class="card" style="border-color:#a95b8d;">
-                <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-end;">
+              <div class="card" style="border-color:#a95b8d;margin-top:20px;">
+                <div style="display:flex;justify-content:space-between;gap:24px;align-items:flex-end;">
                   <div style="flex:1;text-align:center;">
-                    <div style="font-size:24px;font-weight:700;">${esc(moneyPerMonth(projectedPresent))}</div>
-                    <div style="height:30px;width:44px;background:#000;margin:6px auto;"></div>
-                    <div class="muted">Госпенсия сейчас</div>
+                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(projectedPresent))}</div>
+                    <div style="height:34px;width:48px;background:#8f8f8c;margin:10px auto 0;"></div>
+                    <div class="muted" style="margin-top:10px;">Госпенсия сейчас</div>
                   </div>
                   <div style="flex:1;text-align:center;">
-                    <div style="font-size:24px;font-weight:700;">${esc(moneyPerMonth(projectedFuture))}</div>
-                    <div style="height:62px;width:44px;background:#722257;margin:6px auto;"></div>
-                    <div class="muted">Госпенсия в будущем</div>
+                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(projectedFuture))}</div>
+                    <div style="height:70px;width:48px;background:#722257;margin:10px auto 0;"></div>
+                    <div class="muted" style="margin-top:10px;">Госпенсия в будущем</div>
                   </div>
                 </div>
               </div>

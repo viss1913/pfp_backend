@@ -16,7 +16,8 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 3. **Четыре типа страниц целей** — `buildGoalPagesHtml.js`: **`FIN_RESERVE`**, **`LIFE`**, **`INVESTMENT`**, **`OTHER`** (общий брендинг со сводной: фон/лого/цвета из тех же `summary_*`).
 4. **Сборка полного PDF** — `reportPdfService` (Puppeteer): обложка (опц.) → сводная (опц.) → страницы целей (подмножество через query **`goalTypes`**). Эндпоинт **`GET /api/pfp/reports/:clientId/pdf`**.
 5. **HTML одной страницы для клиента** — **`GET /api/pfp/reports/:clientId/pages/:pageType/html`** (`reportPagesController`).
-6. **Превью в ЛК (мок + настройки агента)** — **`GET /api/pfp/pdf-settings/summary-preview-html`**, **`GET /api/pfp/pdf-settings/pages/:pageType/preview-html`** (`pageType`: `SUMMARY` \| `FIN_RESERVE` \| `LIFE` \| `INVESTMENT` \| `OTHER`).
+6. **ЛК клиента (B2C)** — **`GET /api/my/plan/report`**, **`GET /api/my/plan/report/pdf`** (`clientCabinetController`).
+7. **Превью в ЛК (мок + настройки агента)** — **`GET /api/pfp/pdf-settings/summary-preview-html`**, **`GET /api/pfp/pdf-settings/pages/:pageType/preview-html`** (`pageType`: `SUMMARY` \| `FIN_RESERVE` \| `LIFE` \| `INVESTMENT` \| `OTHER`).
 
 Новые страницы отчёта или эндпоинты — дописывать в этот skill.
 
@@ -25,7 +26,7 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 - Любые правки **PDF-отчёта PFP**: новые/существующие **страницы HTML**, генерация, связка с данными агента/клиента.
 - **`/api/pfp/pdf-settings`**, обложка, **`cover_layout`**, **`editor_schema`**, загрузка фонов.
 - **R2** для файлов отчёта (обложка, фон/лого сводной, сток-ассеты), env, Railway, миграции URL в БД.
-- **`reportPdfService`**, **`reportController.getClientReportPdf`**, **`reportPagesController`** (страница HTML по типу).
+- **`reportPdfService`**, **`reportController.getClientReportPdf`**, **`clientCabinetController.getMyReport` / `getMyReportPdf`**, **`reportPagesController`** (страница HTML по типу).
 - Таблица **`agent_report_pdf_settings`** и родственные сущности отчёта.
 - После появления новых маршрутов/модулей отчёта — **дописать сюда** пути и файлы в PR.
 
@@ -65,19 +66,21 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 | `src/reports/summary/buildSummaryPdfLayoutModel.js` | `buildSummaryPdfLayoutModel` — JSON для фронта: продолжение целей + распределение капитала; в ответе отчёта **`pdf_summary_layout`** |
 | `src/reports/summary/previewMockPayload.json` | Мок отчёта для **`summary-preview-html`** и для превью страниц целей (`goals` по `goal_type`) |
 | `src/reports/goalPages/buildGoalPagesHtml.js` | **`buildGoalPageHtml`** — HTML страниц **`FIN_RESERVE`**, **`LIFE`**, **`INVESTMENT`**, **`OTHER`** (графики/блоки под тип цели; ассеты через `resolveGoalCardImageSrc` / R2 prefix `pdf-report-summary-stock-assets`) |
-| `src/services/reportPdfService.js` | Сборка списка HTML-страниц → `buildFramesContainerHtml` → Puppeteer **`page.pdf()`**; query **`includeCover`**, **`includeSummary`**, **`goalTypes`** |
+| `src/services/reportPdfService.js` | Сборка списка HTML-страниц → Puppeteer **`page.pdf()`**; опция **`brandingAgentId`** (ЛК клиента) или **`agentId`** из JWT (агент) |
 | `src/controllers/reportController.js` | **`getClientReportPdf`** — отдача PDF буфером |
+| `src/controllers/clientCabinetController.js` | **`getMyReport`**, **`getMyReportPdf`** — отчёт/PDF для B2C |
 | `src/controllers/reportPagesController.js` | **`getPageHtml`** — HTML одной страницы по **`pageType`** для клиента |
 | `src/routes/reportRoutes.js` | **`/pfp/reports/:clientId`**, **`/pdf`**, **`/pages/:pageType/html`** |
+| `src/routes/clientCabinetRoutes.js` | **`/my/plan/report`**, **`/my/plan/report/pdf`** |
 | `database/migrations/*_add_summary_page_pdf_settings.js` | `summary_logo_url`, `summary_accent_color` (legacy), `summary_ai_avatar_url` (legacy) |
 | `database/migrations/*_add_summary_background_chart_color.js` | `summary_background_url`, `summary_chart_color` |
-| `src/services/pdfSettingsService.js` | БД, `mergeWithDefaults`, `editor_schema`, `cover_layout`, `summary_layout`, `buildCoverHtmlForAgent`, **`buildSummaryPreviewHtml`**, **`buildPagePreviewHtml`**, signed URL для превью |
+| `src/services/pdfSettingsService.js` | БД, `mergeWithDefaults`, **`getDefaultsMerged()`** (PDF без агента), `editor_schema`, превью HTML |
 | `src/controllers/pdfSettingsController.js` | GET/PATCH/POST; ответ **`storage`**: `r2` \| `local_disk`; 503 `R2_PUBLIC_URL_MISSING` / `R2_PUT_FAILED` при настроенном R2 |
 | `src/routes/pdfSettingsRoutes.js` | Multer: до 8 МБ, `image/jpeg`, `png`, `webp`; поле формы **`image`**; превью-роуты |
 | `src/utils/r2Client.js` | `uploadPublicFile` (Put → без `R2_PUBLIC_*` откат Delete), `getR2StartupDiagnostics`, алиасы **`CLOUDFLARE_ACCOUNT_ID`**, `trimEnv`, публичная база `R2_PUBLIC_*` |
-| `src/routes/index.js` | `'/pfp/pdf-settings'` и **`'/pfp/reports'`** + `pfpMiddleware` |
+| `src/routes/index.js` | `'/pfp/pdf-settings'`, **`'/pfp/reports'`**, **`'/my'`** (кабинет) + `pfpMiddleware` |
 | `openapi/PDFsettings.yaml` | PdfSettings, превью HTML (в т.ч. `pages/{pageType}/preview-html`); Swagger: `/api-docs-pdf-settings` |
-| `openapi/getReport.yaml` | Данные отчёта `GET /pfp/reports/{clientId}`, PDF `.../pdf`, HTML страницы `.../pages/{pageType}/html` |
+| `openapi/getReport.yaml` | Отчёт: `GET /pfp/reports/{clientId}`, PDF, HTML страницы; ЛК: `GET /my/plan/report`, `.../report/pdf` |
 | `docs/env-cloudflare-r2.md` | Все переменные R2, типовые ошибки, скрипты |
 | `src/reports/README.md` | Краткая карта модуля отчётов (при расширении goal pages — имеет смысл синхронизировать с этим skill) |
 
@@ -105,8 +108,17 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 | Метод | Путь | Назначение |
 |--------|------|------------|
 | GET | `/api/pfp/reports/:clientId` | Структурированные данные отчёта (в т.ч. **`pdf_summary_layout`**) |
-| GET | `/api/pfp/reports/:clientId/pdf` | Готовый PDF: query **`includeCover`**, **`includeSummary`** (оба по умолчанию true), **`goalTypes`** — подмножество из `FIN_RESERVE,LIFE,INVESTMENT,OTHER` |
+| GET | `/api/pfp/reports/:clientId/pdf` | Готовый PDF: query **`includeCover`**, **`includeSummary`**, **`goalTypes`**; **`disposition=attachment`** — скачивание вместо inline |
 | GET | `/api/pfp/reports/:clientId/pages/:pageType/html` | HTML одной страницы для печати/PDF; **`pageType`** как в превью (`SUMMARY`, …) |
+
+## HTTP API: отчёт в ЛК клиента (`/api/my`, JWT с `clientId`)
+
+Префикс: `router.use('/my', pfpMiddleware, clientCabinetRoutes)` + `restrictTo('client', …)`.
+
+| Метод | Путь | Назначение |
+|--------|------|------------|
+| GET | `/api/my/plan/report` | Тот же JSON, что **`/api/pfp/reports/:clientId`**, для **`req.user.clientId`** |
+| GET | `/api/my/plan/report/pdf` | PDF: те же query, что у агентского PDF; стиль из **`agent_report_pdf_settings`** закреплённого агента или дефолты |
 
 Ответы PdfSettings включают **`editor_schema`** (контракт для ЛК): у каждого **`templates[]`** — **`preview_page_type`** и **`preview_html`** (путь к GET превью HTML вкладки, кроме обложки). Плюс **`cover_layout`** (геометрия + resolved цвета/текст). **Публичный URL фона нигде не дублируется:** только корневое поле **`cover_background_url`** (или **`GET /api/pfp/pdf-settings/cover-image`**, если нужен signed). Внутри `cover_layout.background` — лишь `uses_custom_upload` и `fallback_repo_relative_path` к стоковому jpg в репо, когда свой фон не задан.
 
