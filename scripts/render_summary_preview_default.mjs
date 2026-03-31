@@ -23,7 +23,7 @@ const summaryBgUrl = (process.env.SUMMARY_BG_URL || '').trim();
 const summaryLogoUrl = (process.env.SUMMARY_LOGO_URL || '').trim();
 const useRemoteAssets = /^https?:\/\//i.test(summaryBgUrl) || /^https?:\/\//i.test(summaryLogoUrl);
 
-const html = buildReportSummaryOverviewHtml({
+const html = await buildReportSummaryOverviewHtml({
     reportPayload: mock,
     clientInfo: {
         name: 'Алексей Петров',

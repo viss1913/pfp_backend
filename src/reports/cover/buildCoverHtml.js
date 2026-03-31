@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { resolveReportRasterRef } = require('../../utils/reportRasterSrc');
 
 /**
  * Единая спека обложки (Figma «Отчет» 1:1241, плашка Frame 400 — 1:1244).
@@ -254,23 +255,12 @@ function localFileToDataUrl(absPath) {
 }
 
 /**
- * URL для <img src>: http(s) как есть, иначе путь на диске → file://
+ * URL для <img src>: http(s) как есть; локальный растр → WebP/JPEG и file:// или data:
  */
-function resolveCoverImageSrc(coverRef, rootDir, inlineLocalAssets = false) {
+async function resolveCoverImageSrc(coverRef, rootDir, inlineLocalAssets = false) {
     const fallback = path.join(rootDir, GLOBAL_DEFAULTS.coverBackgroundPath);
     const ref = (coverRef && String(coverRef).trim()) || fallback;
-    if (/^https?:\/\//i.test(ref)) {
-        return ref;
-    }
-    const abs = path.isAbsolute(ref) ? ref : path.resolve(rootDir, ref);
-    if (inlineLocalAssets && fs.existsSync(abs)) {
-        try {
-            return localFileToDataUrl(abs);
-        } catch {
-            // fallthrough to file://
-        }
-    }
-    return pathToFileURL(abs).href;
+    return resolveReportRasterRef(ref, rootDir, rootDir, inlineLocalAssets);
 }
 
 /**
@@ -283,7 +273,7 @@ function resolveCoverImageSrc(coverRef, rootDir, inlineLocalAssets = false) {
  * @param {string} [options.dateLine] — если не задано, ставится сегодня по formatCoverDateRu
  * @param {string} [options.fontPath] — TTF
  */
-function buildReportCoverHtml(options = {}) {
+async function buildReportCoverHtml(options = {}) {
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
     const opts = {
@@ -294,7 +284,7 @@ function buildReportCoverHtml(options = {}) {
         fontPath: options.fontPath || path.join(root, 'assets/fonts/Roboto-Regular.ttf'),
     };
 
-    const coverSrc = resolveCoverImageSrc(opts.coverBackgroundUrl, root, inlineLocalAssets);
+    const coverSrc = await resolveCoverImageSrc(opts.coverBackgroundUrl, root, inlineLocalAssets);
     const fontAbs = path.resolve(opts.fontPath);
     const fontUrl =
         inlineLocalAssets && fs.existsSync(fontAbs)
@@ -424,7 +414,7 @@ function buildReportCoverHtml(options = {}) {
 }
 
 /** @deprecated используй buildReportCoverHtml */
-function buildRostechCoverHtml(options = {}) {
+async function buildRostechCoverHtml(options = {}) {
     return buildReportCoverHtml({
         ...options,
         coverTitle: options.title ?? options.coverTitle,

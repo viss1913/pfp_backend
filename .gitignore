@@ -28,3 +28,6 @@ scripts/test-pdf-cover-config.local.json
 
 # Временный клон макета из Figma (не в репо)
 _figma_report_tmp/
+
+# Кэш PNG→WebP для PDF (reportRasterSrc)
+tmp/.report-raster-cache/

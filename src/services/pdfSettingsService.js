@@ -1,6 +1,4 @@
-const fs = require('fs');
 const path = require('path');
-const { pathToFileURL } = require('url');
 const knex = require('../config/database');
 const {
     buildReportCoverHtml,
@@ -20,16 +18,15 @@ const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 const reportService = require('./reportService');
 const previewMockPayload = require('../reports/summary/previewMockPayload.json');
 const {
-    publicUrlFromKey,
     keyFromPublicUrl,
     getSignedGetObjectUrl,
     shouldSignCoverReadUrl,
     signedCoverUrlTtlSec,
 } = require('../utils/r2Client');
+const { resolveReportRasterRef } = require('../utils/reportRasterSrc');
 
 const TABLE = 'agent_report_pdf_settings';
 const REPO_ROOT = path.join(__dirname, '..', '..');
-const STOKK_SUMMARY_ASSETS_R2_PREFIX = 'pdf-report-summary-stock-assets';
 
 /** Ответ read_url-эндпоинтов, когда в БД нет загруженного файла (ЛК не должен трактовать как сетевую ошибку). */
 const EMPTY_IMAGE_READ_RESULT = {
@@ -47,42 +44,6 @@ function previewHtmlEndpointForPageType(pageType) {
         description:
             'Полный HTML превью страницы (мок + настройки агента). Authorization: Bearer; для iframe — fetch и srcdoc/blob.',
     };
-}
-
-function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
-    if (ref == null || !String(ref).trim()) return '';
-    const s = String(ref).trim();
-    if (/^https?:\/\//i.test(s)) return s;
-
-    const abs = path.isAbsolute(s) ? s : path.resolve(rootDir, s);
-
-    if (inlineLocalAssets && fs.existsSync(abs)) {
-        try {
-            const ext = path.extname(abs).toLowerCase();
-            const mime =
-                ext === '.png'
-                    ? 'image/png'
-                    : ext === '.jpg' || ext === '.jpeg'
-                      ? 'image/jpeg'
-                      : ext === '.webp'
-                        ? 'image/webp'
-                        : ext === '.gif'
-                          ? 'image/gif'
-                          : 'application/octet-stream';
-            const buf = fs.readFileSync(abs);
-            return `data:${mime};base64,${buf.toString('base64')}`;
-        } catch {
-            // noop
-        }
-    }
-
-    const basename = path.basename(abs);
-    const r2Key = `${STOKK_SUMMARY_ASSETS_R2_PREFIX}/${basename}`;
-    const pub = publicUrlFromKey(r2Key);
-    if (pub) return pub;
-
-    if (fs.existsSync(abs)) return pathToFileURL(abs).href;
-    return '';
 }
 
 function normalizePreviewPageType(pageType) {
@@ -506,7 +467,7 @@ class PdfSettingsService {
      */
     async buildCoverHtmlForAgent(agentId, projectId) {
         const s = await this.getByAgentId(agentId, projectId);
-        return buildReportCoverHtml({
+        return await buildReportCoverHtml({
             coverTitle: s.cover_title,
             titleBandColor: s.title_band_color,
             coverBackgroundUrl: s.cover_background_url || undefined,
@@ -524,7 +485,7 @@ class PdfSettingsService {
         await this.assertAgentInProject(agentId, projectId);
         const themeKey = resolveReportThemeKey(projectId);
         const s = await this.getByAgentId(agentId, projectId);
-        return buildSummaryOverviewHtmlByTheme({
+        return await buildSummaryOverviewHtmlByTheme({
             themeKey,
             reportPayload: previewMockPayload,
             clientInfo: {
@@ -559,7 +520,7 @@ class PdfSettingsService {
             throw err;
         }
         if (pageType === 'SUMMARY') {
-            return this.buildSummaryPreviewHtml(agentId, projectId);
+            return await this.buildSummaryPreviewHtml(agentId, projectId);
         }
 
         const s = await this.getByAgentId(agentId, projectId);
@@ -570,11 +531,16 @@ class PdfSettingsService {
             throw err;
         }
 
-        const backgroundSrc = resolveAssetSrc(s.summary_background_url, REPO_ROOT, true);
-        const logoSrc = resolveAssetSrc(s.summary_logo_url, REPO_ROOT, true);
-        const aiAvatarSrc = resolveAssetSrc('assets/reports/summary/stock-ai-avatar.png', REPO_ROOT, true);
+        const backgroundSrc = await resolveReportRasterRef(s.summary_background_url, REPO_ROOT, REPO_ROOT, true);
+        const logoSrc = await resolveReportRasterRef(s.summary_logo_url, REPO_ROOT, REPO_ROOT, true);
+        const aiAvatarSrc = await resolveReportRasterRef(
+            'assets/reports/summary/stock-ai-avatar.png',
+            REPO_ROOT,
+            REPO_ROOT,
+            true
+        );
 
-        return buildGoalPageHtmlByTheme({
+        return await buildGoalPageHtmlByTheme({
             themeKey,
             goalType: pageType,
             goal,
@@ -608,7 +574,7 @@ class PdfSettingsService {
             income: '—',
             currentCapital: capitalStr,
         };
-        return buildSummaryOverviewHtmlByTheme({
+        return await buildSummaryOverviewHtmlByTheme({
             themeKey,
             reportPayload: extra.reportPayload || {
                 goals_detailed: report.goals_detailed,

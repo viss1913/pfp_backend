@@ -1,5 +1,6 @@
 const path = require('path');
-const { resolveGoalCardImageSrc, GLOBAL_DEFAULTS } = require('../../summary/buildSummaryOverviewHtml');
+const { resolveGoalCardImageSrc } = require('../../summary/buildSummaryOverviewHtml');
+const { resolveReportRasterRef } = require('../../../utils/reportRasterSrc');
 
 function esc(v) {
     if (v == null) return '';
@@ -22,7 +23,16 @@ function moneyPerMonth(v) {
     return m === '—' ? m : `${m}/мес.`;
 }
 
-function buildShell({ title, subtitle, bodyHtml, logoSrc, bgSrc }) {
+function buildShell({
+    title,
+    subtitle,
+    bodyHtml,
+    logoSrc,
+    bgSrc,
+    useBackground = false,
+    footerText = 'НПФ Ростех • Госпенсия',
+    footerLogoSrc = '',
+}) {
     return `<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -89,15 +99,35 @@ function buildShell({ title, subtitle, bodyHtml, logoSrc, bgSrc }) {
       bottom: 16px;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-end;
+      gap: 16px;
       font-size: 11px;
       color: #6b7280;
+    }
+    .footer__left {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      max-width: 420px;
+    }
+    .footer__disclaimer {
+      font-size: 10px;
+      line-height: 1.25;
+      color: #212121;
+    }
+    .footer__logo {
+      height: 19px;
+      width: auto;
+      max-width: 120px;
+      object-fit: contain;
+      display: block;
     }
   </style>
 </head>
 <body>
   <div class="page">
-    <div class="bg">${bgSrc ? `<img src="${esc(bgSrc)}" alt="" />` : ''}</div>
+    <div class="bg">${useBackground && bgSrc ? `<img src="${esc(bgSrc)}" alt="" />` : ''}</div>
     <div class="inner">
       <div class="top">
         <div>
@@ -109,20 +139,49 @@ function buildShell({ title, subtitle, bodyHtml, logoSrc, bgSrc }) {
       ${bodyHtml}
     </div>
     <div class="footer">
-      <div>НПФ Ростех • Госпенсия</div>
-      <div>Страница PDF</div>
+      <div class="footer__left">
+        ${
+            footerText
+                ? `<div class="footer__disclaimer">${esc(footerText).replace(/\n/g, '<br/>')}</div>`
+                : ''
+        }
+        ${footerLogoSrc ? `<img class="footer__logo" src="${esc(footerLogoSrc)}" alt="" />` : ''}
+      </div>
+      <div style="white-space:nowrap;">Страница PDF</div>
     </div>
   </div>
 </body>
 </html>`;
 }
 
-function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
-    const root = path.join(__dirname, '../../..');
+async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
+    const root = path.join(__dirname, '../../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
-    const logoSrc = options.logoSrc || '';
-    const bgSrc = options.backgroundSrc || '';
-    const cardImg = resolveGoalCardImageSrc('PENSION', root, inlineLocalAssets);
+    const logoFromSettings = options.logoSrc
+        ? await resolveReportRasterRef(options.logoSrc, root, root, inlineLocalAssets)
+        : '';
+    const bgSrc = options.backgroundSrc
+        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
+        : '';
+    const cardImg = await resolveGoalCardImageSrc('PENSION', root, inlineLocalAssets, root);
+    const rostechAvatar59Src = await resolveReportRasterRef(
+        'assets/reports/rostech/pension-avatar-59-31.png',
+        root,
+        root,
+        inlineLocalAssets
+    );
+    const rostechGoal59Src = await resolveReportRasterRef(
+        'assets/reports/rostech/pension-goal-59-32.png',
+        root,
+        root,
+        inlineLocalAssets
+    );
+    const rostechLogo59Src = await resolveReportRasterRef(
+        'assets/reports/rostech/rostech-logo-59-51.png',
+        root,
+        root,
+        inlineLocalAssets
+    );
 
     const s = goal?.summary || {};
     const yearsToPension = Number(goal?.details?.state_pension?.years_to_pension ?? 0);
@@ -140,7 +199,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
     const commonIntro = `
       <div class="card">
         <div style="display:flex; gap:10px; align-items:flex-start;">
-          <img src="${esc(cardImg)}" alt="" style="width:60px;height:68px;object-fit:cover;border-radius:8px;" />
+          <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:60px;height:68px;object-fit:cover;border-radius:8px;" />
           <div style="font-size:13px;line-height:1.45; flex:1;">
             <b>${esc(title)}</b><br/>
             ${esc(clientName || 'Клиент')}, до пенсии ${Number.isFinite(yearsToPension) ? yearsToPension : '—'} лет.
@@ -155,24 +214,51 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         // 59:28
         buildShell({
             title: 'Ваш финансовый план',
-            subtitle: 'Рост стоимости цели с учетом инфляции',
-            logoSrc,
+            subtitle: '',
+            logoSrc: rostechLogo59Src || logoFromSettings,
             bgSrc,
+            useBackground: false,
+            footerText:
+                'Финансовый план не является коммерческим предложением или договором,\nносит исключительно информационный характер.',
+            footerLogoSrc: rostechLogo59Src || logoFromSettings || '',
             bodyHtml: `
-              ${commonIntro}
-              <div style="margin-bottom:8px;font-size:12px;color:#555;">Ваш текущий прогноз: Госпенсия ${esc(moneyPerMonth(projectedPresent))}, цель ${esc(moneyPerMonth(targetPresent))}.</div>
-              <div class="card" style="border-color:#a95b8d;">
-                <div style="text-align:center;font-size:16px;font-weight:700;margin-bottom:8px;">Рост стоимости цели с учетом инфляции</div>
-                <div style="display:flex;justify-content:space-evenly;align-items:flex-end;gap:28px;padding-top:8px;">
-                  <div style="width:180px;text-align:center;">
-                    <div style="font-size:34px;font-weight:700;">${esc(moneyPerMonth(targetPresent))}</div>
-                    <div style="height:76px;width:54px;background:#8f8f8c;margin:8px auto 0;"></div>
-                    <div class="muted" style="margin-top:8px;">Желаемая пенсия<br/>в сегодняшних деньгах</div>
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:60px;height:68px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
+                <div style="flex:1;min-width:0;background:#fff;border:1px solid #f1f1f1;border-radius:10px;padding:10px;">
+                  <div style="font-size:13px;line-height:14px;color:#212121;">
+                    Я подготовила детальный план для достижения вашей финансовой цели.<br/><br/>
+                    Ваш текущий доход — ${esc(money(110000))}/мес. после вычета НДФЛ.<br/><br/>
+                    Ваша финансовая цель:
                   </div>
-                  <div style="width:180px;text-align:center;">
-                    <div style="font-size:34px;font-weight:700;">${esc(moneyPerMonth(projectedFuture))}</div>
-                    <div style="height:118px;width:54px;background:#722257;margin:8px auto 0;"></div>
-                    <div class="muted" style="margin-top:8px;">Желаемая пенсия в будущем<br/>с учетом инфляции</div>
+                  <div style="display:flex;gap:24px;align-items:flex-start;margin-top:12px;">
+                    <img src="${esc(rostechGoal59Src || cardImg)}" alt="" style="width:120px;height:70px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
+                    <div style="font-size:13px;line-height:14px;color:#212121;">
+                      <b>1. ${esc(title)}</b><br/><br/>
+                      Старт выплат — 2051 г.<br/>
+                      Желаемая пенсия — ${esc(moneyPerMonth(targetPresent))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="position:relative;border:1px solid #8a2d69;border-radius:12px;padding:34px 20px 14px;background:#fff;margin-top:28px;">
+                <div style="position:absolute;left:0;right:0;top:-1px;height:1px;">
+                  <div style="position:absolute;left:0;top:0;width:138px;height:1px;background:#8a2d69;"></div>
+                  <div style="position:absolute;right:0;top:0;width:138px;height:1px;background:#8a2d69;"></div>
+                </div>
+                <div style="position:absolute;left:50%;top:-11px;transform:translateX(-50%);background:#fff;padding:0 12px;font-size:16px;font-weight:700;line-height:1.1;">
+                  Рост стоимости цели с учетом инфляции
+                </div>
+
+                <div style="display:flex;justify-content:space-evenly;align-items:flex-end;gap:38px;padding-top:8px;">
+                  <div style="width:190px;text-align:center;">
+                    <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(moneyPerMonth(targetPresent))}</div>
+                    <div style="height:62px;width:53px;background:#8f8f8c;margin:8px auto 0;"></div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Желаемая пенсия<br/>в сегодняшних деньгах</div>
+                  </div>
+                  <div style="width:220px;text-align:center;">
+                    <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(moneyPerMonth(projectedFuture))}</div>
+                    <div style="height:104px;width:53px;background:#722257;margin:8px auto 0;"></div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Желаемая пенсия в 2051 г.<br/>с учетом инфляции 5,6% в год</div>
                   </div>
                 </div>
               </div>
@@ -182,7 +268,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Достойная пенсия',
             subtitle: 'Прогноз Госпенсии',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               ${commonIntro}
@@ -215,7 +301,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Предлагаемый план',
             subtitle: 'График формирования пенсионного капитала',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               ${commonIntro}
@@ -241,7 +327,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Структура портфеля НПФ',
             subtitle: 'Консервативный профиль с контролем риска',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -269,7 +355,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Государственное софинансирование',
             subtitle: 'Сводка по поддержке от государства и налоговым вычетам',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -289,7 +375,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Юридическая оговорка',
             subtitle: '',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -303,7 +389,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Методика расчета Госпенсии',
             subtitle: 'Фиксированная выплата + ИПК × стоимость ИПК',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -324,7 +410,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Важная информация: инфляция',
             subtitle: 'Параметры инфляции и доходности по горизонту цели',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -344,7 +430,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Декларация о рисках ПДС',
             subtitle: '1. Инфляционный риск',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -359,7 +445,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Декларация о рисках ПДС',
             subtitle: '2. Риск банкротства НПФ',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -374,7 +460,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Декларация о рисках ПДС',
             subtitle: '3. Риск дефолта по ОФЗ',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -389,7 +475,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Декларация о рисках ПДС',
             subtitle: '4. Риски инвестирования в акции',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -404,7 +490,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'Декларация о рисках ПДС',
             subtitle: '5. Риски корпоративных облигаций',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">
@@ -419,7 +505,7 @@ function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
         buildShell({
             title: 'График достижения целей',
             subtitle: 'Помесячная динамика пополнений и капитала',
-            logoSrc,
+            logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
               <div class="card">

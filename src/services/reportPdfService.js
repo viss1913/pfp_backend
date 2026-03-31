@@ -128,7 +128,7 @@ class ReportPdfService {
 
         if (includeCover) {
             pageHtmlList.push(
-                buildReportCoverHtml({
+                await buildReportCoverHtml({
                     coverTitle: pdfSettings?.cover_title,
                     titleBandColor: pdfSettings?.title_band_color,
                     coverBackgroundUrl: pdfSettings?.cover_background_url,
@@ -158,7 +158,7 @@ class ReportPdfService {
                     : '—';
 
             pageHtmlList.push(
-                buildSummaryOverviewHtmlByTheme({
+                await buildSummaryOverviewHtmlByTheme({
                     themeKey,
                     reportPayload: {
                         goals_detailed: report.goals_detailed,
@@ -187,7 +187,7 @@ class ReportPdfService {
         for (const goalType of targetGoalTypes) {
             const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
             if (!goal) continue;
-            const pageHtmls = buildGoalPagesHtmlByTheme({
+            const pageHtmls = await buildGoalPagesHtmlByTheme({
                 themeKey,
                 goalType,
                 goal,

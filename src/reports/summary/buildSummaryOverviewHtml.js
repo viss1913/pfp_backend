@@ -2,6 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { publicUrlFromKey } = require('../../utils/r2Client');
+const {
+    resolveReportRasterRef,
+    ensureLocalRasterWebpOrJpeg,
+    localRasterToDataUrl,
+} = require('../../utils/reportRasterSrc');
 
 /**
  * Вторая страница PDF («Сводная информация») — первая A4 из макета Figma PlanOverviewPage
@@ -113,30 +118,8 @@ function localFileToDataUrl(absPath) {
 /**
  * @param {boolean} [inlineLocalAssets] — для HTML в браузере ЛК: вшить локальные файлы как data:, иначе file:// (Puppeteer на сервере)
  */
-function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
-    if (ref == null || !String(ref).trim()) return null;
-    const s = String(ref).trim();
-    if (/^https?:\/\//i.test(s)) return s;
-    const abs = path.isAbsolute(s) ? s : path.resolve(rootDir, s);
-
-    // 1) Если локально читается и inlineLocalAssets включён — вшиваем data:
-    if (inlineLocalAssets && fs.existsSync(abs)) {
-        try {
-            return localFileToDataUrl(abs);
-        } catch {
-            // дальше попробуем R2
-        }
-    }
-
-    // 2) Если file:// отдавать нельзя (iframe srcDoc на фронте) — фолбэк на публичный CDN из R2
-    const basename = path.basename(abs);
-    const r2Key = `${SUMMARY_STOCK_ASSETS_R2_PREFIX}/${basename}`;
-    const pub = publicUrlFromKey(r2Key);
-    if (pub) return pub;
-
-    // 3) Последняя попытка: file:// (для server-side PDF-рендера может быть ок)
-    if (fs.existsSync(abs)) return pathToFileURL(abs).href;
-    return '';
+async function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
+    return resolveReportRasterRef(ref, rootDir, rootDir, inlineLocalAssets, SUMMARY_STOCK_ASSETS_R2_PREFIX);
 }
 
 function formatMoneyRu(n) {
@@ -221,7 +204,7 @@ function findGoalCardImagePath(goalType, rootDir) {
     const raw = goalType != null ? String(goalType).trim() : '';
     const safe = raw.replace(/[^A-Za-z0-9_]/g, '') || 'DEFAULT';
     const candidates = [safe, 'DEFAULT'];
-    const exts = ['.png', '.jpg', '.jpeg', '.webp'];
+    const exts = ['.webp', '.jpg', '.jpeg', '.png'];
     for (const name of candidates) {
         for (const ext of exts) {
             const p = path.join(base, `${name}${ext}`);
@@ -304,7 +287,7 @@ function buildGoalCardAssetsForAgentLK(rootDir) {
  * @param {string} goalType — как в API: PENSION, LIFE, FIN_RESERVE, INVESTMENT, OTHER, …
  * @param {boolean} [inlineLocalAssets]
  */
-function resolveGoalCardImageSrc(goalType, rootDir, inlineLocalAssets = false) {
+async function resolveGoalCardImageSrc(goalType, rootDir, inlineLocalAssets = false, repoRoot = rootDir) {
     const r2Key = getGoalCardImageR2Key(goalType, rootDir);
     if (r2Key) {
         const pub = publicUrlFromKey(r2Key);
@@ -312,19 +295,20 @@ function resolveGoalCardImageSrc(goalType, rootDir, inlineLocalAssets = false) {
     }
     const p = findGoalCardImagePath(goalType, rootDir);
     if (!p) return '';
+    const optimized = await ensureLocalRasterWebpOrJpeg(p, repoRoot);
     if (inlineLocalAssets) {
         try {
-            return localFileToDataUrl(p);
+            return localRasterToDataUrl(optimized);
         } catch {
-            return pathToFileURL(p).href;
+            return pathToFileURL(optimized).href;
         }
     }
-    return pathToFileURL(p).href;
+    return pathToFileURL(optimized).href;
 }
 
-function renderProtectionCardFinReserve(goal, rootDir, inlineLocalAssets) {
+async function renderProtectionCardFinReserve(goal, rootDir, inlineLocalAssets) {
     const s = goal.summary || {};
-    const img = escapeHtml(resolveGoalCardImageSrc('FIN_RESERVE', rootDir, inlineLocalAssets));
+    const img = escapeHtml(await resolveGoalCardImageSrc('FIN_RESERVE', rootDir, inlineLocalAssets, rootDir));
     const title = escapeHtml(goal.goal_name || 'Финансовый резерв');
     const cap = formatMoneyRu(s.initial_capital);
     const mon = formatMoneyRu(s.monthly_replenishment);
@@ -342,10 +326,10 @@ function renderProtectionCardFinReserve(goal, rootDir, inlineLocalAssets) {
     </div>`;
 }
 
-function renderProtectionCardLife(goal, rootDir, inlineLocalAssets) {
+async function renderProtectionCardLife(goal, rootDir, inlineLocalAssets) {
     const risks = goal.details?.risks;
     const list = Array.isArray(risks) ? risks.slice(0, 2) : [];
-    const img = escapeHtml(resolveGoalCardImageSrc('LIFE', rootDir, inlineLocalAssets));
+    const img = escapeHtml(await resolveGoalCardImageSrc('LIFE', rootDir, inlineLocalAssets, rootDir));
     const title = escapeHtml(goal.goal_name || 'Защита жизни');
     const rows = list
         .map((r) => {
@@ -367,14 +351,14 @@ function renderProtectionCardLife(goal, rootDir, inlineLocalAssets) {
     </div>`;
 }
 
-function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
+async function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
     const gt = goal.goal_type || 'OTHER';
     const goalNameRaw = String(goal.goal_name || '');
     const normalizedGoalName = goalNameRaw.toLowerCase().replace(/ё/g, 'е');
     const isSaveAndGrowGoal =
         gt === 'INVESTMENT' ||
         (/сохранить/.test(normalizedGoalName) && /(преумнож|приумнож)/.test(normalizedGoalName));
-    const img = escapeHtml(resolveGoalCardImageSrc(gt, rootDir, inlineLocalAssets));
+    const img = escapeHtml(await resolveGoalCardImageSrc(gt, rootDir, inlineLocalAssets, rootDir));
     const title = escapeHtml(goal.goal_name || 'Цель');
     const months = Number(goal.summary?.target_months ?? goal.summary?.term_months);
     const years = Number.isFinite(months) ? Math.max(1, Math.round(months / 12)) : '—';
@@ -476,7 +460,7 @@ function buildDistributionChartHtml(title, goals, amounts, totalDisplay) {
  * @param {string} [options.fontPath] — TTF
  * @param {boolean} [options.inlineLocalAssets] — true для превью в браузере ЛК: картинки/шрифт с диска как data:, не file://
  */
-function buildReportSummaryOverviewHtml(options = {}) {
+async function buildReportSummaryOverviewHtml(options = {}) {
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
     const chartColor = sanitizeSummaryChartColor(
@@ -530,13 +514,13 @@ base-uri 'none';
         : '';
 
     const avatarRef = GLOBAL_DEFAULTS.stockAiAvatarPath;
-    const avatarSrc = escapeHtml(resolveAssetSrc(avatarRef, root, inlineLocalAssets));
+    const avatarSrc = escapeHtml(await resolveAssetSrc(avatarRef, root, inlineLocalAssets));
 
     const customBg =
         options.summaryBackgroundUrl && String(options.summaryBackgroundUrl).trim()
             ? String(options.summaryBackgroundUrl).trim()
             : '';
-    const bgSrc = customBg ? escapeHtml(resolveAssetSrc(customBg, root, inlineLocalAssets)) : '';
+    const bgSrc = customBg ? escapeHtml(await resolveAssetSrc(customBg, root, inlineLocalAssets)) : '';
 
     const payload = options.reportPayload || {};
     const goals = extractGoals(payload);
@@ -563,10 +547,10 @@ base-uri 'none';
 
     const protectionHtml = [];
     if (financialReserveGoal) {
-        protectionHtml.push(renderProtectionCardFinReserve(financialReserveGoal, root, inlineLocalAssets));
+        protectionHtml.push(await renderProtectionCardFinReserve(financialReserveGoal, root, inlineLocalAssets));
     }
     if (lifeProtectionGoal) {
-        protectionHtml.push(renderProtectionCardLife(lifeProtectionGoal, root, inlineLocalAssets));
+        protectionHtml.push(await renderProtectionCardLife(lifeProtectionGoal, root, inlineLocalAssets));
     }
     const protectionSection =
         protectionHtml.length > 0
@@ -576,13 +560,14 @@ base-uri 'none';
       </section>`
             : '';
 
+    const mainGoalCards = await Promise.all(
+        firstPageGoals.map((g) => renderMainGoalCard(g, root, inlineLocalAssets))
+    );
     const mainGoalsHtml =
         firstPageGoals.length > 0
             ? `<section class="section">
         <h2 class="h2" style="border-bottom-color: ${escapeHtml(lineColor)}">Основные цели</h2>
-        <div class="grid-main-goals">${firstPageGoals
-            .map((g) => renderMainGoalCard(g, root, inlineLocalAssets))
-            .join('')}</div>
+        <div class="grid-main-goals">${mainGoalCards.join('')}</div>
       </section>`
             : '';
 

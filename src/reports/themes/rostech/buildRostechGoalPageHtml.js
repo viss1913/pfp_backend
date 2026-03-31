@@ -6,20 +6,19 @@ const { buildRostechPensionPagesHtml } = require('./buildRostechPensionPagesHtml
  * Сейчас возвращаем дефолтный дизайн, чтобы не ломать PDF.
  * Дальше сюда подменим layout/HTML/CSS под новый макет Ростеха.
  */
-function buildRostechGoalPageHtml(args) {
+async function buildRostechGoalPageHtml(args) {
     if (String(args?.goalType || '').toUpperCase() === 'PENSION') {
-        const pages = buildRostechPensionPagesHtml(args || {});
+        const pages = await buildRostechPensionPagesHtml(args || {});
         return pages[0] || '';
     }
-    return buildGoalPageHtml(args);
+    return await buildGoalPageHtml(args);
 }
 
-function buildRostechGoalPagesHtml(args) {
+async function buildRostechGoalPagesHtml(args) {
     if (String(args?.goalType || '').toUpperCase() === 'PENSION') {
         return buildRostechPensionPagesHtml(args || {});
     }
-    return [buildGoalPageHtml(args)];
+    return [await buildGoalPageHtml(args)];
 }
 
 module.exports = { buildRostechGoalPageHtml, buildRostechGoalPagesHtml };
-

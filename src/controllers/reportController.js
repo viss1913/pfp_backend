@@ -40,9 +40,13 @@ class ReportController {
                 goalTypes,
             });
 
+            const useAttachment = String(req.query.disposition || '').toLowerCase() === 'attachment';
             const ts = new Date().toISOString().slice(0, 10);
             res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="report-client-${clientId}-${ts}.pdf"`);
+            res.setHeader(
+                'Content-Disposition',
+                `${useAttachment ? 'attachment' : 'inline'}; filename="report-client-${clientId}-${ts}.pdf"`
+            );
             res.setHeader('Cache-Control', 'private, no-store');
             res.send(pdfBuffer);
         } catch (error) {

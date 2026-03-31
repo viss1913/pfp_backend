@@ -1,5 +1,7 @@
 const calculationService = require('../services/calculationService');
 const clientService = require('../services/clientService');
+const reportService = require('../services/reportService');
+const reportPdfService = require('../services/reportPdfService');
 const goalRecalculator = require('../algorithms/recalculators');
 const Joi = require('joi');
 
@@ -63,6 +65,73 @@ class ClientCabinetController {
             }
 
             res.json(calculationService.simplify(client));
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /my/plan/report — JSON отчёта для PDF/графиков (как GET /api/pfp/reports/:clientId), только свой clientId из токена.
+     */
+    async getMyReport(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+            const reportData = await reportService.getClientReportData(clientId, projectId);
+            res.json(reportData);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /my/plan/report/pdf — PDF с данными плана и брендингом агента с карточки клиента (или дефолты без agent_id).
+     */
+    async getMyReportPdf(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+            const client = await clientService.getFullClient(clientId, projectId);
+            if (!client) {
+                return res.status(404).json({ error: 'Client profile not found' });
+            }
+
+            const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
+            const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
+            const goalTypes = req.query.goalTypes || null;
+            const useAttachment = String(req.query.disposition || '').toLowerCase() === 'attachment';
+
+            const brandingAgentId =
+                client.agent_id != null && client.agent_id !== ''
+                    ? Number(client.agent_id)
+                    : null;
+
+            const pdfBuffer = await reportPdfService.generateClientReportPdf({
+                clientId: Number(clientId),
+                agentId: null,
+                brandingAgentId,
+                projectId,
+                includeCover,
+                includeSummary,
+                goalTypes,
+            });
+
+            const ts = new Date().toISOString().slice(0, 10);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader(
+                'Content-Disposition',
+                `${useAttachment ? 'attachment' : 'inline'}; filename="report-client-${clientId}-${ts}.pdf"`
+            );
+            res.setHeader('Cache-Control', 'private, no-store');
+            res.send(pdfBuffer);
         } catch (err) {
             next(err);
         }

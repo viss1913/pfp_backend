@@ -7,7 +7,7 @@ const pdfSettingsService = require('../services/pdfSettingsService');
 
 const { buildReportSummaryOverviewHtml } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildGoalPageHtml } = require('../reports/goalPages/buildGoalPagesHtml');
-const { publicUrlFromKey } = require('../utils/r2Client');
+const { resolveReportRasterRef } = require('../utils/reportRasterSrc');
 
 function escapeHtml(s) {
     if (s == null) return '';
@@ -36,31 +36,6 @@ function localFileToDataUrl(absPath) {
     const buf = fs.readFileSync(absPath);
     const mime = mimeTypeForLocalFile(absPath);
     return `data:${mime};base64,${buf.toString('base64')}`;
-}
-
-function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
-    if (ref == null || !String(ref).trim()) return '';
-    const s = String(ref).trim();
-    if (/^https?:\/\//i.test(s)) return s;
-
-    const abs = path.isAbsolute(s) ? s : path.resolve(rootDir, s);
-
-    if (inlineLocalAssets && fs.existsSync(abs)) {
-        try {
-            return localFileToDataUrl(abs);
-        } catch {
-            /* fallthrough */
-        }
-    }
-
-    // Fallback for stock assets: resolve public URL from R2 by basename.
-    const basename = path.basename(abs);
-    const r2Key = `pdf-report-summary-stock-assets/${basename}`;
-    const pub = publicUrlFromKey(r2Key);
-    if (pub) return pub;
-
-    if (fs.existsSync(abs)) return pathToFileURL(abs).href;
-    return '';
 }
 
 function normalizePageType(pageType) {
@@ -108,10 +83,20 @@ class ReportPagesController {
             const pdfSettings = await pdfSettingsService.getByAgentId(agentId, projectId);
 
             const root = path.join(__dirname, '../../..');
-            const backgroundSrc = resolveAssetSrc(pdfSettings?.summary_background_url, root, inlineLocalAssets);
-            const logoSrc = resolveAssetSrc(pdfSettings?.summary_logo_url, root, inlineLocalAssets);
+            const backgroundSrc = await resolveReportRasterRef(
+                pdfSettings?.summary_background_url,
+                root,
+                root,
+                inlineLocalAssets
+            );
+            const logoSrc = await resolveReportRasterRef(pdfSettings?.summary_logo_url, root, root, inlineLocalAssets);
             const accentColor = pdfSettings?.summary_chart_color || undefined;
-            const aiAvatarSrc = resolveAssetSrc('assets/reports/summary/stock-ai-avatar.png', root, inlineLocalAssets);
+            const aiAvatarSrc = await resolveReportRasterRef(
+                'assets/reports/summary/stock-ai-avatar.png',
+                root,
+                root,
+                inlineLocalAssets
+            );
             const textColor = pdfSettings?.summary_text_color || '#ffffff';
             const lineColor = pdfSettings?.summary_line_color || accentColor || '#8b5cf6';
             const backgroundOverlayOpacity = pdfSettings?.summary_background_overlay_opacity;
@@ -133,7 +118,7 @@ class ReportPagesController {
                     currentCapital: capitalStr,
                 };
 
-                const html = buildReportSummaryOverviewHtml({
+                const html = await buildReportSummaryOverviewHtml({
                     reportPayload: {
                         goals_detailed: report.goals_detailed,
                         overall_plan: report.overall_plan,
@@ -162,7 +147,7 @@ class ReportPagesController {
                 return;
             }
 
-            const html = buildGoalPageHtml({
+            const html = await buildGoalPageHtml({
                 goalType: pageType,
                 goal,
                 clientName,

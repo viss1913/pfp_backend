@@ -62,6 +62,15 @@ paths:
           schema:
             type: string
             example: FIN_RESERVE,LIFE
+        - name: disposition
+          in: query
+          required: false
+          description: |
+            `attachment` — отдать файл как вложение (скачивание). Иначе по умолчанию `inline`.
+          schema:
+            type: string
+            enum:
+              - attachment
       security:
         - bearerAuth: []
       responses:
@@ -78,6 +87,78 @@ paths:
           description: Нет токена
         '500':
           description: Ошибка генерации (в т.ч. не выбрано ни одной страницы)
+
+  /my/plan/report:
+    get:
+      summary: JSON отчёта текущего клиента (ЛК B2C)
+      description: |
+        Тот же контракт, что `GET /pfp/reports/{clientId}`, но идентификатор клиента берётся из JWT (`clientId` в токене).
+        Требуется роль client (или разрешённые роли кабинета `/my`).
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '400':
+          description: В токене нет clientId
+        '401':
+          description: Нет токена
+
+  /my/plan/report/pdf:
+    get:
+      summary: PDF отчёта текущего клиента (ЛК B2C)
+      description: |
+        Генерация PDF по данным плана; визуальный стиль из `agent_report_pdf_settings` агента, указанного в `clients.agent_id`,
+        либо дефолты, если агент не привязан.
+      parameters:
+        - name: includeCover
+          in: query
+          required: false
+          description: Обложка включена по умолчанию; `0` или `false` — пропустить.
+          schema:
+            type: string
+        - name: includeSummary
+          in: query
+          required: false
+          description: Сводная по умолчанию включена; `0` или `false` — пропустить.
+          schema:
+            type: string
+        - name: goalTypes
+          in: query
+          required: false
+          description: Подмножество страниц целей через запятую (как у агентского PDF).
+          schema:
+            type: string
+        - name: disposition
+          in: query
+          required: false
+          description: `attachment` — скачивание файла.
+          schema:
+            type: string
+            enum:
+              - attachment
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: PDF-документ
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Нет clientId в токене
+        '401':
+          description: Нет токена
+        '404':
+          description: Профиль клиента не найден
+        '500':
+          description: Ошибка генерации PDF
 
   /pfp/reports/{clientId}/pages/{pageType}/html:
     get:

@@ -1,10 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
-const { publicUrlFromKey } = require('../../utils/r2Client');
 const { resolveGoalCardImageSrc, GLOBAL_DEFAULTS } = require('../summary/buildSummaryOverviewHtml');
-
-const STOKK_SUMMARY_ASSETS_R2_PREFIX = 'pdf-report-summary-stock-assets';
+const { resolveReportRasterRef } = require('../../utils/reportRasterSrc');
 
 function escapeHtml(s) {
     if (s == null) return '';
@@ -67,36 +65,6 @@ function localFileToDataUrl(absPath) {
     const buf = fs.readFileSync(absPath);
     const mime = mimeTypeForLocalFile(absPath);
     return `data:${mime};base64,${buf.toString('base64')}`;
-}
-
-/**
- * @param {string} ref URL/путь к файлу или относительный путь
- * @param {string} rootDir корень репо
- * @param {boolean} inlineLocalAssets если true — пытаться inlining data:
- */
-function resolveAssetSrc(ref, rootDir, inlineLocalAssets = false) {
-    if (ref == null || !String(ref).trim()) return '';
-    const s = String(ref).trim();
-    if (/^https?:\/\//i.test(s)) return s;
-
-    const abs = path.isAbsolute(s) ? s : path.resolve(rootDir, s);
-
-    if (inlineLocalAssets && fs.existsSync(abs)) {
-        try {
-            return localFileToDataUrl(abs);
-        } catch {
-            /* fallthrough */
-        }
-    }
-
-    // fallback: try R2 public for stock assets
-    const basename = path.basename(abs);
-    const r2Key = `${STOKK_SUMMARY_ASSETS_R2_PREFIX}/${basename}`;
-    const pub = publicUrlFromKey(r2Key);
-    if (pub) return pub;
-
-    if (fs.existsSync(abs)) return pathToFileURL(abs).href;
-    return '';
 }
 
 function buildProjectionSeries(goalSummary, { maxPoints = 3600 } = {}) {
@@ -555,7 +523,7 @@ function buildGoalPageFinishHtml() {
 </html>`;
 }
 
-function buildFinReservePageHtml({ goal, clientName, reportPayload, options = {} }) {
+async function buildFinReservePageHtml({ goal, clientName, reportPayload, options = {} }) {
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
 
@@ -565,11 +533,17 @@ function buildFinReservePageHtml({ goal, clientName, reportPayload, options = {}
     const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
     const backgroundDarknessPercent =
         options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
-    const bgSrc = options.backgroundSrc || '';
-    const logoSrc = options.logoSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockLogoPath, root, inlineLocalAssets);
-    const aiAvatarSrc = options.aiAvatarSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockAiAvatarPath, root, inlineLocalAssets);
+    const bgSrc = options.backgroundSrc
+        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
+        : '';
+    const logoSrc =
+        options.logoSrc ||
+        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockLogoPath, root, root, inlineLocalAssets));
+    const aiAvatarSrc =
+        options.aiAvatarSrc ||
+        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockAiAvatarPath, root, root, inlineLocalAssets));
 
-    const cardImg = resolveGoalCardImageSrc('FIN_RESERVE', root, inlineLocalAssets);
+    const cardImg = await resolveGoalCardImageSrc('FIN_RESERVE', root, inlineLocalAssets, root);
 
     const s = goal?.summary || {};
     const init = Number(s.initial_capital ?? 0);
@@ -640,7 +614,7 @@ function buildFinReservePageHtml({ goal, clientName, reportPayload, options = {}
     );
 }
 
-function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
+async function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
 
@@ -649,12 +623,17 @@ function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
     const lineColor = options.lineColor ?? options.accentColor ?? GLOBAL_DEFAULTS.summaryChartColor;
     const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
     const backgroundDarknessPercent = options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
-    const bgSrc = options.backgroundSrc || '';
+    const bgSrc = options.backgroundSrc
+        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
+        : '';
     const aiAvatarSrc =
-        options.aiAvatarSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockAiAvatarPath, root, inlineLocalAssets);
-    const logoSrc = options.logoSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockLogoPath, root, inlineLocalAssets);
+        options.aiAvatarSrc ||
+        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockAiAvatarPath, root, root, inlineLocalAssets));
+    const logoSrc =
+        options.logoSrc ||
+        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockLogoPath, root, root, inlineLocalAssets));
 
-    const cardImg = resolveGoalCardImageSrc('LIFE', root, inlineLocalAssets);
+    const cardImg = await resolveGoalCardImageSrc('LIFE', root, inlineLocalAssets, root);
 
     const s = goal?.summary || {};
     const details = goal?.details || {};
@@ -743,7 +722,7 @@ function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
     );
 }
 
-function buildPensionPageHtml({ goal, clientName, options = {} }) {
+async function buildPensionPageHtml({ goal, clientName, options = {} }) {
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
 
@@ -753,12 +732,17 @@ function buildPensionPageHtml({ goal, clientName, options = {} }) {
     const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
     const backgroundDarknessPercent =
         options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
-    const bgSrc = options.backgroundSrc || '';
+    const bgSrc = options.backgroundSrc
+        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
+        : '';
     const aiAvatarSrc =
-        options.aiAvatarSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockAiAvatarPath, root, inlineLocalAssets);
-    const logoSrc = options.logoSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockLogoPath, root, inlineLocalAssets);
+        options.aiAvatarSrc ||
+        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockAiAvatarPath, root, root, inlineLocalAssets));
+    const logoSrc =
+        options.logoSrc ||
+        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockLogoPath, root, root, inlineLocalAssets));
 
-    const cardImg = resolveGoalCardImageSrc('PENSION', root, inlineLocalAssets);
+    const cardImg = await resolveGoalCardImageSrc('PENSION', root, inlineLocalAssets, root);
 
     const s = goal?.summary || {};
     const initCapital = Number(s.initial_capital ?? 0);
@@ -819,7 +803,7 @@ function buildPensionPageHtml({ goal, clientName, options = {} }) {
     );
 }
 
-function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
+async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
 
@@ -829,15 +813,20 @@ function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
     const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
     const backgroundDarknessPercent =
         options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
-    const bgSrc = options.backgroundSrc || '';
+    const bgSrc = options.backgroundSrc
+        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
+        : '';
     const aiAvatarSrc =
-        options.aiAvatarSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockAiAvatarPath, root, inlineLocalAssets);
-    const logoSrc = options.logoSrc || resolveAssetSrc(GLOBAL_DEFAULTS.stockLogoPath, root, inlineLocalAssets);
+        options.aiAvatarSrc ||
+        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockAiAvatarPath, root, root, inlineLocalAssets));
+    const logoSrc =
+        options.logoSrc ||
+        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockLogoPath, root, root, inlineLocalAssets));
 
     const cardImg =
         pageLabel === 'INVESTMENT'
-            ? resolveGoalCardImageSrc('INVESTMENT', root, inlineLocalAssets)
-            : resolveGoalCardImageSrc('OTHER', root, inlineLocalAssets);
+            ? await resolveGoalCardImageSrc('INVESTMENT', root, inlineLocalAssets, root)
+            : await resolveGoalCardImageSrc('OTHER', root, inlineLocalAssets, root);
 
     const s = goal?.summary || {};
     const init = Number(s.initial_capital ?? 0);
@@ -939,12 +928,16 @@ function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
  * @param {string} args.clientName
  * @param {{ inlineLocalAssets?: boolean, accentColor?: string, textColor?: string, backgroundSrc?: string, aiAvatarSrc?: string }} [args.options]
  */
-function buildGoalPageHtml({ goalType, goal, clientName, options = {} }) {
-    if (goalType === 'FIN_RESERVE') return buildFinReservePageHtml({ goal, clientName, reportPayload: null, options });
-    if (goalType === 'LIFE') return buildLifeProtectionPageHtml({ goal, clientName, options });
-    if (goalType === 'PENSION') return buildPensionPageHtml({ goal, clientName, options });
-    if (goalType === 'INVESTMENT') return buildInOutPageHtml({ goal, clientName, pageLabel: 'INVESTMENT', options });
-    if (goalType === 'OTHER') return buildInOutPageHtml({ goal, clientName, pageLabel: 'OTHER', options });
+async function buildGoalPageHtml({ goalType, goal, clientName, options = {} }) {
+    if (goalType === 'FIN_RESERVE') {
+        return await buildFinReservePageHtml({ goal, clientName, reportPayload: null, options });
+    }
+    if (goalType === 'LIFE') return await buildLifeProtectionPageHtml({ goal, clientName, options });
+    if (goalType === 'PENSION') return await buildPensionPageHtml({ goal, clientName, options });
+    if (goalType === 'INVESTMENT') {
+        return await buildInOutPageHtml({ goal, clientName, pageLabel: 'INVESTMENT', options });
+    }
+    if (goalType === 'OTHER') return await buildInOutPageHtml({ goal, clientName, pageLabel: 'OTHER', options });
     throw new Error(`Unknown goalType for goal page: ${goalType}`);
 }
 

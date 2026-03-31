@@ -10,6 +10,10 @@ router.use(restrictTo('client', 'agent', 'admin', 'super_admin'));
 // GET /my/plan — Get my financial plan
 router.get('/plan', clientCabinetController.getMyPlan.bind(clientCabinetController));
 
+// GET /my/plan/report — JSON отчёта (pdf_summary_layout и т.д.)
+router.get('/plan/report/pdf', clientCabinetController.getMyReportPdf.bind(clientCabinetController));
+router.get('/plan/report', clientCabinetController.getMyReport.bind(clientCabinetController));
+
 // Стратегии Comon закреплённого за клиентом агента (информация для клиента)
 router.get('/comon-strategies', clientComonStrategyController.list);
 router.get('/comon-strategies/:id/profit/metrics', clientComonStrategyController.metrics);

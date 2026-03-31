@@ -3,19 +3,19 @@ const { buildGoalPageHtml } = require('../goalPages/buildGoalPagesHtml');
 const { buildRostechSummaryOverviewHtml } = require('./rostech/buildRostechSummaryOverviewHtml');
 const { buildRostechGoalPageHtml, buildRostechGoalPagesHtml } = require('./rostech/buildRostechGoalPageHtml');
 
-function buildSummaryOverviewHtmlByTheme({ themeKey, ...options }) {
+async function buildSummaryOverviewHtmlByTheme({ themeKey, ...options }) {
     if (themeKey === 'rostech') return buildRostechSummaryOverviewHtml(options);
-    return buildReportSummaryOverviewHtml(options);
+    return await buildReportSummaryOverviewHtml(options);
 }
 
-function buildGoalPageHtmlByTheme({ themeKey, ...args }) {
+async function buildGoalPageHtmlByTheme({ themeKey, ...args }) {
     if (themeKey === 'rostech') return buildRostechGoalPageHtml(args);
-    return buildGoalPageHtml(args);
+    return await buildGoalPageHtml(args);
 }
 
-function buildGoalPagesHtmlByTheme({ themeKey, ...args }) {
+async function buildGoalPagesHtmlByTheme({ themeKey, ...args }) {
     if (themeKey === 'rostech') return buildRostechGoalPagesHtml(args);
-    return [buildGoalPageHtml(args)];
+    return [await buildGoalPageHtml(args)];
 }
 
 module.exports = {
@@ -23,4 +23,3 @@ module.exports = {
     buildGoalPageHtmlByTheme,
     buildGoalPagesHtmlByTheme,
 };
-
