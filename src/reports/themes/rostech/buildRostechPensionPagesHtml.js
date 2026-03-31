@@ -225,18 +225,6 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         </div>
       </div>
     `;
-    const pensionIntroCard59289 = `
-      <div style="border:1px solid #d7d7d7;border-radius:14px;background:#fff;padding:16px 18px;">
-        <div style="display:flex;gap:12px;align-items:flex-start;">
-          <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:64px;height:74px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
-          <div style="font-size:13px;line-height:1.42;color:#212121;flex:1;">
-            <div style="font-size:39px;line-height:1.25;font-weight:700;margin-bottom:4px;">${esc(title)}</div>
-            ${esc(clientFirstName)}, до пенсии ${Number.isFinite(yearsToPension) ? yearsToPension : '—'} лет.
-            Я подготовила детальный план для формирования достойной пенсии.
-          </div>
-        </div>
-      </div>
-    `;
     const pensionIntroCard59290 = `
       <div style="display:flex;gap:12px;align-items:flex-start;margin-top:12px;">
         <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:70px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
@@ -318,7 +306,6 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
             logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
-              ${pensionIntroCard59289}
               ${pensionIntroCard59290}
               <div class="card">
                 <div style="font-size:13px;line-height:1.5;">
