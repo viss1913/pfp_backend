@@ -194,6 +194,12 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
     const totalCapital = Number(s.projected_capital_at_retirement ?? 0);
     const taxBenefit = Number(s.total_tax_benefit ?? 0);
     const cofin = Number(s.total_cofinancing ?? 0);
+    const targetMonths = Number(s.target_months ?? s.term_months ?? 0);
+    const horizonYears = Number.isFinite(yearsToPension) && yearsToPension > 0
+        ? yearsToPension
+        : Number.isFinite(targetMonths) && targetMonths > 0
+          ? Math.round(targetMonths / 12)
+          : 0;
 
     const title = goal?.goal_name || 'Достойная пенсия';
     const commonIntro = `
@@ -306,20 +312,31 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
             bodyHtml: `
               ${commonIntro}
               <div class="card">
-                <div style="font-size:13px;line-height:1.5;">
-                  Первоначальный капитал: <b>${esc(money(initial))}</b><br/>
-                  Ежемесячное пополнение: <b>${esc(money(monthly))}</b><br/>
-                  Горизонт до пенсии: <b>${Number.isFinite(yearsToPension) ? yearsToPension : '—'} лет</b>
+                <div style="font-size:14px;font-weight:700;line-height:1.25;margin-bottom:10px;">Параметры вашего пенсионного плана</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div style="border:1px solid #e8e8e8;border-radius:10px;padding:10px;background:#fff;">
+                    <div class="muted" style="font-size:12px;margin-bottom:6px;">Первоначальный капитал</div>
+                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(money(initial))}</div>
+                  </div>
+                  <div style="border:1px solid #e8e8e8;border-radius:10px;padding:10px;background:#fff;">
+                    <div class="muted" style="font-size:12px;margin-bottom:6px;">Ежемесячное пополнение</div>
+                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(monthly))}</div>
+                  </div>
+                </div>
+                <div style="margin-top:12px;font-size:13px;line-height:1.5;">
+                  До выхода на пенсию осталось <b>${esc(horizonYears > 0 ? String(horizonYears) : '—')} лет</b>.
+                  На этом горизонте регулярные взносы и стартовый капитал формируют основу будущей пенсии.
                 </div>
               </div>
               <div class="card">
-                <div style="font-size:13px;line-height:1.5;">
+                <div style="font-size:14px;font-weight:700;line-height:1.25;margin-bottom:10px;">Что даёт план к моменту выхода на пенсию</div>
+                <div style="font-size:13px;line-height:1.55;">
                   Налоговые вычеты: <b>${esc(money(taxBenefit))}</b><br/>
-                  Софинансирование: <b>${esc(money(cofin))}</b><br/>
-                  Итого прогнозный капитал: <b>${esc(money(totalCapital))}</b><br/>
-                  Дополнительный доход к пенсии: <b>${esc(money(pensionGap))}/мес.</b>
+                  Государственное софинансирование: <b>${esc(money(cofin))}</b><br/>
+                  Прогнозный капитал на дату выхода: <b>${esc(money(totalCapital))}</b><br/>
+                  Дополнительный доход к госпенсии: <b>${esc(moneyPerMonth(pensionGap))}</b>
                 </div>
-                <div class="pill">Расчетная доходность плана учитывает вычеты и софинансирование</div>
+                <div class="pill" style="margin-top:14px;">Расчёт учитывает капитал, регулярные взносы, вычеты и софинансирование</div>
               </div>
             `,
         }),
