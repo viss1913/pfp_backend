@@ -185,11 +185,18 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
 
     const s = goal?.summary || {};
     const yearsToPension = Number(goal?.details?.state_pension?.years_to_pension ?? 0);
+    const retirementYear = Number(goal?.details?.state_pension?.retirement_year ?? 0);
     const monthly = Number(s.monthly_replenishment ?? 0);
     const initial = Number(s.initial_capital ?? 0);
+    const inflationRate = Number(s.inflation_rate ?? 0);
     const targetPresent = Number(s.target_amount_initial ?? 0);
+    const targetFuture = Number(s.target_amount_future ?? 0);
     const projectedPresent = Number(s.projected_pension_monthly_present ?? 0);
     const projectedFuture = Number(s.projected_pension_monthly_future ?? 0);
+    const statePensionMonthlyToday = Number(s.state_pension_monthly_today ?? projectedPresent ?? 0);
+    const statePensionMonthlyFuture = Number(s.state_pension_monthly_future ?? projectedFuture ?? 0);
+    const pensionGapToday = Math.max(targetPresent - statePensionMonthlyToday, 0);
+    const pensionGapFuture = Math.max(targetFuture - statePensionMonthlyFuture, 0);
     const pensionGap = Number(s.pension_gap_future ?? 0);
     const totalCapital = Number(s.projected_capital_at_retirement ?? 0);
     const taxBenefit = Number(s.total_tax_benefit ?? 0);
@@ -202,6 +209,10 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
           : 0;
 
     const title = goal?.goal_name || 'Достойная пенсия';
+    const clientFirstName = String(clientName || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)[0] || 'Клиент';
     const commonIntro = `
       <div class="card">
         <div style="display:flex; gap:10px; align-items:flex-start;">
@@ -214,6 +225,36 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         </div>
       </div>
     `;
+    const pensionIntroCard59289 = `
+      <div style="border:1px solid #d7d7d7;border-radius:14px;background:#fff;padding:16px 18px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:64px;height:74px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
+          <div style="font-size:13px;line-height:1.42;color:#212121;flex:1;">
+            <div style="font-size:39px;line-height:1.25;font-weight:700;margin-bottom:4px;">${esc(title)}</div>
+            ${esc(clientFirstName)}, до пенсии ${Number.isFinite(yearsToPension) ? yearsToPension : '—'} лет.
+            Я подготовила детальный план для формирования достойной пенсии.
+          </div>
+        </div>
+      </div>
+    `;
+    const pensionIntroCard59290 = `
+      <div style="display:flex;gap:12px;align-items:flex-start;margin-top:12px;">
+        <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:70px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
+        <div style="flex:1;border:1px solid #e2e2e2;border-radius:12px;background:#fff;padding:10px 12px;">
+          <div style="font-size:30px;line-height:1.25;color:#212121;font-weight:400;margin-bottom:8px;">${esc(title)}</div>
+          <div style="display:flex;gap:14px;align-items:flex-start;">
+            <img src="${esc(rostechGoal59Src || cardImg)}" alt="" style="width:145px;height:82px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
+            <div style="font-size:13px;line-height:1.3;color:#424242;">
+              ${esc(clientFirstName)}, Ваша будущая Достойная пенсия будет складываться из 2-х частей: Госпенсия и дополнительный доход, который мы с Вами планируем создать.<br/><br/>
+              Давайте начнем с прогноза Госпенсии.
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    const chartMaxStatePension = Math.max(statePensionMonthlyToday, statePensionMonthlyFuture, 1);
+    const chartTodayBarHeight = Math.max(18, Math.round((statePensionMonthlyToday / chartMaxStatePension) * 70));
+    const chartFutureBarHeight = Math.max(18, Math.round((statePensionMonthlyFuture / chartMaxStatePension) * 70));
 
     // 15 кадров по заданным node-id (офлайн-версия без зависимостей от Figma URLs).
     return [
@@ -277,29 +318,32 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
             logoSrc: logoFromSettings,
             bgSrc,
             bodyHtml: `
-              ${commonIntro}
+              ${pensionIntroCard59289}
+              ${pensionIntroCard59290}
               <div class="card">
                 <div style="font-size:13px;line-height:1.5;">
-                  Прогноз Госпенсии: <b>${esc(moneyPerMonth(projectedPresent))}</b> в сегодняшних деньгах,
-                  и <b>${esc(moneyPerMonth(projectedFuture))}</b> на дату выхода.
-                  Чтобы достичь целевого уровня <b>${esc(moneyPerMonth(targetPresent))}</b>,
-                  нужен дополнительный доход <b>${esc(moneyPerMonth(pensionGap))}</b>.
+                  С учетом Вашего возраста и зарплаты, по моему прогнозу Вы будете получать <b>${esc(moneyPerMonth(statePensionMonthlyToday))}</b> в сегодняшних деньгах,
+                  а с учетом инфляции эта сумма составит <b>${esc(moneyPerMonth(statePensionMonthlyFuture))}</b>.<br/><br/>
+                  Более подробную методику расчета я добавила на стр. 7.
                 </div>
-                <div class="pill" style="margin-top:14px;">Более подробная методика расчета — на следующей странице</div>
               </div>
               <div class="card" style="border-color:#a95b8d;margin-top:20px;">
                 <div style="display:flex;justify-content:space-between;gap:24px;align-items:flex-end;">
                   <div style="flex:1;text-align:center;">
-                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(projectedPresent))}</div>
-                    <div style="height:34px;width:48px;background:#8f8f8c;margin:10px auto 0;"></div>
-                    <div class="muted" style="margin-top:10px;">Госпенсия сейчас</div>
+                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(statePensionMonthlyToday))}</div>
+                    <div style="height:${chartTodayBarHeight}px;width:48px;background:#000000;margin:10px auto 0;"></div>
+                    <div class="muted" style="margin-top:10px;">Прогноз госпенсии в<br/>сегодняшних деньгах</div>
                   </div>
                   <div style="flex:1;text-align:center;">
-                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(projectedFuture))}</div>
-                    <div style="height:70px;width:48px;background:#722257;margin:10px auto 0;"></div>
-                    <div class="muted" style="margin-top:10px;">Госпенсия в будущем</div>
+                    <div style="font-size:18px;font-weight:700;line-height:1.2;">${esc(moneyPerMonth(statePensionMonthlyFuture))}</div>
+                    <div style="height:${chartFutureBarHeight}px;width:48px;background:#722257;margin:10px auto 0;"></div>
+                    <div class="muted" style="margin-top:10px;">Прогноз госпенсии в ${Number.isFinite(retirementYear) && retirementYear > 0 ? retirementYear : 'будущем'} г.<br/>с учетом инфляции ${esc(Number.isFinite(inflationRate) && inflationRate > 0 ? `${inflationRate.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%` : '—')}</div>
                   </div>
                 </div>
+              </div>
+              <div style="margin-top:14px;font-size:13px;line-height:1.45;color:#212121;">
+                Как видите, для достойной пенсии не хватает ${esc(moneyPerMonth(pensionGapToday))} в сегодняшних деньгах,
+                а с учетом инфляции нужно создать план для получения дополнительного ежемесячного дохода в размере ${esc(moneyPerMonth(pensionGapFuture))}.
               </div>
             `,
         }),
