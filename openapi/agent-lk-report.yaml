@@ -1,0 +1,151 @@
+openapi: 3.0.0
+info:
+  title: Agent LK Report API
+  version: 1.0.0
+  description: |
+    Контракт для ЛК агента: получение JSON/HTML/PDF отчёта по клиенту.
+    Доступ только по Bearer JWT агента/админа.
+
+servers:
+  - url: /api
+
+security:
+  - bearerAuth: []
+
+paths:
+  /pfp/reports/{clientId}:
+    get:
+      summary: JSON отчёта клиента для ЛК агента
+      description: |
+        Возвращает структурированные данные отчёта.
+        Проверка доступа:
+        - agent: только свои клиенты (`client.agent_id == req.user.agentId`)
+        - admin/super_admin: доступ в рамках проекта
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+      responses:
+        '200':
+          description: Отчёт клиента
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '400':
+          description: Некорректный clientId
+        '401':
+          description: Нет/невалидный токен
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент не найден
+
+  /pfp/reports/{clientId}/pdf:
+    get:
+      summary: PDF отчёта клиента для ЛК агента
+      description: |
+        Генерирует PDF отчёта (обложка, сводная, страницы целей).
+        Доступ с той же проверкой владения клиентом, что и для JSON.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+        - $ref: '#/components/parameters/IncludeCover'
+        - $ref: '#/components/parameters/IncludeSummary'
+        - $ref: '#/components/parameters/GoalTypes'
+        - $ref: '#/components/parameters/Disposition'
+      responses:
+        '200':
+          description: PDF-документ
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Некорректные параметры
+        '401':
+          description: Нет/невалидный токен
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент не найден
+        '500':
+          description: Ошибка генерации PDF
+
+  /pfp/reports/{clientId}/pages/{pageType}/html:
+    get:
+      summary: HTML страницы отчёта клиента
+      description: |
+        Отладочный/служебный эндпоинт рендера страницы.
+        Использует ту же проверку доступа к клиенту.
+      parameters:
+        - $ref: '#/components/parameters/ClientId'
+        - name: pageType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [SUMMARY, FIN_RESERVE, LIFE, INVESTMENT, OTHER]
+      responses:
+        '200':
+          description: HTML-документ
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Некорректные параметры
+        '401':
+          description: Нет/невалидный токен
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент/цель не найдены
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ClientId:
+      name: clientId
+      in: path
+      required: true
+      schema:
+        type: integer
+    IncludeCover:
+      name: includeCover
+      in: query
+      required: false
+      schema:
+        type: string
+      description: '`0`/`false` чтобы скрыть обложку; по умолчанию включено.'
+    IncludeSummary:
+      name: includeSummary
+      in: query
+      required: false
+      schema:
+        type: string
+      description: '`0`/`false` чтобы скрыть сводную; по умолчанию включено.'
+    GoalTypes:
+      name: goalTypes
+      in: query
+      required: false
+      schema:
+        type: string
+        example: PENSION,LIFE
+      description: 'CSV-список типов целей.'
+    Disposition:
+      name: disposition
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [attachment]
+      description: '`attachment` для принудительного скачивания.'
+
+  schemas:
+    ReportResponse:
+      type: object
+      additionalProperties: true

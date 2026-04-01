@@ -4,6 +4,7 @@ const fs = require('fs');
 
 const reportService = require('../services/reportService');
 const pdfSettingsService = require('../services/pdfSettingsService');
+const clientService = require('../services/clientService');
 
 const { buildReportSummaryOverviewHtml } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildGoalPageHtml } = require('../reports/goalPages/buildGoalPagesHtml');
@@ -53,6 +54,38 @@ function normalizePageType(pageType) {
     return '';
 }
 
+async function ensureClientReportAccess({ user, clientId, projectId }) {
+    const client = await clientService.getFullClient(clientId, projectId);
+    if (!client) {
+        const err = new Error('Client not found');
+        err.statusCode = 404;
+        throw err;
+    }
+
+    const role = String(user?.role || '').toLowerCase();
+    const isAdmin = ['admin', 'super_admin'].includes(role);
+    if (isAdmin) return client;
+
+    if (role === 'client') {
+        if (Number(user?.clientId) !== Number(clientId)) {
+            const err = new Error('Access denied');
+            err.statusCode = 403;
+            throw err;
+        }
+        return client;
+    }
+
+    const requesterAgentId = Number(user?.agentId);
+    const ownerAgentId = Number(client?.agent_id);
+    if (!Number.isFinite(requesterAgentId) || requesterAgentId <= 0 || requesterAgentId !== ownerAgentId) {
+        const err = new Error('Access denied');
+        err.statusCode = 403;
+        throw err;
+    }
+
+    return client;
+}
+
 class ReportPagesController {
     /**
      * GET /api/pfp/reports/:clientId/pages/:pageType/html
@@ -77,6 +110,7 @@ class ReportPagesController {
                 return;
             }
 
+            await ensureClientReportAccess({ user: req.user, clientId, projectId });
             const report = await reportService.getClientReportData(clientId, projectId);
             const clientName = report?.client_info?.first_name || report?.client_info?.full_name || '—';
 
@@ -169,6 +203,10 @@ class ReportPagesController {
             res.setHeader('Cache-Control', 'private, no-store');
             res.send(html);
         } catch (e) {
+            if (e?.statusCode) {
+                res.status(e.statusCode).json({ error: e.message });
+                return;
+            }
             // eslint-disable-next-line no-console
             console.error('[ReportPagesController] getPageHtml:', e);
             res.status(500).json({ error: e.message || 'Failed to build page html' });
