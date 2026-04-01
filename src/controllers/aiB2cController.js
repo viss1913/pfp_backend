@@ -210,9 +210,9 @@ class AiB2cController {
                 return res.status(400).json({ error: 'projectId is required' });
             }
 
-            const { display_name, tagline } = req.body;
-            if (!display_name && !tagline) {
-                return res.status(400).json({ error: 'Nothing to update. Pass at least one of display_name, tagline' });
+            const { display_name, tagline, dynamic_context_text } = req.body;
+            if (display_name === undefined && tagline === undefined && dynamic_context_text === undefined) {
+                return res.status(400).json({ error: 'Nothing to update. Pass at least one of display_name, tagline, dynamic_context_text' });
             }
 
             const existing = await knex('ai_b2c_settings')
@@ -224,7 +224,8 @@ class AiB2cController {
                     project_id: projectId,
                     display_name: display_name || 'AI-ассистент',
                     avatar_url: null, // аватар выставляется только через upload
-                    tagline: tagline || null
+                    tagline: tagline || null,
+                    dynamic_context_text: dynamic_context_text || null
                 });
 
                 const created = await knex('ai_b2c_settings').where({ id }).first();
@@ -236,6 +237,7 @@ class AiB2cController {
                 .update({
                     ...(display_name !== undefined && { display_name }),
                     ...(tagline !== undefined && { tagline }),
+                    ...(dynamic_context_text !== undefined && { dynamic_context_text }),
                     updated_at: knex.fn.now()
                 });
 
@@ -293,6 +295,32 @@ class AiB2cController {
             console.error('[AiB2C] Stream error:', error);
             if (!res.headersSent) {
                 res.status(500).json({ error: 'AI stream failed' });
+            }
+        }
+    }
+
+    /** POST /my/ai-b2c/chat/dynamic/stream — Dynamic start + streaming SSE */
+    async sendAiB2cDynamicChatStream(req, res) {
+        try {
+            const clientId = req.user.clientId;
+            const projectId = req.user.projectId;
+            const { message } = req.body;
+
+            if (!message) {
+                return res.status(400).json({ error: 'message is required' });
+            }
+
+            // SSE headers
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+
+            await aiB2cService.chatDynamicStartStream(clientId, projectId, message, res);
+        } catch (error) {
+            console.error('[AiB2C] Dynamic stream error:', error);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'AI dynamic stream failed' });
             }
         }
     }

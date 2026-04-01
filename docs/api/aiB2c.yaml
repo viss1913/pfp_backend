@@ -83,6 +83,7 @@ paths:
                 display_name: { type: string, description: "Имя ассистента (например, Виктория)" }
                 avatar_url:   { type: string, description: "URL аватара ассистента" }
                 tagline:      { type: string, description: "Короткое зелёное описание/подпись" }
+                dynamic_context_text: { type: string, description: "Текстовое поле для управления динамическим контекстом" }
       responses:
         '200':
           description: Обновлённые настройки
@@ -131,6 +132,24 @@ paths:
               properties:
                 message: { type: string }
                 stage: { type: string }
+
+  /my/ai-b2c/chat/dynamic/stream:
+    post:
+      summary: Dynamic start чат ИИ (Стриминг SSE)
+      description: |
+        Новый B2C AIchat-поток в 2 шага:
+        1) на бэкенде определяется внутренняя команда (/consulting, /startPFP, /start) через dynamic_context_text;
+        2) формируется финальный ответ с контекстом stage=start, brain-контекстом и историей, после чего ответ стримится через SSE.
+        Команда пользователю не возвращается.
+      tags:
+        - Client AI B2C
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string, description: "Текст сообщения пользователя" }
   
   /my/ai-b2c/history:
     get:
@@ -186,6 +205,7 @@ components:
         display_name: { type: string }
         avatar_url: { type: string, nullable: true }
         tagline: { type: string, nullable: true }
+        dynamic_context_text: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

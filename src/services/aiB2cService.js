@@ -47,6 +47,27 @@ class AiB2cService {
     }
 
     /**
+     * Dynamic B2C start flow (2 шага):
+     * 1) классифицируем команду через dynamic_context_text
+     * 2) стримим финальный ответ на стадии start
+     */
+    async chatDynamicStartStream(clientId, projectId, userMessage, res) {
+        const stageKey = 'start';
+
+        // Step 1: получить команду маршрутизации на основе dynamic_context_text
+        const routingCommand = await this._classifyDynamicCommand(projectId, userMessage);
+
+        // Step 2: собрать финальный промпт (brain + stage[start] + client data + history + command)
+        const prompt = await this._buildPrompt(clientId, projectId, stageKey, userMessage, {
+            routingCommand
+        });
+
+        const fullText = await aiService.streamCompletion(prompt, null, res);
+        await this._saveMessages(clientId, stageKey, userMessage, fullText);
+        return fullText;
+    }
+
+    /**
      * Получить историю чата клиента по этапу
      */
     async getHistory(clientId, stageKey) {
@@ -77,7 +98,7 @@ class AiB2cService {
     /**
      * Собрать промпт из 4 слоёв
      */
-    async _buildPrompt(clientId, projectId, stageKey, userMessage) {
+    async _buildPrompt(clientId, projectId, stageKey, userMessage, options = {}) {
         // Параллельно загружаем все данные
         const [brainContexts, stageContext, clientData, history] = await Promise.all([
             this._getBrainContexts(projectId),
@@ -95,6 +116,10 @@ class AiB2cService {
         const stageSection = stageContext
             ? `КОНТЕКСТ ТЕКУЩЕГО ЭТАПА "${stageContext.title}" (stage: ${stageKey}):\n${stageContext.content}`
             : `Этап: ${stageKey} (контекст не настроен)`;
+
+        const routingSection = options.routingCommand
+            ? `\n\nСЛУЖЕБНАЯ КОМАНДА МАРШРУТИЗАЦИИ (НЕ ОЗВУЧИВАТЬ ПОЛЬЗОВАТЕЛЮ): ${options.routingCommand}`
+            : '';
 
         // Слой 3: Данные клиента
         const clientSection = this._formatClientData(clientData);
@@ -114,7 +139,7 @@ class AiB2cService {
 ${brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
 
 СЛОЙ 2 (КОНТЕКСТ ТЕКУЩЕГО ЭТАПА):
-${stageSection}
+${stageSection}${routingSection}
 
 СЛОЙ 3 (ДАННЫЕ О КЛИЕНТЕ):
 ${clientSection}
@@ -132,6 +157,48 @@ ${clientSection}
             ...historyMessages,
             { role: 'user', content: userMessage }
         ];
+    }
+
+    async _classifyDynamicCommand(projectId, userMessage) {
+        const dynamicContextText = await this._getDynamicContextText(projectId);
+        const defaultCommand = '/start';
+
+        if (!dynamicContextText) {
+            return defaultCommand;
+        }
+
+        const classifierPrompt = [
+            {
+                role: 'system',
+                content: [
+                    'Определи только одну команду маршрутизации для текущей реплики клиента.',
+                    'Возвращай строго одну из команд и больше ничего: /consulting, /startPFP, /start.',
+                    'Никаких пояснений, только команда.',
+                    '',
+                    'DYNAMIC CONTEXT:',
+                    dynamicContextText
+                ].join('\n')
+            },
+            { role: 'user', content: userMessage }
+        ];
+
+        const rawResponse = await aiService.getCompletion(classifierPrompt);
+        return this._normalizeRoutingCommand(rawResponse, defaultCommand);
+    }
+
+    _normalizeRoutingCommand(rawResponse, fallback = '/start') {
+        const text = String(rawResponse || '').trim();
+        if (text.includes('/consulting')) return '/consulting';
+        if (text.includes('/startPFP')) return '/startPFP';
+        if (text.includes('/start')) return '/start';
+        return fallback;
+    }
+
+    async _getDynamicContextText(projectId) {
+        const settings = await knex('ai_b2c_settings')
+            .where({ project_id: projectId })
+            .first();
+        return settings?.dynamic_context_text || null;
     }
 
     /**

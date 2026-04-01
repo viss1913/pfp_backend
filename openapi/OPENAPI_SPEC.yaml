@@ -786,6 +786,7 @@ components:
         display_name: { type: string, description: 'Имя ассистента, отображаемое на фронте (например, Виктория)' }
         avatar_url: { type: string, nullable: true, description: 'URL аватарки ассистента' }
         tagline: { type: string, nullable: true, description: 'Короткое зелёное зелёное описание/подпись' }
+        dynamic_context_text: { type: string, nullable: true, description: 'Динамический контекст для 1-го шага B2C AIchat (определение команды /consulting, /startPFP, /start)' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
     
@@ -2570,6 +2571,7 @@ paths:
   /admin/ai-b2c/brain-contexts:
     get:
       summary: Получить все Brain Contexts для B2C ИИ
+      description: Список базовых brain-контекстов проекта, которые участвуют в финальном ответе ИИ.
       tags: [AiB2C]
       security:
         - bearerAuth: []
@@ -2593,6 +2595,7 @@ paths:
                     updated_at: { type: string, format: date-time }
     post:
       summary: Создать Brain Context для B2C ИИ
+      description: Добавить новый brain-контекст (инструкция для ИИ) в проект.
       tags: [AiB2C]
       security:
         - bearerAuth: []
@@ -2615,6 +2618,7 @@ paths:
   /admin/ai-b2c/brain-contexts/{id}:
     put:
       summary: Обновить Brain Context для B2C ИИ
+      description: Редактировать существующий brain-контекст по ID.
       tags: [AiB2C]
       parameters:
         - in: path
@@ -2638,6 +2642,7 @@ paths:
           description: Обновлено
     delete:
       summary: Удалить Brain Context для B2C ИИ
+      description: Удалить brain-контекст по ID.
       tags: [AiB2C]
       parameters:
         - in: path
@@ -2653,6 +2658,7 @@ paths:
   /admin/ai-b2c/stages:
     get:
       summary: Получить все Stage Contexts для B2C ИИ
+      description: Список stage-контекстов проекта (этапы диалога, например start, consulting и т.д.).
       tags: [AiB2C]
       security:
         - bearerAuth: []
@@ -2677,6 +2683,7 @@ paths:
                     updated_at: { type: string, format: date-time }
     post:
       summary: Создать Stage Context для B2C ИИ
+      description: Добавить новый stage-контекст (этап) с полями stage_key, title, content.
       tags: [AiB2C]
       security:
         - bearerAuth: []
@@ -2705,6 +2712,7 @@ paths:
   /admin/ai-b2c/stages/{id}:
     put:
       summary: Обновить Stage Context для B2C ИИ
+      description: Редактировать существующий stage-контекст по ID.
       tags: [AiB2C]
       parameters:
         - in: path
@@ -2731,6 +2739,7 @@ paths:
           description: stage_key уже существует
     delete:
       summary: Удалить Stage Context для B2C ИИ
+      description: Удалить stage-контекст по ID.
       tags: [AiB2C]
       parameters:
         - in: path
@@ -2795,7 +2804,7 @@ paths:
       summary: Обновить или создать настройки внешнего вида AI B2C ассистента
       description: |
         Обновляет или создаёт запись настроек ассистента для проекта.
-        Достаточно передать только изменяемые поля (display_name, avatar_url, tagline).
+        Достаточно передать только изменяемые поля (display_name, avatar_url, tagline, dynamic_context_text).
       tags: [AiB2C, Admin]
       security:
         - bearerAuth: []
@@ -2815,6 +2824,9 @@ paths:
                 tagline:
                   type: string
                   description: 'Короткая зелёная подпись/описание под именем'
+                dynamic_context_text:
+                  type: string
+                  description: 'Динамический контекст для 1-го шага B2C AIchat (классификация команды)'
       responses:
         '200':
           description: Настройки обновлены
@@ -2828,4 +2840,85 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AiB2cSettings'
+
+  /my/ai-b2c/chat:
+    post:
+      summary: Отправить сообщение ИИ (обычный ответ)
+      description: |
+        Клиентский B2C-метод. Фронт передает `stage` и `message`.
+        Бэкенд собирает контекст (brain + stage + история + данные клиента) и возвращает готовый текст.
+      tags: [AiB2C]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage, message]
+              properties:
+                stage: { type: string, description: 'Ключ этапа (например, start, consulting, PFP1)' }
+                message: { type: string, description: 'Сообщение клиента' }
+      responses:
+        '200':
+          description: Успешный ответ ИИ
+
+  /my/ai-b2c/chat/stream:
+    post:
+      summary: Отправить сообщение ИИ (SSE стрим)
+      description: |
+        Клиентский B2C-метод со стримингом. Фронт передает `stage` и `message`,
+        ответ ИИ приходит по частям в формате text/event-stream.
+      tags: [AiB2C]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [stage, message]
+              properties:
+                stage: { type: string }
+                message: { type: string }
+      responses:
+        '200':
+          description: Streaming response (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+
+  /my/ai-b2c/chat/dynamic/stream:
+    post:
+      summary: B2C_AIchat dynamic start (SSE стрим, 2 шага)
+      description: |
+        Новый отдельный метод для старта диалога.
+        1) Всегда используется стадия `start`, а команда маршрутизации определяется через `dynamic_context_text`
+        (одна из: `/consulting`, `/startPFP`, `/start`).
+        2) Затем бэкенд формирует финальный prompt: stage-контекст `start` + brain + история + сообщение клиента,
+        и стримит финальный ответ на фронт.
+      tags: [AiB2C]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, description: 'Сообщение клиента на входе dynamic flow' }
+      responses:
+        '200':
+          description: Streaming response (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
 
