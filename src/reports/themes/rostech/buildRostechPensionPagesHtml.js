@@ -32,6 +32,14 @@ function moneyWithPrecision(v, digits = 2) {
     })} руб.`;
 }
 
+function getCofinancingRateTextByIncome(monthlyIncome) {
+    const income = Number(monthlyIncome);
+    if (!Number.isFinite(income) || income <= 0) return '50 коп.';
+    if (income < 80000) return '1 руб.';
+    if (income <= 150000) return '50 коп.';
+    return '25 коп.';
+}
+
 function pickPositive(primary, fallback) {
     const p = Number(primary);
     if (Number.isFinite(p) && p > 0) return p;
@@ -500,6 +508,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
             options?.overallPlan?.avg_monthly_income,
         110000
     );
+    const cofinancingRateText = getCofinancingRateTextByIncome(currentIncomeMonthly);
     const yearsForMethodology = Number.isFinite(yearsToPension) && yearsToPension > 0 ? yearsToPension : 20;
     const inflationRateForMethodology = Number.isFinite(inflationRate) && inflationRate > 0 ? inflationRate : 5.6;
     const inflationMultiplier = Math.pow(1 + inflationRateForMethodology / 100, yearsForMethodology);
@@ -836,7 +845,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
                 </div>
 
                 <div style="position:absolute;left:0;top:136px;width:456px;font-size:13px;line-height:14px;color:#000;">
-                  В соответствии с федеральным законом № 75-ФЗ «О негосударственных пенсионных фондах», государство обязуется добавлять ежегодно 50 коп. на каждый Ваш рубль, но не более 36 000 руб. в год из расчета всех сумм пополнений в течение предыдущего года. И так на протяжении 10 лет.
+                  В соответствии с федеральным законом № 75-ФЗ «О негосударственных пенсионных фондах», государство обязуется добавлять ежегодно ${esc(cofinancingRateText)} на каждый Ваш рубль, но не более 36 000 руб. в год из расчета всех сумм пополнений в течение предыдущего года. И так на протяжении 10 лет.
                 </div>
 
                 <div style="position:absolute;left:0;top:230px;width:535px;">
