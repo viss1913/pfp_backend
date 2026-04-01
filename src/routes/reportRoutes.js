@@ -14,6 +14,9 @@ router.get('/:clientId', authMiddleware, reportController.getClientReport);
 // - goalTypes=FIN_RESERVE,LIFE,INVESTMENT,OTHER (optional subset)
 router.get('/:clientId/pdf', authMiddleware, reportController.getClientReportPdf);
 
+// GET /api/pfp/reports/:clientId/pdf-url - generate, upload and return PDF URL + toc
+router.get('/:clientId/pdf-url', authMiddleware, reportController.getClientReportPdfUrl);
+
 // GET /api/pfp/reports/:clientId/pages/:pageType/html - get goal page HTML for PDF printing
 // pageType: SUMMARY | FIN_RESERVE | LIFE | INVESTMENT | OTHER
 router.get('/:clientId/pages/:pageType/html', authMiddleware, reportPagesController.getPageHtml);
