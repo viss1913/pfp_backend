@@ -160,7 +160,12 @@ class ReportService {
         return {
             client_info: {
                 id: client.id,
+                first_name: client.first_name || '',
+                last_name: client.last_name || '',
                 full_name: `${client.last_name || ''} ${client.first_name || ''} ${client.middle_name || ''}`.trim(),
+                avg_monthly_income: Number.isFinite(Number(client.avg_monthly_income))
+                    ? Number(client.avg_monthly_income)
+                    : null,
                 age: this.calculateAge(client.birth_date),
                 email: client.email,
                 avatar_url: client.avatar_url,

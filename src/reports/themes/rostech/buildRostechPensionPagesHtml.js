@@ -15,7 +15,7 @@ function esc(v) {
 function money(v) {
     const n = Number(v);
     if (!Number.isFinite(n)) return '—';
-    return `${Math.round(n).toLocaleString('ru-RU')} ₽`;
+    return `${Math.round(n).toLocaleString('ru-RU')} руб.`;
 }
 
 function moneyPerMonth(v) {
@@ -29,7 +29,7 @@ function moneyWithPrecision(v, digits = 2) {
     return `${n.toLocaleString('ru-RU', {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
-    })} ₽`;
+    })} руб.`;
 }
 
 function pickPositive(primary, fallback) {
@@ -496,6 +496,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         goal?.client?.avg_monthly_income ??
             goal?.avg_monthly_income ??
             s.avg_monthly_income ??
+            options?.clientAvgMonthlyIncome ??
             options?.overallPlan?.avg_monthly_income,
         110000
     );
@@ -675,9 +676,9 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
                 <br/>
                 1. Заключить договор долгосрочных сбережений (ПДС) в АО «НПФ «Ростех».<br/>
                 Плюсы:<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет добавлять до 36 000 ₽/год в течение 10 лет.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Налоговые вычеты (до 22% в год со взносов в пределах 400 000 ₽).<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Капитал застрахован (до 2,8 млн ₽).<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет добавлять до 36 000 руб./год в течение 10 лет.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Налоговые вычеты (до 22% в год со взносов в пределах 400 000 руб.).<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Капитал застрахован (до 2,8 млн руб.).<br/>
                 <br/>
                 2. Дальнейшие шаги:<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал - ${esc(money(planFacts.initialCapital))}.<br/>
@@ -835,7 +836,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
                 </div>
 
                 <div style="position:absolute;left:0;top:136px;width:456px;font-size:13px;line-height:14px;color:#000;">
-                  В соответствии с федеральным законом № 75-ФЗ «О негосударственных пенсионных фондах», государство обязуется добавлять ежегодно 50 коп. на каждый Ваш рубль, но не более 36 000 ₽ в год из расчета всех сумм пополнений в течение предыдущего года. И так на протяжении 10 лет.
+                  В соответствии с федеральным законом № 75-ФЗ «О негосударственных пенсионных фондах», государство обязуется добавлять ежегодно 50 коп. на каждый Ваш рубль, но не более 36 000 руб. в год из расчета всех сумм пополнений в течение предыдущего года. И так на протяжении 10 лет.
                 </div>
 
                 <div style="position:absolute;left:0;top:230px;width:535px;">
@@ -930,15 +931,15 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
                   </ul>
                   <div style="margin-top:3px;margin-bottom:3px;"><b>Сколько стоит ИПК?</b></div>
                   <div style="margin-bottom:3px;">Стоимость ИПК государство индексирует на величину инфляции.</div>
-                  <div style="margin-bottom:3px;">Стоимость одного ИПК в ${nextCalendarYear} году — ${esc(ipkCostCurrent.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))} ₽.</div>
-                  <div style="margin-bottom:3px;">Если инфляция ${esc(inflationRateForMethodology.toLocaleString('ru-RU', { maximumFractionDigits: 2 }))}% в год, то через ${yearsForMethodology} лет 1 балл = ${esc(ipkCostFuture.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))} ₽.</div>
+                  <div style="margin-bottom:3px;">Стоимость одного ИПК в ${nextCalendarYear} году — ${esc(ipkCostCurrent.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))} руб.</div>
+                  <div style="margin-bottom:3px;">Если инфляция ${esc(inflationRateForMethodology.toLocaleString('ru-RU', { maximumFractionDigits: 2 }))}% в год, то через ${yearsForMethodology} лет 1 балл = ${esc(ipkCostFuture.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))} руб.</div>
                 </div>
 
                 <div style="position:absolute;left:0;top:535px;font-size:13px;line-height:14px;color:#212121;">Таким образом прогноз Вашей Госпенсии выглядит вот так:</div>
 
                 <div style="position:absolute;left:0;top:561px;background:#722257;border-radius:8px;padding:10px;width:fit-content;max-width:535px;">
                   <div style="font-size:14px;line-height:13px;color:#fff;">
-                    Ваша госпенсия = ${esc(money(fixedPaymentFuture))} + (${esc(totalIpk.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }))} ИПК × ${esc(ipkCostFuture.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }))} ₽) = ${esc(moneyPerMonth(statePensionFormulaFuture))}
+                    Ваша госпенсия = ${esc(money(fixedPaymentFuture))} + (${esc(totalIpk.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }))} ИПК × ${esc(ipkCostFuture.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 }))} руб.) = ${esc(moneyPerMonth(statePensionFormulaFuture))}
                   </div>
                 </div>
 

@@ -78,7 +78,7 @@ class ReportPagesController {
             }
 
             const report = await reportService.getClientReportData(clientId, projectId);
-            const clientName = report?.client_info?.full_name || '—';
+            const clientName = report?.client_info?.first_name || report?.client_info?.full_name || '—';
 
             const pdfSettings = await pdfSettingsService.getByAgentId(agentId, projectId);
 
@@ -161,6 +161,7 @@ class ReportPagesController {
                     lineColor,
                     backgroundOverlayOpacity,
                     backgroundDarknessPercent,
+                    clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
                 },
             });
 

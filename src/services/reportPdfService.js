@@ -137,7 +137,7 @@ class ReportPdfService {
             );
         }
 
-        const clientName = report?.client_info?.full_name || '—';
+        const clientName = report?.client_info?.first_name || report?.client_info?.full_name || '—';
         const goalFilter = normalizeGoalTypes(goalTypes);
         const targetGoalTypes = goalFilter && goalFilter.length > 0 ? goalFilter : SUPPORTED_GOAL_TYPES;
         const reportGoalTypes = new Set(
@@ -202,6 +202,7 @@ class ReportPdfService {
                     backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
                     backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
                     overallPlan: report?.overall_plan || null,
+                    clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
                 },
             });
             if (Array.isArray(pageHtmls) && pageHtmls.length > 0) {
