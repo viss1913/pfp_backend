@@ -90,6 +90,39 @@ function getDefaultExecutablePath() {
     return candidates.find((p) => fs.existsSync(p)) || null;
 }
 
+function estimateScheduleChunks(goal) {
+    const scheduleRows = Array.isArray(goal?.details?.monthly_schedule)
+        ? goal.details.monthly_schedule.filter((row) => row && row.date).length
+        : 0;
+    if (!scheduleRows) return 1;
+    const firstPageRows = 22;
+    const nextPageRows = 28;
+    if (scheduleRows <= firstPageRows) return 1;
+    return 1 + Math.ceil((scheduleRows - firstPageRows) / nextPageRows);
+}
+
+function buildRostechPensionOnlyToc({ hasCover, goal }) {
+    let page = hasCover ? 2 : 1;
+    const schedulePageCount = estimateScheduleChunks(goal);
+    const toc = [
+        { id: 'financial_plan_intro', title: 'Ваш финансовый план', order: 1, page_start: page++, page_count: 1 },
+        { id: 'state_pension_forecast', title: 'Прогноз Госпенсии', order: 2, page_start: page++, page_count: 1 },
+        { id: 'proposed_plan', title: 'Предлагаемый план', order: 3, page_start: page++, page_count: 1 },
+        { id: 'portfolio_structure', title: 'Структура портфеля НПФ', order: 4, page_start: page++, page_count: 1 },
+        { id: 'state_pension_methodology', title: 'Методика расчета Госпенсии', order: 5, page_start: page++, page_count: 2 },
+        { id: 'inflation_info', title: 'Важная информация. Инфляция', order: 6, page_start: page + 2, page_count: 1 },
+        { id: 'risk_declaration', title: 'Декларация о рисках', order: 7, page_start: page + 3, page_count: 5 },
+        {
+            id: 'goal_progress_schedule',
+            title: 'График достижения целей',
+            order: 8,
+            page_start: page + 8,
+            page_count: schedulePageCount,
+        },
+    ];
+    return toc;
+}
+
 class ReportPdfService {
     /**
      * @param {object} opts
@@ -98,6 +131,27 @@ class ReportPdfService {
      * @param {number|null|undefined} [opts.brandingAgentId] — если задан (в т.ч. null): брендинг с этого агента или дефолты; если undefined — как раньше, через agentId
      */
     async generateClientReportPdf({
+        clientId,
+        agentId,
+        brandingAgentId,
+        projectId = null,
+        includeCover = true,
+        includeSummary = true,
+        goalTypes = null,
+    }) {
+        const pkg = await this.generateClientReportPdfPackage({
+            clientId,
+            agentId,
+            brandingAgentId,
+            projectId,
+            includeCover,
+            includeSummary,
+            goalTypes,
+        });
+        return pkg.pdfBuffer;
+    }
+
+    async generateClientReportPdfPackage({
         clientId,
         agentId,
         brandingAgentId,
@@ -125,7 +179,6 @@ class ReportPdfService {
         }
 
         const pageHtmlList = [];
-
         if (includeCover) {
             pageHtmlList.push(
                 await buildReportCoverHtml({
@@ -156,20 +209,14 @@ class ReportPdfService {
                 net != null && Number.isFinite(Number(net))
                     ? `${Math.round(Number(net)).toLocaleString('ru-RU')} ₽`
                     : '—';
-
             pageHtmlList.push(
                 await buildSummaryOverviewHtmlByTheme({
                     themeKey,
-                    reportPayload: {
-                        goals_detailed: report.goals_detailed,
-                        overall_plan: report.overall_plan,
-                    },
+                    reportPayload: { goals_detailed: report.goals_detailed, overall_plan: report.overall_plan },
                     clientInfo: {
                         name: clientName,
                         age: report.client_info?.age != null ? String(report.client_info.age) : '—',
-                        income: report.client_info?.income_display != null
-                            ? String(report.client_info.income_display)
-                            : '—',
+                        income: report.client_info?.income_display != null ? String(report.client_info.income_display) : '—',
                         currentCapital: capitalStr,
                     },
                     summaryLogoUrl: pdfSettings?.summary_logo_url || undefined,
@@ -214,7 +261,19 @@ class ReportPdfService {
             throw new Error('No pages selected for PDF generation');
         }
 
+        let toc = null;
+        if (isRostechPensionOnly) {
+            const pensionGoal = (report.goals_detailed || []).find((g) => String(g?.goal_type).toUpperCase() === 'PENSION');
+            toc = buildRostechPensionOnlyToc({ hasCover: includeCover, goal: pensionGoal });
+        }
+
         const mergedHtml = buildFramesContainerHtml(pageHtmlList);
+        const pdfBuffer = await this._renderPdfFromMergedHtml(mergedHtml);
+        return { pdfBuffer, toc, pageHtmlList };
+    }
+
+    async _renderPdfFromMergedHtml(mergedHtml) {
+
         const executablePath = getDefaultExecutablePath();
         const launchOptions = {
             headless: true,

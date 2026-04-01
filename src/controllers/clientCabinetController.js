@@ -2,6 +2,7 @@ const calculationService = require('../services/calculationService');
 const clientService = require('../services/clientService');
 const reportService = require('../services/reportService');
 const reportPdfService = require('../services/reportPdfService');
+const { uploadPublicFile } = require('../utils/r2Client');
 const goalRecalculator = require('../algorithms/recalculators');
 const Joi = require('joi');
 
@@ -132,6 +133,64 @@ class ClientCabinetController {
             );
             res.setHeader('Cache-Control', 'private, no-store');
             res.send(pdfBuffer);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /my/plan/report/pdf-url — JSON с ссылкой на PDF в storage + оглавление.
+     */
+    async getMyReportPdfUrl(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+            const client = await clientService.getFullClient(clientId, projectId);
+            if (!client) {
+                return res.status(404).json({ error: 'Client profile not found' });
+            }
+
+            const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
+            const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
+            const goalTypes = req.query.goalTypes || null;
+
+            const brandingAgentId =
+                client.agent_id != null && client.agent_id !== ''
+                    ? Number(client.agent_id)
+                    : null;
+
+            const { pdfBuffer, toc } = await reportPdfService.generateClientReportPdfPackage({
+                clientId: Number(clientId),
+                agentId: null,
+                brandingAgentId,
+                projectId,
+                includeCover,
+                includeSummary,
+                goalTypes,
+            });
+
+            const ts = new Date().toISOString().replace(/[:.]/g, '-');
+            const key = `pdf-reports/${projectId || 'no-project'}/${clientId}/report-${ts}.pdf`;
+            const uploadResult = await uploadPublicFile({
+                key,
+                body: pdfBuffer,
+                contentType: 'application/pdf',
+            });
+
+            if (!uploadResult?.ok || !uploadResult?.url) {
+                const detail = uploadResult?.detail || uploadResult?.reason || 'Storage upload failed';
+                return res.status(503).json({ error: 'Failed to upload generated PDF', detail });
+            }
+
+            res.json({
+                pdf_url: uploadResult.url,
+                toc: Array.isArray(toc) ? toc : [],
+                generated_at: new Date().toISOString(),
+            });
         } catch (err) {
             next(err);
         }
