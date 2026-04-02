@@ -39,6 +39,9 @@ router.post('/ai-b2c/chat/stream', aiB2cController.sendAiB2cChatStream.bind(aiB2
 // POST /my/ai-b2c/chat/dynamic/stream — Dynamic start flow (SSE streaming)
 router.post('/ai-b2c/chat/dynamic/stream', aiB2cController.sendAiB2cDynamicChatStream.bind(aiB2cController));
 
+// POST /my/ai-b2c/chat_AI/stream — Separate chat_AI flow (SSE streaming)
+router.post('/ai-b2c/chat_AI/stream', aiB2cController.sendAiB2cChatAiStream.bind(aiB2cController));
+
 // GET /my/ai-b2c/history — Get chat history (?stage=PFP1)
 router.get('/ai-b2c/history', aiB2cController.getAiB2cHistory.bind(aiB2cController));
 

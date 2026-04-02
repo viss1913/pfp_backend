@@ -90,6 +90,86 @@ class AiB2cController {
         }
     }
 
+    // ==================== ADMIN/AGENT: Brain Contexts (chat_AI) ====================
+
+    /** GET /pfp/ai-b2c-chat/brain-contexts — список brain-contexts для chat_AI */
+    async getAiB2cChatAiBrainContexts(req, res) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            const query = knex('ai_b2c_chat_brain_contexts');
+            if (projectId) query.where('project_id', projectId);
+            const contexts = await query.orderBy('priority', 'desc');
+            res.json(contexts);
+        } catch (error) {
+            console.error('[AiB2C] Error getting chat_AI brain contexts:', error);
+            res.status(500).json({ error: 'Failed to get chat_AI brain contexts' });
+        }
+    }
+
+    /** POST /pfp/ai-b2c-chat/brain-contexts — создать brain-context для chat_AI */
+    async createAiB2cChatAiBrainContext(req, res) {
+        try {
+            const { title, content, is_active, priority } = req.body;
+            const projectId = req.projectId || req.user?.projectId;
+
+            if (!title || !content) {
+                return res.status(400).json({ error: 'title and content are required' });
+            }
+
+            const [id] = await knex('ai_b2c_chat_brain_contexts').insert({
+                title,
+                content,
+                is_active: is_active !== undefined ? is_active : true,
+                priority: priority || 0,
+                project_id: projectId || null
+            });
+
+            const created = await knex('ai_b2c_chat_brain_contexts').where('id', id).first();
+            res.status(201).json(created);
+        } catch (error) {
+            console.error('[AiB2C] Error creating chat_AI brain context:', error);
+            res.status(500).json({ error: 'Failed to create chat_AI brain context' });
+        }
+    }
+
+    /** PUT /pfp/ai-b2c-chat/brain-contexts/:id — обновить brain-context для chat_AI */
+    async updateAiB2cChatAiBrainContext(req, res) {
+        try {
+            const { id } = req.params;
+            const { title, content, is_active, priority } = req.body;
+
+            const existing = await knex('ai_b2c_chat_brain_contexts').where('id', id).first();
+            if (!existing) return res.status(404).json({ error: 'Chat_AI brain context not found' });
+
+            await knex('ai_b2c_chat_brain_contexts').where('id', id).update({
+                ...(title !== undefined && { title }),
+                ...(content !== undefined && { content }),
+                ...(is_active !== undefined && { is_active }),
+                ...(priority !== undefined && { priority }),
+                updated_at: knex.fn.now()
+            });
+
+            const updated = await knex('ai_b2c_chat_brain_contexts').where('id', id).first();
+            res.json(updated);
+        } catch (error) {
+            console.error('[AiB2C] Error updating chat_AI brain context:', error);
+            res.status(500).json({ error: 'Failed to update chat_AI brain context' });
+        }
+    }
+
+    /** DELETE /pfp/ai-b2c-chat/brain-contexts/:id — удалить brain-context для chat_AI */
+    async deleteAiB2cChatAiBrainContext(req, res) {
+        try {
+            const { id } = req.params;
+            const deleted = await knex('ai_b2c_chat_brain_contexts').where('id', id).delete();
+            if (!deleted) return res.status(404).json({ error: 'Chat_AI brain context not found' });
+            res.json({ success: true });
+        } catch (error) {
+            console.error('[AiB2C] Error deleting chat_AI brain context:', error);
+            res.status(500).json({ error: 'Failed to delete chat_AI brain context' });
+        }
+    }
+
     // ==================== ADMIN: Stage Contexts ====================
 
     /** GET /admin/ai-b2c/stages */
@@ -175,6 +255,94 @@ class AiB2cController {
         } catch (error) {
             console.error('[AiB2C] Error deleting stage:', error);
             res.status(500).json({ error: 'Failed to delete stage context' });
+        }
+    }
+
+    // ==================== ADMIN/AGENT: Stage Contexts (chat_AI) ====================
+
+    /** GET /pfp/ai-b2c-chat/stages — список stage-contexts для chat_AI */
+    async getAiB2cChatStages(req, res) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            const query = knex('ai_b2c_chat_stage_contexts');
+            if (projectId) query.where('project_id', projectId);
+            const stages = await query.orderBy('priority', 'desc');
+            res.json(stages);
+        } catch (error) {
+            console.error('[AiB2C] Error getting chat_AI stages:', error);
+            res.status(500).json({ error: 'Failed to get chat_AI stage contexts' });
+        }
+    }
+
+    /** POST /pfp/ai-b2c-chat/stages — создать stage-context для chat_AI */
+    async createAiB2cChatStage(req, res) {
+        try {
+            const { stage_key, title, content, is_active, priority } = req.body;
+            const projectId = req.projectId || req.user?.projectId;
+
+            if (!stage_key || !title || !content) {
+                return res.status(400).json({ error: 'stage_key, title and content are required' });
+            }
+
+            const [id] = await knex('ai_b2c_chat_stage_contexts').insert({
+                stage_key,
+                title,
+                content,
+                is_active: is_active !== undefined ? is_active : true,
+                priority: priority || 0,
+                project_id: projectId || null
+            });
+
+            const created = await knex('ai_b2c_chat_stage_contexts').where('id', id).first();
+            res.status(201).json(created);
+        } catch (error) {
+            if (error.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ error: `Stage '${req.body.stage_key}' already exists for this project` });
+            }
+            console.error('[AiB2C] Error creating chat_AI stage:', error);
+            res.status(500).json({ error: 'Failed to create chat_AI stage context' });
+        }
+    }
+
+    /** PUT /pfp/ai-b2c-chat/stages/:id — обновить stage-context для chat_AI */
+    async updateAiB2cChatStage(req, res) {
+        try {
+            const { id } = req.params;
+            const { stage_key, title, content, is_active, priority } = req.body;
+
+            const existing = await knex('ai_b2c_chat_stage_contexts').where('id', id).first();
+            if (!existing) return res.status(404).json({ error: 'Chat_AI stage context not found' });
+
+            await knex('ai_b2c_chat_stage_contexts').where('id', id).update({
+                ...(stage_key !== undefined && { stage_key }),
+                ...(title !== undefined && { title }),
+                ...(content !== undefined && { content }),
+                ...(is_active !== undefined && { is_active }),
+                ...(priority !== undefined && { priority }),
+                updated_at: knex.fn.now()
+            });
+
+            const updated = await knex('ai_b2c_chat_stage_contexts').where('id', id).first();
+            res.json(updated);
+        } catch (error) {
+            if (error.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ error: `Stage key '${req.body.stage_key}' already exists` });
+            }
+            console.error('[AiB2C] Error updating chat_AI stage:', error);
+            res.status(500).json({ error: 'Failed to update chat_AI stage context' });
+        }
+    }
+
+    /** DELETE /pfp/ai-b2c-chat/stages/:id — удалить stage-context для chat_AI */
+    async deleteAiB2cChatStage(req, res) {
+        try {
+            const { id } = req.params;
+            const deleted = await knex('ai_b2c_chat_stage_contexts').where('id', id).delete();
+            if (!deleted) return res.status(404).json({ error: 'Chat_AI stage context not found' });
+            res.json({ success: true });
+        } catch (error) {
+            console.error('[AiB2C] Error deleting chat_AI stage:', error);
+            res.status(500).json({ error: 'Failed to delete chat_AI stage context' });
         }
     }
 
@@ -321,6 +489,32 @@ class AiB2cController {
             console.error('[AiB2C] Dynamic stream error:', error);
             if (!res.headersSent) {
                 res.status(500).json({ error: 'AI dynamic stream failed' });
+            }
+        }
+    }
+
+    /** POST /my/ai-b2c/chat_AI/stream — Separate chat_AI flow + streaming SSE */
+    async sendAiB2cChatAiStream(req, res) {
+        try {
+            const clientId = req.user.clientId;
+            const projectId = req.user.projectId;
+            const { message } = req.body;
+
+            if (!message) {
+                return res.status(400).json({ error: 'message is required' });
+            }
+
+            // SSE headers
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+
+            await aiB2cService.chatAiStream(clientId, projectId, message, res);
+        } catch (error) {
+            console.error('[AiB2C] chat_AI stream error:', error);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'AI chat_AI stream failed' });
             }
         }
     }

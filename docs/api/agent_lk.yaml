@@ -486,6 +486,110 @@ paths:
         '204':
           description: Удалено
 
+  /pfp/ai-b2c-chat/brain-contexts:
+    get:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Список brain-contexts для chat_AI B2C AI в проекте Агента
+      responses:
+        '200':
+          description: Успешно
+    post:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Создать новый brain-context для chat_AI B2C AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cBrainContextCreate'
+      responses:
+        '201':
+          description: Создано
+
+  /pfp/ai-b2c-chat/brain-contexts/{id}:
+    put:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Обновить brain-context (chat_AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cBrainContextUpdate'
+      responses:
+        '200':
+          description: Успешно обновлено
+    delete:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Удалить brain-context (chat_AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Удалено
+
+  /pfp/ai-b2c-chat/stages:
+    get:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Список стейджей (сценариев) chat_AI B2C AI для проекта Агента
+      responses:
+        '200':
+          description: Успешно
+    post:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Создать новый стейдж (chat_AI)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cStageCreate'
+      responses:
+        '201':
+          description: Создано
+
+  /pfp/ai-b2c-chat/stages/{id}:
+    put:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Обновить стейдж (chat_AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cStageUpdate'
+      responses:
+        '200':
+          description: Успешно обновлено
+    delete:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Удалить стейдж (chat_AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Удалено
+
   /pfp/ai-b2c/settings:
     get:
       tags: [ "AI B2C (настройки Агента)" ]

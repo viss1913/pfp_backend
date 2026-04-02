@@ -2903,6 +2903,33 @@ paths:
                 type: string
                 format: binary
 
+  /my/ai-b2c/chat_AI/stream:
+    post:
+      summary: B2C_AIchat chat_AI flow (SSE стрим, 2 шага)
+      description: |
+        Отдельный endpoint для chat_AI с независимыми наборами контекстов и истории.
+        site-flow (`/my/ai-b2c/chat/stream`) не меняется.
+      tags: [AiB2C]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, description: 'Сообщение клиента на входе chat_AI flow' }
+      responses:
+        '200':
+          description: Streaming response (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+
   /my/ai-b2c/chat/dynamic/stream:
     post:
       summary: B2C_AIchat dynamic flow (SSE стрим, 2 шага)

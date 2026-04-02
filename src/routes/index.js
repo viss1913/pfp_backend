@@ -51,6 +51,10 @@ router.use('/admin/ai-assistants', pfpMiddleware, adminAiRoutes);
 const agentAiB2cRoutes = require('./agentAiB2cRoutes');
 router.use('/pfp/ai-b2c', pfpMiddleware, agentAiB2cRoutes);
 
+// Agent AI Routes (chat_AI contexts)
+const agentAiB2cChatRoutes = require('./agentAiB2cChatRoutes');
+router.use('/pfp/ai-b2c-chat', pfpMiddleware, agentAiB2cChatRoutes);
+
 const aiRoutes = require('./aiRoutes');
 router.use('/pfp/ai', pfpMiddleware, aiRoutes);
 // CRM Routes

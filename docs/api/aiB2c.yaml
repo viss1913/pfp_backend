@@ -150,6 +150,22 @@ paths:
               type: object
               properties:
                 message: { type: string, description: "Текст сообщения пользователя" }
+
+  /my/ai-b2c/chat_AI/stream:
+    post:
+      summary: chat_AI flow (Стриминг SSE, 2 шага)
+      description: |
+        Отдельный endpoint для chat_AI с независимыми наборами контекстов и истории.
+        Не влияет на site-flow `/my/ai-b2c/chat/stream`.
+      tags:
+        - Client AI B2C
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string, description: "Текст сообщения пользователя" }
   
   /my/ai-b2c/history:
     get:

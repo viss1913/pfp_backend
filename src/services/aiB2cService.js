@@ -93,6 +93,52 @@ class AiB2cService {
     }
 
     /**
+     * Chat_AI flow (2 шага) с отдельными наборами контекстов и историей
+     * (чтобы не ломать уже настроенный site-flow).
+     *
+     * Endpoint:
+     *  POST /my/ai-b2c/chat_AI/stream
+     */
+    async chatAiStream(clientId, projectId, userMessage, res) {
+        const assistantName = await this._getAssistantDisplayName(projectId);
+
+        // 1-е сообщение в chat_AI-истории => пропускаем 1-й ИИ, отвечаем на stageKey="start"
+        const hasAnyHistory = await this._hasAnyChatAiHistory(clientId);
+        if (!hasAnyHistory) {
+            const stageKey = 'start';
+            const prompt = await this._buildChatAiPrompt(clientId, projectId, stageKey, userMessage, {
+                historyMode: 'global',
+                assistantName
+            });
+
+            const fullText = await aiService.streamCompletion(prompt, null, res);
+            await this._saveChatAiMessagesWithStageKeys(clientId, stageKey, stageKey, userMessage, fullText);
+            return fullText;
+        }
+
+        const currentStageKey = await this._getLastChatAiAssistantStageKey(clientId) || 'start';
+        const historyGlobal = await this._getChatAiHistoryGlobal(clientId);
+
+        // 1-й ИИ => команда маршрутизации для следующей стадии
+        const routingCommand = await this._classifyDynamicCommand(projectId, userMessage, {
+            historyMessages: historyGlobal,
+            currentStageKey
+        });
+
+        const nextStageKey = this._commandToStageKey(routingCommand) || 'start';
+
+        // 2-й ИИ => финальный ответ на выбранной стадии, учитывая глобальную историю chat_AI
+        const prompt = await this._buildChatAiPrompt(clientId, projectId, nextStageKey, userMessage, {
+            historyMode: 'global',
+            assistantName
+        });
+
+        const fullText = await aiService.streamCompletion(prompt, null, res);
+        await this._saveChatAiMessagesWithStageKeys(clientId, currentStageKey, nextStageKey, userMessage, fullText);
+        return fullText;
+    }
+
+    /**
      * Получить историю чата клиента по этапу
      */
     async getHistory(clientId, stageKey) {
@@ -163,6 +209,72 @@ class AiB2cService {
         }));
 
         // Собираем финальный промпт
+        const systemPrompt = `
+Ты — ИИ-ассистент по финансовому планированию.
+СЕГОДНЯШНЯЯ ДАТА: ${new Date().toISOString().split('T')[0]}
+
+${assistantNameSection}
+СЛОЙ 1 (ГЛАВНЫЙ МОЗГ — БАЗОВЫЕ ЗНАНИЯ И ИНСТРУКЦИИ):
+${brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
+
+СЛОЙ 2 (КОНТЕКСТ ТЕКУЩЕГО ЭТАПА):
+${stageSection}${routingSection}
+
+СЛОЙ 3 (ДАННЫЕ О КЛИЕНТЕ):
+${clientSection}
+
+ВАЖНЫЕ ПРАВИЛА:
+1. СЛОЙ 2 (ЭТАП) имеет НАИВЫСШИЙ ПРИОРИТЕТ — выполняй именно то, что там написано.
+2. Используй данные клиента (Слой 3) для персонализации ответов.
+3. Отвечай кратко, по делу, на русском языке.
+4. Используй Markdown для оформления.
+5. Не выходи за рамки текущего этапа.
+`.trim();
+
+        return [
+            { role: 'system', content: systemPrompt },
+            ...historyMessages,
+            { role: 'user', content: userMessage }
+        ];
+    }
+
+    /**
+     * Собрать промпт для chat_AI (отдельные brain/stage контексты + отдельная история).
+     */
+    async _buildChatAiPrompt(clientId, projectId, stageKey, userMessage, options = {}) {
+        const historyMode = options.historyMode || 'stage';
+        const assistantNameSection = options.assistantName
+            ? `ИМЯ АССИСТЕНТА: ${options.assistantName}\n`
+            : '';
+
+        const [brainContexts, stageContext, clientData, history] = await Promise.all([
+            this._getChatAiBrainContexts(projectId),
+            this._getChatAiStageContext(projectId, stageKey),
+            this._getClientData(clientId),
+            historyMode === 'global'
+                ? this._getChatAiHistoryGlobal(clientId)
+                : this._getChatAiHistory(clientId, stageKey)
+        ]);
+
+        const brainSection = brainContexts
+            .map(ctx => `--- ${ctx.title}\n${ctx.content}`)
+            .join('\n\n');
+
+        const stageSection = stageContext
+            ? `КОНТЕКСТ ТЕКУЩЕГО ЭТАПА "${stageContext.title}" (stage: ${stageKey}):\n${stageContext.content}`
+            : `Этап: ${stageKey} (контекст не настроен)`;
+
+        const routingSection = options.routingCommand
+            ? `\n\nСЛУЖЕБНАЯ КОМАНДА МАРШРУТИЗАЦИИ (НЕ ОЗВУЧИВАТЬ ПОЛЬЗОВАТЕЛЮ): ${options.routingCommand}`
+            : '';
+
+        const clientSection = this._formatClientData(clientData);
+
+        const historyMessages = history.map(msg => ({
+            role: msg.role,
+            content: msg.content
+        }));
+
         const systemPrompt = `
 Ты — ИИ-ассистент по финансовому планированию.
 СЕГОДНЯШНЯЯ ДАТА: ${new Date().toISOString().split('T')[0]}
@@ -273,6 +385,65 @@ ${clientSection}
             .orderBy('created_at', 'desc')
             .first();
         return last?.stage_key || null;
+    }
+
+    // ==================== chat_AI PRIVATE (отдельные таблицы) ====================
+
+    async _hasAnyChatAiHistory(clientId) {
+        const row = await knex('ai_b2c_chat_ai_messages')
+            .where({ client_id: clientId })
+            .first();
+        return !!row;
+    }
+
+    async _getLastChatAiAssistantStageKey(clientId) {
+        const last = await knex('ai_b2c_chat_ai_messages')
+            .where({ client_id: clientId, role: 'assistant' })
+            .orderBy('created_at', 'desc')
+            .first();
+        return last?.stage_key || null;
+    }
+
+    async _getChatAiHistoryGlobal(clientId) {
+        const rows = await knex('ai_b2c_chat_ai_messages')
+            .where({ client_id: clientId })
+            .orderBy('created_at', 'desc')
+            .limit(20);
+        return rows.reverse();
+    }
+
+    async _getChatAiHistory(clientId, stageKey) {
+        return knex('ai_b2c_chat_ai_messages')
+            .where({ client_id: clientId, stage_key: stageKey })
+            .orderBy('created_at', 'desc')
+            .limit(10)
+            .then(rows => rows.reverse());
+    }
+
+    async _saveChatAiMessagesWithStageKeys(clientId, userStageKey, assistantStageKey, userMessage, assistantMessage) {
+        await knex('ai_b2c_chat_ai_messages').insert([
+            { client_id: clientId, stage_key: userStageKey, role: 'user', content: userMessage },
+            { client_id: clientId, stage_key: assistantStageKey, role: 'assistant', content: assistantMessage || '' }
+        ]);
+    }
+
+    async _getChatAiBrainContexts(projectId) {
+        return knex('ai_b2c_chat_brain_contexts')
+            .where({ is_active: true })
+            .where(function () {
+                this.where('project_id', projectId).orWhereNull('project_id');
+            })
+            .orderBy('priority', 'desc');
+    }
+
+    async _getChatAiStageContext(projectId, stageKey) {
+        return knex('ai_b2c_chat_stage_contexts')
+            .where({ stage_key: stageKey, is_active: true })
+            .where(function () {
+                this.where('project_id', projectId).orWhereNull('project_id');
+            })
+            .orderBy('priority', 'desc')
+            .first();
     }
 
     /**
