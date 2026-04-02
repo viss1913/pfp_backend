@@ -137,9 +137,9 @@ paths:
     post:
       summary: Dynamic start чат ИИ (Стриминг SSE)
       description: |
-        Новый B2C AIchat-поток в 2 шага:
-        1) на бэкенде определяется внутренняя команда (/consulting, /startPFP, /start) через dynamic_context_text;
-        2) формируется финальный ответ с контекстом stage=start, brain-контекстом и историей, после чего ответ стримится через SSE.
+        B2C AIchat-поток в 2 шага:
+        1) первый ИИ выбирает команду (`/consulting`, `/startPFP`, `/start`, …): сначала по **`command_context_text`** текущей стадии, иначе по глобальному **`dynamic_context_text`** из настроек проекта;
+        2) второй ИИ отвечает по полю **`content`** стадии, соответствующей команде (brain + история + SSE).
         Команда пользователю не возвращается.
       tags:
         - Client AI B2C
@@ -232,3 +232,73 @@ components:
         display_name: { type: string }
         avatar_url: { type: string, nullable: true }
         tagline: { type: string, nullable: true }
+
+    # --- Схемы для ЛК агента (см. docs/api/agent_lk.yaml) ---
+    AiB2cBrainContextCreate:
+      type: object
+      required: [ title, content ]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+          description: Текст brain-контекста (промпт / знания ассистента).
+        is_active:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          default: 0
+          description: Чем больше, тем выше приоритет при склейке контекстов.
+
+    AiB2cBrainContextUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string }
+        content: { type: string }
+        is_active: { type: boolean }
+        priority: { type: integer }
+
+    AiB2cStageCreate:
+      type: object
+      required: [ stage_key, title, content ]
+      properties:
+        stage_key:
+          type: string
+          description: |
+            Ключ стадии (например `start`, `startPFP`). Должен совпадать с именем команды роутера без ведущего `/`.
+        title:
+          type: string
+          description: Человекочитаемое название для админки/ЛК.
+        content:
+          type: string
+          description: Промпт **второго ИИ** — как отвечать пользователю на этой стадии.
+        command_context_text:
+          type: string
+          nullable: true
+          description: |
+            Промпт **первого ИИ** (роутер): на этой стадии какие команды `/…` выдавать. Если не задан или null,
+            используется глобальный `dynamic_context_text` из `GET/PUT /pfp/ai-b2c/settings`.
+        is_active:
+          type: boolean
+          default: true
+        priority:
+          type: integer
+          default: 0
+
+    AiB2cStageUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        stage_key: { type: string }
+        title: { type: string }
+        content:
+          type: string
+          description: Промпт второго ИИ.
+        command_context_text:
+          type: string
+          nullable: true
+          description: Промпт первого ИИ; можно передать `null`, чтобы сбросить и снова использовать глобальный `dynamic_context_text`.
+        is_active: { type: boolean }
+        priority: { type: integer }

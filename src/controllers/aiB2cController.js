@@ -189,7 +189,7 @@ class AiB2cController {
     /** POST /admin/ai-b2c/stages */
     async createAiB2cStage(req, res) {
         try {
-            const { stage_key, title, content, is_active, priority } = req.body;
+            const { stage_key, title, content, command_context_text, is_active, priority } = req.body;
             const projectId = req.projectId || req.user?.projectId;
 
             if (!stage_key || !title || !content) {
@@ -200,6 +200,7 @@ class AiB2cController {
                 stage_key,
                 title,
                 content,
+                command_context_text: command_context_text || null,
                 is_active: is_active !== undefined ? is_active : true,
                 priority: priority || 0,
                 project_id: projectId || null
@@ -220,7 +221,7 @@ class AiB2cController {
     async updateAiB2cStage(req, res) {
         try {
             const { id } = req.params;
-            const { stage_key, title, content, is_active, priority } = req.body;
+            const { stage_key, title, content, command_context_text, is_active, priority } = req.body;
 
             const existing = await knex('ai_b2c_stage_contexts').where('id', id).first();
             if (!existing) return res.status(404).json({ error: 'Stage context not found' });
@@ -229,6 +230,7 @@ class AiB2cController {
                 ...(stage_key !== undefined && { stage_key }),
                 ...(title !== undefined && { title }),
                 ...(content !== undefined && { content }),
+                ...(command_context_text !== undefined && { command_context_text }),
                 ...(is_active !== undefined && { is_active }),
                 ...(priority !== undefined && { priority }),
                 updated_at: knex.fn.now()
@@ -277,7 +279,7 @@ class AiB2cController {
     /** POST /pfp/ai-b2c-chat/stages — создать stage-context для chat_AI */
     async createAiB2cChatStage(req, res) {
         try {
-            const { stage_key, title, content, is_active, priority } = req.body;
+            const { stage_key, title, content, command_context_text, is_active, priority } = req.body;
             const projectId = req.projectId || req.user?.projectId;
 
             if (!stage_key || !title || !content) {
@@ -288,6 +290,7 @@ class AiB2cController {
                 stage_key,
                 title,
                 content,
+                command_context_text: command_context_text || null,
                 is_active: is_active !== undefined ? is_active : true,
                 priority: priority || 0,
                 project_id: projectId || null
@@ -308,7 +311,7 @@ class AiB2cController {
     async updateAiB2cChatStage(req, res) {
         try {
             const { id } = req.params;
-            const { stage_key, title, content, is_active, priority } = req.body;
+            const { stage_key, title, content, command_context_text, is_active, priority } = req.body;
 
             const existing = await knex('ai_b2c_chat_stage_contexts').where('id', id).first();
             if (!existing) return res.status(404).json({ error: 'Chat_AI stage context not found' });
@@ -317,6 +320,7 @@ class AiB2cController {
                 ...(stage_key !== undefined && { stage_key }),
                 ...(title !== undefined && { title }),
                 ...(content !== undefined && { content }),
+                ...(command_context_text !== undefined && { command_context_text }),
                 ...(is_active !== undefined && { is_active }),
                 ...(priority !== undefined && { priority }),
                 updated_at: knex.fn.now()

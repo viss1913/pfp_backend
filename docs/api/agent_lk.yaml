@@ -8,6 +8,12 @@ info:
     Системные (дефолтные) продукты и портфели (где `project_id == null`) доступны Агенту только на чтение и клонирование.
 
     **Настройки PDF-отчёта** (обложка, сводная, `goal_card_assets` для превью карточек целей): отдельная спека **`openapi/PDFsettings.yaml`**, Swagger UI: `/api-docs-pdf-settings`, префикс путей `/api/pfp/pdf-settings`.
+
+    **AI B2C в ЛК агента — два независимых набора контекстов:**
+    - **Site** — `/pfp/ai-b2c/brain-contexts`, `/pfp/ai-b2c/stages` (клиентский сайт: обычный чат и dynamic-flow).
+    - **chat_AI** — `/pfp/ai-b2c-chat/brain-contexts`, `/pfp/ai-b2c-chat/stages` (отдельный endpoint клиента `POST /my/ai-b2c/chat_AI/stream`, своя история в БД).
+    У **каждой стадии** два поля: `content` (промпт второго ИИ — ответ пользователю) и `command_context_text` (правила первого ИИ — команды `/…` для перехода на другую стадию). Если `command_context_text` пустой, роутер использует глобальный `dynamic_context_text` из `GET/PUT /pfp/ai-b2c/settings`.
+    Схемы тел запросов: **`docs/api/aiB2c.yaml`** (`AiB2cBrainContextCreate`, `AiB2cStageCreate`, …).
   version: 1.0.0
 servers:
   - url: /api
@@ -437,13 +443,18 @@ paths:
   /pfp/ai-b2c/stages:
     get:
       tags: [ "AI B2C (настройки Агента)" ]
-      summary: Список стейджей (сценариев) B2C AI для проекта Агента
+      summary: Список стейджей (сценариев) B2C AI для проекта Агента (site)
+      description: |
+        Каждая запись: `stage_key`, `title`, **`content`** (промпт второго ИИ), **`command_context_text`** (промпт первого ИИ-роутера на этой стадии, опционально),
+        `is_active`, `priority`. Не смешивать с префиксом `/pfp/ai-b2c-chat/…` — там отдельная копия для chat_AI.
       responses:
         '200':
           description: Успешно
     post:
       tags: [ "AI B2C (настройки Агента)" ]
-      summary: Создать новый стейдж
+      summary: Создать новый стейдж (site)
+      description: |
+        Обязательны `stage_key`, `title`, `content`. Опционально `command_context_text` — если задан, первый ИИ в dynamic-flow опирается на него; иначе — на `dynamic_context_text` из `/pfp/ai-b2c/settings`.
       requestBody:
         required: true
         content:
@@ -457,7 +468,9 @@ paths:
   /pfp/ai-b2c/stages/{id}:
     put:
       tags: [ "AI B2C (настройки Агента)" ]
-      summary: Обновить стейдж
+      summary: Обновить стейдж (site)
+      description: |
+        Частичное обновление: можно передать, в том числе, `command_context_text` или обнулить его (роутер тогда снова возьмёт глобальный `dynamic_context_text`).
       parameters:
         - name: id
           in: path
@@ -490,6 +503,8 @@ paths:
     get:
       tags: [ "AI B2C (настройки Агента)" ]
       summary: Список brain-contexts для chat_AI B2C AI в проекте Агента
+      description: |
+        Отдельные записи от site: используются только потоком `POST /my/ai-b2c/chat_AI/stream`. Поля как у site brain-contexts: `title`, `content`, `is_active`, `priority`.
       responses:
         '200':
           description: Успешно
@@ -542,12 +557,16 @@ paths:
     get:
       tags: [ "AI B2C (настройки Агента)" ]
       summary: Список стейджей (сценариев) chat_AI B2C AI для проекта Агента
+      description: |
+        Структура как у site stages: **`content`** + **`command_context_text`**. Клиентский чат chat_AI читает только эту таблицу и свою историю.
       responses:
         '200':
           description: Успешно
     post:
       tags: [ "AI B2C (настройки Агента)" ]
       summary: Создать новый стейдж (chat_AI)
+      description: |
+        Как `POST /pfp/ai-b2c/stages`, но для chat_AI. Обязательны `stage_key`, `title`, `content`; опционально `command_context_text`.
       requestBody:
         required: true
         content:
@@ -562,6 +581,8 @@ paths:
     put:
       tags: [ "AI B2C (настройки Агента)" ]
       summary: Обновить стейдж (chat_AI)
+      description: |
+        В том числе правка `command_context_text` и `content` независимо друг от друга.
       parameters:
         - name: id
           in: path
@@ -596,7 +617,7 @@ paths:
       summary: Получить настройки B2C AI ассистента
       description: |
         Возвращает настройки ассистента в рамках проекта агента:
-        `display_name`, `avatar_url`, `tagline` и `dynamic_context_text` (для динамического переключения стадий).
+        `display_name`, `avatar_url`, `tagline` и **`dynamic_context_text`** — глобальный текст для первого ИИ (роутер), если у текущей стадии не задан свой `command_context_text` (см. stages site и chat_AI).
       responses:
         '200':
           description: Настройки или null, если ещё не заданы
@@ -608,8 +629,7 @@ paths:
       tags: [ "AI B2C (настройки Агента)" ]
       summary: Обновить настройки B2C AI ассистента
       description: |
-        Обновляет только бренд и правила динамического контекста:
-        `display_name`, `tagline`, `dynamic_context_text`.
+        Обновляет бренд и глобальный fallback роутера: `display_name`, `tagline`, **`dynamic_context_text`** (общий для site dynamic-flow и chat_AI, когда у стадии пустой `command_context_text`).
         `avatar_url` контролируется отдельным эндпоинтом `POST /pfp/ai-b2c/avatar-upload`.
       requestBody:
         required: true

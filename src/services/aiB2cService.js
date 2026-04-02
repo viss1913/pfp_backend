@@ -11,6 +11,7 @@
 
 const knex = require('../config/database');
 const aiService = require('./aiService');
+const { buildChatContext, formatChatContextForPrompt } = require('./chatContextService');
 
 class AiB2cService {
 
@@ -71,11 +72,13 @@ class AiB2cService {
         // Текущая стадия для классификатора = stage_key последнего assistant-сообщения.
         const currentStageKey = await this._getLastAssistantStageKey(clientId) || 'start';
         const historyGlobal = await this._getChatHistoryGlobal(clientId);
+        const currentStageContext = await this._getStageContext(projectId, currentStageKey);
 
         // 1-й ИИ: маршрутизация (команда) для следующей стадии.
         const routingCommand = await this._classifyDynamicCommand(projectId, userMessage, {
             historyMessages: historyGlobal,
-            currentStageKey
+            currentStageKey,
+            commandContextText: currentStageContext?.command_context_text || null
         });
 
         // Маппинг команды -> stage_key для 2-го ИИ.
@@ -118,11 +121,13 @@ class AiB2cService {
 
         const currentStageKey = await this._getLastChatAiAssistantStageKey(clientId) || 'start';
         const historyGlobal = await this._getChatAiHistoryGlobal(clientId);
+        const currentStageContext = await this._getChatAiStageContext(projectId, currentStageKey);
 
         // 1-й ИИ => команда маршрутизации для следующей стадии
         const routingCommand = await this._classifyDynamicCommand(projectId, userMessage, {
             historyMessages: historyGlobal,
-            currentStageKey
+            currentStageKey,
+            commandContextText: currentStageContext?.command_context_text || null
         });
 
         const nextStageKey = this._commandToStageKey(routingCommand) || 'start';
@@ -268,7 +273,15 @@ ${clientSection}
             ? `\n\nСЛУЖЕБНАЯ КОМАНДА МАРШРУТИЗАЦИИ (НЕ ОЗВУЧИВАТЬ ПОЛЬЗОВАТЕЛЮ): ${options.routingCommand}`
             : '';
 
-        const clientSection = this._formatClientData(clientData);
+        const chatContext = buildChatContext({
+            clientData,
+            calcJson: clientData?.client?.goals_summary,
+            projectId
+        });
+        const clientSection = [
+            '### CHAT_CONTEXT (ДАННЫЕ ДЛЯ ИИ, НЕ ВЫДУМЫВАТЬ НЕДОСТАЮЩЕЕ):',
+            formatChatContextForPrompt(chatContext)
+        ].join('\n');
 
         const historyMessages = history.map(msg => ({
             role: msg.role,
@@ -295,6 +308,7 @@ ${clientSection}
 3. Отвечай кратко, по делу, на русском языке.
 4. Используй Markdown для оформления.
 5. Не выходи за рамки текущего этапа.
+6. Если в `chat_context.missing_fields` есть поля — задай максимум 1–3 вопроса из `questions_queue` и не додумывай значения сам.
 `.trim();
 
         return [
@@ -304,8 +318,8 @@ ${clientSection}
         ];
     }
 
-    async _classifyDynamicCommand(projectId, userMessage, { historyMessages = [], currentStageKey = 'start' } = {}) {
-        const dynamicContextText = await this._getDynamicContextText(projectId);
+    async _classifyDynamicCommand(projectId, userMessage, { historyMessages = [], currentStageKey = 'start', commandContextText = null } = {}) {
+        const dynamicContextText = commandContextText || await this._getDynamicContextText(projectId);
         const defaultCommand = '/start';
 
         if (!dynamicContextText) {
