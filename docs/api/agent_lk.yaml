@@ -486,6 +486,54 @@ paths:
         '204':
           description: Удалено
 
+  /pfp/ai-b2c/settings:
+    get:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Получить настройки B2C AI ассистента
+      description: |
+        Возвращает настройки ассистента в рамках проекта агента:
+        `display_name`, `avatar_url`, `tagline` и `dynamic_context_text` (для динамического переключения стадий).
+      responses:
+        '200':
+          description: Настройки или null, если ещё не заданы
+          content:
+            application/json:
+              schema:
+                $ref: './aiB2c.yaml#/components/schemas/AiB2cSettings'
+    put:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Обновить настройки B2C AI ассистента
+      description: |
+        Обновляет только бренд и правила динамического контекста:
+        `display_name`, `tagline`, `dynamic_context_text`.
+        `avatar_url` контролируется отдельным эндпоинтом `POST /pfp/ai-b2c/avatar-upload`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                tagline:
+                  type: string
+                dynamic_context_text:
+                  type: string
+      responses:
+        '200':
+          description: Настройки обновлены
+          content:
+            application/json:
+              schema:
+                $ref: './aiB2c.yaml#/components/schemas/AiB2cSettings'
+        '201':
+          description: Настройки созданы впервые
+          content:
+            application/json:
+              schema:
+                $ref: './aiB2c.yaml#/components/schemas/AiB2cSettings'
+
   # ==================== COMON (общие, под авторизацией PFP) ====================
   /pfp/comon/maintenance-info:
     get:

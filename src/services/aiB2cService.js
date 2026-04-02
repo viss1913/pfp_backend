@@ -47,23 +47,48 @@ class AiB2cService {
     }
 
     /**
-     * Dynamic B2C start flow (2 шага):
-     * 1) классифицируем команду через dynamic_context_text
-     * 2) стримим финальный ответ на стадии start
+     * Dynamic B2C chat flow (2 шага):
+     * - 1-е сообщение: сразу отвечаем на стадии "start" (1-й ИИ не вызываем)
+     * - следующие сообщения: 1-й ИИ выбирает команду маршрутизации => stageKey, 2-й ИИ генерит ответ на выбранной стадии
      */
     async chatDynamicStartStream(clientId, projectId, userMessage, res) {
-        const stageKey = 'start';
+        const assistantName = await this._getAssistantDisplayName(projectId);
 
-        // Step 1: получить команду маршрутизации на основе dynamic_context_text
-        const routingCommand = await this._classifyDynamicCommand(projectId, userMessage);
+        // По твоей логике: если это первое сообщение в сессии/истории — пропускаем классификатор.
+        const hasAnyHistory = await this._hasAnyChatHistory(clientId);
+        if (!hasAnyHistory) {
+            const stageKey = 'start';
+            const prompt = await this._buildPrompt(clientId, projectId, stageKey, userMessage, {
+                historyMode: 'global',
+                assistantName
+            });
 
-        // Step 2: собрать финальный промпт (brain + stage[start] + client data + history + command)
-        const prompt = await this._buildPrompt(clientId, projectId, stageKey, userMessage, {
-            routingCommand
+            const fullText = await aiService.streamCompletion(prompt, null, res);
+            await this._saveMessagesWithStageKeys(clientId, stageKey, stageKey, userMessage, fullText);
+            return fullText;
+        }
+
+        // Текущая стадия для классификатора = stage_key последнего assistant-сообщения.
+        const currentStageKey = await this._getLastAssistantStageKey(clientId) || 'start';
+        const historyGlobal = await this._getChatHistoryGlobal(clientId);
+
+        // 1-й ИИ: маршрутизация (команда) для следующей стадии.
+        const routingCommand = await this._classifyDynamicCommand(projectId, userMessage, {
+            historyMessages: historyGlobal,
+            currentStageKey
+        });
+
+        // Маппинг команды -> stage_key для 2-го ИИ.
+        const nextStageKey = this._commandToStageKey(routingCommand) || 'start';
+
+        // 2-й ИИ: ответ на выбранной стадии, но с глобальной историей диалога.
+        const prompt = await this._buildPrompt(clientId, projectId, nextStageKey, userMessage, {
+            historyMode: 'global',
+            assistantName
         });
 
         const fullText = await aiService.streamCompletion(prompt, null, res);
-        await this._saveMessages(clientId, stageKey, userMessage, fullText);
+        await this._saveMessagesWithStageKeys(clientId, currentStageKey, nextStageKey, userMessage, fullText);
         return fullText;
     }
 
@@ -99,12 +124,19 @@ class AiB2cService {
      * Собрать промпт из 4 слоёв
      */
     async _buildPrompt(clientId, projectId, stageKey, userMessage, options = {}) {
+        const historyMode = options.historyMode || 'stage';
+        const assistantNameSection = options.assistantName
+            ? `ИМЯ АССИСТЕНТА: ${options.assistantName}\n`
+            : '';
+
         // Параллельно загружаем все данные
         const [brainContexts, stageContext, clientData, history] = await Promise.all([
             this._getBrainContexts(projectId),
             this._getStageContext(projectId, stageKey),
             this._getClientData(clientId),
-            this._getChatHistory(clientId, stageKey),
+            historyMode === 'global'
+                ? this._getChatHistoryGlobal(clientId)
+                : this._getChatHistory(clientId, stageKey),
         ]);
 
         // Слой 1: Главный Мозг
@@ -135,6 +167,7 @@ class AiB2cService {
 Ты — ИИ-ассистент по финансовому планированию.
 СЕГОДНЯШНЯЯ ДАТА: ${new Date().toISOString().split('T')[0]}
 
+${assistantNameSection}
 СЛОЙ 1 (ГЛАВНЫЙ МОЗГ — БАЗОВЫЕ ЗНАНИЯ И ИНСТРУКЦИИ):
 ${brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
 
@@ -159,7 +192,7 @@ ${clientSection}
         ];
     }
 
-    async _classifyDynamicCommand(projectId, userMessage) {
+    async _classifyDynamicCommand(projectId, userMessage, { historyMessages = [], currentStageKey = 'start' } = {}) {
         const dynamicContextText = await this._getDynamicContextText(projectId);
         const defaultCommand = '/start';
 
@@ -167,18 +200,31 @@ ${clientSection}
             return defaultCommand;
         }
 
+        const foundCommands = dynamicContextText.match(/\/[a-zA-Z0-9_-]+/g) || [];
+        const allowedCommands = Array.from(new Set(foundCommands.map(s => String(s).trim()).filter(Boolean)));
+
+        const allowedCommandsText = allowedCommands.length
+            ? `ВЫБЕРИ ОДНУ КОМАНДУ ТОЛЬКО ИЗ СПИСКА: ${allowedCommands.join(', ')}`
+            : 'ВЫБЕРИ ОДНУ КОМАНДУ: /consulting, /startPFP, /start';
+
         const classifierPrompt = [
             {
                 role: 'system',
                 content: [
-                    'Определи только одну команду маршрутизации для текущей реплики клиента.',
-                    'Возвращай строго одну из команд и больше ничего: /consulting, /startPFP, /start.',
-                    'Никаких пояснений, только команда.',
+                    'Ты управляющий динамическим контекстом ИИ.',
+                    'Твоя задача писать команды для другого ИИ для перехода на другие стадии.',
                     '',
-                    'DYNAMIC CONTEXT:',
-                    dynamicContextText
+                    `ТЕКУЩАЯ СТАДИЯ: ${currentStageKey}`,
+                    '',
+                    'DYNAMIC CONTEXT (правила стадий и маршрутизации):',
+                    dynamicContextText,
+                    '',
+                    allowedCommandsText,
+                    'Возвращай строго одну команду (например: /startPFP).',
+                    'Никаких пояснений, только команда.'
                 ].join('\n')
             },
+            ...historyMessages.map(m => ({ role: m.role, content: m.content })),
             { role: 'user', content: userMessage }
         ];
 
@@ -187,10 +233,16 @@ ${clientSection}
     }
 
     _normalizeRoutingCommand(rawResponse, fallback = '/start') {
-        const text = String(rawResponse || '').trim();
-        if (text.includes('/consulting')) return '/consulting';
-        if (text.includes('/startPFP')) return '/startPFP';
-        if (text.includes('/start')) return '/start';
+        const text = String(rawResponse || '');
+
+        // Берём первое вхождение "/команда" из ответа.
+        const match = text.match(/\/[a-zA-Z0-9_-]+/);
+        if (match && match[0]) return match[0];
+
+        const lowered = text.toLowerCase();
+        if (lowered.includes('consulting')) return '/consulting';
+        if (lowered.includes('startpfp')) return '/startPFP';
+        if (lowered.includes('start')) return '/start';
         return fallback;
     }
 
@@ -199,6 +251,47 @@ ${clientSection}
             .where({ project_id: projectId })
             .first();
         return settings?.dynamic_context_text || null;
+    }
+
+    async _getAssistantDisplayName(projectId) {
+        const settings = await knex('ai_b2c_settings')
+            .where({ project_id: projectId })
+            .first();
+        return settings?.display_name || 'AI-ассистент';
+    }
+
+    async _hasAnyChatHistory(clientId) {
+        const row = await knex('ai_b2c_chat_messages')
+            .where({ client_id: clientId })
+            .first();
+        return !!row;
+    }
+
+    async _getLastAssistantStageKey(clientId) {
+        const last = await knex('ai_b2c_chat_messages')
+            .where({ client_id: clientId, role: 'assistant' })
+            .orderBy('created_at', 'desc')
+            .first();
+        return last?.stage_key || null;
+    }
+
+    /**
+     * Глобальная история: последние 20 сообщений из разных stage_key.
+     * Возвращаем их в хронологическом порядке.
+     */
+    async _getChatHistoryGlobal(clientId) {
+        const rows = await knex('ai_b2c_chat_messages')
+            .where({ client_id: clientId })
+            .orderBy('created_at', 'desc')
+            .limit(20);
+        return rows.reverse();
+    }
+
+    _commandToStageKey(command) {
+        const text = String(command || '').trim();
+        if (!text) return null;
+        const withoutSlash = text.startsWith('/') ? text.slice(1) : text;
+        return withoutSlash.trim();
     }
 
     /**
@@ -331,6 +424,13 @@ ${clientSection}
         await knex('ai_b2c_chat_messages').insert([
             { client_id: clientId, stage_key: stageKey, role: 'user', content: userMessage },
             { client_id: clientId, stage_key: stageKey, role: 'assistant', content: assistantMessage || '' }
+        ]);
+    }
+
+    async _saveMessagesWithStageKeys(clientId, userStageKey, assistantStageKey, userMessage, assistantMessage) {
+        await knex('ai_b2c_chat_messages').insert([
+            { client_id: clientId, stage_key: userStageKey, role: 'user', content: userMessage },
+            { client_id: clientId, stage_key: assistantStageKey, role: 'assistant', content: assistantMessage || '' }
         ]);
     }
 }
