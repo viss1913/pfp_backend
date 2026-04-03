@@ -7,6 +7,40 @@ const calculationService = require('./calculationService');
 const path = require('path');
 const fs = require('fs');
 
+/** Полный трейс цепочки «классификатор → генератор»: `CONSTRUCTOR_AI_TRACE=0` выкл., иначе вкл. */
+function isConstructorAiTraceOn() {
+    return process.env.CONSTRUCTOR_AI_TRACE !== '0';
+}
+
+const TRACE_MAX_CONTENT = 6000;
+
+function truncateTraceText(str, max = TRACE_MAX_CONTENT) {
+    if (str == null) return '';
+    const s = typeof str === 'string' ? str : String(str);
+    if (s.length <= max) return s;
+    return `${s.slice(0, max)}\n... [truncated +${s.length - max} chars]`;
+}
+
+/**
+ * Логирует массив сообщений для LLM: роль, длина текста, обрезанное тело.
+ * @param {string} step — метка шага (например stream.step1_classifier_request)
+ */
+function traceConstructorMessages(step, messages) {
+    if (!isConstructorAiTraceOn() || !Array.isArray(messages)) return;
+    const parts = messages.map((m, i) => ({
+        index: i,
+        role: m.role,
+        contentChars: (m.content || '').length,
+        content: truncateTraceText(m.content || '', TRACE_MAX_CONTENT),
+    }));
+    console.log(`[ConstructorAI::TRACE] ${step}\n${JSON.stringify(parts, null, 2)}`);
+}
+
+function traceConstructorMeta(step, obj) {
+    if (!isConstructorAiTraceOn()) return;
+    console.log(`[ConstructorAI::TRACE] ${step} ${JSON.stringify(obj, null, 2)}`);
+}
+
 /** Частые опечатки ключа команды в ответе классификатора → канонический ключ из БД */
 const CLASSIFIER_COMMAND_TYPOS = {
     '/vozrtast': '/vozrast',
@@ -100,7 +134,13 @@ class ConstructorAiService {
         // 1.5 Принудительно выбираем /start для первого сообщения если это /start
         if (!current_command_id && userMessage.trim().toLowerCase().includes('/start')) {
             const startCmd = findCommandByKey(commands, '/start');
-            if (startCmd) return startCmd;
+            if (startCmd) {
+                traceConstructorMeta('step1_classifier_shortcut', {
+                    reason: 'user message contains /start',
+                    resolved: { id: startCmd.id, command: startCmd.command },
+                });
+                return startCmd;
+            }
         }
 
         // 1.6 Получаем историю для классификатора
@@ -143,6 +183,21 @@ ${classifierInstructions}
             }
         ];
 
+        traceConstructorMeta('step1_classifier_context', {
+            sessionId: session.id,
+            clientId: client_id,
+            botId: bot.id,
+            projectId: bot.project_id,
+            userMessagePreview: truncateTraceText(userMessage, 500),
+            current_command_id,
+            currentStage: currentCommand ? { id: currentCommand.id, command: currentCommand.command } : null,
+            classifierInstructionsPreview: truncateTraceText(classifierInstructions, 1500),
+            historyTurnsForClassifier: historyMessages.length / 2,
+            commandListKeys: commandList,
+            commandRowsTotal: commands.length,
+        });
+        traceConstructorMessages('step1_classifier_llm_request', prompt);
+
         try {
             console.log(`[AI Step 1] Client: ${client_id}, Bot: ${bot.id}`);
             console.log(`[AI Step 1] User Message: "${userMessage}"`);
@@ -158,14 +213,24 @@ ${classifierInstructions}
             console.log(`[AI Step 1] Classifier RAW response: "${rawTrimmed}"`);
             console.log(`[AI Step 1] Classifier cleaned command: "${detectedCommand}"`);
 
+            traceConstructorMeta('step1_classifier_llm_response', {
+                raw: rawTrimmed,
+                parsedKey: detectedCommand,
+            });
+
             let nextCommand = findCommandByKey(commands, detectedCommand);
 
             // Если команда не распознана — остаёмся на текущей или /start
             if (!nextCommand) {
                 console.log(`[AI Step 1] Command "${detectedCommand}" not in list; fallback to current or /start`);
                 nextCommand = currentCommand || findCommandByKey(commands, '/start');
+                traceConstructorMeta('step1_classifier_fallback', {
+                    reason: 'key not in list',
+                    fallbackTo: nextCommand ? { id: nextCommand.id, command: nextCommand.command } : null,
+                });
             }
 
+            let forcedStartpfp = false;
             // Детерминированно: на /start ответ именем или отказом → /startpfp (если есть в сценарии)
             const onStart =
                 currentCommand && String(currentCommand.command || '').toLowerCase() === '/start';
@@ -175,8 +240,15 @@ ${classifierInstructions}
                 if (startpfp && shouldForceStartpfpFromStart(userMessage)) {
                     console.log('[AI Step 1] Forced transition /start -> /startpfp (name or refuse pattern)');
                     nextCommand = startpfp;
+                    forcedStartpfp = true;
                 }
             }
+
+            traceConstructorMeta('step1_classifier_resolved', {
+                nextCommand: nextCommand ? { id: nextCommand.id, command: nextCommand.command } : null,
+                forcedStartpfp,
+                namePatternMatched: shouldForceStartpfpFromStart(userMessage),
+            });
 
             if (nextCommand && (!currentCommand || Number(nextCommand.id) !== Number(current_command_id))) {
                 console.log(`[AI Step 1] Stage Switch: ${currentCommand ? currentCommand.command : 'None'} -> ${nextCommand.command}`);
@@ -184,6 +256,7 @@ ${classifierInstructions}
 
             return nextCommand;
         } catch (error) {
+            traceConstructorMeta('step1_classifier_error', { message: error.message, stack: error.stack });
             console.error('[AI Step 1] Classification error:', error);
             return currentCommand;
         }
@@ -506,8 +579,26 @@ ${!historyMessages.length ? `
             }
         ];
 
+        traceConstructorMeta('step2_generator_context', {
+            sessionId: session.id,
+            botId: bot.id,
+            projectId: bot.project_id,
+            commandForLayer3: command.command || '(synthetic empty)',
+            commandId: command.id != null ? command.id : null,
+            layer3ResponsePreview: truncateTraceText(command.response || '', 2000),
+            historyMessageCount: layeredPrompt.length - 2,
+            hasCalculationJson: !!calculationResult,
+        });
+        traceConstructorMessages('step2_generator_llm_request_stream', layeredPrompt);
+
         // Сайт-чат: нормализованный SSE (type=text|done), не сырой OpenRouter — иначе фронт рисует [DONE] и JSON-чанки
         const fullText = await aiService.streamCompletion(layeredPrompt, null, res, { sseFormat: 'pfp' });
+
+        traceConstructorMeta('step2_generator_llm_response_stream_done', {
+            fullTextChars: (fullText || '').length,
+            fullTextPreview: truncateTraceText(fullText || '', 1200),
+        });
+
         return fullText;
     }
 
@@ -554,6 +645,16 @@ ${!historyMessages.length ? `
             session = await knex('constructor_sessions').where('id', session).first();
         }
 
+        traceConstructorMeta('stream.turn_start', {
+            botId,
+            userId,
+            nickname,
+            userMessagePreview: truncateTraceText(userMessage, 800),
+            sessionId: session.id,
+            clientId: client.id,
+            current_command_id_before: session.current_command_id,
+        });
+
         // 1) Классификация (какая команда/стадия на текущий ход)
         let nextCommand = await this.classifyStage(session, userMessage);
 
@@ -569,8 +670,21 @@ ${!historyMessages.length ? `
                 .first();
             if (startCmd) {
                 nextCommand = startCmd;
+                traceConstructorMeta('stream.first_turn_force_start', {
+                    reason: 'priorLogs=0 and classifier returned empty layer3',
+                    applied: true,
+                    command: { id: startCmd.id, key: startCmd.command },
+                });
             }
         }
+
+        traceConstructorMeta('stream.after_classify_and_overrides', {
+            isFirstStreamTurn,
+            priorLogCount: priorCount,
+            effectiveCommand: nextCommand
+                ? { id: nextCommand.id, command: nextCommand.command, layer3Chars: (nextCommand.response || '').length }
+                : null,
+        });
 
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
 
@@ -629,6 +743,13 @@ ${!historyMessages.length ? `
 
         // 2) Стриминг ответа
         const responseText = await this.generateResponseStream(session, nextCommand || { response: '' }, userMessage, calculationResult, res);
+
+        traceConstructorMeta('stream.turn_complete', {
+            sessionId: session.id,
+            saved_current_command_id: nextCommand ? nextCommand.id : null,
+            replyChars: (responseText || '').length,
+            replyPreview: truncateTraceText(responseText || '', 1500),
+        });
 
         // 3) Обновление сессии и логирование (после завершения стрима, но без записи в res)
         await knex('constructor_sessions')
