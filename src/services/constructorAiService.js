@@ -227,14 +227,17 @@ class ConstructorAiService {
         const traceStream = !!options.traceStream;
         const priorLogRow = await knex('constructor_logs').where('session_id', session.id).count('* as count').first();
         const priorLogCount = Number(priorLogRow?.count ?? 0);
-        const isFirstTurn = priorLogCount === 0;
+        // Первый контакт: нет истории в логах И сессия ещё без стадии. Если лог не записался, но current_command_id уже
+        // выставлен после прошлого хода — не залипаем в «вечном /start» без классификатора.
+        const isFirstTurn = priorLogCount === 0 && session.current_command_id == null;
 
         if (isFirstTurn) {
             const startCmd = await this._resolveStartCommandRow(botId);
             if (startCmd) {
                 if (traceStream && isConstructorAiTraceOn()) {
                     traceConstructorMeta('stream.first_turn_skip_classifier', {
-                        reason: 'constructor_logs пуст — только контекст ответа из /start, роутер LLM не вызывается',
+                        reason:
+                            'constructor_logs пуст и current_command_id null — контекст ответа из /start, роутер LLM не вызывается',
                         command: { id: startCmd.id, key: startCmd.command },
                     });
                 }
@@ -753,6 +756,15 @@ class ConstructorAiService {
                 : null,
         });
 
+        // Стадию фиксируем сразу после роутера, чтобы следующий запрос видел current_command_id даже если стрим/лог упадут позже.
+        if (nextCommand && nextCommand.id != null) {
+            await knex('constructor_sessions').where('id', session.id).update({
+                current_command_id: nextCommand.id,
+                updated_at: knex.fn.now()
+            });
+            session = { ...session, current_command_id: nextCommand.id };
+        }
+
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
 
         let calculationResult = null;
@@ -893,6 +905,14 @@ class ConstructorAiService {
             console.log(`[Flow] Command for this turn: ${nextCommand.command} (ID: ${nextCommand.id})`);
         } else {
             console.warn('[Flow] No command resolved (null).');
+        }
+
+        if (nextCommand && nextCommand.id != null) {
+            await knex('constructor_sessions').where('id', session.id).update({
+                current_command_id: nextCommand.id,
+                updated_at: knex.fn.now()
+            });
+            session = { ...session, current_command_id: nextCommand.id };
         }
 
         let calculationResult = null;
