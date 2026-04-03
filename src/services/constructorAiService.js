@@ -4,6 +4,7 @@ const homeOwnersCalculator = require('../algorithms/calculators/HomeOwnersCalcul
 const HomeOwnersService = require('./HomeOwnersService');
 const { generateHomeOwnersPdf } = require('../utils/pdfGenerator');
 const calculationService = require('./calculationService');
+const constructorPfpPersistService = require('./constructorPfpPersistService');
 const path = require('path');
 const fs = require('fs');
 
@@ -664,7 +665,7 @@ class ConstructorAiService {
      * Генерация ответа (streaming SSE) для конструктора.
      * Важно: используется только для финального текста (классификация всё равно non-stream).
      */
-    async generateResponseStream(session, command, userMessage, calculationResult = null, res) {
+    async generateResponseStream(session, command, userMessage, calculationResult = null, res, streamExtras = {}) {
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
@@ -711,14 +712,19 @@ class ConstructorAiService {
         traceConstructorMessages('step2_generator_llm_request_stream', layeredPrompt);
 
         // Сайт-чат: нормализованный SSE (type=text|done), не сырой OpenRouter — иначе фронт рисует [DONE] и JSON-чанки
-        const fullText = await aiService.streamCompletion(layeredPrompt, null, res, { sseFormat: 'pfp' });
+        const streamOpts = { sseFormat: 'pfp' };
+        if (streamExtras.trailingSsePayload != null) {
+            streamOpts.trailingSsePayload = streamExtras.trailingSsePayload;
+        }
+        const fullText = await aiService.streamCompletion(layeredPrompt, null, res, streamOpts);
 
         traceConstructorMeta('step2_generator_llm_response_stream_done', {
             fullTextChars: (fullText || '').length,
             fullTextPreview: truncateTraceText(fullText || '', 1200),
         });
 
-        return fullText;
+        const suffix = streamExtras.appendToFullText || '';
+        return suffix ? `${fullText || ''}${suffix}` : fullText;
     }
 
     /**
@@ -807,6 +813,7 @@ class ConstructorAiService {
 
         let calculationResult = null;
         let pdfPath = null;
+        let firstRunExtraction = null;
 
         // Технически расчёты и PDF тут могут быть, но для сайта пока достаточно текстовой ветки.
         // Мы оставляем логику как в processMessage, но не отдаем PDF отдельно (Telegram его отдаёт иначе).
@@ -842,24 +849,53 @@ class ConstructorAiService {
                 calculationResult = { calculations, limits };
             }
         } else if (isFirstRunCalculationCommand(cmdKey)) {
-            const extraction = await this.extractFinancialPlanParams(session, userMessage);
+            firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
             try {
                 const calcData = {
                     client: {
                         ...client,
-                        ...extraction.client,
+                        ...firstRunExtraction.client,
                         project_id: bot.project_id
                     },
-                    goals: extraction.goals || []
+                    goals: firstRunExtraction.goals || []
                 };
-                calculationResult = await calculationService.calculateFirstRun(calcData);
+                calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
+                    isFirstRun: true,
+                    usePool: true,
+                });
             } catch (calcErr) {
                 console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
         }
 
+        let pfpReportPdfUrl = null;
+        if (isFirstRunCalculationCommand(cmdKey) && calculationResult && firstRunExtraction) {
+            try {
+                const r = await constructorPfpPersistService.persistConstructorFirstRunAndUploadPdf({
+                    constructorClientRow: client,
+                    bot,
+                    extraction: firstRunExtraction,
+                    calculationResponse: calculationResult,
+                });
+                pfpReportPdfUrl = r.pdfUrl;
+            } catch (persistErr) {
+                console.error('[ConstructorAI] persistConstructorFirstRun (stream) failed:', persistErr.message || persistErr);
+            }
+        }
+
+        const pdfSuffix = pfpReportPdfUrl ? `\n\n📄 Ваш персональный отчёт (PDF): ${pfpReportPdfUrl}` : '';
         // 2) Стриминг ответа
-        const responseText = await this.generateResponseStream(session, nextCommand || { response: '' }, userMessage, calculationResult, res);
+        const responseText = await this.generateResponseStream(
+            session,
+            nextCommand || { response: '' },
+            userMessage,
+            calculationResult,
+            res,
+            {
+                trailingSsePayload: pfpReportPdfUrl ? { type: 'pdf_url', pdf_url: pfpReportPdfUrl } : null,
+                appendToFullText: pdfSuffix,
+            }
+        );
 
         traceConstructorMeta('stream.turn_complete', {
             sessionId: session.id,
@@ -955,6 +991,7 @@ class ConstructorAiService {
 
         let calculationResult = null;
         let pdfPath = null;
+        let firstRunExtraction = null;
 
         // Нормализация команды для сравнения (убираем регистр и пробелы)
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
@@ -1028,23 +1065,26 @@ class ConstructorAiService {
             }
         } else if (isFirstRunCalculationCommand(cmdKey)) {
             console.log(`[Flow] DEBUG: first-run calculation command (${cmdKey}). Starting extraction...`);
-            const extraction = await this.extractFinancialPlanParams(session, userMessage);
+            firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
             console.log(`[Flow] Performing Full Financial Plan Calculation for client:`, client.nickname);
-            console.log(`[Flow] Extraction Result:`, JSON.stringify(extraction, null, 2));
+            console.log(`[Flow] Extraction Result:`, JSON.stringify(firstRunExtraction, null, 2));
 
             try {
                 // Подготавливаем данные для calculationService
                 const calcData = {
                     client: {
                         ...client,
-                        ...extraction.client,
+                        ...firstRunExtraction.client,
                         project_id: bot.project_id
                     },
-                    goals: extraction.goals || []
+                    goals: firstRunExtraction.goals || []
                 };
 
                 console.log('[Flow] DEBUG: Calling calculationService.calculateFirstRun with:', JSON.stringify(calcData, null, 2));
-                calculationResult = await calculationService.calculateFirstRun(calcData);
+                calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
+                    isFirstRun: true,
+                    usePool: true,
+                });
                 console.log(`[Flow] FirstRun Calculation Success. Total Capital: ${calculationResult.summary?.total_capital}`);
             } catch (calcErr) {
                 console.error('[Flow] FirstRun Calculation failed:', calcErr);
@@ -1055,8 +1095,26 @@ class ConstructorAiService {
             );
         }
 
+        let pfpReportPdfUrl = null;
+        if (isFirstRunCalculationCommand(cmdKey) && calculationResult && firstRunExtraction) {
+            try {
+                const r = await constructorPfpPersistService.persistConstructorFirstRunAndUploadPdf({
+                    constructorClientRow: client,
+                    bot,
+                    extraction: firstRunExtraction,
+                    calculationResponse: calculationResult,
+                });
+                pfpReportPdfUrl = r.pdfUrl;
+            } catch (persistErr) {
+                console.error('[ConstructorAI] persistConstructorFirstRun failed:', persistErr.message || persistErr);
+            }
+        }
+
         // 2. Генерация ответа
-        const responseText = await this.generateResponse(session, nextCommand, userMessage, calculationResult);
+        let responseText = await this.generateResponse(session, nextCommand, userMessage, calculationResult);
+        if (pfpReportPdfUrl) {
+            responseText = `${responseText}\n\n📄 Ваш персональный отчёт (PDF): ${pfpReportPdfUrl}`;
+        }
 
         // 3. Обновление сессии и логирование
         await knex('constructor_sessions')

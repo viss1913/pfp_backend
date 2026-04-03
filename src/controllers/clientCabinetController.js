@@ -4,6 +4,7 @@ const reportService = require('../services/reportService');
 const reportPdfService = require('../services/reportPdfService');
 const { uploadPublicFile } = require('../utils/r2Client');
 const goalRecalculator = require('../algorithms/recalculators');
+const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const Joi = require('joi');
 
 /** Не даём телу запроса из ЛК клиента менять привязку к агенту/юзеру (иначе agent_id мог уехать в NULL). */
@@ -257,7 +258,7 @@ class ClientCabinetController {
             await clientService.updateFullClient(clientId, updateData);
 
             // Sync goal IDs
-            await this._syncGoalsWithDatabase(clientId, calculation);
+            await syncCalculationGoalsWithDatabase(clientId, calculation);
 
             // Save calculation snapshot
             await clientService.updateClient(clientId, {
@@ -369,7 +370,7 @@ class ClientCabinetController {
                 await clientService.updateClient(clientId, clientUpdate, projectId);
             }
 
-            await this._syncGoalsWithDatabase(clientId, calculation);
+            await syncCalculationGoalsWithDatabase(clientId, calculation);
 
             await clientService.updateClient(clientId, {
                 goals_summary: JSON.stringify(calculationResponse)
@@ -379,27 +380,6 @@ class ClientCabinetController {
         } catch (err) {
             next(err);
         }
-    }
-
-    /**
-     * Sync calculation goal IDs with database IDs
-     */
-    async _syncGoalsWithDatabase(clientId, calculation) {
-        if (!calculation || !calculation.goals) return;
-
-        const dbData = await clientService.getFullClient(clientId);
-        if (!dbData || !dbData.goals) return;
-
-        calculation.goals.forEach(calcGoal => {
-            const match = dbData.goals.find(dg =>
-                String(dg.name).trim() === String(calcGoal.goal_name || calcGoal.name).trim() &&
-                Number(dg.goal_type_id) === Number(calcGoal.goal_type_id)
-            );
-            if (match) {
-                calcGoal.goal_id = match.id;
-                calcGoal.id = match.id;
-            }
-        });
     }
 }
 

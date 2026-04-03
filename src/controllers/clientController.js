@@ -81,28 +81,9 @@ const calculationRequestSchema = Joi.object({
 
 const clientService = require('../services/clientService');
 const goalRecalculator = require('../algorithms/recalculators');
+const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 
 class ClientController {
-    async _syncGoalsWithDatabase(clientId, calculation) {
-        if (!calculation || !calculation.goals) return;
-
-        const dbGoals = await clientService.getFullClient(clientId);
-        if (!dbGoals || !dbGoals.goals) return;
-
-        calculation.goals.forEach(calcGoal => {
-            // Find match in DB goals by name and type
-            const match = dbGoals.goals.find(dg =>
-                String(dg.name).trim() === String(calcGoal.goal_name || calcGoal.name).trim() &&
-                Number(dg.goal_type_id) === Number(calcGoal.goal_type_id)
-            );
-
-            if (match) {
-                calcGoal.goal_id = match.id;
-                calcGoal.id = match.id;
-            }
-        });
-    }
-
     // --- Existing Calculator ---
     async calculateFirstRun(req, res, next) {
         try {
@@ -174,7 +155,7 @@ class ClientController {
             const clientId = await clientService.createFullClient(req.body);
 
             // 5. SYNC IDs: Update calculation goals with real DB IDs
-            await this._syncGoalsWithDatabase(clientId, calculation);
+            await syncCalculationGoalsWithDatabase(clientId, calculation);
 
             // Save Calculation Snapshot to Client record (with real IDs)
             await clientService.updateClient(clientId, {
@@ -383,7 +364,7 @@ class ClientController {
             }
 
             // 7. SYNC IDs (especially for new goals with temp IDs)
-            await this._syncGoalsWithDatabase(clientId, calculation);
+            await syncCalculationGoalsWithDatabase(clientId, calculation);
 
             // Save Snapshot
             await clientService.updateClient(clientId, {

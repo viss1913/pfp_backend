@@ -36,6 +36,7 @@ class AiService {
      * @param {Object} res - Express response object to stream to
      * @param {Object} [options]
      * @param {'openai'|'pfp'} [options.sseFormat='openai'] — openai: сырой прокси как у OpenAI (для старых клиентов); pfp: только наши JSON-ивенты type=text|done (без сырого [DONE] и чанков choices)
+     * @param {*} [options.trailingSsePayload] — при sseFormat=pfp: один доп. SSE-ивент (объект → JSON) перед type=done
      */
     async streamCompletion(messages, model, res, options = {}) {
         if (!this.apiKey) {
@@ -129,6 +130,9 @@ class AiService {
                         processLine(lineBuf);
                     }
                     if (sseFormat === 'pfp') {
+                        if (options.trailingSsePayload != null) {
+                            res.write(`data: ${JSON.stringify(options.trailingSsePayload)}\n\n`);
+                        }
                         res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
                     }
                     res.end();
