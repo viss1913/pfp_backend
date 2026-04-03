@@ -438,8 +438,8 @@ ${!historyMessages.length ? `
             }
         ];
 
-        // aiService.streamCompletion пишет в res и сам закрывает соединение (res.end())
-        const fullText = await aiService.streamCompletion(layeredPrompt, null, res);
+        // Сайт-чат: нормализованный SSE (type=text|done), не сырой OpenRouter — иначе фронт рисует [DONE] и JSON-чанки
+        const fullText = await aiService.streamCompletion(layeredPrompt, null, res, { sseFormat: 'pfp' });
         return fullText;
     }
 
@@ -459,7 +459,8 @@ ${!historyMessages.length ? `
                 await knex('constructor_clients').where('id', clientToDelete.id).del();
             }
             // Пишем в SSE и закрываем соединение.
-            res.write(`data: ${JSON.stringify({ text: "Ваши данные и история диалога полностью удалены." })}\n\n`);
+            res.write(`data: ${JSON.stringify({ type: 'text', text: 'Ваши данные и история диалога полностью удалены.' })}\n\n`);
+            res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
             res.end();
             return;
         }
@@ -486,7 +487,23 @@ ${!historyMessages.length ? `
         }
 
         // 1) Классификация (какая команда/стадия на текущий ход)
-        const nextCommand = await this.classifyStage(session, userMessage);
+        let nextCommand = await this.classifyStage(session, userMessage);
+
+        const priorLogRow = await knex('constructor_logs').where('session_id', session.id).count('* as count').first();
+        const priorCount = Number(priorLogRow?.count ?? 0);
+        const isFirstStreamTurn = priorCount === 0;
+        if (
+            isFirstStreamTurn &&
+            (!nextCommand || !String(nextCommand.response || '').trim())
+        ) {
+            const startCmd = await knex('constructor_commands')
+                .where({ bot_id: botId, command: '/start' })
+                .first();
+            if (startCmd) {
+                nextCommand = startCmd;
+            }
+        }
+
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
 
         let calculationResult = null;

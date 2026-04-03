@@ -34,12 +34,16 @@ class AiService {
      * @param {Array} messages - Chat history including system prompt
      * @param {String} model - Model ID
      * @param {Object} res - Express response object to stream to
+     * @param {Object} [options]
+     * @param {'openai'|'pfp'} [options.sseFormat='openai'] — openai: сырой прокси как у OpenAI (для старых клиентов); pfp: только наши JSON-ивенты type=text|done (без сырого [DONE] и чанков choices)
      */
-    async streamCompletion(messages, model, res) {
+    async streamCompletion(messages, model, res, options = {}) {
         if (!this.apiKey) {
             console.error('❌ OPENROUTER_API_KEY is missing');
             throw new Error('OPENROUTER_API_KEY is not set');
         }
+
+        const sseFormat = options.sseFormat === 'pfp' ? 'pfp' : 'openai';
 
         const defaultModel = process.env.OPENROUTER_MODEL
             ? process.env.OPENROUTER_MODEL
@@ -75,42 +79,74 @@ class AiService {
                 }
             );
 
-            // Pipe the data directly to the client
-            response.data.on('data', (chunk) => {
-                res.write(chunk);
-            });
-
-            response.data.on('end', () => {
-                res.end();
-            });
-
-            response.data.on('error', (err) => {
-                console.error('Stream error:', err);
-                res.write(`data: {"error": "${err.message}"}\n\n`);
-                res.end();
-            });
-
-            // Return full text promise for logging/saving purposes
-            return new Promise((resolve) => {
+            return await new Promise((resolve, reject) => {
                 let fullText = '';
-                response.data.on('data', (chunk) => {
-                    const lines = chunk.toString().split('\n');
-                    for (const line of lines) {
-                        if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                            try {
-                                const json = JSON.parse(line.substring(6));
-                                if (json.choices && json.choices[0].delta && json.choices[0].delta.content) {
-                                    fullText += json.choices[0].delta.content;
-                                }
-                            } catch (e) {
-                                // ignore parse error for partial chunks
+                let lineBuf = '';
+
+                const parsePayload = (payload) => {
+                    if (!payload || payload === '[DONE]') return;
+                    try {
+                        const json = JSON.parse(payload);
+                        const piece = json.choices?.[0]?.delta?.content;
+                        if (piece) {
+                            fullText += piece;
+                            if (sseFormat === 'pfp') {
+                                res.write(`data: ${JSON.stringify({ type: 'text', text: piece })}\n\n`);
                             }
                         }
+                    } catch (_) {
+                        /* неполный JSON между чанками — ждём следующую строку */
                     }
-                });
-                response.data.on('end', () => resolve(fullText));
-            });
+                };
 
+                const processLine = (line) => {
+                    const trimmed = line.replace(/\r$/, '').trimEnd();
+                    if (!trimmed.startsWith('data:')) return;
+                    const raw = trimmed.startsWith('data: ') ? trimmed.slice(6).trim() : trimmed.slice(5).trim();
+                    parsePayload(raw);
+                };
+
+                const feedChunk = (chunkBuf) => {
+                    const s = chunkBuf.toString();
+                    if (sseFormat === 'openai') {
+                        res.write(chunkBuf);
+                    }
+                    lineBuf += s;
+                    let nl;
+                    while ((nl = lineBuf.indexOf('\n')) >= 0) {
+                        const line = lineBuf.slice(0, nl);
+                        lineBuf = lineBuf.slice(nl + 1);
+                        processLine(line);
+                    }
+                };
+
+                response.data.on('data', (chunk) => {
+                    feedChunk(chunk);
+                });
+
+                response.data.on('end', () => {
+                    if (lineBuf.length) {
+                        processLine(lineBuf);
+                    }
+                    if (sseFormat === 'pfp') {
+                        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+                    }
+                    res.end();
+                    resolve(fullText);
+                });
+
+                response.data.on('error', (err) => {
+                    console.error('Stream error:', err);
+                    const msg = String(err.message || err).replace(/"/g, '\\"');
+                    if (sseFormat === 'pfp') {
+                        res.write(`data: ${JSON.stringify({ type: 'error', message: err.message })}\n\n`);
+                    } else {
+                        res.write(`data: {"error": "${msg}"}\n\n`);
+                    }
+                    res.end();
+                    reject(err);
+                });
+            });
         } catch (error) {
             console.error('❌ OpenRouter API Error:');
             if (error.response) {
