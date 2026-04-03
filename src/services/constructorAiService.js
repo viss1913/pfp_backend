@@ -87,9 +87,38 @@ function trimText(v) {
     return String(v).trim();
 }
 
+/** Копия расчёта для промпта генератора: без лишней глубины, чтобы модель не «тонула» и не игнорировала блок. */
+function calculationPayloadForGeneratorPrompt(calculationResult) {
+    if (calculationResult == null || typeof calculationResult !== 'object') return calculationResult;
+    try {
+        const cloned = JSON.parse(JSON.stringify(calculationResult));
+        return calculationService.simplify(cloned);
+    } catch (e) {
+        return calculationResult;
+    }
+}
+
 /** Генератор: только непустые поля из БД. Без дефолтных персонажей и скрытых правил. */
 function buildConstructorGeneratorSystemContent(bot, brainSection, command, calculationResult, client) {
     const sections = [];
+
+    const cmdKeyNorm = trimText(command?.command || '').toLowerCase();
+    const hasCalcPayload =
+        calculationResult != null &&
+        typeof calculationResult === 'object' &&
+        Object.keys(calculationResult).length > 0;
+    const firstRunWithCalc = isFirstRunCalculationCommand(cmdKeyNorm) && hasCalcPayload;
+
+    // Сначала жёсткое правило: иначе модель тянет хвост диалога («сейчас посчитаю») и игнорирует JSON внизу system.
+    if (firstRunWithCalc) {
+        sections.push(
+            'КРИТИЧЕСКИ ВАЖНО ДЛЯ ЭТОГО ОТВЕТА:\n' +
+                'Финансовый план УЖЕ рассчитан на сервере. Ниже в этом же системном сообщении есть блок «Результат расчёта (JSON)» с готовыми цифрами.\n' +
+                'Твоя задача — кратко и понятно презентовать пользователю итоги из этого JSON (ключевые суммы, сроки, выводы).\n' +
+                'ЗАПРЕЩЕНО писать: «я сейчас рассчитаю», «подождите», «скоро будет готово», «данные собраны — начинаю расчёт» — расчёт уже завершён.\n' +
+                'Не заканчивай ответ только пересказом введённых полей; опирайся на JSON расчёта.'
+        );
+    }
 
     const botName = trimText(bot?.name);
     if (botName) sections.push(`Имя ассистента (настройки бота): ${botName}`);
@@ -109,8 +138,9 @@ function buildConstructorGeneratorSystemContent(bot, brainSection, command, calc
         sections.push(cmdKey ? `Сценарий (${cmdKey}):\n${trimText(resp)}` : `Сценарий:\n${trimText(resp)}`);
     }
 
-    if (calculationResult != null && typeof calculationResult === 'object' && Object.keys(calculationResult).length) {
-        sections.push(`Результат расчёта (JSON):\n${JSON.stringify(calculationResult, null, 2)}`);
+    if (hasCalcPayload) {
+        const forPrompt = calculationPayloadForGeneratorPrompt(calculationResult);
+        sections.push(`Результат расчёта (JSON):\n${JSON.stringify(forPrompt, null, 2)}`);
     }
 
     const nick = trimText(client?.nickname);
