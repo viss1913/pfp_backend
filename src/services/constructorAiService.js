@@ -7,6 +7,57 @@ const calculationService = require('./calculationService');
 const path = require('path');
 const fs = require('fs');
 
+/** Частые опечатки ключа команды в ответе классификатора → канонический ключ из БД */
+const CLASSIFIER_COMMAND_TYPOS = {
+    '/vozrtast': '/vozrast',
+    '/startpf': '/startpfp',
+};
+
+function findCommandByKey(commands, key) {
+    if (!key || !commands?.length) return null;
+    const normalized = key.startsWith('/') ? key : `/${key}`;
+    let row =
+        commands.find((c) => c.command === normalized) ||
+        commands.find((c) => c.command && c.command.toLowerCase() === normalized.toLowerCase());
+    if (!row) {
+        const alias = CLASSIFIER_COMMAND_TYPOS[normalized.toLowerCase()];
+        if (alias) {
+            row =
+                commands.find((c) => c.command === alias) ||
+                commands.find((c) => c.command && c.command.toLowerCase() === alias.toLowerCase());
+        }
+    }
+    return row || null;
+}
+
+/**
+ * На стадии /start после ответа именем (или отказа) должны уйти на /startpfp — модель часто ошибочно оставляет /start.
+ */
+function shouldForceStartpfpFromStart(userMessage) {
+    const t = (userMessage || '').trim();
+    if (!t || t.startsWith('/')) return false;
+    if (t.length > 120) return false;
+
+    if (/не\s+скажу|не\s+хочу|без\s+имени|секретно|анонимно|не\s+важно|не\s+буду\s+говорить|не\s+своё\s+имя/i.test(t)) {
+        return true;
+    }
+
+    const words = t.split(/\s+/).filter(Boolean);
+    if (words.length < 1 || words.length > 4) return false;
+    if (!/^[\p{L}\s\-.']+$/u.test(t)) return false;
+
+    const w0 = words[0];
+    if (
+        /^(как|что|где|почему|зачем|сколько|когда|кто|здравствуй|привет|добрый|доброе|спасибо|ок|окей|да|нет|хорошо|ладно)$/i.test(
+            w0
+        )
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
 class ConstructorAiService {
     /**
      * Шаг 1: Классификация - определение следующей стадии диалога
@@ -48,7 +99,7 @@ class ConstructorAiService {
 
         // 1.5 Принудительно выбираем /start для первого сообщения если это /start
         if (!current_command_id && userMessage.trim().toLowerCase().includes('/start')) {
-            const startCmd = commands.find(c => c.command === '/start');
+            const startCmd = findCommandByKey(commands, '/start');
             if (startCmd) return startCmd;
         }
 
@@ -64,18 +115,26 @@ class ConstructorAiService {
         ])).flat();
 
         const classifierInstructions = currentCommand ? currentCommand.classifier : "Определи начальную стадию диалога.";
+        const currentStageKey = currentCommand ? currentCommand.command : '(начало диалога — выбери подходящую команду из списка)';
 
         const prompt = [
             {
                 role: 'system',
-                content: `Ты — классификатор стадий диалога. 
-Твоя задача: на основе сообщения пользователя, истории переписки и инструкций определить ключ (command) следующей стадии.
-Доступные команды: ${commandList}.
-Инструкции по переключению (текущая стадия: ${currentCommand ? currentCommand.command : 'начало'}): ${classifierInstructions}
+                content: `Ты — классификатор стадий диалога (роутер). 
+Твоя задача: по последнему сообщению пользователя, краткой истории и ИНСТРУКЦИЯМ ТЕКУЩЕЙ СТАДИИ выбрать ОДНУ команду — ключ следующей стадии.
 
-ОТВЕТЬ ТОЛЬКО КЛЮЧОМ КОМАНДЫ (например: /meeting). 
-Если сообщение пользователя не требует переключения стадии или ты не уверен, верни текущую команду (или /start если это начало). 
-Не пиши ничего кроме ключа команды.`
+СПИСОК ДОПУСТИМЫХ КОМАНД (ответь строго одним из этих ключей, символ / обязателен): ${commandList}.
+
+ТЕКУЩАЯ СТАДИЯ: ${currentStageKey}
+ИНСТРУКЦИИ ПЕРЕКЛЮЧЕНИЯ ДЛЯ ЭТОЙ СТАДИИ:
+${classifierInstructions}
+
+ПРАВИЛА:
+1) Если инструкции явно говорят перейти на команду X при выполнении условия — и условие выполнено — верни X.
+2) Если условие перехода не выполнено — верни ТЕКУЩУЮ стадию: ${currentCommand ? currentCommand.command : 'ту команду из списка, которая лучше всего подходит как старт'}.
+3) Не выдумывай ключи вне списка. Не добавляй пояснений.
+
+ОТВЕТ: только ключ команды, одна строка (пример: /startpfp).`
             },
             ...historyMessages,
             {
@@ -99,15 +158,24 @@ class ConstructorAiService {
             console.log(`[AI Step 1] Classifier RAW response: "${rawTrimmed}"`);
             console.log(`[AI Step 1] Classifier cleaned command: "${detectedCommand}"`);
 
-            let nextCommand = commands.find(c => c.command === detectedCommand);
-            if (!nextCommand) {
-                nextCommand = commands.find(c => c.command.toLowerCase() === detectedCommand.toLowerCase());
-            }
+            let nextCommand = findCommandByKey(commands, detectedCommand);
 
             // Если команда не распознана — остаёмся на текущей или /start
             if (!nextCommand) {
                 console.log(`[AI Step 1] Command "${detectedCommand}" not in list; fallback to current or /start`);
-                nextCommand = currentCommand || commands.find(c => c.command === '/start');
+                nextCommand = currentCommand || findCommandByKey(commands, '/start');
+            }
+
+            // Детерминированно: на /start ответ именем или отказом → /startpfp (если есть в сценарии)
+            const onStart =
+                currentCommand && String(currentCommand.command || '').toLowerCase() === '/start';
+            const stillOnStart = nextCommand && String(nextCommand.command || '').toLowerCase() === '/start';
+            if (onStart && stillOnStart) {
+                const startpfp = findCommandByKey(commands, '/startpfp');
+                if (startpfp && shouldForceStartpfpFromStart(userMessage)) {
+                    console.log('[AI Step 1] Forced transition /start -> /startpfp (name or refuse pattern)');
+                    nextCommand = startpfp;
+                }
             }
 
             if (nextCommand && (!currentCommand || Number(nextCommand.id) !== Number(current_command_id))) {
