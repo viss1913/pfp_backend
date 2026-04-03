@@ -291,10 +291,13 @@ class ConstructorAiService {
         const commandList = commands.map(c => c.command).join(', ');
         console.log(`[AI Step 1] Available commands: [${commandList}]`);
 
-        // 2. Формируем контекст классификатора
+        // 2. Формируем контекст классификатора (строка по id может не попасть в OR-выборку — добираем из БД)
         let currentCommand = null;
         if (current_command_id) {
-            currentCommand = commands.find(c => Number(c.id) === Number(current_command_id));
+            currentCommand = commands.find((c) => Number(c.id) === Number(current_command_id));
+            if (!currentCommand) {
+                currentCommand = await knex('constructor_commands').where('id', current_command_id).first();
+            }
         }
 
         // 1.5 Явный старт чата (/start, «старт», start…) — сразу стадия /start, без LLM
@@ -311,6 +314,22 @@ class ConstructorAiService {
 
         // 1.6 История для роутера (последние N ходов; текущий user — отдельным сообщением в конце промпта)
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, CLASSIFIER_HISTORY_LOG_ROWS);
+
+        // На стадии /start имя или отказ → /startpfp по правилам админки, без LLM-роутера (надёжнее модели)
+        if (
+            currentCommand &&
+            String(currentCommand.command || '').toLowerCase() === '/start' &&
+            shouldForceStartpfpFromStart(userMessage)
+        ) {
+            const startpfp = findCommandByKey(commands, '/startpfp');
+            if (startpfp) {
+                traceConstructorMeta('step1_classifier_shortcut', {
+                    reason: '/start + имя/отказ в сообщении → /startpfp (без вызова роутера)',
+                    resolved: { id: startpfp.id, command: startpfp.command },
+                });
+                return startpfp;
+            }
+        }
 
         const startCmdForRouter = findCommandByKey(commands, '/start');
         const classifierInstructions = currentCommand
@@ -714,6 +733,9 @@ class ConstructorAiService {
             current_command_id_before: session.current_command_id,
         });
 
+        // Актуальная сессия из БД (после прошлого хода должен быть current_command_id)
+        session = await knex('constructor_sessions').where('id', session.id).first();
+
         // 1) Стадия: первый ход сессии — без роутера, сразу /start для генерации; дальше — classifyStage
         const {
             nextCommand,
@@ -858,6 +880,7 @@ class ConstructorAiService {
         }
 
         console.log(`\n--- Processing Message from ${nickname} (${userId}) ---`);
+        session = await knex('constructor_sessions').where('id', session.id).first();
         console.log(`[Flow] Session ID: ${session.id}, Current Command ID: ${session.current_command_id}`);
 
         const { nextCommand, classifierSkipped } = await this.resolveCommandForSessionTurn(botId, session, userMessage);
