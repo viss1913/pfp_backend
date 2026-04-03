@@ -621,10 +621,14 @@ class ConstructorController {
             }
 
             if (!bot) {
+                bot = await constructorBotService.ensureSiteChatBot(projectId);
+            }
+
+            if (!bot) {
                 res.write(
                     `data: ${JSON.stringify({
                         error: 'constructor bot not found for project',
-                        hint: 'Register a bot via POST /api/pfp/constructor/bot (agent LK) or pass bot_id in body/query if the bot exists but project_id was not set on the row.',
+                        hint: 'В проекте нет агентов (agents/users с этим project_id). Добавь агента в проект или зарегистрируй бота в ЛК.',
                     })}\n\n`
                 );
                 res.end();

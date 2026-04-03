@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const TelegramBot = require('node-telegram-bot-api');
 const knex = require('../config/database');
 const constructorAiService = require('./constructorAiService');
@@ -180,6 +181,123 @@ class ConstructorBotService {
         } else {
             await this.stopBot(botId);
         }
+    }
+
+    /**
+     * Первый агент проекта: сначала agents.project_id, иначе users.project_id → agent_id.
+     */
+    async _pickAgentForProject(projectId) {
+        let agent = await knex('agents')
+            .where('project_id', projectId)
+            .orderByRaw('is_active DESC, id ASC')
+            .first();
+        if (agent) return agent;
+        return knex('agents')
+            .join('users', 'users.agent_id', 'agents.id')
+            .where('users.project_id', projectId)
+            .select('agents.*')
+            .orderBy('agents.id', 'asc')
+            .first();
+    }
+
+    /**
+     * Любой не-site бот проекта (донор команд CJM).
+     */
+    async _findDonorConstructorBot(projectId) {
+        let row = await knex('constructor_bots')
+            .where('project_id', projectId)
+            .whereNot('bot_type', 'site')
+            .orderBy('created_at', 'desc')
+            .first();
+        if (row) return row;
+        return knex('constructor_bots')
+            .join('agents', 'constructor_bots.agent_id', 'agents.id')
+            .where('agents.project_id', projectId)
+            .whereNot('constructor_bots.bot_type', 'site')
+            .select('constructor_bots.*')
+            .orderBy('constructor_bots.created_at', 'desc')
+            .first();
+    }
+
+    async _copyConstructorCommands(fromBotId, toBotId, projectId) {
+        const cmds = await knex('constructor_commands').where('bot_id', fromBotId);
+        if (!cmds.length) return;
+        for (const c of cmds) {
+            const { id, created_at, updated_at, ...rest } = c;
+            await knex('constructor_commands').insert({
+                ...rest,
+                bot_id: toBotId,
+                project_id: projectId,
+            });
+        }
+    }
+
+    /**
+     * Для публичного чата на сайте: если в проекте нет ни одного constructor_bot,
+     * создаём строку bot_type=site (токен-заглушка, polling не стартует).
+     * Команды копируем с первого телеграм/max-бота проекта, если есть.
+     */
+    async ensureSiteChatBot(projectId) {
+        const agent = await this._pickAgentForProject(projectId);
+        if (!agent) return null;
+
+        let bot = await knex('constructor_bots')
+            .where({ agent_id: agent.id, bot_type: 'site', project_id: projectId })
+            .first();
+        if (!bot) {
+            bot = await knex('constructor_bots')
+                .where({ agent_id: agent.id, bot_type: 'site' })
+                .whereNull('project_id')
+                .first();
+        }
+
+        if (bot) {
+            if (Number(bot.project_id) !== Number(projectId)) {
+                await knex('constructor_bots').where('id', bot.id).update({
+                    project_id: projectId,
+                    updated_at: knex.fn.now(),
+                });
+                bot.project_id = projectId;
+            }
+            return bot;
+        }
+
+        const donor = await this._findDonorConstructorBot(projectId);
+        const insertRow = {
+            agent_id: agent.id,
+            project_id: projectId,
+            name: 'Site chat',
+            token: `site:${crypto.randomUUID()}`,
+            bot_type: 'site',
+            is_active: true,
+        };
+
+        let newId;
+        try {
+            [newId] = await knex('constructor_bots').insert(insertRow);
+        } catch (e) {
+            const dup = e.code === 'ER_DUP_ENTRY' || String(e.message || '').includes('Duplicate');
+            if (dup) {
+                bot = await knex('constructor_bots')
+                    .where({ agent_id: agent.id, project_id: projectId, bot_type: 'site' })
+                    .first();
+                if (bot) return bot;
+            }
+            console.error('[ensureSiteChatBot] insert failed:', e.message);
+            throw e;
+        }
+
+        const resolvedId = typeof newId === 'object' && newId != null ? newId.id : newId;
+        if (donor && Number(donor.id) !== Number(resolvedId)) {
+            try {
+                await this._copyConstructorCommands(donor.id, resolvedId, projectId);
+            } catch (copyErr) {
+                console.error('[ensureSiteChatBot] command copy failed:', copyErr.message);
+            }
+        }
+
+        console.log(`[ensureSiteChatBot] created site bot id=${resolvedId} for project_id=${projectId}`);
+        return knex('constructor_bots').where('id', resolvedId).first();
     }
 
     /**
