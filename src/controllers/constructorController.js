@@ -556,14 +556,77 @@ class ConstructorController {
                 return;
             }
 
-            // Ищем бота для проекта: сначала bot_type='site', иначе любой active бот
-            const bots = await knex('constructor_bots')
-                .where({ project_id: projectId, is_active: true })
-                .orderBy('created_at', 'desc');
+            const bodyBotId = req.body?.bot_id ?? req.body?.botId ?? req.query?.bot_id;
+            let bot = null;
 
-            const bot = bots.find((b) => b.bot_type === 'site') || bots[0];
+            if (bodyBotId) {
+                bot = await knex('constructor_bots')
+                    .where('id', bodyBotId)
+                    .where(function () {
+                        this.where('project_id', projectId).orWhereNull('project_id');
+                    })
+                    .first();
+                if (!bot) {
+                    bot = await knex('constructor_bots')
+                        .join('agents', 'constructor_bots.agent_id', 'agents.id')
+                        .where('constructor_bots.id', bodyBotId)
+                        .where('agents.project_id', projectId)
+                        .select('constructor_bots.*')
+                        .first();
+                }
+                if (!bot) {
+                    res.write(
+                        `data: ${JSON.stringify({
+                            error: 'constructor bot not found',
+                            hint: `bot_id ${bodyBotId} is not in this project`,
+                        })}\n\n`
+                    );
+                    res.end();
+                    return;
+                }
+            }
+
             if (!bot) {
-                res.write(`data: ${JSON.stringify({ error: 'constructor bot not found for project' })}\n\n`);
+                // 1) Явный project_id на боте
+                let bots = await knex('constructor_bots')
+                    .where({ project_id: projectId, is_active: true })
+                    .orderBy('created_at', 'desc');
+
+                // 2) У старых ботов project_id мог быть null — тянем по agents.project_id
+                if (!bots.length) {
+                    bots = await knex('constructor_bots')
+                        .join('agents', 'constructor_bots.agent_id', 'agents.id')
+                        .where('agents.project_id', projectId)
+                        .where('constructor_bots.is_active', true)
+                        .select('constructor_bots.*')
+                        .orderBy('constructor_bots.created_at', 'desc');
+                }
+
+                bot = bots.find((b) => b.bot_type === 'site') || bots[0];
+            }
+
+            // 3) Все боты выключены (is_active=false) — всё равно пробуем, иначе сайт молчит
+            if (!bot) {
+                let bots = await knex('constructor_bots')
+                    .where({ project_id: projectId })
+                    .orderBy('created_at', 'desc');
+                if (!bots.length) {
+                    bots = await knex('constructor_bots')
+                        .join('agents', 'constructor_bots.agent_id', 'agents.id')
+                        .where('agents.project_id', projectId)
+                        .select('constructor_bots.*')
+                        .orderBy('constructor_bots.created_at', 'desc');
+                }
+                bot = bots.find((b) => b.bot_type === 'site') || bots[0];
+            }
+
+            if (!bot) {
+                res.write(
+                    `data: ${JSON.stringify({
+                        error: 'constructor bot not found for project',
+                        hint: 'Register a bot via POST /api/pfp/constructor/bot (agent LK) or pass bot_id in body/query if the bot exists but project_id was not set on the row.',
+                    })}\n\n`
+                );
                 res.end();
                 return;
             }
