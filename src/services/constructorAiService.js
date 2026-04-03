@@ -93,6 +93,58 @@ function shouldForceStartpfpFromStart(userMessage) {
 }
 
 class ConstructorAiService {
+    /** Команда /start, привязанная к боту (без шаблонов из orWhere). */
+    async _getBotStartCommand(botId) {
+        let row = await knex('constructor_commands').where({ bot_id: botId, command: '/start' }).first();
+        if (!row) {
+            row = await knex('constructor_commands')
+                .where('bot_id', botId)
+                .whereRaw('LOWER(command) = ?', ['/start'])
+                .first();
+        }
+        return row || null;
+    }
+
+    /**
+     * Первое сообщение в сессии (в логах ещё нет ходов): роутер (первый LLM) не вызываем —
+     * сразу берём строку /start для слоя ответа (поле response). Со второго сообщения — classifyStage.
+     */
+    async resolveCommandForSessionTurn(botId, session, userMessage, options = {}) {
+        const traceStream = !!options.traceStream;
+        const priorLogRow = await knex('constructor_logs').where('session_id', session.id).count('* as count').first();
+        const priorLogCount = Number(priorLogRow?.count ?? 0);
+        const isFirstTurn = priorLogCount === 0;
+
+        if (isFirstTurn) {
+            const startCmd = await this._getBotStartCommand(botId);
+            if (startCmd) {
+                if (traceStream && isConstructorAiTraceOn()) {
+                    traceConstructorMeta('stream.first_turn_skip_classifier', {
+                        reason: 'constructor_logs пуст — только контекст ответа из /start, роутер LLM не вызывается',
+                        command: { id: startCmd.id, key: startCmd.command },
+                    });
+                }
+                return {
+                    nextCommand: startCmd,
+                    isFirstTurn,
+                    priorLogCount,
+                    classifierSkipped: true,
+                };
+            }
+            if (traceStream && isConstructorAiTraceOn()) {
+                traceConstructorMeta('stream.first_turn_no_start_command', { botId, fallback: 'classifyStage' });
+            }
+        }
+
+        const nextCommand = await this.classifyStage(session, userMessage);
+        return {
+            nextCommand,
+            isFirstTurn,
+            priorLogCount,
+            classifierSkipped: false,
+        };
+    }
+
     /**
      * Шаг 1: Классификация - определение следующей стадии диалога
      */
@@ -666,32 +718,18 @@ ${!historyMessages.length ? `
             current_command_id_before: session.current_command_id,
         });
 
-        // 1) Классификация (какая команда/стадия на текущий ход)
-        let nextCommand = await this.classifyStage(session, userMessage);
+        // 1) Стадия: первый ход сессии — без роутера, сразу /start для генерации; дальше — classifyStage
+        const {
+            nextCommand,
+            isFirstTurn: isFirstStreamTurn,
+            priorLogCount: priorCount,
+            classifierSkipped,
+        } = await this.resolveCommandForSessionTurn(botId, session, userMessage, { traceStream: true });
 
-        const priorLogRow = await knex('constructor_logs').where('session_id', session.id).count('* as count').first();
-        const priorCount = Number(priorLogRow?.count ?? 0);
-        const isFirstStreamTurn = priorCount === 0;
-        if (
-            isFirstStreamTurn &&
-            (!nextCommand || !String(nextCommand.response || '').trim())
-        ) {
-            const startCmd = await knex('constructor_commands')
-                .where({ bot_id: botId, command: '/start' })
-                .first();
-            if (startCmd) {
-                nextCommand = startCmd;
-                traceConstructorMeta('stream.first_turn_force_start', {
-                    reason: 'priorLogs=0 and classifier returned empty layer3',
-                    applied: true,
-                    command: { id: startCmd.id, key: startCmd.command },
-                });
-            }
-        }
-
-        traceConstructorMeta('stream.after_classify_and_overrides', {
+        traceConstructorMeta('stream.after_router', {
             isFirstStreamTurn,
             priorLogCount: priorCount,
+            classifierSkipped,
             effectiveCommand: nextCommand
                 ? { id: nextCommand.id, command: nextCommand.command, layer3Chars: (nextCommand.response || '').length }
                 : null,
@@ -826,14 +864,16 @@ ${!historyMessages.length ? `
         console.log(`\n--- Processing Message from ${nickname} (${userId}) ---`);
         console.log(`[Flow] Session ID: ${session.id}, Current Command ID: ${session.current_command_id}`);
 
-        // 1. Классификация
-        console.log('[Flow] Starting classification...');
-        const nextCommand = await this.classifyStage(session, userMessage);
-
-        if (nextCommand) {
-            console.log(`[Flow] Classification result: ${nextCommand.command} (ID: ${nextCommand.id})`);
+        const { nextCommand, classifierSkipped } = await this.resolveCommandForSessionTurn(botId, session, userMessage);
+        if (classifierSkipped) {
+            console.log('[Flow] First session turn: skipped classifier, using /start response context only');
         } else {
-            console.warn('[Flow] Classification returned NULL. Using fallback.');
+            console.log('[Flow] Classification done');
+        }
+        if (nextCommand) {
+            console.log(`[Flow] Command for this turn: ${nextCommand.command} (ID: ${nextCommand.id})`);
+        } else {
+            console.warn('[Flow] No command resolved (null).');
         }
 
         let calculationResult = null;
