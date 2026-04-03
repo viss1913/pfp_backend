@@ -538,16 +538,25 @@ class ConstructorController {
                 cookieSessionId ||
                 null;
 
-            // Если сессии нет — создаём и отдаём фронту первым SSE-ивентом + cookie.
+            let createdNewSiteSession = false;
+            // Если сессии нет — создаём UUID + cookie (на кросс-домене кука часто не прилетает — фронт обязан слать sessionId из тела/заголовка).
             if (!userSessionId) {
                 const crypto = require('crypto');
                 userSessionId = crypto.randomUUID();
+                createdNewSiteSession = true;
                 res.setHeader(
                     'Set-Cookie',
                     `constructor_site_sid=${encodeURIComponent(userSessionId)}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax`
                 );
-                res.write(`data: ${JSON.stringify({ type: 'session', sessionId: userSessionId })}\n\n`);
+                console.warn(
+                    '[Constructor Site Chat] Новый anonymous sessionId (нет cookie/body/x-constructor-session-id). ' +
+                        'Если следующий запрос снова без id — будет новая constructor_sessions и чат «с нуля». ' +
+                        `sessionId=${userSessionId}, projectId=${projectId}`
+                );
             }
+
+            // Сразу после фиксации id — чтобы фронт мог сохранить до ошибки «пустое сообщение».
+            res.write(`data: ${JSON.stringify({ type: 'session', sessionId: userSessionId, new: createdNewSiteSession })}\n\n`);
 
             const userMessage = (text || message || '').toString().trim();
             if (!userMessage) {

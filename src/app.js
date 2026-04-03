@@ -30,7 +30,17 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-agent-id', 'x-role', 'x-api-key', 'X-Requested-With', 'x-project-key', 'x-project-id'],
+    allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'x-agent-id',
+        'x-role',
+        'x-api-key',
+        'X-Requested-With',
+        'x-project-key',
+        'x-project-id',
+        'x-constructor-session-id',
+    ],
     exposedHeaders: ['Content-Type', 'Authorization', 'x-project-key'],
     preflightContinue: false,
     optionsSuccessStatus: 204
