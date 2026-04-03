@@ -55,6 +55,15 @@ const CLASSIFIER_COMMAND_TYPOS = {
     '/startpf': '/startpfp',
 };
 
+/**
+ * Команды сценария, при которых вызывается calculateFirstRun.
+ * В админке ключ может называться не /firstrun, а например /firstRunAIB2C — смысл тот же.
+ */
+function isFirstRunCalculationCommand(cmdKey) {
+    const k = (cmdKey || '').trim().toLowerCase();
+    return k === '/firstrun' || k === '/firstrunaib2c' || k === '/first_run_aib2c';
+}
+
 function findCommandByKey(commands, key) {
     if (!key || !commands?.length) return null;
     const normalized = key.startsWith('/') ? key : `/${key}`;
@@ -803,7 +812,7 @@ class ConstructorAiService {
                 }
                 calculationResult = { calculations, limits };
             }
-        } else if (cmdKey === '/firstrun') {
+        } else if (isFirstRunCalculationCommand(cmdKey)) {
             const extraction = await this.extractFinancialPlanParams(session, userMessage);
             try {
                 const calcData = {
@@ -920,7 +929,9 @@ class ConstructorAiService {
 
         // Нормализация команды для сравнения (убираем регистр и пробелы)
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
-        console.log(`[Flow] Command for this turn: "${nextCommand ? nextCommand.command : 'null'}" (cmdKey: ${cmdKey}); will run calculation: ${cmdKey === '/homeownerscalc' || cmdKey === '/firstrun'}`);
+        console.log(
+            `[Flow] Command for this turn: "${nextCommand ? nextCommand.command : 'null'}" (cmdKey: ${cmdKey}); will run calculation: ${cmdKey === '/homeownerscalc' || isFirstRunCalculationCommand(cmdKey)}`
+        );
 
         // Расчёт страхования имущества по всем активным продуктам (команда /homeownerscalc)
         const runHomeOwnersCalculation = async () => {
@@ -986,8 +997,8 @@ class ConstructorAiService {
             } catch (calcErr) {
                 console.error('[Flow] Calculation failed:', calcErr);
             }
-        } else if (cmdKey === '/firstrun') {
-            console.log('[Flow] DEBUG: /firstRun command detected. Starting extraction...');
+        } else if (isFirstRunCalculationCommand(cmdKey)) {
+            console.log(`[Flow] DEBUG: first-run calculation command (${cmdKey}). Starting extraction...`);
             const extraction = await this.extractFinancialPlanParams(session, userMessage);
             console.log(`[Flow] Performing Full Financial Plan Calculation for client:`, client.nickname);
             console.log(`[Flow] Extraction Result:`, JSON.stringify(extraction, null, 2));
@@ -1010,7 +1021,9 @@ class ConstructorAiService {
                 console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
         } else {
-            console.log(`[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeOwnersCalc or /firstRun`);
+            console.log(
+                `[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeownerscalc or first-run keys (/firstrun, /firstRunAIB2C, …)`
+            );
         }
 
         // 2. Генерация ответа
