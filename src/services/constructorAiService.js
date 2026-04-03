@@ -59,10 +59,13 @@ const CLASSIFIER_COMMAND_TYPOS = {
 /**
  * Команды сценария, при которых вызывается calculateFirstRun.
  * В админке ключ может называться не /firstrun, а например /firstRunAIB2C — смысл тот же.
+ * Плюс кастомные ключи: если в пути есть подстрока firstrun (после lower), считаем тем же сценарием.
  */
 function isFirstRunCalculationCommand(cmdKey) {
-    const k = (cmdKey || '').trim().toLowerCase();
-    return k === '/firstrun' || k === '/firstrunaib2c' || k === '/first_run_aib2c';
+    const k = (cmdKey || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!k.startsWith('/')) return false;
+    if (k === '/firstrun' || k === '/firstrunaib2c' || k === '/first_run_aib2c') return true;
+    return k.includes('firstrun');
 }
 
 function findCommandByKey(commands, key) {
@@ -98,8 +101,32 @@ function calculationPayloadForGeneratorPrompt(calculationResult) {
     }
 }
 
-/** Генератор: только непустые поля из БД. Без дефолтных персонажей и скрытых правил. */
-function buildConstructorGeneratorSystemContent(bot, brainSection, command, calculationResult, client) {
+/** Укороченный снимок для LLM: summary + урезанные goals (меньше токенов, выше шанс что модель прочитает). */
+function compactCalculationForPresentationPrompt(calculationResult) {
+    const full = calculationPayloadForGeneratorPrompt(calculationResult);
+    if (full == null || typeof full !== 'object') return full;
+    const goals = Array.isArray(full.goals)
+        ? full.goals.map((g) => ({
+              goal_name: g.goal_name || g.name,
+              goal_type_id: g.goal_type_id,
+              goal_id: g.goal_id,
+              summary: g.summary,
+          }))
+        : [];
+    return {
+        summary: full.summary,
+        goals,
+        client_id: full.client_id,
+        investment_expense_growth_annual_percent: full.investment_expense_growth_annual_percent,
+    };
+}
+
+/**
+ * Генератор: system + опционально хвост из user-сообщений.
+ * Для firstRun с готовым расчётом JSON кладём во второе user-сообщение после реплики пользователя —
+ * иначе модель часто игнорирует хвост огромного system и продолжает сценарий «сейчас посчитаю».
+ */
+function buildConstructorGeneratorPromptParts(bot, brainSection, command, calculationResult, client) {
     const sections = [];
 
     const cmdKeyNorm = trimText(command?.command || '').toLowerCase();
@@ -108,15 +135,22 @@ function buildConstructorGeneratorSystemContent(bot, brainSection, command, calc
         typeof calculationResult === 'object' &&
         Object.keys(calculationResult).length > 0;
     const firstRunWithCalc = isFirstRunCalculationCommand(cmdKeyNorm) && hasCalcPayload;
+    const firstRunStageNoCalc = isFirstRunCalculationCommand(cmdKeyNorm) && !hasCalcPayload;
 
-    // Сначала жёсткое правило: иначе модель тянет хвост диалога («сейчас посчитаю») и игнорирует JSON внизу system.
     if (firstRunWithCalc) {
         sections.push(
             'КРИТИЧЕСКИ ВАЖНО ДЛЯ ЭТОГО ОТВЕТА:\n' +
-                'Финансовый план УЖЕ рассчитан на сервере. Ниже в этом же системном сообщении есть блок «Результат расчёта (JSON)» с готовыми цифрами.\n' +
-                'Твоя задача — кратко и понятно презентовать пользователю итоги из этого JSON (ключевые суммы, сроки, выводы).\n' +
-                'ЗАПРЕЩЕНО писать: «я сейчас рассчитаю», «подождите», «скоро будет готово», «данные собраны — начинаю расчёт» — расчёт уже завершён.\n' +
-                'Не заканчивай ответ только пересказом введённых полей; опирайся на JSON расчёта.'
+                'Финансовый план УЖЕ рассчитан на сервере. Сразу после истории диалога тебе будет отдельное пользовательское сообщение с JSON результата.\n' +
+                'Твоя задача — кратко презентовать пользователю итоги из этого JSON (ключевые суммы, сроки, выводы).\n' +
+                'ЗАПРЕЩЕНО: «я сейчас рассчитаю», «буквально через мгновение», «подождите», «начинаю расчёт», «сейчас посчитаю» — расчёт уже завершён.\n' +
+                'Не заканчивай ответ только пересказом введённых полей; опирайся на JSON из следующего сообщения.'
+        );
+    }
+
+    if (firstRunStageNoCalc) {
+        sections.push(
+            'ВАЖНО: На этом шаге серверный расчёт финансового плана не был получен (ошибка или нехватка данных).\n' +
+                'Не обещай результат «через мгновение» и не ври про готовый расчёт. Кратко извинись и предложи повторить ответ цифрами или написать позже.'
         );
     }
 
@@ -138,7 +172,8 @@ function buildConstructorGeneratorSystemContent(bot, brainSection, command, calc
         sections.push(cmdKey ? `Сценарий (${cmdKey}):\n${trimText(resp)}` : `Сценарий:\n${trimText(resp)}`);
     }
 
-    if (hasCalcPayload) {
+    // JSON в system — только не firstRun (например /homeownerscalc). Иначе дублируем в user-хвосте ниже.
+    if (hasCalcPayload && !firstRunWithCalc) {
         const forPrompt = calculationPayloadForGeneratorPrompt(calculationResult);
         sections.push(`Результат расчёта (JSON):\n${JSON.stringify(forPrompt, null, 2)}`);
     }
@@ -150,7 +185,16 @@ function buildConstructorGeneratorSystemContent(bot, brainSection, command, calc
         sections.push(`Клиент:\n${cl}`);
     }
 
-    return sections.join('\n\n');
+    let trailingUserCalculationJson = null;
+    if (firstRunWithCalc) {
+        const compact = compactCalculationForPresentationPrompt(calculationResult);
+        trailingUserCalculationJson = JSON.stringify(compact, null, 2);
+    }
+
+    return {
+        systemContent: sections.join('\n\n'),
+        trailingUserCalculationJson,
+    };
 }
 
 /** Роутер: минимальный каркас + classifier из админки (без заглушек сценария). */
@@ -658,7 +702,7 @@ class ConstructorAiService {
 
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
 
-        const systemContent = buildConstructorGeneratorSystemContent(
+        const { systemContent, trailingUserCalculationJson } = buildConstructorGeneratorPromptParts(
             bot,
             brainSection,
             command,
@@ -674,11 +718,22 @@ class ConstructorAiService {
             role: 'user',
             content: userMessage
         });
+        if (trailingUserCalculationJson) {
+            layeredPrompt.push({
+                role: 'user',
+                content:
+                    'Служебное сообщение (не показывать пользователю как цитату): расчёт УЖЕ выполнен. Ниже JSON — единственный источник цифр для ответа.\n\nРезультат расчёта (JSON):\n' +
+                    trailingUserCalculationJson
+            });
+        }
 
         try {
             console.log(`[AI Step 2] Generating response for command: ${command.command}`);
             const sysMsg = layeredPrompt.find((m) => m.role === 'system');
             console.log(`[AI Step 2] System prompt: ${sysMsg ? `${sysMsg.content.length} chars` : '(none — только админка пустая)'}`);
+            if (trailingUserCalculationJson) {
+                console.log(`[AI Step 2] FirstRun: calculation JSON in trailing user turn (${trailingUserCalculationJson.length} chars)`);
+            }
 
             const responseText = await aiService.getCompletion(layeredPrompt);
 
@@ -711,7 +766,7 @@ class ConstructorAiService {
 
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
 
-        const systemContent = buildConstructorGeneratorSystemContent(
+        const { systemContent, trailingUserCalculationJson } = buildConstructorGeneratorPromptParts(
             bot,
             brainSection,
             command,
@@ -727,6 +782,14 @@ class ConstructorAiService {
             role: 'user',
             content: userMessage
         });
+        if (trailingUserCalculationJson) {
+            layeredPrompt.push({
+                role: 'user',
+                content:
+                    'Служебное сообщение (не показывать пользователю как цитату): расчёт УЖЕ выполнен. Ниже JSON — единственный источник цифр для ответа.\n\nРезультат расчёта (JSON):\n' +
+                    trailingUserCalculationJson
+            });
+        }
 
         traceConstructorMeta('step2_generator_context', {
             sessionId: session.id,
@@ -738,6 +801,8 @@ class ConstructorAiService {
             historyTurnsInPrompt: historyMessages.length / 2,
             systemPromptChars: trimText(systemContent).length,
             hasCalculationJson: !!calculationResult,
+            firstRunJsonInTrailingUser: !!trailingUserCalculationJson,
+            trailingUserJsonChars: trailingUserCalculationJson ? trailingUserCalculationJson.length : 0,
         });
         traceConstructorMessages('step2_generator_llm_request_stream', layeredPrompt);
 
@@ -896,6 +961,9 @@ class ConstructorAiService {
             } catch (calcErr) {
                 console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
+            console.log(
+                `[ConstructorAI] firstRun(stream): cmdKey=${cmdKey} hasCalc=${!!calculationResult} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
+            );
         }
 
         let pfpReportPdfUrl = null;
@@ -1119,6 +1187,9 @@ class ConstructorAiService {
             } catch (calcErr) {
                 console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
+            console.log(
+                `[ConstructorAI] firstRun(telegram): cmdKey=${cmdKey} hasCalc=${!!calculationResult} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
+            );
         } else {
             console.log(
                 `[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeownerscalc or first-run keys (/firstrun, /firstRunAIB2C, …)`
