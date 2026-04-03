@@ -72,6 +72,67 @@ function findCommandByKey(commands, key) {
     return row || null;
 }
 
+function trimText(v) {
+    if (v == null) return '';
+    return String(v).trim();
+}
+
+/** Генератор: только непустые поля из БД. Без дефолтных персонажей и скрытых правил. */
+function buildConstructorGeneratorSystemContent(bot, brainSection, command, calculationResult, client) {
+    const sections = [];
+
+    const botName = trimText(bot?.name);
+    if (botName) sections.push(`Имя ассистента (настройки бота): ${botName}`);
+
+    const base = trimText(bot?.base_brain_context);
+    if (base) sections.push(`Базовый контекст бота:\n${base}`);
+
+    const bs = trimText(brainSection);
+    if (bs) sections.push(`Контексты из админки:\n${bs}`);
+
+    const style = trimText(bot?.communication_style);
+    if (style) sections.push(`Стиль общения:\n${style}`);
+
+    const resp = command?.response != null ? String(command.response) : '';
+    const cmdKey = trimText(command?.command);
+    if (trimText(resp)) {
+        sections.push(cmdKey ? `Сценарий (${cmdKey}):\n${trimText(resp)}` : `Сценарий:\n${trimText(resp)}`);
+    }
+
+    if (calculationResult != null && typeof calculationResult === 'object' && Object.keys(calculationResult).length) {
+        sections.push(`Результат расчёта (JSON):\n${JSON.stringify(calculationResult, null, 2)}`);
+    }
+
+    const nick = trimText(client?.nickname);
+    const uctx = trimText(client?.user_context);
+    if (nick || uctx) {
+        const cl = [nick ? `Никнейм: ${nick}` : null, uctx ? `Контекст: ${uctx}` : null].filter(Boolean).join('\n');
+        sections.push(`Клиент:\n${cl}`);
+    }
+
+    return sections.join('\n\n');
+}
+
+/** Роутер: минимальный каркас + classifier из админки (без заглушек сценария). */
+function buildClassifierRouterSystemContent(commandList, currentStageKey, classifierInstructions, stayOnStageHint) {
+    const lines = [
+        'Выбери один ключ команды из списка. Ответ — одна строка, только ключ.',
+        `Список ключей: ${commandList}`,
+    ];
+    if (trimText(currentStageKey)) {
+        lines.push(`Текущий ключ стадии: ${trimText(currentStageKey)}`);
+    }
+    const instr = trimText(classifierInstructions);
+    if (instr) {
+        lines.push('Инструкции переключения (из админки):', instr);
+    }
+    if (trimText(stayOnStageHint)) {
+        lines.push(`Если остаёмся на текущей стадии — ответь ключом: ${trimText(stayOnStageHint)}`);
+    }
+    lines.push('Без пояснений.');
+    return lines.join('\n');
+}
+
 /**
  * На стадии /start после ответа именем (или отказа) должны уйти на /startpfp — модель часто ошибочно оставляет /start.
  */
@@ -251,36 +312,26 @@ class ConstructorAiService {
         // 1.6 История для роутера (последние N ходов; текущий user — отдельным сообщением в конце промпта)
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, CLASSIFIER_HISTORY_LOG_ROWS);
 
-        // Пока сессия без current_command_id — логически мы на стадии /start: берём classifier из команды /start из БД, а не заглушку «Определи начальную стадию».
         const startCmdForRouter = findCommandByKey(commands, '/start');
         const classifierInstructions = currentCommand
-            ? currentCommand.classifier
-            : (startCmdForRouter?.classifier || 'Определи начальную стадию диалога.');
+            ? (currentCommand.classifier || '')
+            : (startCmdForRouter?.classifier || '');
         const currentStageKey = currentCommand
-            ? currentCommand.command
-            : (startCmdForRouter ? '/start' : '(начало диалога — выбери подходящую команду из списка)');
+            ? (currentCommand.command || '')
+            : (startCmdForRouter ? '/start' : '');
         const stayOnStageHint = currentCommand
-            ? currentCommand.command
-            : (startCmdForRouter ? '/start' : 'ту команду из списка, которая лучше всего подходит как старт');
+            ? (currentCommand.command || '')
+            : (startCmdForRouter ? '/start' : '');
 
         const prompt = [
             {
                 role: 'system',
-                content: `Ты — классификатор стадий диалога (роутер). 
-Твоя задача: по последнему сообщению пользователя, краткой истории и ИНСТРУКЦИЯМ ТЕКУЩЕЙ СТАДИИ выбрать ОДНУ команду — ключ следующей стадии.
-
-СПИСОК ДОПУСТИМЫХ КОМАНД (ответь строго одним из этих ключей, символ / обязателен): ${commandList}.
-
-ТЕКУЩАЯ СТАДИЯ: ${currentStageKey}
-ИНСТРУКЦИИ ПЕРЕКЛЮЧЕНИЯ ДЛЯ ЭТОЙ СТАДИИ:
-${classifierInstructions}
-
-ПРАВИЛА:
-1) Если инструкции явно говорят перейти на команду X при выполнении условия — и условие выполнено — верни X.
-2) Если условие перехода не выполнено — верни ТЕКУЩУЮ стадию: ${stayOnStageHint}.
-3) Не выдумывай ключи вне списка. Не добавляй пояснений.
-
-ОТВЕТ: только ключ команды, одна строка (пример: /startpfp).`
+                content: buildClassifierRouterSystemContent(
+                    commandList,
+                    currentStageKey,
+                    classifierInstructions,
+                    stayOnStageHint
+                ),
             },
             ...historyMessages,
             {
@@ -516,68 +567,27 @@ ${classifierInstructions}
 
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
 
-        const layeredPrompt = [
-            {
-                role: 'system',
-                content: `
-Ты — ИИ-ассистент по имени "${bot.name || 'Помощник'}".
+        const systemContent = buildConstructorGeneratorSystemContent(
+            bot,
+            brainSection,
+            command,
+            calculationResult,
+            client
+        );
 
-СЛОЙ 1 (БАЗОВЫЙ КОНТЕКСТ И ЗНАНИЯ):
-${bot.base_brain_context || 'Ты — опытный финансовый консультант и помощник агента.'}
-${brainSection ? '\nДополнительные инструкции из базы знаний:\n' + brainSection : ''}
-
-СЛОЙ 2 (СТИЛИСТИКА ОБЩЕНИЯ):
-${bot.communication_style || 'Общайся вежливо и профессионально.'}
-
-СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА/СЦЕНАРИЙ):
-${command.response}
-${calculationResult ? `
-ВНИМАНИЕ! РАСЧЕТ ВЫПОЛНЕН. ТЫ ОБЯЗАН ИСПОЛЬЗОВАТЬ ДАННЫЕ ИЗ ЭТОГО JSON ДЛЯ ОТВЕТА ПОЛЬЗОВАТЕЛЮ:
-${JSON.stringify(calculationResult, null, 2)}
-
-Инструкция для ИИ по интерпретации JSON:
-${calculationResult.summary ? `
-Это ПОЛНЫЙ ФИНАНСОВЫЙ ПЛАН.
-1. Озвучь итоговый капитал (summary.total_capital) к концу срока.
-2. Пройдись по основным целям в массиве "goals" (назови цель, срок и сколько нужно инвестировать ежемесячно).
-3. Упомяни налоговую выгоду и софинансирование от государства (summary.total_state_benefit).
-4. Если есть "consolidated_portfolio", кратко скажи, что план сбалансирован.
-` : calculationResult.calculations && Array.isArray(calculationResult.calculations) ? `
-Это расчёты СТРАХОВАНИЯ ИМУЩЕСТВА по нескольким программам/компаниям.
-Презентуй по каждой программе из массива "calculations": название (product_name), итоговая премия (total_premium), лимиты (limits). Можно сравнить предложения и выделить выгодный вариант.
-` : `
-Это расчет СТРАХОВАНИЯ ИМУЩЕСТВА (одна программа).
-Презентуй итоговую стоимость (total_premium) и кратко перечисли лимиты (limits), по которым шел расчет.
-`}
-` : ''}
-
-СЛОЙ 4 (ДАННЫЕ О КЛИЕНТЕ):
-Пользователя зовут: ${client.nickname || 'Неизвестно'}
-${client.user_context || 'Информации о контексте клиента пока нет.'}
-
-${!historyMessages.length ? `
-ВНИМАНИЕ: В контексте чата ещё нет предыдущих реплик (первый ответ в этой сессии).
-Инструкция по тону и приветствию — только из СЛОЯ 3. Если там сказано не здороваться / не повторять приветствие — не добавляй «Здравствуйте» и т.п. от себя.
-` : ''}
-
-ВАЖНО:
-1. СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА) ИМЕЕТ НАИВЫСШИЙ ПРИОРИТЕТ.
-2. Если в Слое 1 (База знаний) есть инструкции, противоречащие текущей задаче или забегающие вперед — ИГНОРИРУЙ ИХ.
-3. Выполняй ТОЛЬКО то, что написано в Слое 3. Не задавай вопросов, которые не относятся к текущему шагу.
-4. Придерживайся своей роли и стиля. Отвечай кратко и по делу.
-5. Используй Markdown для оформления.
-`
-            },
-            ...historyMessages,
-            {
-                role: 'user',
-                content: userMessage
-            }
-        ];
+        const layeredPrompt = [];
+        if (trimText(systemContent)) {
+            layeredPrompt.push({ role: 'system', content: trimText(systemContent) });
+        }
+        layeredPrompt.push(...historyMessages, {
+            role: 'user',
+            content: userMessage
+        });
 
         try {
             console.log(`[AI Step 2] Generating response for command: ${command.command}`);
-            console.log(`[AI Step 2] Layered Prompt (System): ${layeredPrompt[0].content}`);
+            const sysMsg = layeredPrompt.find((m) => m.role === 'system');
+            console.log(`[AI Step 2] System prompt: ${sysMsg ? `${sysMsg.content.length} chars` : '(none — только админка пустая)'}`);
 
             const responseText = await aiService.getCompletion(layeredPrompt);
 
@@ -610,64 +620,22 @@ ${!historyMessages.length ? `
 
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
 
-        const layeredPrompt = [
-            {
-                role: 'system',
-                content: `
-Ты — ИИ-ассистент по имени "${bot.name || 'Помощник'}".
+        const systemContent = buildConstructorGeneratorSystemContent(
+            bot,
+            brainSection,
+            command,
+            calculationResult,
+            client
+        );
 
-СЛОЙ 1 (БАЗОВЫЙ КОНТЕКСТ И ЗНАНИЯ):
-${bot.base_brain_context || 'Ты — опытный финансовый консультант и помощник агента.'}
-${brainSection ? '\nДополнительные инструкции из базы знаний:\n' + brainSection : ''}
-
-СЛОЙ 2 (СТИЛИСТИКА ОБЩЕНИЯ):
-${bot.communication_style || 'Общайся вежливо и профессионально.'}
-
-СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА/СЦЕНАРИЙ):
-${command.response}
-${calculationResult ? `
-ВНИМАНИЕ! РАСЧЕТ ВЫПОЛНЕН. ТЫ ОБЯЗАН ИСПОЛЬЗОВАТЬ ДАННЫЕ ИЗ ЭТОГО JSON ДЛЯ ОТВЕТА ПОЛЬЗОВАТЕЛЮ:
-${JSON.stringify(calculationResult, null, 2)}
-
-Инструкция для ИИ по интерпретации JSON:
-${calculationResult.summary ? `
-Это ПОЛНЫЙ ФИНАНСОВЫЙ ПЛАН.
-1. Озвучь итоговый капитал (summary.total_capital) к концу срока.
-2. Пройдись по основным целям в массиве "goals" (назови цель, срок и сколько нужно инвестировать ежемесячно).
-3. Упомяни налоговую выгоду и софинансирование от государства (summary.total_state_benefit).
-4. Если есть "consolidated_portfolio", кратко скажи, что план сбалансирован.
-` : calculationResult.calculations && Array.isArray(calculationResult.calculations) ? `
-Это расчёты СТРАХОВАНИЯ ИМУЩЕСТВА по нескольким программам/компаниям.
-Презентуй по каждой программе из массива "calculations": название (product_name), итоговая премия (total_premium), лимиты (limits). Можно сравнить предложения и выделить выгодный вариант.
-` : `
-Это расчет СТРАХОВАНИЯ ИМУЩЕСТВА (одна программа).
-Презентуй итоговую стоимость (total_premium) и кратко перечисли лимиты (limits), по которым шел расчет.
-`}
-` : ''}
-
-СЛОЙ 4 (ДАННЫЕ О КЛИЕНТЕ):
-Пользователя зовут: ${client.nickname || 'Неизвестно'}
-${client.user_context || 'Информации о контексте клиента пока нет.'}
-
-${!historyMessages.length ? `
-ВНИМАНИЕ: В контексте чата ещё нет предыдущих реплик (первый ответ в этой сессии).
-Инструкция по тону и приветствию — только из СЛОЯ 3. Если там сказано не здороваться / не повторять приветствие — не добавляй «Здравствуйте» и т.п. от себя.
-` : ''}
-
-ВАЖНО:
-1. СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА) ИМЕЕТ НАИВЫСШИЙ ПРИОРИТЕТ.
-2. Если в Слое 1 (База знаний) есть инструкции, противоречащие текущей задаче или забегающие вперед — ИГНОРИРУЙ ИХ.
-3. Выполняй ТОЛЬКО то, что написано в Слое 3. Не задавай вопросов, которые не относятся к текущему шагу.
-4. Придерживайся своей роли и стиля. Отвечай кратко и по делу.
-5. Используй Markdown для оформления.
-`
-            },
-            ...historyMessages,
-            {
-                role: 'user',
-                content: userMessage
-            }
-        ];
+        const layeredPrompt = [];
+        if (trimText(systemContent)) {
+            layeredPrompt.push({ role: 'system', content: trimText(systemContent) });
+        }
+        layeredPrompt.push(...historyMessages, {
+            role: 'user',
+            content: userMessage
+        });
 
         traceConstructorMeta('step2_generator_context', {
             sessionId: session.id,
@@ -676,7 +644,8 @@ ${!historyMessages.length ? `
             commandForLayer3: command.command || '(synthetic empty)',
             commandId: command.id != null ? command.id : null,
             layer3ResponsePreview: truncateTraceText(command.response || '', 2000),
-            historyMessageCount: layeredPrompt.length - 2,
+            historyTurnsInPrompt: historyMessages.length / 2,
+            systemPromptChars: trimText(systemContent).length,
             hasCalculationJson: !!calculationResult,
         });
         traceConstructorMessages('step2_generator_llm_request_stream', layeredPrompt);
