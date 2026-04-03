@@ -90,7 +90,7 @@ function shouldForceStartpfpFromStart(userMessage) {
 
     const w0 = words[0];
     if (
-        /^(как|что|где|почему|зачем|сколько|когда|кто|здравствуй|привет|добрый|доброе|спасибо|ок|окей|да|нет|хорошо|ладно)$/i.test(
+        /^(как|что|где|почему|зачем|сколько|когда|кто|здравствуй|привет|добрый|доброе|спасибо|ок|окей|да|нет|хорошо|ладно|старт|start|начать|начало|хей|hey)$/i.test(
             w0
         )
     ) {
@@ -100,23 +100,49 @@ function shouldForceStartpfpFromStart(userMessage) {
     return true;
 }
 
+/** Сообщение явно «запуск чата» (как /start в Telegram), без вызова LLM-роутера */
+function userMessageImpliesExplicitStartCommand(userMessage) {
+    const t = (userMessage || '').trim().toLowerCase();
+    if (!t) return false;
+    if (t.includes('/start')) return true;
+    if (t === 'старт' || t === 'start' || t === 'начать' || t === 'начало') return true;
+    return false;
+}
+
 class ConstructorAiService {
-    /** Команда /start, привязанная к боту (без шаблонов из orWhere). */
-    async _getBotStartCommand(botId) {
+    /**
+     * Строка команды /start для генератора: сначала у этого bot_id, иначе шаблон проекта
+     * (как в classifyStage — у site-бота часто нет своих копий, только is_template + project_id).
+     */
+    async _resolveStartCommandRow(botId) {
+        const bot = await knex('constructor_bots').where('id', botId).first();
+        if (!bot) return null;
+
         let row = await knex('constructor_commands').where({ bot_id: botId, command: '/start' }).first();
         if (!row) {
             row = await knex('constructor_commands')
                 .where('bot_id', botId)
-                .whereRaw('LOWER(command) = ?', ['/start'])
+                .whereRaw('LOWER(TRIM(command)) = ?', ['/start'])
+                .first();
+        }
+        if (!row && bot.project_id != null) {
+            row = await knex('constructor_commands')
+                .where({
+                    is_template: true,
+                    project_id: bot.project_id,
+                    command: '/start',
+                })
+                .first();
+        }
+        if (!row && bot.project_id != null) {
+            row = await knex('constructor_commands')
+                .where({ is_template: true, project_id: bot.project_id })
+                .whereRaw('LOWER(TRIM(command)) = ?', ['/start'])
                 .first();
         }
         return row || null;
     }
 
-    /**
-     * Первое сообщение в сессии (в логах ещё нет ходов): роутер (первый LLM) не вызываем —
-     * сразу берём строку /start для слоя ответа (поле response). Со второго сообщения — classifyStage.
-     */
     /**
      * История диалога в формате chat messages для OpenRouter.
      * Берётся из constructor_logs по session_id; текущий ход в лог ещё не записан — его добавляют отдельным последним user-сообщением.
@@ -143,7 +169,7 @@ class ConstructorAiService {
         const isFirstTurn = priorLogCount === 0;
 
         if (isFirstTurn) {
-            const startCmd = await this._getBotStartCommand(botId);
+            const startCmd = await this._resolveStartCommandRow(botId);
             if (startCmd) {
                 if (traceStream && isConstructorAiTraceOn()) {
                     traceConstructorMeta('stream.first_turn_skip_classifier', {
@@ -210,12 +236,12 @@ class ConstructorAiService {
             currentCommand = commands.find(c => Number(c.id) === Number(current_command_id));
         }
 
-        // 1.5 Принудительно выбираем /start для первого сообщения если это /start
-        if (!current_command_id && userMessage.trim().toLowerCase().includes('/start')) {
+        // 1.5 Явный старт чата (/start, «старт», start…) — сразу стадия /start, без LLM
+        if (!current_command_id && userMessageImpliesExplicitStartCommand(userMessage)) {
             const startCmd = findCommandByKey(commands, '/start');
             if (startCmd) {
                 traceConstructorMeta('step1_classifier_shortcut', {
-                    reason: 'user message contains /start',
+                    reason: 'explicit chat start (e.g. /start, старт)',
                     resolved: { id: startCmd.id, command: startCmd.command },
                 });
                 return startCmd;
@@ -530,8 +556,8 @@ ${calculationResult.summary ? `
 ${client.user_context || 'Информации о контексте клиента пока нет.'}
 
 ${!historyMessages.length ? `
-ВНИМАНИЕ: Это твое ПЕРВОЕ сообщение пользователю. 
-Инструкция: Представься, поздоровайся с пользователем по имени (если оно известно), кратко расскажи, чем ты можешь быть полезен, и назови свое имя (${bot.name}).
+ВНИМАНИЕ: В контексте чата ещё нет предыдущих реплик (первый ответ в этой сессии).
+Инструкция по тону и приветствию — только из СЛОЯ 3. Если там сказано не здороваться / не повторять приветствие — не добавляй «Здравствуйте» и т.п. от себя.
 ` : ''}
 
 ВАЖНО:
@@ -624,8 +650,8 @@ ${calculationResult.summary ? `
 ${client.user_context || 'Информации о контексте клиента пока нет.'}
 
 ${!historyMessages.length ? `
-ВНИМАНИЕ: Это твое ПЕРВОЕ сообщение пользователю.
-Инструкция: Представься, поздоровайся с пользователем по имени (если оно известно), кратко расскажи, чем ты можешь быть полезен, и назови свое имя (${bot.name}).
+ВНИМАНИЕ: В контексте чата ещё нет предыдущих реплик (первый ответ в этой сессии).
+Инструкция по тону и приветствию — только из СЛОЯ 3. Если там сказано не здороваться / не повторять приветствие — не добавляй «Здравствуйте» и т.п. от себя.
 ` : ''}
 
 ВАЖНО:
