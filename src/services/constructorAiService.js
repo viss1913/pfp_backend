@@ -243,6 +243,10 @@ class ConstructorAiService {
         if (isFirstTurn) {
             const startCmd = await this._resolveStartCommandRow(botId);
             if (startCmd) {
+                console.log(
+                    '[ConstructorAI Step1] Роутер LLM НЕ вызывается (первый ход): пустой лог и нет current_command_id → сразу /start.',
+                    JSON.stringify({ sessionId: session.id, command: startCmd.command, commandId: startCmd.id })
+                );
                 if (traceStream && isConstructorAiTraceOn()) {
                     traceConstructorMeta('stream.first_turn_skip_classifier', {
                         reason:
@@ -257,6 +261,10 @@ class ConstructorAiService {
                     classifierSkipped: true,
                 };
             }
+            console.log(
+                '[ConstructorAI Step1] Первый ход, но строка /start не найдена — пойдём в classifyStage (роутер LLM).',
+                JSON.stringify({ botId, sessionId: session.id })
+            );
             if (traceStream && isConstructorAiTraceOn()) {
                 traceConstructorMeta('stream.first_turn_no_start_command', { botId, fallback: 'classifyStage' });
             }
@@ -316,6 +324,11 @@ class ConstructorAiService {
         if (!current_command_id && userMessageImpliesExplicitStartCommand(userMessage)) {
             const startCmd = findCommandByKey(commands, '/start');
             if (startCmd) {
+                console.log(
+                    '[ConstructorAI Step1] Роутер LLM НЕ вызывается (шорткат): явный старт чата →',
+                    startCmd.command,
+                    `(id=${startCmd.id})`
+                );
                 traceConstructorMeta('step1_classifier_shortcut', {
                     reason: 'explicit chat start (e.g. /start, старт)',
                     resolved: { id: startCmd.id, command: startCmd.command },
@@ -335,6 +348,11 @@ class ConstructorAiService {
         ) {
             const startpfp = findCommandByKey(commands, '/startpfp');
             if (startpfp) {
+                console.log(
+                    '[ConstructorAI Step1] Роутер LLM НЕ вызывается (шорткат): /start + имя/отказ →',
+                    startpfp.command,
+                    `(id=${startpfp.id})`
+                );
                 traceConstructorMeta('step1_classifier_shortcut', {
                     reason: '/start + имя/отказ в сообщении → /startpfp (без вызова роутера)',
                     resolved: { id: startpfp.id, command: startpfp.command },
@@ -389,6 +407,7 @@ class ConstructorAiService {
         traceConstructorMessages('step1_classifier_llm_request', prompt);
 
         try {
+            console.log(`[ConstructorAI Step1] Вызов роутера LLM (classifier) session=${session.id} client=${client_id} bot=${bot.id}`);
             console.log(`[AI Step 1] Client: ${client_id}, Bot: ${bot.id}`);
             console.log(`[AI Step 1] User Message: "${userMessage}"`);
             console.log(`[AI Step 1] System Prompt Instructions: ${classifierInstructions}`);
@@ -400,6 +419,7 @@ class ConstructorAiService {
             const cleaned = rawTrimmed.replace(/[."'`#*@]/g, '').trim();
             const detectedCommand = (cleaned.startsWith('/') ? cleaned : `/${cleaned}`).split(/\s+/)[0];
 
+            console.log(`[ConstructorAI Step1] ОТВЕТ роутера LLM (raw): ${JSON.stringify(rawTrimmed)}`);
             console.log(`[AI Step 1] Classifier RAW response: "${rawTrimmed}"`);
             console.log(`[AI Step 1] Classifier cleaned command: "${detectedCommand}"`);
 
@@ -439,6 +459,15 @@ class ConstructorAiService {
                 forcedStartpfp,
                 namePatternMatched: shouldForceStartpfpFromStart(userMessage),
             });
+
+            console.log(
+                '[ConstructorAI Step1] Итог после роутера:',
+                JSON.stringify({
+                    resolvedCommand: nextCommand ? nextCommand.command : null,
+                    resolvedCommandId: nextCommand ? nextCommand.id : null,
+                    forcedStartpfp,
+                })
+            );
 
             if (nextCommand && (!currentCommand || Number(nextCommand.id) !== Number(current_command_id))) {
                 console.log(`[AI Step 1] Stage Switch: ${currentCommand ? currentCommand.command : 'None'} -> ${nextCommand.command}`);
