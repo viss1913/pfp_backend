@@ -41,6 +41,14 @@ function traceConstructorMeta(step, obj) {
     console.log(`[ConstructorAI::TRACE] ${step} ${JSON.stringify(obj, null, 2)}`);
 }
 
+/** Сколько последних записей constructor_logs подмешивать в промпт (1 запись = 1 ход: user + assistant). */
+function envPositiveInt(name, fallback) {
+    const n = parseInt(process.env[name], 10);
+    return Number.isFinite(n) && n >= 1 ? n : fallback;
+}
+const CLASSIFIER_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_CLASSIFIER_HISTORY_LOGS', 5);
+const GENERATOR_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_GENERATOR_HISTORY_LOGS', 10);
+
 /** Частые опечатки ключа команды в ответе классификатора → канонический ключ из БД */
 const CLASSIFIER_COMMAND_TYPOS = {
     '/vozrtast': '/vozrast',
@@ -109,6 +117,25 @@ class ConstructorAiService {
      * Первое сообщение в сессии (в логах ещё нет ходов): роутер (первый LLM) не вызываем —
      * сразу берём строку /start для слоя ответа (поле response). Со второго сообщения — classifyStage.
      */
+    /**
+     * История диалога в формате chat messages для OpenRouter.
+     * Берётся из constructor_logs по session_id; текущий ход в лог ещё не записан — его добавляют отдельным последним user-сообщением.
+     * @param {number} sessionId
+     * @param {number} maxLogRows — число последних строк лога (не «сообщений»: одна строка = пара user+assistant)
+     */
+    async _loadTurnHistoryAsChatMessages(sessionId, maxLogRows) {
+        const rows = await knex('constructor_logs')
+            .where('session_id', sessionId)
+            .orderBy('created_at', 'desc')
+            .limit(maxLogRows);
+        return rows
+            .reverse()
+            .flatMap((log) => [
+                { role: 'user', content: log.input_text || '' },
+                { role: 'assistant', content: log.response_generated || '' },
+            ]);
+    }
+
     async resolveCommandForSessionTurn(botId, session, userMessage, options = {}) {
         const traceStream = !!options.traceStream;
         const priorLogRow = await knex('constructor_logs').where('session_id', session.id).count('* as count').first();
@@ -195,16 +222,8 @@ class ConstructorAiService {
             }
         }
 
-        // 1.6 Получаем историю для классификатора
-        const history = await knex('constructor_logs')
-            .where('session_id', session.id)
-            .orderBy('created_at', 'desc')
-            .limit(5); // Для классификации достаточно 5 последних сообщений
-
-        const historyMessages = history.reverse().map(log => ([
-            { role: 'user', content: log.input_text },
-            { role: 'assistant', content: log.response_generated || '' }
-        ])).flat();
+        // 1.6 История для роутера (последние N ходов; текущий user — отдельным сообщением в конце промпта)
+        const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, CLASSIFIER_HISTORY_LOG_ROWS);
 
         // Пока сессия без current_command_id — логически мы на стадии /start: берём classifier из команды /start из БД, а не заглушку «Определи начальную стадию».
         const startCmdForRouter = findCommandByKey(commands, '/start');
@@ -469,16 +488,7 @@ ${classifierInstructions}
 
         const brainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
 
-        // Получаем историю (последние 10 сообщений из логов)
-        const history = await knex('constructor_logs')
-            .where('session_id', session.id)
-            .orderBy('created_at', 'desc')
-            .limit(10);
-
-        const historyMessages = history.reverse().map(log => ([
-            { role: 'user', content: log.input_text },
-            { role: 'assistant', content: log.response_generated }
-        ])).flat();
+        const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
 
         const layeredPrompt = [
             {
@@ -572,16 +582,7 @@ ${!historyMessages.length ? `
 
         const brainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
 
-        // Получаем историю (последние 10 сообщений из логов)
-        const history = await knex('constructor_logs')
-            .where('session_id', session.id)
-            .orderBy('created_at', 'desc')
-            .limit(10);
-
-        const historyMessages = history.reverse().map(log => ([
-            { role: 'user', content: log.input_text },
-            { role: 'assistant', content: log.response_generated }
-        ])).flat();
+        const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
 
         const layeredPrompt = [
             {
