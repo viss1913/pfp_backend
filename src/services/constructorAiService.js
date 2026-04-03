@@ -154,8 +154,17 @@ class ConstructorAiService {
             { role: 'assistant', content: log.response_generated || '' }
         ])).flat();
 
-        const classifierInstructions = currentCommand ? currentCommand.classifier : "Определи начальную стадию диалога.";
-        const currentStageKey = currentCommand ? currentCommand.command : '(начало диалога — выбери подходящую команду из списка)';
+        // Пока сессия без current_command_id — логически мы на стадии /start: берём classifier из команды /start из БД, а не заглушку «Определи начальную стадию».
+        const startCmdForRouter = findCommandByKey(commands, '/start');
+        const classifierInstructions = currentCommand
+            ? currentCommand.classifier
+            : (startCmdForRouter?.classifier || 'Определи начальную стадию диалога.');
+        const currentStageKey = currentCommand
+            ? currentCommand.command
+            : (startCmdForRouter ? '/start' : '(начало диалога — выбери подходящую команду из списка)');
+        const stayOnStageHint = currentCommand
+            ? currentCommand.command
+            : (startCmdForRouter ? '/start' : 'ту команду из списка, которая лучше всего подходит как старт');
 
         const prompt = [
             {
@@ -171,7 +180,7 @@ ${classifierInstructions}
 
 ПРАВИЛА:
 1) Если инструкции явно говорят перейти на команду X при выполнении условия — и условие выполнено — верни X.
-2) Если условие перехода не выполнено — верни ТЕКУЩУЮ стадию: ${currentCommand ? currentCommand.command : 'ту команду из списка, которая лучше всего подходит как старт'}.
+2) Если условие перехода не выполнено — верни ТЕКУЩУЮ стадию: ${stayOnStageHint}.
 3) Не выдумывай ключи вне списка. Не добавляй пояснений.
 
 ОТВЕТ: только ключ команды, одна строка (пример: /startpfp).`
@@ -190,7 +199,9 @@ ${classifierInstructions}
             projectId: bot.project_id,
             userMessagePreview: truncateTraceText(userMessage, 500),
             current_command_id,
-            currentStage: currentCommand ? { id: currentCommand.id, command: currentCommand.command } : null,
+            currentStageFromSession: currentCommand ? { id: currentCommand.id, command: currentCommand.command } : null,
+            classifierSource: currentCommand ? 'session_current_command' : (startCmdForRouter ? '/start row (no session stage yet)' : 'generic fallback'),
+            promptStageLabel: currentStageKey,
             classifierInstructionsPreview: truncateTraceText(classifierInstructions, 1500),
             historyTurnsForClassifier: historyMessages.length / 2,
             commandListKeys: commandList,
