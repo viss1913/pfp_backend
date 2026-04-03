@@ -41,9 +41,11 @@ class AiService {
             throw new Error('OPENROUTER_API_KEY is not set');
         }
 
-        const defaultModel = this.isSiliconFlow
-            ? 'deepseek-ai/DeepSeek-V3'
-            : 'google/gemini-3-flash-preview';
+        const defaultModel = process.env.OPENROUTER_MODEL
+            ? process.env.OPENROUTER_MODEL
+            : this.isSiliconFlow
+                ? 'deepseek-ai/DeepSeek-V3'
+                : 'google/gemini-2.5-flash-lite';
 
         const effectiveModel = model || defaultModel;
 
@@ -133,10 +135,12 @@ class AiService {
     async getCompletion(messages, model) {
         if (!this.apiKey) throw new Error('OPENROUTER_API_KEY is not set');
 
-        // Default to Gemini Flash Lite if not specified
-        const defaultModel = this.isSiliconFlow
-            ? 'deepseek-ai/DeepSeek-V3'
-            : 'google/gemini-3-flash-preview';
+        // Default model can be overridden via OPENROUTER_MODEL
+        const defaultModel = process.env.OPENROUTER_MODEL
+            ? process.env.OPENROUTER_MODEL
+            : this.isSiliconFlow
+                ? 'deepseek-ai/DeepSeek-V3'
+                : 'google/gemini-2.5-flash-lite';
 
         const effectiveModel = model || defaultModel;
 
