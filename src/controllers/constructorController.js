@@ -503,6 +503,90 @@ class ConstructorController {
             }
         }
     }
+
+    /**
+     * POST /pfp/constructor/site-chat/stream
+     * Чат на сайте без регистрации: выбираем project по x-project-key (tenantMiddleware),
+     * сессию — по sessionId/куке (используем как user_id в constructor_clients),
+     * ответ стримим как SSE.
+     */
+    async handleSiteChatStream(req, res) {
+        const knex = require('../config/database');
+        try {
+            // SSE headers
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+
+            const projectId = req.projectId;
+            if (!projectId) {
+                res.write(`data: ${JSON.stringify({ error: 'project_id not resolved from x-project-key' })}\n\n`);
+                res.end();
+                return;
+            }
+
+            const { sessionId: bodySessionId, session_id, text, message, nickname } = req.body || {};
+            const cookieHeader = req.headers.cookie || '';
+            const cookieMatch = cookieHeader.match(/(?:^|;\s*)constructor_site_sid=([^;]+)/);
+            const cookieSessionId = cookieMatch ? decodeURIComponent(cookieMatch[1]) : null;
+
+            let userSessionId =
+                bodySessionId ||
+                session_id ||
+                req.headers['x-constructor-session-id'] ||
+                cookieSessionId ||
+                null;
+
+            // Если сессии нет — создаём и отдаём фронту первым SSE-ивентом + cookie.
+            if (!userSessionId) {
+                const crypto = require('crypto');
+                userSessionId = crypto.randomUUID();
+                res.setHeader(
+                    'Set-Cookie',
+                    `constructor_site_sid=${encodeURIComponent(userSessionId)}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax`
+                );
+                res.write(`data: ${JSON.stringify({ type: 'session', sessionId: userSessionId })}\n\n`);
+            }
+
+            const userMessage = (text || message || '').toString().trim();
+            if (!userMessage) {
+                res.write(`data: ${JSON.stringify({ error: 'message/text is required' })}\n\n`);
+                res.end();
+                return;
+            }
+
+            // Ищем бота для проекта: сначала bot_type='site', иначе любой active бот
+            const bots = await knex('constructor_bots')
+                .where({ project_id: projectId, is_active: true })
+                .orderBy('created_at', 'desc');
+
+            const bot = bots.find((b) => b.bot_type === 'site') || bots[0];
+            if (!bot) {
+                res.write(`data: ${JSON.stringify({ error: 'constructor bot not found for project' })}\n\n`);
+                res.end();
+                return;
+            }
+
+            const constructorAiService = require('../services/constructorAiService');
+            await constructorAiService.processMessageStream(
+                bot.id,
+                userSessionId,
+                nickname || null,
+                userMessage,
+                res
+            );
+            // Дальше res.end() делает aiService.streamCompletion (или наш /reset путь).
+        } catch (error) {
+            console.error('[Constructor Site Chat Stream] Error:', error);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Site chat failed' });
+            } else {
+                res.write(`data: ${JSON.stringify({ error: 'Site chat failed' })}\n\n`);
+                res.end();
+            }
+        }
+    }
 }
 
 module.exports = new ConstructorController();

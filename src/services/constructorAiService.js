@@ -351,6 +351,216 @@ ${!historyMessages.length ? `
     }
 
     /**
+     * Генерация ответа (streaming SSE) для конструктора.
+     * Важно: используется только для финального текста (классификация всё равно non-stream).
+     */
+    async generateResponseStream(session, command, userMessage, calculationResult = null, res) {
+        const client = await knex('constructor_clients').where('id', session.client_id).first();
+        const bot = await knex('constructor_bots').where('id', client.bot_id).first();
+
+        // Получаем активные контексты Мозга (Brain) для конкретного проекта
+        const brainContexts = await knex('constructor_brain_contexts')
+            .where({
+                is_active: true,
+                project_id: bot.project_id
+            })
+            .orderBy('priority', 'desc');
+
+        const brainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
+
+        // Получаем историю (последние 10 сообщений из логов)
+        const history = await knex('constructor_logs')
+            .where('session_id', session.id)
+            .orderBy('created_at', 'desc')
+            .limit(10);
+
+        const historyMessages = history.reverse().map(log => ([
+            { role: 'user', content: log.input_text },
+            { role: 'assistant', content: log.response_generated }
+        ])).flat();
+
+        const layeredPrompt = [
+            {
+                role: 'system',
+                content: `
+Ты — ИИ-ассистент по имени "${bot.name || 'Помощник'}".
+
+СЛОЙ 1 (БАЗОВЫЙ КОНТЕКСТ И ЗНАНИЯ):
+${bot.base_brain_context || 'Ты — опытный финансовый консультант и помощник агента.'}
+${brainSection ? '\nДополнительные инструкции из базы знаний:\n' + brainSection : ''}
+
+СЛОЙ 2 (СТИЛИСТИКА ОБЩЕНИЯ):
+${bot.communication_style || 'Общайся вежливо и профессионально.'}
+
+СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА/СЦЕНАРИЙ):
+${command.response}
+${calculationResult ? `
+ВНИМАНИЕ! РАСЧЕТ ВЫПОЛНЕН. ТЫ ОБЯЗАН ИСПОЛЬЗОВАТЬ ДАННЫЕ ИЗ ЭТОГО JSON ДЛЯ ОТВЕТА ПОЛЬЗОВАТЕЛЮ:
+${JSON.stringify(calculationResult, null, 2)}
+
+Инструкция для ИИ по интерпретации JSON:
+${calculationResult.summary ? `
+Это ПОЛНЫЙ ФИНАНСОВЫЙ ПЛАН.
+1. Озвучь итоговый капитал (summary.total_capital) к концу срока.
+2. Пройдись по основным целям в массиве "goals" (назови цель, срок и сколько нужно инвестировать ежемесячно).
+3. Упомяни налоговую выгоду и софинансирование от государства (summary.total_state_benefit).
+4. Если есть "consolidated_portfolio", кратко скажи, что план сбалансирован.
+` : calculationResult.calculations && Array.isArray(calculationResult.calculations) ? `
+Это расчёты СТРАХОВАНИЯ ИМУЩЕСТВА по нескольким программам/компаниям.
+Презентуй по каждой программе из массива "calculations": название (product_name), итоговая премия (total_premium), лимиты (limits). Можно сравнить предложения и выделить выгодный вариант.
+` : `
+Это расчет СТРАХОВАНИЯ ИМУЩЕСТВА (одна программа).
+Презентуй итоговую стоимость (total_premium) и кратко перечисли лимиты (limits), по которым шел расчет.
+`}
+` : ''}
+
+СЛОЙ 4 (ДАННЫЕ О КЛИЕНТЕ):
+Пользователя зовут: ${client.nickname || 'Неизвестно'}
+${client.user_context || 'Информации о контексте клиента пока нет.'}
+
+${!historyMessages.length ? `
+ВНИМАНИЕ: Это твое ПЕРВОЕ сообщение пользователю.
+Инструкция: Представься, поздоровайся с пользователем по имени (если оно известно), кратко расскажи, чем ты можешь быть полезен, и назови свое имя (${bot.name}).
+` : ''}
+
+ВАЖНО:
+1. СЛОЙ 3 (ТЕКУЩАЯ ЗАДАЧА) ИМЕЕТ НАИВЫСШИЙ ПРИОРИТЕТ.
+2. Если в Слое 1 (База знаний) есть инструкции, противоречащие текущей задаче или забегающие вперед — ИГНОРИРУЙ ИХ.
+3. Выполняй ТОЛЬКО то, что написано в Слое 3. Не задавай вопросов, которые не относятся к текущему шагу.
+4. Придерживайся своей роли и стиля. Отвечай кратко и по делу.
+5. Используй Markdown для оформления.
+`
+            },
+            ...historyMessages,
+            {
+                role: 'user',
+                content: userMessage
+            }
+        ];
+
+        // aiService.streamCompletion пишет в res и сам закрывает соединение (res.end())
+        const fullText = await aiService.streamCompletion(layeredPrompt, null, res);
+        return fullText;
+    }
+
+    /**
+     * Полный цикл обработки сообщения с SSE стримингом финального ответа.
+     * Используется для "чат на сайте" без регистрации.
+     */
+    async processMessageStream(botId, userId, nickname, userMessage, res) {
+        const bot = await knex('constructor_bots').where('id', botId).first();
+        if (!bot) return;
+
+        if (userMessage && userMessage.trim().toLowerCase() === '/reset') {
+            const clientToDelete = await knex('constructor_clients')
+                .where({ bot_id: botId, user_id: userId })
+                .first();
+            if (clientToDelete) {
+                await knex('constructor_clients').where('id', clientToDelete.id).del();
+            }
+            // Пишем в SSE и закрываем соединение.
+            res.write(`data: ${JSON.stringify({ text: "Ваши данные и история диалога полностью удалены." })}\n\n`);
+            res.end();
+            return;
+        }
+
+        let client = await knex('constructor_clients')
+            .where({ bot_id: botId, user_id: userId })
+            .first();
+
+        if (!client) {
+            [client] = await knex('constructor_clients').insert({
+                bot_id: botId,
+                user_id: userId,
+                nickname: nickname
+            });
+            client = await knex('constructor_clients').where('id', client).first();
+        }
+
+        let session = await knex('constructor_sessions').where('client_id', client.id).first();
+        if (!session) {
+            [session] = await knex('constructor_sessions').insert({
+                client_id: client.id
+            });
+            session = await knex('constructor_sessions').where('id', session).first();
+        }
+
+        // 1) Классификация (какая команда/стадия на текущий ход)
+        const nextCommand = await this.classifyStage(session, userMessage);
+        const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
+
+        let calculationResult = null;
+        let pdfPath = null;
+
+        // Технически расчёты и PDF тут могут быть, но для сайта пока достаточно текстовой ветки.
+        // Мы оставляем логику как в processMessage, но не отдаем PDF отдельно (Telegram его отдаёт иначе).
+        if (cmdKey === '/homeownerscalc') {
+            const limits = await this.extractHomeOwnersParams(session, userMessage);
+            const products = await HomeOwnersService.getProducts(true);
+
+            if (!products || !products.length) {
+                const single = await homeOwnersCalculator.calculate({
+                    product_id: 1,
+                    object_params: {},
+                    limits
+                });
+                calculationResult = { calculations: [{ product_id: 1, product_name: 'Страхование', ...single }], limits };
+            } else {
+                const calculations = [];
+                for (const product of products) {
+                    try {
+                        const result = await homeOwnersCalculator.calculate({
+                            product_id: product.id,
+                            object_params: {},
+                            limits
+                        });
+                        calculations.push({
+                            product_id: product.id,
+                            product_name: product.name || product.title || `Продукт ${product.id}`,
+                            ...result
+                        });
+                    } catch (err) {
+                        console.error(`[Flow] Calc failed for product ${product.id}:`, err.message);
+                    }
+                }
+                calculationResult = { calculations, limits };
+            }
+        } else if (cmdKey === '/firstrun') {
+            const extraction = await this.extractFinancialPlanParams(session, userMessage);
+            try {
+                const calcData = {
+                    client: {
+                        ...client,
+                        ...extraction.client,
+                        project_id: bot.project_id
+                    },
+                    goals: extraction.goals || []
+                };
+                calculationResult = await calculationService.calculateFirstRun(calcData);
+            } catch (calcErr) {
+                console.error('[Flow] FirstRun Calculation failed:', calcErr);
+            }
+        }
+
+        // 2) Стриминг ответа
+        const responseText = await this.generateResponseStream(session, nextCommand || { response: '' }, userMessage, calculationResult, res);
+
+        // 3) Обновление сессии и логирование (после завершения стрима, но без записи в res)
+        await knex('constructor_sessions')
+            .where('id', session.id)
+            .update({
+                current_command_id: nextCommand ? nextCommand.id : null,
+                updated_at: knex.fn.now()
+            });
+
+        await knex('constructor_logs').insert({
+            session_id: session.id,
+            input_text: userMessage,
+            detected_command_id: nextCommand ? nextCommand.id : null,
+            response_generated: responseText
+        });
+    }
+    /**
      * Полный цикл обработки сообщения
      */
     async processMessage(botId, userId, nickname, userMessage) {

@@ -21,6 +21,9 @@ const constructorController = require('../controllers/constructorController');
 router.post('/pfp/constructor/webhook/max/:botId', constructorController.handleMaxWebhook);
 router.post('/admin/constructor/webhook/max/:botId', constructorController.handleMaxWebhook);
 
+// Public Constructor Site Chat (SSE, no auth; project resolved by x-project-key via tenantMiddleware)
+router.post('/pfp/constructor/site-chat/stream', tenantMiddleware, constructorController.handleSiteChatStream);
+
 // Helper for combined auth + tenant
 const pfpMiddleware = [authMiddleware, tenantMiddleware];
 
