@@ -410,21 +410,51 @@ function estimateAgeYearsFromBirthDate(isoDate) {
 }
 
 /**
- * Профиль для озвучивания в чате: имя из конструктора + пол/возраст/доход из экстракции диалога под расчёт.
+ * Клиент для calculateFirstRun: только поля расчёта/карточки + имя из экстракции или nickname (не длинный числовой user_id).
+ */
+function buildFirstRunCalcClient(constructorClientRow, extraction, projectId) {
+    const raw =
+        extraction?.client && typeof extraction.client === 'object' ? { ...extraction.client } : {};
+    const nick = String(constructorClientRow?.nickname || '').trim();
+    const digitsOnly = /^\d+$/.test(nick);
+    const longNumericId = digitsOnly && nick.length >= 8;
+
+    if (!trimText(raw.first_name) && !trimText(raw.fio) && nick && !longNumericId) {
+        raw.first_name = nick.replace(/^@/, '').slice(0, 120);
+    }
+    for (const key of ['first_name', 'last_name', 'fio', 'middle_name']) {
+        if (raw[key] != null && typeof raw[key] === 'string' && !trimText(raw[key])) {
+            delete raw[key];
+        }
+    }
+
+    return {
+        ...raw,
+        project_id: projectId,
+    };
+}
+
+/**
+ * Профиль для озвучивания в чате: имя из экстракции или nickname + пол/возраст/доход из экстракции диалога под расчёт.
  * В сыром JSON расчёта полей клиента нет — они появляются только здесь.
  */
 function buildClientProfileForAi(constructorClient, extractionClient) {
     const ec = extractionClient && typeof extractionClient === 'object' ? extractionClient : {};
     const nick = trimText(constructorClient?.nickname);
+    const fn = trimText(ec.first_name);
+    const displayName = fn || nick || null;
     const birth = trimText(ec.birth_date) || null;
     return {
-        display_name: nick || null,
+        display_name: displayName,
+        first_name: fn || null,
+        last_name: trimText(ec.last_name) || null,
+        fio: trimText(ec.fio) || null,
         sex: ec.sex != null ? ec.sex : null,
         birth_date: birth,
         age_years_estimated: birth ? estimateAgeYearsFromBirthDate(birth) : null,
         avg_monthly_income: ec.avg_monthly_income != null ? Number(ec.avg_monthly_income) : null,
         total_liquid_capital: ec.total_liquid_capital != null ? Number(ec.total_liquid_capital) : null,
-        note: 'display_name — nickname из конструктора; пол, дата рождения, доход и капитал — из извлечения реплик для расчёта (могут отличаться от карточки PFP после сохранения).',
+        note: 'Имя — из извлечения диалога (first_name/fio) или nickname конструктора; пол, дата рождения, доход и капитал — из извлечения для расчёта.',
     };
 }
 
@@ -1119,6 +1149,9 @@ class ConstructorAiService {
 Возвращай ТОЛЬКО чистый JSON по следующей структуре:
 {
   "client": {
+    "first_name": null,
+    "last_name": null,
+    "fio": null,
     "sex": "male" или "female",
     "birth_date": "YYYY-MM-DD (дата рождения, посчитай учитывая сегодняшний день и возраст клиента)",
     "avg_monthly_income": число (доход в месяц),
@@ -1137,9 +1170,11 @@ class ConstructorAiService {
 }
 
 ПРАВИЛА:
-1. Если какое-то поле не найдено, используй значения по умолчанию: birth_date "1990-01-01", income 100000, capital 0.
-2. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
-3. Если целей нет, массив "goals" пуст.
+1. first_name, last_name, fio — строка или null (не число). Имя извлекай ТОЛЬКО из явных реплик пользователя; не выдумывай. Если отказ от имени («не скажу», «без имени») — все три поля null.
+2. Если назвали только имя — заполни first_name, last_name и fio оставь null. Если дали ФИО целиком — заполни fio и по возможности разбей на first_name/last_name.
+3. Если какое-то поле не найдено, используй значения по умолчанию: birth_date "1990-01-01", income 100000, capital 0.
+4. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
+5. Если целей нет, массив "goals" пуст.
 `
             },
             {
@@ -1154,6 +1189,16 @@ class ConstructorAiService {
             const cleanResult = result.replace(/```json|```/g, '').trim();
             const extracted = JSON.parse(cleanResult);
 
+            if (extracted.client && typeof extracted.client === 'object') {
+                const c = extracted.client;
+                for (const key of ['first_name', 'last_name', 'fio', 'middle_name']) {
+                    if (c[key] != null && typeof c[key] === 'string') {
+                        const t = c[key].trim();
+                        c[key] = t || null;
+                    }
+                }
+            }
+
             // Настаиваем на BALANCED для всех целей из мессенджера
             if (extracted.goals && Array.isArray(extracted.goals)) {
                 extracted.goals = extracted.goals.map(g => ({
@@ -1167,7 +1212,15 @@ class ConstructorAiService {
         } catch (error) {
             console.error('[AI] Error extracting financial params:', error);
             return {
-                client: { sex: 'male', birth_date: '1990-01-01', avg_monthly_income: 100000, total_liquid_capital: 0 },
+                client: {
+                    first_name: null,
+                    last_name: null,
+                    fio: null,
+                    sex: 'male',
+                    birth_date: '1990-01-01',
+                    avg_monthly_income: 100000,
+                    total_liquid_capital: 0,
+                },
                 goals: []
             };
         }
@@ -1439,11 +1492,7 @@ class ConstructorAiService {
             firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
             try {
                 const calcData = {
-                    client: {
-                        ...client,
-                        ...firstRunExtraction.client,
-                        project_id: bot.project_id
-                    },
+                    client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
                     goals: firstRunExtraction.goals || []
                 };
                 calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
@@ -1663,11 +1712,7 @@ class ConstructorAiService {
             try {
                 // Подготавливаем данные для calculationService
                 const calcData = {
-                    client: {
-                        ...client,
-                        ...firstRunExtraction.client,
-                        project_id: bot.project_id
-                    },
+                    client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
                     goals: firstRunExtraction.goals || []
                 };
 
