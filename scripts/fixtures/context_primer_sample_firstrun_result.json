@@ -1,0 +1,117 @@
+{
+  "client_id": 424,
+  "investment_expense_growth_annual_percent": 6,
+  "summary": {
+    "goals_count": 1,
+    "total_capital": 26828422.59,
+    "total_state_benefit": 765826.29,
+    "total_target_amount_initial": 100000,
+    "total_target_amount_future": 390479.25,
+    "consolidated_portfolio": {
+      "total_initial_capital": 50000,
+      "total_monthly_replenishment": 4927.57,
+      "assets_allocation": [
+        {
+          "name": "ДДС НПФ Ростех",
+          "amount": 50000,
+          "share": 100,
+          "yield": 14.3,
+          "short_term_yield": 13.8
+        }
+      ],
+      "cash_flow_allocation": [
+        {
+          "name": "ДДС НПФ Ростех",
+          "amount": 4927.57,
+          "share": 100,
+          "yield": 14.3,
+          "short_term_yield": 13.8,
+          "payment_frequency": "monthly"
+        }
+      ]
+    },
+    "tax_benefits_summary": {
+      "pds_benefits": {
+        "deduction_2026": 11709.16,
+        "cofinancing_2026": 36000,
+        "total_deductions": 413834.29,
+        "total_cofinancing": 351992
+      },
+      "nsj_benefits": {
+        "annual_premium": 0,
+        "deduction_2026": 0,
+        "total_deductions": 0
+      },
+      "totals": {
+        "deduction_2026": 11709.16,
+        "cofinancing_2026": 36000,
+        "total_deductions": 413834.29,
+        "total_cofinancing": 351992,
+        "total_state_benefits": 765826.29
+      }
+    },
+    "investment_expense_growth_annual_percent": 6
+  },
+  "goals": [
+    {
+      "goal_id": 1103,
+      "goal_type_id": 1,
+      "goal_type": "PENSION",
+      "goal_name": "ГосПенсия",
+      "summary": {
+        "status": "OK",
+        "target_amount_initial": 100000,
+        "target_amount_future": 390479.25,
+        "projected_pension_monthly_future": 390479.25,
+        "projected_pension_monthly_present": 100000,
+        "inflation_rate": 5.6,
+        "initial_capital": 50000,
+        "initial_capital_ops": 0,
+        "monthly_replenishment": 4927.57,
+        "pension_gap_future": 268284.23,
+        "target_months": 300,
+        "projected_capital_at_retirement": 26828422.59,
+        "required_capital_at_retirement": 26828422.5,
+        "total_tax_benefit": 413834.29,
+        "total_cofinancing": 351992,
+        "accumulation_yield_percent": 14.3,
+        "payout_yield_percent": 12,
+        "state_pension_monthly_future": 122195.02,
+        "state_pension_monthly_today": 31293.6,
+        "ipk_current": 47.85
+      },
+      "details": {
+        "state_pension": {
+          "ipk_total": 138.49,
+          "ipk_current": 47.85,
+          "ipk_forecast": 90.63,
+          "point_cost_today": 156.76,
+          "point_cost_future": 612.12,
+          "fixed_payment_today": 9584,
+          "fixed_payment_future": 37423.53,
+          "retirement_age": 65,
+          "retirement_year": 2051,
+          "years_to_pension": 25
+        },
+        "initial_instruments": [
+          {
+            "name": "ДДС НПФ Ростех",
+            "share": 100,
+            "yield": 14.3,
+            "short_term_yield": 13.8,
+            "amount": 50000
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "ДДС НПФ Ростех",
+            "share": 100,
+            "yield": 14.3,
+            "short_term_yield": 13.8,
+            "amount": 4927.57
+          }
+        ]
+      }
+    }
+  ]
+}

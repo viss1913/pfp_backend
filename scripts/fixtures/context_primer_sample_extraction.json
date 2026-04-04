@@ -1,0 +1,19 @@
+{
+  "client": {
+    "sex": "male",
+    "birth_date": "1990-03-15",
+    "avg_monthly_income": 180000,
+    "total_liquid_capital": 50000
+  },
+  "goals": [
+    {
+      "goal_type_id": 1,
+      "name": "ГосПенсия",
+      "target_amount": 100000,
+      "term_months": 300,
+      "desired_monthly_income": 100000,
+      "monthly_replenishment": 0,
+      "risk_profile": "BALANCED"
+    }
+  ]
+}

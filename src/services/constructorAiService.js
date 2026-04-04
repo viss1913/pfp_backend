@@ -68,6 +68,55 @@ function isFirstRunCalculationCommand(cmdKey) {
     return k.includes('firstrun');
 }
 
+/** Ответ пользователя похож на сумму/число (в т.ч. «30 тыс», «1 млн», «0», «нет» как ноль). */
+function looksLikeMoneyOrNumericReply(text) {
+    const t = (text || '').trim();
+    if (!t || t.length > 80) return false;
+    if (/^(0|нет|ничего|ноль|не\s*т)\s*[!.]*$/i.test(t)) return true;
+    if (!/\d/.test(t)) return false;
+    const compact = t.replace(/\s+/g, ' ');
+    if (/^[\d\s.,]+$/i.test(compact)) return true;
+    if (/^[\d\s.,]+\s*(тыс|тысяч|тысячи|млн|миллион|миллиона|к|руб|₽)?\s*\.?$/i.test(compact)) return true;
+    return false;
+}
+
+/** Последний ответ ассистента в логах спрашивал про стартовый капитал/накопления (типичный шаг перед firstRun). */
+function assistantAskedInitialCapitalRu(assistantText) {
+    if (!assistantText || typeof assistantText !== 'string') return false;
+    const t = assistantText.toLowerCase();
+    if (/первоначальн\w*\s+капитал|начальн\w*\s+капитал/i.test(t)) return true;
+    if (t.includes('первоначальн') && t.includes('капитал')) return true;
+    if (t.includes('капитал') && (t.includes('накоплен') || t.includes('сбереж') || t.includes('направить') || t.includes('программ')))
+        return true;
+    if (t.includes('долгосрочн') && t.includes('сбереж')) return true;
+    return false;
+}
+
+/**
+ * Роутер LLM часто на ответе «30 тыс» оставляет текущую стадию; следующим сообщением («И») случайно угадывает firstRun.
+ * Если в логах последний ассистент спрашивал капитал, а пользователь ответил суммой — принудительно берём команду firstRun из списка.
+ */
+async function maybePromoteToFirstRunAfterCapitalReply(sessionId, userMessage, nextCommand, commands) {
+    const firstRunCmd = commands.find((c) => isFirstRunCalculationCommand(c.command));
+    if (!firstRunCmd || !nextCommand) return nextCommand;
+    if (isFirstRunCalculationCommand(nextCommand.command)) return nextCommand;
+    if (!looksLikeMoneyOrNumericReply(userMessage)) return nextCommand;
+
+    const last = await knex('constructor_logs').where('session_id', sessionId).orderBy('id', 'desc').first();
+    const prevAssistant = last?.response_generated || '';
+    if (!assistantAskedInitialCapitalRu(prevAssistant)) return nextCommand;
+
+    console.log(
+        `[ConstructorAI] firstRun promote: capital-like reply after capital question; router had ${nextCommand.command} → ${firstRunCmd.command}`
+    );
+    traceConstructorMeta('step1_classifier_firstRun_promote', {
+        from: nextCommand.command,
+        to: firstRunCmd.command,
+        userPreview: truncateTraceText(userMessage, 80),
+    });
+    return firstRunCmd;
+}
+
 function findCommandByKey(commands, key) {
     if (!key || !commands?.length) return null;
     const normalized = key.startsWith('/') ? key : `/${key}`;
@@ -121,12 +170,445 @@ function compactCalculationForPresentationPrompt(calculationResult) {
     };
 }
 
+/** Расшифровка полей summary цели «пенсия» для генератора текста (без дублирования сырых JSON). */
+const PENSION_PRESENTATION_FIELD_HELP_RU = {
+    target_amount_initial:
+        'Желаемый размер пенсии в месяц **в сегодняшних ценах** (постоянные цены, сопоставимо с сегодняшним рублём); для озвучивания пользователю.',
+    projected_pension_monthly_present:
+        'Желаемый пенсионный доход в месяц в текущих рублях по модели (часто совпадает с target_amount_initial).',
+    target_amount_future:
+        'Тот же желаемый доход, выраженный в номинальных рублях к году выхода на пенсию (с учётом инфляции в сценарии).',
+    projected_pension_monthly_future:
+        'Желаемый доход в месяц в номинале к пенсии (будущие рубли).',
+    state_pension_monthly_today:
+        'Ожидаемая страховая (государственная) пенсия в месяц **в сегодняшних ценах** по упрощённой модели (детали — в PDF отчёта).',
+    state_pension_monthly_future:
+        'Ожидаемая госпенсия в месяц к году выхода, в номинальных рублях.',
+    pension_gap_future:
+        'Дополнительный доход в месяц в будущем (номинал), который нужно обеспечить самостоятельно: разрыв между желаемой пенсией и госпенсией к выходу.',
+    initial_capital:
+        'Уже внесённый / учтённый стартовый капитал по этой цели (не путать с target_amount_initial — это не желаемая пенсия).',
+    monthly_replenishment:
+        'Рекомендованный ежемесячный взнос с следующего периода по результатам расчёта.',
+    projected_capital_at_retirement:
+        'Прогноз накоплений к выходу на пенсию с учётом взносов, доходности, софинансирования и налоговых эффектов в модели.',
+    required_capital_at_retirement:
+        'Теоретически необходимый капитал к пенсии для закрытия разрыва (по методике калькулятора); может быть близок к projected_capital_at_retirement.',
+    inflation_rate: 'Годовая инфляция, заложенная в сценарии (%).',
+    accumulation_yield_percent: 'Ожидаемая доходность на этапе накопления (% годовых).',
+    payout_yield_percent: 'Ожидаемая доходность на этапе выплат (% годовых).',
+    total_tax_benefit: 'Суммарная налоговая выгода (вычеты) по цели в модели.',
+    total_cofinancing: 'Софинансирование (госпрограммы), учтённое в расчёте.',
+    ipk_current:
+        'ИПК, заложенный в оценку госпенсии (часто совпадает с goals[].state_pension_details_for_ai.ipk_current). Подробная трактовка — в pension_state_pension_glossary_ru и PDF.',
+    status:
+        'OK — рекомендованное ежемесячное пополнение не превышает ~20% от дохода клиента в модели; GAP — выше порога, в тексте мягко предупредить о нагрузке на бюджет.',
+    target_months: 'Срок до выхода на пенсию в месяцах (горизонт накопления в симуляции).',
+    initial_capital_ops:
+        'Стартовый капитал, отнесённый к накопительной пенсии (ОПС) по вводу; суммируется с взносами по программе в логике калькулятора.',
+};
+
+/**
+ * Расшифровка блока упрощённой модели страховой пенсии (как в PensionCalculator.calculateStatePension).
+ * Цифры в goals[].state_pension_details_for_ai; сырые законы/индексация не воспроизводить — отсылка к PDF.
+ */
+const PENSION_STATE_PENSION_MODEL_GLOSSARY_RU = {
+    ipk_total:
+        'Прогноз суммарного индивидуального пенсионного коэффициента (ИПК) к году выхода на пенсию: ipk_current + ipk_forecast. Основа расчёта ожидаемой страховой пенсии в модели.',
+    ipk_current:
+        'ИПК «уже сформированный»: из ввода по цели/клиенту, если задан; иначе оценка из упрощённой модели прошлых взносов (не выписка из СФР).',
+    ipk_forecast:
+        'Ожидаемое начисление баллов за оставшиеся годы до пенсии при текущем доходе, лимите базы и ставке взносов в сценарии (упрощённо).',
+    point_cost_today:
+        'Стоимость одного пенсионного балла в рублях в ценах «сегодня» (параметр настроек проекта / сценария, не курс ЦБ).',
+    point_cost_future:
+        'Стоимость балла к году выхода на пенсию в номинальных рублях (индексация по инфляции сценария).',
+    fixed_payment_today:
+        'Фиксированная выплата к страховой пенсии, руб/мес в ценах «сегодня» (параметр модели, аналог фиксированной части ФЗ).',
+    fixed_payment_future:
+        'Та же фиксированная выплата в номинале к году пенсии (с индексацией по инфляции сценария).',
+    retirement_age:
+        'Возраст выхода на страховую пенсию в этой модели (зависит от пола и правил, заложенных в калькулятор).',
+    retirement_year: 'Календарный год выхода на пенсию в расчёте (дата рождения + возраст выхода).',
+    years_to_pension: 'Полных лет от даты расчёта до года выхода на пенсию в модели.',
+    formula_hint:
+        'Упрощённая связка для озвучивания: ожидаемая госпенсия в номинале к пенсии ≈ ipk_total × point_cost_future + fixed_payment_future (в руб/мес); в «сегодняшних» деньгах см. state_pension_monthly_today в summary цели. Точные допущения и таблицы — в PDF.',
+};
+
+const PASSIVE_INCOME_FIELD_GLOSSARY_RU = {
+    target_amount_initial:
+        'Оценка желаемого пассивного дохода в месяц в «сегодняшних» рублях (может пересчитаться, если задано фиксированное monthly_replenishment — см. калькулятор).',
+    target_amount_future:
+        'Желаемый пассивный доход в месяц к концу срока цели в номинальных рублях (с инфляцией сценария). Не путать с lump-sum целью.',
+    required_capital_at_end:
+        'Капитал, который нужно накопить к концу срока, чтобы при payout_yield_percent получать желаемый доход.',
+    projected_capital_at_end: 'Прогноз фактического капитала к концу срока при выбранных взносах и доходности.',
+    payout_yield_percent: 'Доходность на фазе выплат (пассив с капитала), % годовых из настроек.',
+    accumulation_yield_percent: 'Средневзвешенная доходность портфеля на фазе накопления.',
+    target_months: 'Срок цели в месяцах.',
+    status: 'OK/GAP — нагрузка на бюджет относительно ~20% от дохода (как в пенсии).',
+    inflation_rate: 'Инфляция сценария для индексации желаемого дохода.',
+};
+
+const PASSIVE_INCOME_NARRATIVE_HINTS_RU = [
+    'Пассивный доход: опирайся на target_amount_initial / target_amount_future и projected_capital_at_end vs required_capital_at_end.',
+    'Портфель для озвучивания названия — goals[].portfolio_snapshot_for_ai; детали инструментов — в PDF.',
+];
+
+const INVESTMENT_FIELD_GLOSSARY_RU = {
+    projected_capital_at_end: 'Прогноз капитала к концу срока при заданных взносах, доходности и налоговых/ПДС эффектах.',
+    monthly_replenishment: 'Ежемесячное пополнение (как в вводе цели; может быть 0).',
+    target_months: 'Горизонт инвестирования в месяцах.',
+    accumulation_yield_percent: 'Ожидаемая доходность портфеля на горизонте цели.',
+    total_tax_benefit: 'Налоговый эффект (вычеты) по модели.',
+    total_cofinancing: 'Софинансирование, если применимо.',
+    status: 'В инвестициях часто OK; смысл уточнять по сценарию бота.',
+};
+
+const INVESTMENT_NARRATIVE_HINTS_RU = [
+    'Инвестиции / «накопить и приумножить»: фокус на projected_capital_at_end, взносах и горизонте; не обещать гарантированную доходность.',
+    'Сумма «цели» из ввода может не дублироваться в summary — не выдумывать целевой капитал, если его нет в JSON.',
+];
+
+const OTHER_GOAL_FIELD_GLOSSARY_RU = {
+    target_amount_initial: 'Целевая сумма (квартира, образование и т.д.) в ценах «сегодня».',
+    target_amount_future: 'Та же цель в номинале к дате достижения с учётом инфляции сценария.',
+    projected_capital_at_end: 'Прогноз накоплений к концу срока.',
+    initial_capital: 'Стартовый капитал по цели.',
+    monthly_replenishment: 'Рекомендованный ежемесячный взнос.',
+    target_months: 'Срок в месяцах.',
+    inflation_rate: 'Инфляция для дисконтирования/роста цели.',
+    accumulation_yield_percent: 'Доходность портфеля «прочей» цели.',
+    status: 'OK — прогноз капитала достигает цели; GAP — может не хватить, мягко подсветить.',
+};
+
+const OTHER_GOAL_NARRATIVE_HINTS_RU = [
+    'Прочая цель (дом, авто, крупная покупка): связка target_amount_* ↔ projected_capital_at_end и пополнения.',
+    'goal_type в ответе может быть OTHER / кастомное имя из ввода — ориентируйся на goal_name.',
+];
+
+const LIFE_INSURANCE_FIELD_GLOSSARY_RU = {
+    target_coverage: 'Запрашиваемая сумма страхового покрытия / лимит по программе (упрощённо).',
+    target_amount_initial: 'Дублирует покрытие или премию в зависимости от API; сверяй с target_coverage и details.',
+    target_amount_future: 'Часто равно покрытию; в номинале без отдельной индексации, если так в расчёте.',
+    expected_cash_value: 'Ожидаемая накопительная / плановая величина по данным НСЖ-модели (не депозит).',
+    initial_capital: 'Первый взнос / стартовая премия, попадающая в капитал цели.',
+    monthly_replenishment: 'При fallback-модели — оценка ежемесячного взноса; при API может не использоваться.',
+    premium_frequency: 'once | monthly | annual — как задан график премий.',
+    investment_yield_percent: 'Условная доходность/учёт в продукте (заглушка или из API).',
+    total_tax_benefit: 'Суммарный налоговый вычет по НСЖ за срок, если рассчитан.',
+};
+
+const LIFE_INSURANCE_DETAILS_GLOSSARY_RU = {
+    program_name: 'Название программы страхования / НСЖ.',
+    annual_premium: 'Годовая премия по расчёту партнёра или fallback.',
+    tax_deduction_2026: 'Вычет НСЖ в оценке на 2026 год (упрощённая налоговая модель).',
+    total_tax_deductions: 'Сумма вычетов за весь срок (оценка).',
+    risks_for_ai: 'Укороченный список рисков с лимитами — для текста; полный график в PDF.',
+};
+
+const LIFE_INSURANCE_NARRATIVE_HINTS_RU = [
+    'НСЖ: покрытие, премия, периодичность; налоговый эффект осторожно («по модели расчёта»). Риски — из life_details_for_ai.risks_for_ai.',
+    'Если был сбой API, в расчёте мог быть fallback — не гарантировать условия партнёра без оговорки.',
+];
+
+const FIN_RESERVE_FIELD_GLOSSARY_RU = {
+    target_amount_initial: 'Обычно целевая «подушка» или ориентир на старте (из ввода).',
+    target_amount_future: 'Прогноз баланса к концу срока (накопления + доходность).',
+    projected_capital_at_end: 'Итоговый капитал подушки к концу горизонта.',
+    monthly_replenishment: 'Ежемесячное пополнение подушки (если есть).',
+    target_months: 'Горизонт резерва (часто 12 мес).',
+    accumulation_yield_percent: 'Доходность консервативного портфеля подушки.',
+};
+
+const FIN_RESERVE_NARRATIVE_HINTS_RU = [
+    'Финансовая подушка: срок, пополнения, итоговый projected_capital_at_end; без агрессивных обещаний доходности.',
+];
+
+const RENT_FIELD_GLOSSARY_RU = {
+    initial_capital: 'Капитал, от которого считается «арендный» доход в модели (доля портфеля «аренда»).',
+    projected_monthly_income: 'Ожидаемый доход в месяц от этого капитала по ставке payout_yield_percent.',
+    payout_yield_percent: 'Годовая доходность сценария для расчёта месячного дохода.',
+};
+
+const RENT_NARRATIVE_HINTS_RU = [
+    'Аренда / рентный доход: initial_capital → projected_monthly_income при заданной доходности; детали портфеля в snapshot/PDF.',
+];
+
+/** Подсказка ИИ: сопоставление goal_type_id из JSON и смысла цели. */
+const GOAL_TYPE_ID_LABELS_RU = {
+    1: 'Пенсия',
+    2: 'Пассивный доход',
+    3: 'Инвестиции / накопление капитала',
+    4: 'Прочая цель (квартира, авто, крупная покупка и т.п.)',
+    5: 'Страхование жизни / НСЖ',
+    6: 'Прочая цель (альтернативный тип в БД)',
+    7: 'Финансовая подушка / резерв',
+    8: 'Рентный доход (доходность с капитала «как аренда»)',
+    9: 'Прочая цель (альтернативный тип в БД)',
+};
+
+/** Поля summary каждой цели: налоги и софинансирование (всегда с firstRun для ИИ). */
+const GOAL_SUMMARY_TAX_GLOSSARY_RU = {
+    total_tax_benefit:
+        'По этой цели: оценка налогового эффекта (вычет/возврат НДФЛ и т.п.) в модели PFP; для ПДС-продуктов копит симуляция, для НСЖ может отражать вычеты по страхованию. Не налоговая консультация.',
+    total_cofinancing:
+        'По этой цели: суммарное государственное софинансирование (доплата государства в программу), если заложено в сценарии ПДС/программы.',
+};
+
+/**
+ * Верхний summary плана: tax_benefits_summary из calculateFirstRun (_generateTaxBenefitsSummary).
+ * Пояснения для ИИ, чтобы не путать ПДС, НСЖ, годовые итоги и вычет за 2026.
+ */
+const PLAN_TAX_AND_STATE_BENEFITS_GLOSSARY_RU = {
+    'summary.total_state_benefit':
+        'Сводная оценка «государственных выгод» по всему плану: налоговые вычеты/возвраты плюс софинансирование (агрегат модели). Обычно согласуется с tax_benefits_summary.totals.total_state_benefits.',
+    'summary.tax_benefits_summary':
+        'Раздельный учёт: pds_benefits (ПДС, ИИС, накопительные программы с вычетом и софинансированием) и nsj_benefits (НСЖ / страхование жизни).',
+    'tax_benefits_summary.pds_benefits.deduction_2026':
+        'Оценка налогового выгоды (возврат/вычет), отнесённой к 2026 году по потокам ПДС; заполняется из yearly_breakdown в расчёте — если в промпте разбивка убрана, может быть 0 без означания отсутствия льгот навсегда.',
+    'tax_benefits_summary.pds_benefits.cofinancing_2026':
+        'Софинансирование по ПДС-программам в 2026 году (оценка модели).',
+    'tax_benefits_summary.pds_benefits.total_deductions':
+        'Суммарная оценка налоговых вычетов/возвратов по всем ПДС-целям за горизонт плана.',
+    'tax_benefits_summary.pds_benefits.total_cofinancing':
+        'Суммарное софинансирование по ПДС-целям за горизонт плана.',
+    'tax_benefits_summary.nsj_benefits.annual_premium':
+        'Годовая премия по программе НСЖ (из цели LIFE), используется в оценке вычетов.',
+    'tax_benefits_summary.nsj_benefits.deduction_2026':
+        'Оценка вычета по НСЖ на 2026 год (упрощённая модель НДФЛ внутри PFP).',
+    'tax_benefits_summary.nsj_benefits.total_deductions':
+        'Суммарная оценка вычетов по НСЖ за срок, учтённая в агрегаторе.',
+    'tax_benefits_summary.totals.deduction_2026':
+        'ПДС + НСЖ: суммарная оценка вычета/возврата, привязанная к 2026 году.',
+    'tax_benefits_summary.totals.cofinancing_2026':
+        'Софинансирование за 2026 год (в основном из ПДС).',
+    'tax_benefits_summary.totals.total_deductions':
+        'Все налоговые выгоды по плану (ПДС + НСЖ), номинал по модели.',
+    'tax_benefits_summary.totals.total_cofinancing':
+        'Всё софинансирование по плану.',
+    'tax_benefits_summary.totals.total_state_benefits':
+        'Вычеты плюс софинансирование одной суммой (эквивалент «всего господдержки» в цифрах модели).',
+};
+
+const PLAN_TAX_NARRATIVE_HINTS_RU = [
+    'ОБЯЗАТЕЛЬНО в ЭТОМ ЖЕ ответе: блок про налоги и льготы сразу, не вопросом в конце. Источник — summary.tax_benefits_summary, summary.total_state_benefit; по целям — goals[].summary.total_tax_benefit и total_cofinancing; НСЖ — life_details_for_ai.',
+    'БЕЗ ДУБЛЯ: если цель одна (summary.goals_count === 1) или суммы по цели совпадают с итогом плана — озвучь налоги один раз: либо только сводку по плану, либо только по цели с фразой вроде «по единственной цели это же самое, что итог по плану». Не повторяй те же цифры в двух подпунктах.',
+    'Формулировки: «по модели расчёта», «оценка», «не налоговая консультация»; не обещай гарантированный возврат от государства.',
+    'ПДС (pds_benefits) vs NSJ (nsj_benefits) — кратко, если в плане есть оба типа; иначе достаточно totals.',
+    'Если deduction_2026 нулевой — не утверждать, что льгот нет; разбивка может быть в PDF.',
+    'В конце ответа одна короткая строка: при необходимости деталей и таблиц — см. PDF-отчёт (если он выдаётся пользователю).',
+];
+
+function estimateAgeYearsFromBirthDate(isoDate) {
+    const s = trimText(isoDate);
+    if (!s) return null;
+    const b = new Date(s);
+    if (Number.isNaN(b.getTime())) return null;
+    const diff = Date.now() - b.getTime();
+    return Math.max(0, Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000)));
+}
+
+/**
+ * Профиль для озвучивания в чате: имя из конструктора + пол/возраст/доход из экстракции диалога под расчёт.
+ * В сыром JSON расчёта полей клиента нет — они появляются только здесь.
+ */
+function buildClientProfileForAi(constructorClient, extractionClient) {
+    const ec = extractionClient && typeof extractionClient === 'object' ? extractionClient : {};
+    const nick = trimText(constructorClient?.nickname);
+    const birth = trimText(ec.birth_date) || null;
+    return {
+        display_name: nick || null,
+        sex: ec.sex != null ? ec.sex : null,
+        birth_date: birth,
+        age_years_estimated: birth ? estimateAgeYearsFromBirthDate(birth) : null,
+        avg_monthly_income: ec.avg_monthly_income != null ? Number(ec.avg_monthly_income) : null,
+        total_liquid_capital: ec.total_liquid_capital != null ? Number(ec.total_liquid_capital) : null,
+        note: 'display_name — nickname из конструктора; пол, дата рождения, доход и капитал — из извлечения реплик для расчёта (могут отличаться от карточки PFP после сохранения).',
+    };
+}
+
+function goalIsPension(g) {
+    if (!g || typeof g !== 'object') return false;
+    if (Number(g.goal_type_id) === 1) return true;
+    return String(g.goal_type || '').toUpperCase() === 'PENSION';
+}
+
+function hasPensionGoalInFullCalc(fullGoals) {
+    return (fullGoals || []).some(goalIsPension);
+}
+
+function collectPresentGoalTypeIds(fullGoals) {
+    const s = new Set();
+    for (const g of fullGoals || []) {
+        const id = Number(g.goal_type_id);
+        if (!Number.isNaN(id)) s.add(id);
+    }
+    return s;
+}
+
+function appendFirstRunGoalTypeGlossaries(payload, fullGoals) {
+    const ids = collectPresentGoalTypeIds(fullGoals);
+    if (ids.has(2)) {
+        payload.passive_income_field_glossary_ru = PASSIVE_INCOME_FIELD_GLOSSARY_RU;
+        payload.passive_income_narrative_hints_ru = PASSIVE_INCOME_NARRATIVE_HINTS_RU;
+    }
+    if (ids.has(3)) {
+        payload.investment_field_glossary_ru = INVESTMENT_FIELD_GLOSSARY_RU;
+        payload.investment_narrative_hints_ru = INVESTMENT_NARRATIVE_HINTS_RU;
+    }
+    if ([4, 6, 9].some((x) => ids.has(x))) {
+        payload.other_goal_field_glossary_ru = OTHER_GOAL_FIELD_GLOSSARY_RU;
+        payload.other_goal_narrative_hints_ru = OTHER_GOAL_NARRATIVE_HINTS_RU;
+    }
+    if (ids.has(5)) {
+        payload.life_insurance_field_glossary_ru = LIFE_INSURANCE_FIELD_GLOSSARY_RU;
+        payload.life_insurance_details_glossary_ru = LIFE_INSURANCE_DETAILS_GLOSSARY_RU;
+        payload.life_insurance_narrative_hints_ru = LIFE_INSURANCE_NARRATIVE_HINTS_RU;
+    }
+    if (ids.has(7)) {
+        payload.fin_reserve_field_glossary_ru = FIN_RESERVE_FIELD_GLOSSARY_RU;
+        payload.fin_reserve_narrative_hints_ru = FIN_RESERVE_NARRATIVE_HINTS_RU;
+    }
+    if (ids.has(8)) {
+        payload.rent_field_glossary_ru = RENT_FIELD_GLOSSARY_RU;
+        payload.rent_narrative_hints_ru = RENT_NARRATIVE_HINTS_RU;
+    }
+}
+
+/** Убираем служебный _debug из summary, чтобы не засорять промпт. */
+function stripSummaryDebugForAi(goals) {
+    return (goals || []).map((g) => {
+        if (!g || !g.summary || g.summary._debug === undefined) return g;
+        const { _debug, ...restSummary } = g.summary;
+        return { ...g, summary: restSummary };
+    });
+}
+
+/** goal_type, пенсия, портфель, НСЖ, аренда — срезы из полного расчёта для ИИ. */
+function enrichCompactGoalsForAiPresentation(compactGoals, fullGoals) {
+    const byId = new Map();
+    for (const g of fullGoals || []) {
+        const id = g.goal_id ?? g.id;
+        if (id != null) byId.set(String(id), g);
+    }
+    return (compactGoals || []).map((cg) => {
+        const full = cg.goal_id != null ? byId.get(String(cg.goal_id)) : null;
+        const isPension = goalIsPension(cg) || goalIsPension(full);
+        const typeId = Number(full?.goal_type_id ?? cg.goal_type_id);
+        const d = full?.details;
+
+        const out = {
+            ...cg,
+            goal_type: full?.goal_type || cg.goal_type || (isPension ? 'PENSION' : undefined),
+        };
+
+        if (d && (d.portfolio_id != null || d.portfolio_name)) {
+            out.portfolio_snapshot_for_ai = {
+                portfolio_id: d.portfolio_id ?? null,
+                portfolio_name: d.portfolio_name ?? null,
+            };
+        }
+
+        if (isPension && d?.state_pension) {
+            const sp = d.state_pension;
+            out.retirement_timeline = {
+                retirement_year: sp.retirement_year,
+                years_to_pension: sp.years_to_pension,
+                retirement_age: sp.retirement_age,
+            };
+            out.state_pension_details_for_ai = {
+                ipk_total: sp.ipk_total,
+                ipk_current: sp.ipk_current,
+                ipk_forecast: sp.ipk_forecast,
+                point_cost_today: sp.point_cost_today,
+                point_cost_future: sp.point_cost_future,
+                fixed_payment_today: sp.fixed_payment_today,
+                fixed_payment_future: sp.fixed_payment_future,
+            };
+        }
+
+        if (typeId === 5 && d) {
+            out.life_details_for_ai = {
+                program_name: d.program_name,
+                annual_premium: d.annual_premium,
+                tax_deduction_2026: d.tax_deduction_2026,
+                total_tax_deductions: d.total_tax_deductions,
+                risks_for_ai: Array.isArray(d.risks)
+                    ? d.risks.slice(0, 12).map((r) => ({
+                          risk_name: r.risk_name,
+                          limit_amount: r.limit_amount,
+                      }))
+                    : [],
+            };
+        }
+
+        if (typeId === 8 && Array.isArray(d?.instruments) && d.instruments.length > 0) {
+            out.rent_instruments_short_for_ai = d.instruments.slice(0, 8).map((x) => ({
+                name: x.name || x.title || x.product_name,
+                share: x.share_percent != null ? x.share_percent : x.share,
+            }));
+        }
+
+        return out;
+    });
+}
+
+/**
+ * Расширенный объект для второго user-сообщения после firstRun: компакт расчёта + профиль клиента для ИИ + глоссарий по пенсии.
+ */
+function buildFirstRunAiTrailingPayload(calculationResult, { constructorClient, extraction } = {}) {
+    const compact = compactCalculationForPresentationPrompt(calculationResult);
+    const full = calculationPayloadForGeneratorPrompt(calculationResult);
+    const fullGoals = Array.isArray(full?.goals) ? full.goals : [];
+
+    const payload = {
+        ...compact,
+        goals: stripSummaryDebugForAi(enrichCompactGoalsForAiPresentation(compact.goals, fullGoals)),
+    };
+
+    payload.client_for_ai = buildClientProfileForAi(constructorClient, extraction?.client);
+    payload.goal_type_id_labels_ru = GOAL_TYPE_ID_LABELS_RU;
+
+    payload.goal_summary_tax_glossary_ru = GOAL_SUMMARY_TAX_GLOSSARY_RU;
+    payload.plan_tax_and_state_benefits_glossary_ru = PLAN_TAX_AND_STATE_BENEFITS_GLOSSARY_RU;
+    payload.plan_tax_narrative_hints_ru = PLAN_TAX_NARRATIVE_HINTS_RU;
+
+    appendFirstRunGoalTypeGlossaries(payload, fullGoals);
+
+    if (hasPensionGoalInFullCalc(fullGoals)) {
+        payload.pension_field_glossary_ru = PENSION_PRESENTATION_FIELD_HELP_RU;
+        payload.pension_state_pension_glossary_ru = PENSION_STATE_PENSION_MODEL_GLOSSARY_RU;
+        payload.pension_presentation_structure_ru = [
+            'Заголовок раздела: «Основная цель: Достойная пенсия» (человечнее, чем сухое «Пенсия»). При необходимости в скобках — кратко goal_name из JSON.',
+            'СТРОГИЙ ПОРЯДОК СНАЧАЛА ПРО ДОХОДЫ, ПОТОМ ПРО КАПИТАЛ — не бросай цифру капитала до объяснения разрыва.',
+            'Термины для п.1–3: везде явно используй формулировку **в сегодняшних ценах** (можно добавить: «покупательная способность как сегодня»). ЗАПРЕЩЕНО писать «без учёта инфляции» про желаемый доход — звучит как ошибка; «в сегодняшних ценах» как раз и значит сопоставимо с сегодняшним рублём.',
+            '1) Желаемый доход в месяц **в сегодняшних ценах**: target_amount_initial и/или projected_pension_monthly_present.',
+            '2) Ожидаемая государственная пенсия в месяц **в сегодняшних ценах**: state_pension_monthly_today (детали модели — в PDF).',
+            '3) Необходимый дополнительный доход в месяц **в сегодняшних ценах**: разница желаемого и госпенсии (если оба поля есть): target_amount_initial − state_pension_monthly_today.',
+            '4) Контраст с п.1–3: к году выхода на пенсию тот же разрыв в **ценах будущего года (номинал к пенсии)** — примерно pension_gap_future ₽/мес; кратко: в расчёт заложена инфляция (inflation_rate). Это не «ещё один доход», а тот же доп. доход, но выраженный в рублях «уже на пенсии».',
+            '5) Только после п.1–4 — капитал: «Чтобы обеспечить такой дополнительный доход за счёт накоплений, к выходу на пенсию в модели формируется капитал порядка projected_capital_at_retirement ₽. С этой суммы в сценарии идёт выплата за счёт доходности на этапе выплат (payout_yield_percent) — по сути «доп. пенсия» с капитала. Накопления остаются вашими: при желании можно использовать и тело капитала, не только проценты» — формулируй своими словами, без канцелярита.',
+            '6) Дальше: стартовый взнос initial_capital (и при необходимости initial_capital_ops), рекомендуемое ежемесячное пополнение monthly_replenishment; год выхода retirement_timeline.retirement_year.',
+            '7) Налоги — по plan_tax_narrative_hints_ru; PDF — одна строка в конце при необходимости.',
+            'Не называй крупную сумму капитала до того, как пользователь понял разрыв доходов **в сегодняшних ценах** и **в номинале к пенсии**.',
+        ];
+        payload.pension_narrative_hints_ru = [
+            'Следуй pension_presentation_structure_ru; для доходов п.1–3 только «в сегодняшних ценах», не «без учёта инфляции».',
+            'Обращение: по client_for_ai.display_name (если null — «вы»). Лицо рассказа нейтральное или по стилю бота («в расчёт заложена инфляция»), не навязывай женский/мужской род без заданного стиля.',
+            'Поля: pension_field_glossary_ru, state_pension_details_for_ai, pension_state_pension_glossary_ru; капитал = projected_capital_at_retirement; не путать target_amount_future с капиталом.',
+            'При status=GAP — мягко про нагрузку на бюджет.',
+        ];
+    }
+
+    return payload;
+}
+
 /**
  * Генератор: system + опционально хвост из user-сообщений.
  * Для firstRun с готовым расчётом JSON кладём во второе user-сообщение после реплики пользователя —
  * иначе модель часто игнорирует хвост огромного system и продолжает сценарий «сейчас посчитаю».
  */
-function buildConstructorGeneratorPromptParts(bot, brainSection, command, calculationResult, client) {
+function buildConstructorGeneratorPromptParts(bot, brainSection, command, calculationResult, client, generatorExtras = {}) {
     const sections = [];
 
     const cmdKeyNorm = trimText(command?.command || '').toLowerCase();
@@ -142,6 +624,10 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
             'КРИТИЧЕСКИ ВАЖНО ДЛЯ ЭТОГО ОТВЕТА:\n' +
                 'Финансовый план УЖЕ рассчитан на сервере. Сразу после истории диалога тебе будет отдельное пользовательское сообщение с JSON результата.\n' +
                 'Твоя задача — кратко презентовать пользователю итоги из этого JSON (ключевые суммы, сроки, выводы).\n' +
+                'НАЛОГИ И ЛЬГОТЫ — В ЭТОМ ЖЕ ОТВЕТЕ СРАЗУ: summary.tax_benefits_summary, summary.total_state_benefit; по целям — total_tax_benefit и total_cofinancing при необходимости. Не заканчивай вопросом «рассказать про налоги?». Все суммы по вычетам и льготам формулируй как оценку по модели расчёта, не как гарантию от государства и не как налоговую консультацию.\n' +
+                'НЕ ДУБЛИРУЙ: при одной цели в плане (goals_count === 1) или когда цифры по цели совпадают с итогом плана — не перечисляй одинаковые суммы и «по плану», и «по цели» отдельными списками; один компактный блок или одна фраза-связка.\n' +
+                'Стиль: опирайся на «Стиль общения» бота; избегай тяжёлого канцелярита в финале. В самом конце — одна короткая строка про PDF-отчёт, если пользователю нужны таблицы и детализация (без навязчивости).\n' +
+                'В JSON для firstRun: client_for_ai; расшифровки — plan_tax_and_state_benefits_glossary_ru, goal_summary_tax_glossary_ru, plan_tax_narrative_hints_ru; для пенсии — pension_presentation_structure_ru (желаемый доход, госпенсия и доп. разрыв формулируй **в сегодняшних ценах**; не используй «без учёта инфляции»), pension_*; для других типов — passive_income_*, investment_*, other_goal_*, life_insurance_*, fin_reserve_*, rent_*. На пенсии не путай initial_capital со target_amount_initial; капитал — projected_capital_at_retirement; target_amount_future — желаемый доход в месяц в номинале к пенсии, не капитал.\n' +
                 'ЗАПРЕЩЕНО: «я сейчас рассчитаю», «буквально через мгновение», «подождите», «начинаю расчёт», «сейчас посчитаю» — расчёт уже завершён.\n' +
                 'Не заканчивай ответ только пересказом введённых полей; опирайся на JSON из следующего сообщения.'
         );
@@ -187,8 +673,11 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
 
     let trailingUserCalculationJson = null;
     if (firstRunWithCalc) {
-        const compact = compactCalculationForPresentationPrompt(calculationResult);
-        trailingUserCalculationJson = JSON.stringify(compact, null, 2);
+        const aiPayload = buildFirstRunAiTrailingPayload(calculationResult, {
+            constructorClient: client,
+            extraction: generatorExtras.firstRunExtraction,
+        });
+        trailingUserCalculationJson = JSON.stringify(aiPayload, null, 2);
     }
 
     return {
@@ -548,6 +1037,7 @@ class ConstructorAiService {
                 console.log(`[AI Step 1] Stage Switch: ${currentCommand ? currentCommand.command : 'None'} -> ${nextCommand.command}`);
             }
 
+            nextCommand = await maybePromoteToFirstRunAfterCapitalReply(session.id, userMessage, nextCommand, commands);
             return nextCommand;
         } catch (error) {
             traceConstructorMeta('step1_classifier_error', { message: error.message, stack: error.stack });
@@ -686,7 +1176,7 @@ class ConstructorAiService {
     /**
      * Шаг 2: Генерация ответа (Послойный промпт)
      */
-    async generateResponse(session, command, userMessage, calculationResult = null) {
+    async generateResponse(session, command, userMessage, calculationResult = null, responseOptions = {}) {
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
@@ -707,7 +1197,8 @@ class ConstructorAiService {
             brainSection,
             command,
             calculationResult,
-            client
+            client,
+            { firstRunExtraction: responseOptions.firstRunExtraction }
         );
 
         const layeredPrompt = [];
@@ -771,7 +1262,8 @@ class ConstructorAiService {
             brainSection,
             command,
             calculationResult,
-            client
+            client,
+            { firstRunExtraction: streamExtras.firstRunExtraction }
         );
 
         const layeredPrompt = [];
@@ -992,6 +1484,7 @@ class ConstructorAiService {
             {
                 trailingSsePayload: pfpReportPdfUrl ? { type: 'pdf_url', pdf_url: pfpReportPdfUrl } : null,
                 appendToFullText: pdfSuffix,
+                firstRunExtraction,
             }
         );
 
@@ -1212,7 +1705,9 @@ class ConstructorAiService {
         }
 
         // 2. Генерация ответа
-        let responseText = await this.generateResponse(session, nextCommand, userMessage, calculationResult);
+        let responseText = await this.generateResponse(session, nextCommand, userMessage, calculationResult, {
+            firstRunExtraction,
+        });
         if (pfpReportPdfUrl) {
             responseText = `${responseText}\n\n📄 Ваш персональный отчёт (PDF): ${pfpReportPdfUrl}`;
         }
@@ -1245,4 +1740,79 @@ class ConstructorAiService {
     }
 }
 
-module.exports = new ConstructorAiService();
+/**
+ * Сборка массива messages как у generateResponse для firstRun (скрипт context_primer_gemini_smoke, отладка).
+ * @param {Object} opts
+ * @param {Object} opts.calculationResult — результат calculateFirstRun (после simplify или сырой)
+ * @param {Object} [opts.bot]
+ * @param {string} [opts.brainSection]
+ * @param {Object} [opts.command] — строка команды сценария, например { command: '/firstrun', response: '...' }
+ * @param {Object} [opts.client] — constructor_clients row (nickname, user_context)
+ * @param {string} [opts.userMessage]
+ * @param {Array<{role:string,content:string}>} [opts.historyMessages]
+ * @param {Object|null} [opts.firstRunExtraction] — как из extractFinancialPlanParams
+ */
+function buildFirstRunLayeredMessagesForSmoke(opts = {}) {
+    const {
+        calculationResult,
+        bot = {
+            name: 'Финансовый ассистент PFP',
+            base_brain_context: 'Ты помогаешь клиенту понять персональный финансовый план.',
+            communication_style: 'Профессионально, тепло, без канцелярита.',
+        },
+        brainSection = '--- Продукт ---\nДолгосрочные накопления через НПФ и налоговые льготы.',
+        command = {
+            command: '/firstrun',
+            response:
+                'Пенсия: заголовок «Основная цель: Достойная пенсия». Сначала доходы (желаемый, госпенсия, доп. доход «сегодня»), потом фраза про инфляцию и pension_gap_future (номинал к пенсии), только затем объясни зачем капитал projected_capital_at_retirement и пополнение. Налоги по JSON; PDF одной строкой.',
+        },
+        client = { nickname: 'Саша', user_context: '' },
+        userMessage = '50000 на старте, хочу 100 тысяч на пенсию',
+        historyMessages = [
+            { role: 'user', content: 'Привет' },
+            {
+                role: 'assistant',
+                content: 'Здравствуйте! Какой у вас текущий доход в месяц и сколько уже отложено?',
+            },
+            { role: 'user', content: '180 тысяч доход, накопления 50 тысяч' },
+            {
+                role: 'assistant',
+                content: 'Какую пенсию в месяц вы хотели бы получать в ценах сегодняшнего дня?',
+            },
+        ],
+        firstRunExtraction = null,
+    } = opts;
+
+    if (!calculationResult || typeof calculationResult !== 'object') {
+        throw new Error('buildFirstRunLayeredMessagesForSmoke: calculationResult обязателен');
+    }
+
+    const { systemContent, trailingUserCalculationJson } = buildConstructorGeneratorPromptParts(
+        bot,
+        brainSection,
+        command,
+        calculationResult,
+        client,
+        { firstRunExtraction }
+    );
+
+    const layered = [];
+    if (trimText(systemContent)) {
+        layered.push({ role: 'system', content: trimText(systemContent) });
+    }
+    layered.push(...(historyMessages || []));
+    layered.push({ role: 'user', content: userMessage || '' });
+    if (trailingUserCalculationJson) {
+        layered.push({
+            role: 'user',
+            content:
+                'Служебное сообщение (не показывать пользователю как цитату): расчёт УЖЕ выполнен. Ниже JSON — единственный источник цифр для ответа.\n\nРезультат расчёта (JSON):\n' +
+                trailingUserCalculationJson,
+        });
+    }
+    return layered;
+}
+
+const constructorAiServiceSingleton = new ConstructorAiService();
+constructorAiServiceSingleton.buildFirstRunLayeredMessagesForSmoke = buildFirstRunLayeredMessagesForSmoke;
+module.exports = constructorAiServiceSingleton;
