@@ -12,16 +12,25 @@ function buildConstructorPfpSaveBody(extraction, bot, constructorNickname) {
         extClient.first_name = nick.replace(/^@/, '').slice(0, 120) || ' ';
     }
 
+    // client.assets — только для first-run math; в БД колонки clients.assets нет.
+    // createFullClient / updateFullClient ждут data.assets на корне, иначе insert/update падает.
+    const assetsFromClient = Array.isArray(extClient.assets) ? extClient.assets : [];
+    delete extClient.assets;
+
     const client = {
         ...extClient,
         project_id: bot.project_id,
         agent_id: bot.agent_id,
     };
 
-    return {
+    const body = {
         client,
         goals: Array.isArray(extraction?.goals) ? extraction.goals : [],
     };
+    if (assetsFromClient.length > 0) {
+        body.assets = assetsFromClient;
+    }
+    return body;
 }
 
 /**

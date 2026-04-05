@@ -505,10 +505,12 @@ function applyB2cPolicyHorizonTermMonthsToExtractedGoals(extracted) {
 }
 
 /**
- * Пул first-run: client.total_liquid_capital и/или CASH-актив на месяце 0 (см. calculationService._prepareContext).
- * Для B2C (ПДС, Квартира) кладём названную сумму «уже есть» в assets type CASH и согласуем goal.initial_capital ↔ total_liquid_capital.
+ * Пул first-run — как у пенсии (goal_type_id 1): shared pool из client.total_liquid_capital,
+ * списание по цели через resolveInitialCapital(goal.initial_capital) в калькуляторах.
+ * Для B2C (ПДС, Квартира) только согласуем goal.initial_capital ↔ total_liquid_capital.
+ * Не кладём synthetic client.assets: в _prepareContext пул уже = total_liquid_capital, CASH на мес. 0 из assets не дублируют пул.
  */
-function ensureB2cCashAssetAndPoolForConstructor(extracted) {
+function ensureB2cPoolSyncForConstructor(extracted) {
     const client = extracted?.client;
     const goals = extracted?.goals;
     if (!client || typeof client !== 'object' || !Array.isArray(goals)) return;
@@ -524,43 +526,16 @@ function ensureB2cCashAssetAndPoolForConstructor(extracted) {
     const tl = Number(client.total_liquid_capital);
     const hasTl = Number.isFinite(tl) && tl > 0;
 
-    let pool = 0;
     if (elig.length === 1) {
         const g0 = elig[0];
         const ic0 = Number(g0.initial_capital);
         if (Number.isFinite(ic0) && ic0 > 0) {
-            pool = ic0;
-            if (!hasTl) client.total_liquid_capital = pool;
+            if (!hasTl) client.total_liquid_capital = ic0;
         } else if (hasTl) {
-            pool = tl;
             g0.initial_capital = tl;
         }
-    } else {
-        pool = sumIc;
-        if (pool > 0 && !hasTl) client.total_liquid_capital = pool;
-    }
-
-    pool = Number(client.total_liquid_capital);
-    if (!Number.isFinite(pool) || pool <= 0) return;
-
-    if (!Array.isArray(client.assets)) client.assets = [];
-    const isCashMonth0 = (a) => {
-        const t = String(a.type || '').toUpperCase();
-        const m = Number(a.unlock_month ?? a.sell_month ?? 0);
-        return (t === 'CASH' || t === 'НАЛИЧНЫЕ') && m === 0 && !a.goal_id;
-    };
-    const idx = client.assets.findIndex(isCashMonth0);
-    const row = {
-        type: 'CASH',
-        name: 'Наличные',
-        current_value: pool,
-        unlock_month: 0,
-        currency: 'RUB',
-    };
-    if (idx >= 0) {
-        client.assets[idx] = { ...client.assets[idx], ...row, current_value: pool };
-    } else {
-        client.assets.push(row);
+    } else if (sumIc > 0 && !hasTl) {
+        client.total_liquid_capital = sumIc;
     }
 }
 
@@ -997,19 +972,50 @@ class ConstructorAiService {
         if (isFirstTurn) {
             const startCmd = await this._resolveStartCommandRow(botId);
             if (startCmd) {
-                console.log(
-                    '[ConstructorAI Step1] Роутер LLM НЕ вызывается (первый ход): пустой лог и нет current_command_id → сразу /start.',
-                    JSON.stringify({ sessionId: session.id, command: startCmd.command, commandId: startCmd.id })
-                );
-                if (traceStream && isConstructorAiTraceOn()) {
-                    traceConstructorMeta('stream.first_turn_skip_classifier', {
-                        reason:
-                            'constructor_logs пуст и current_command_id null — контекст ответа из /start, роутер LLM не вызывается',
-                        command: { id: startCmd.id, key: startCmd.command },
-                    });
+                let cmdForThisTurn = startCmd;
+                // Как в classifyStage: первое сообщение — имя или отказ от имени → сразу /startpfp,
+                // иначе на первом ходе залипаем на /start и второй ИИ читает «общий» контекст вместо твоего сценария startpfp.
+                if (shouldForceStartpfpFromStart(userMessage)) {
+                    const bot = await knex('constructor_bots').where('id', botId).first();
+                    if (bot) {
+                        const commands = await knex('constructor_commands')
+                            .where('bot_id', bot.id)
+                            .orWhere(function () {
+                                this.where('is_template', true).andWhere('project_id', bot.project_id);
+                            })
+                            .orderByRaw('bot_id DESC, is_template ASC');
+                        const startpfp = findCommandByKey(commands, '/startpfp');
+                        if (startpfp) {
+                            cmdForThisTurn = startpfp;
+                            console.log(
+                                '[ConstructorAI Step1] Первый ход: имя/отказ → контекст /startpfp (без классификатора)',
+                                JSON.stringify({ sessionId: session.id, command: startpfp.command, id: startpfp.id })
+                            );
+                            if (traceStream && isConstructorAiTraceOn()) {
+                                traceConstructorMeta('stream.first_turn_promote_startpfp', {
+                                    reason: 'shouldForceStartpfpFromStart на первом ходе',
+                                    userPreview: truncateTraceText(userMessage, 80),
+                                    command: { id: startpfp.id, key: startpfp.command },
+                                });
+                            }
+                        }
+                    }
+                }
+                if (cmdForThisTurn === startCmd) {
+                    console.log(
+                        '[ConstructorAI Step1] Роутер LLM НЕ вызывается (первый ход): пустой лог и нет current_command_id → /start.',
+                        JSON.stringify({ sessionId: session.id, command: startCmd.command, commandId: startCmd.id })
+                    );
+                    if (traceStream && isConstructorAiTraceOn()) {
+                        traceConstructorMeta('stream.first_turn_skip_classifier', {
+                            reason:
+                                'constructor_logs пуст и current_command_id null — контекст ответа из /start, роутер LLM не вызывается',
+                            command: { id: startCmd.id, key: startCmd.command },
+                        });
+                    }
                 }
                 return {
-                    nextCommand: startCmd,
+                    nextCommand: cmdForThisTurn,
                     isFirstTurn,
                     priorLogCount,
                     classifierSkipped: true,
@@ -1337,8 +1343,8 @@ class ConstructorAiService {
 4. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
 5. Если целей нет, массив "goals" пуст.
 6. goal_type_id 3 (Сохранить и приумножить, ПДС): поле term_months не вычисляй и не угадывай (null или опусти ключ). Срок сервер выставит сам из client.birth_date и client.sex. Обязательно вытащи monthly_replenishment (руб/мес); target_amount для типа 3 ставь 0, если в диалоге нет отдельной целевой суммы накоплений.
-7. Цель «Квартира»: goal_type_id всегда 4 (OTHER), name строго «Квартира». target_amount — ориентировочная стоимость квартиры. initial_capital — ОБЯЗАТЕЛЬНО укажи числом, сколько уже отложено именно на квартиру/взнос (если пользователь назвал сумму). Не клади эту сумму только в total_liquid_capital без goals[].initial_capital. client.avg_monthly_income — доход. term_months не угадывай (сервер выставит из даты рождения и пола). После экстракции сервер сам добавит актив type CASH с этой суммой для пула расчёта.
-8. goal_type_id 3 (ПДС): сумму «уже внесено/есть на старте» тоже клади в goals[].initial_capital; сервер продублирует CASH-актив при необходимости.
+7. Цель «Квартира»: goal_type_id всегда 4 (OTHER), name строго «Квартира». target_amount — ориентировочная стоимость квартиры. initial_capital — ОБЯЗАТЕЛЬНО укажи числом, сколько уже отложено именно на квартиру/взнос (если пользователь назвал сумму). Не клади эту сумму только в total_liquid_capital без goals[].initial_capital. client.avg_monthly_income — доход. term_months не угадывай (сервер выставит из даты рождения и пола). Пул расчёта — как у пенсии: client.total_liquid_capital и goals[].initial_capital; сервер при необходимости подставит одно из другого, без отдельного массива assets в JSON.
+8. goal_type_id 3 (ПДС): сумму «уже внесено/есть на старте» клади в goals[].initial_capital; при необходимости сервер выставит total_liquid_capital (та же схема, что пенсия + старт по цели).
 `
             },
             {
@@ -1364,7 +1370,7 @@ class ConstructorAiService {
             }
 
             normalizeB2cApartmentGoalsInExtraction(extracted);
-            ensureB2cCashAssetAndPoolForConstructor(extracted);
+            ensureB2cPoolSyncForConstructor(extracted);
 
             // Настаиваем на BALANCED для всех целей из мессенджера
             if (extracted.goals && Array.isArray(extracted.goals)) {
