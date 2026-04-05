@@ -1579,6 +1579,18 @@ class ConstructorAiService {
                 : null,
         });
 
+        // Сайт-чат SSE: сразу после type=session (контроллер) — результат первого ИИ (роутер / шорткат без LLM).
+        if (res && typeof res.write === 'function') {
+            res.write(
+                `data: ${JSON.stringify({
+                    type: 'classifier_command',
+                    command: nextCommand?.command ?? null,
+                    commandId: nextCommand?.id != null ? nextCommand.id : null,
+                    classifierSkipped: !!classifierSkipped,
+                })}\n\n`
+            );
+        }
+
         // Стадию фиксируем сразу после роутера, чтобы следующий запрос видел current_command_id даже если стрим/лог упадут позже.
         if (nextCommand && nextCommand.id != null) {
             await knex('constructor_sessions').where('id', session.id).update({
