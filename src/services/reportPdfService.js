@@ -202,8 +202,12 @@ class ReportPdfService {
             themeKey === 'rostech' &&
             reportGoalTypes.size === 1 &&
             reportGoalTypes.has('PENSION');
+        const isRostechInvestmentOnly =
+            themeKey === 'rostech' &&
+            reportGoalTypes.size === 1 &&
+            reportGoalTypes.has('INVESTMENT');
 
-        if (includeSummary && !isRostechPensionOnly) {
+        if (includeSummary && !isRostechPensionOnly && !isRostechInvestmentOnly) {
             const net = report.current_situation?.net_worth;
             const capitalStr =
                 net != null && Number.isFinite(Number(net))

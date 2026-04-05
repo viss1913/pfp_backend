@@ -1,5 +1,6 @@
 const { buildGoalPageHtml } = require('../../goalPages/buildGoalPagesHtml');
 const { buildRostechPensionPagesHtml } = require('./buildRostechPensionPagesHtml');
+const { buildRostechInvestmentPagesHtml } = require('./buildRostechInvestmentPagesHtml');
 
 /**
  * Стартовая заглушка рендера Ростеха для страниц целей.
@@ -7,16 +8,25 @@ const { buildRostechPensionPagesHtml } = require('./buildRostechPensionPagesHtml
  * Дальше сюда подменим layout/HTML/CSS под новый макет Ростеха.
  */
 async function buildRostechGoalPageHtml(args) {
-    if (String(args?.goalType || '').toUpperCase() === 'PENSION') {
+    const gt = String(args?.goalType || '').toUpperCase();
+    if (gt === 'PENSION') {
         const pages = await buildRostechPensionPagesHtml(args || {});
+        return pages[0] || '';
+    }
+    if (gt === 'INVESTMENT') {
+        const pages = await buildRostechInvestmentPagesHtml(args || {});
         return pages[0] || '';
     }
     return await buildGoalPageHtml(args);
 }
 
 async function buildRostechGoalPagesHtml(args) {
-    if (String(args?.goalType || '').toUpperCase() === 'PENSION') {
+    const gt = String(args?.goalType || '').toUpperCase();
+    if (gt === 'PENSION') {
         return buildRostechPensionPagesHtml(args || {});
+    }
+    if (gt === 'INVESTMENT') {
+        return buildRostechInvestmentPagesHtml(args || {});
     }
     return [await buildGoalPageHtml(args)];
 }

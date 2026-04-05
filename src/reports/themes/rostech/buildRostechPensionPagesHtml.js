@@ -980,8 +980,30 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
               </div>
             `,
         }),
+        ...buildRostechStandardTailHtmlPages({
+            goal,
+            logoFromSettings,
+            bgSrc,
+            rostechAvatar59Src,
+            cardImg,
+            footerText: 'НПФ Ростех • Госпенсия',
+        }),
+    ];
+}
+
+
+function buildRostechStandardTailHtmlPages({
+    goal,
+    logoFromSettings,
+    bgSrc,
+    rostechAvatar59Src,
+    cardImg,
+    footerText = 'НПФ Ростех • Госпенсия',
+}) {
+    return [
         // 59:657
         buildShell({
+            footerText,
             title: 'Важная Информация. Инфляция',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1076,6 +1098,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         }),
         // 59:1303
         buildShell({
+            footerText,
             title: 'Декларация о рисках программы долгосрочных сбережений (ПДС)',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1110,6 +1133,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         }),
         // 59:1335
         buildShell({
+            footerText,
             title: '2. Риск банкротства НПФ',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1159,6 +1183,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         }),
         // 59:1419
         buildShell({
+            footerText,
             title: '3. Риск дефолта государства по облигациям федерального займа (ОФЗ)',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1196,6 +1221,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         }),
         // 59:1363
         buildShell({
+            footerText,
             title: '4. Риски инвестирования в акции российских компаний',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1228,6 +1254,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         }),
         // 59:1391
         buildShell({
+            footerText,
             title: '5. Риски инвестирования НПФ в корпоративные облигации',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1283,6 +1310,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
 
             return chunks.map((chunk, idx) =>
                 buildShell({
+            footerText,
                     title: 'График достижения целей',
                     subtitle: '',
                     logoSrc: logoFromSettings,
@@ -1300,5 +1328,20 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
     ];
 }
 
-module.exports = { buildRostechPensionPagesHtml };
+module.exports = {
+    buildRostechPensionPagesHtml,
+    buildRostechStandardTailHtmlPages,
+    rostechInvestmentPdfUtils: {
+        esc,
+        money,
+        moneyPerMonth,
+        moneyWithPrecision,
+        pickPositive,
+        getCofinancingRateTextByIncome,
+        calculateAugNextYearEffectivenessPercent,
+        extractPensionPlanFacts,
+        calculateOwnFundsFromSchedule,
+        buildShell,
+    },
+};
 
