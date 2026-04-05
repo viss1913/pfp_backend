@@ -53,16 +53,6 @@ function resolveOtherGoalOrdinal(goal, orderedGoals) {
     return idxOther >= 0 ? idxOther + 1 : 1;
 }
 
-function goalPhraseForPlan(rawTitle) {
-    const t = String(rawTitle || 'цель').trim();
-    const lower = t.toLowerCase();
-    if (/^покупк|^накоплен/i.test(t)) return t;
-    if (/квартир|дом|авто|машин|транспорт|учеб|образован|отпуск|свадьб|ремонт/i.test(lower)) {
-        return `на ${t}`;
-    }
-    return `на цель «${t}»`;
-}
-
 /**
  * Ростех PDF: цель OTHER (прочие цели). Структура как INVESTMENT: ввод + план + портфель + льготы/резюме + общий хвост.
  */
@@ -172,8 +162,6 @@ async function buildRostechOtherPagesHtml({ goal, clientName, options = {} }) {
             ? moneyWithPrecision(deduction2026, 2)
             : money(deduction2026);
 
-    const planObjectPhrase = goalPhraseForPlan(rawTitle);
-
     return [
         buildShell({
             title: 'Ваш финансовый план',
@@ -239,7 +227,7 @@ async function buildRostechOtherPagesHtml({ goal, clientName, options = {} }) {
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
                 <div style="flex:1;border:1px solid #e2e2e2;border-radius:10px;background:#fff;padding:8px 10px;">
                   <div style="font-size:12px;line-height:1.25;color:#424242;">
-                    ${esc(clientFirstName)}, амбициозная цель, но я Вас полностью поддерживаю. Итак нам надо накопить ${esc(planObjectPhrase)} ${esc(money(targetPresent))} в сегодняшних деньгах.
+                    ${esc(clientFirstName)}, амбициозная цель, но я Вас полностью поддерживаю. Для «${esc(rawTitle)}» нам нужно накопить ${esc(money(targetPresent))} в сегодняшних деньгах.
                   </div>
                   <div style="display:flex;gap:10px;align-items:flex-start;margin-top:6px;">
                     <img src="${esc(goalThumbSrc || cardImg)}" alt="" style="width:100px;height:58px;object-fit:cover;border-radius:8px;flex-shrink:0;filter:grayscale(100%);" />
