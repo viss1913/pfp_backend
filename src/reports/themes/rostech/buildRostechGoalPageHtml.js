@@ -1,6 +1,7 @@
 const { buildGoalPageHtml } = require('../../goalPages/buildGoalPagesHtml');
 const { buildRostechPensionPagesHtml } = require('./buildRostechPensionPagesHtml');
 const { buildRostechInvestmentPagesHtml } = require('./buildRostechInvestmentPagesHtml');
+const { buildRostechOtherPagesHtml } = require('./buildRostechOtherPagesHtml');
 
 /**
  * Стартовая заглушка рендера Ростеха для страниц целей.
@@ -17,6 +18,10 @@ async function buildRostechGoalPageHtml(args) {
         const pages = await buildRostechInvestmentPagesHtml(args || {});
         return pages[0] || '';
     }
+    if (gt === 'OTHER') {
+        const pages = await buildRostechOtherPagesHtml(args || {});
+        return pages[0] || '';
+    }
     return await buildGoalPageHtml(args);
 }
 
@@ -27,6 +32,9 @@ async function buildRostechGoalPagesHtml(args) {
     }
     if (gt === 'INVESTMENT') {
         return buildRostechInvestmentPagesHtml(args || {});
+    }
+    if (gt === 'OTHER') {
+        return buildRostechOtherPagesHtml(args || {});
     }
     return [await buildGoalPageHtml(args)];
 }

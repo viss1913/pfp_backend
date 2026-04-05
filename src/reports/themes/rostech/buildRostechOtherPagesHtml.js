@@ -1,63 +1,72 @@
 const path = require('path');
-const { resolveGoalCardImageSrc } = require('../../summary/buildSummaryOverviewHtml');
-const { resolveReportRasterRef } = require('../../../utils/reportRasterSrc');
+const fs = require('fs');
 const {
     buildRostechStandardTailHtmlPages,
     rostechInvestmentPdfUtils: U,
 } = require('./buildRostechPensionPagesHtml');
+const { computeInvestmentEndContext } = require('./buildRostechInvestmentPagesHtml');
+const { resolveReportRasterRef } = require('../../../utils/reportRasterSrc');
+const { resolveGoalCardImageSrc } = require('../../summary/buildSummaryOverviewHtml');
 
-const { esc, money, moneyPerMonth, moneyWithPrecision, pickPositive, getCofinancingRateTextByIncome } = U;
 const {
+    buildShell,
+    esc,
+    money,
+    moneyPerMonth,
+    moneyWithPrecision,
+    pickPositive,
+    getCofinancingRateTextByIncome,
     calculateAugNextYearEffectivenessPercent,
     extractPensionPlanFacts,
     calculateOwnFundsFromSchedule,
-    buildShell,
-    isScheduleInitialLumpRow,
 } = U;
 
-const INVEST_GOAL_LABEL = 'Сохранить и приумножить';
-const FOOTER_INVEST = 'НПФ Ростех • Сохранить и приумножить';
 const DISCLAIMER = `Финансовый план не является коммерческим предложением или договором,\nносит исключительно информационный характер.`;
 
-function computeInvestmentEndContext(goal, s) {
-    const targetMonths = Number(s.target_months ?? s.term_months ?? 0);
-    const schedule = Array.isArray(goal?.details?.monthly_schedule)
-        ? goal.details.monthly_schedule
-              .filter((row) => row && row.date)
-              .slice()
-              .sort((a, b) => new Date(a.date) - new Date(b.date))
-        : [];
-    const baseRow =
-        schedule.find((row) => row && row.date && !isScheduleInitialLumpRow(row)) || schedule[0] || null;
-    const base = baseRow
-        ? new Date(`${baseRow.date}T00:00:00Z`)
-        : new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
-    const end = new Date(base);
-    if (Number.isFinite(targetMonths) && targetMonths > 0) {
-        end.setUTCMonth(end.getUTCMonth() + targetMonths);
+/**
+ * Растр цели OTHER под Ростех: квартира / авто / дом — по названию цели, иначе дефолт (квартира).
+ */
+function otherGoalRasterRelativePath(goalName) {
+    const n = String(goalName || '').toLowerCase();
+    if (/авто|машин|транспорт|автомобил/.test(n)) return 'assets/reports/rostech/other-goal-car.png';
+    if (/дом|коттедж|таунхаус/.test(n)) return 'assets/reports/rostech/other-goal-house.png';
+    if (/квартир/.test(n)) return 'assets/reports/rostech/other-goal-apartment.png';
+    return 'assets/reports/rostech/other-goal-apartment.png';
+}
+
+async function resolveRostechOtherGoalImageSrc(goalName, root, inlineLocalAssets) {
+    let rel = otherGoalRasterRelativePath(goalName);
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) {
+        rel = 'assets/reports/rostech/other-goal-apartment.png';
     }
-    const monthsRu = [
-        'января',
-        'февраля',
-        'марта',
-        'апреля',
-        'мая',
-        'июня',
-        'июля',
-        'августа',
-        'сентября',
-        'октября',
-        'ноября',
-        'декабря',
-    ];
-    const dateLong = `${end.getUTCDate()} ${monthsRu[end.getUTCMonth()]} ${end.getUTCFullYear()} г.`;
-    return { year: end.getUTCFullYear(), dateLong, end };
+    return resolveReportRasterRef(rel, root, root, inlineLocalAssets);
+}
+
+function resolveOtherGoalOrdinal(goal, orderedGoals) {
+    const list = Array.isArray(orderedGoals) ? orderedGoals : [];
+    if (goal?.goal_id != null && goal.goal_id !== '') {
+        const idx = list.findIndex((g) => g && Number(g.goal_id) === Number(goal.goal_id));
+        if (idx >= 0) return idx + 1;
+    }
+    const idxOther = list.findIndex((g) => g && String(g.goal_type || '').toUpperCase() === 'OTHER');
+    return idxOther >= 0 ? idxOther + 1 : 1;
+}
+
+function goalPhraseForPlan(rawTitle) {
+    const t = String(rawTitle || 'цель').trim();
+    const lower = t.toLowerCase();
+    if (/^покупк|^накоплен/i.test(t)) return t;
+    if (/квартир|дом|авто|машин|транспорт|учеб|образован|отпуск|свадьб|ремонт/i.test(lower)) {
+        return `на ${t}`;
+    }
+    return `на цель «${t}»`;
 }
 
 /**
- * Ростех PDF: цель INVESTMENT (Сохранить и приумножить). Пенсионный билдер не трогаем.
+ * Ростех PDF: цель OTHER (прочие цели). Структура как INVESTMENT: ввод + план + портфель + льготы/резюме + общий хвост.
  */
-async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} }) {
+async function buildRostechOtherPagesHtml({ goal, clientName, options = {} }) {
     const root = path.join(__dirname, '../../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
     const logoFromSettings = options.logoSrc
@@ -66,15 +75,9 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
     const bgSrc = options.backgroundSrc
         ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
         : '';
-    const cardImg = await resolveGoalCardImageSrc('INVESTMENT', root, inlineLocalAssets, root);
+    const cardImg = await resolveGoalCardImageSrc('OTHER', root, inlineLocalAssets, root);
     const rostechAvatar59Src = await resolveReportRasterRef(
         'assets/reports/rostech/pension-avatar-59-31-lite.webp',
-        root,
-        root,
-        inlineLocalAssets
-    );
-    const investmentGoalSrc = await resolveReportRasterRef(
-        'assets/reports/rostech/investment-goal-59-28-lite.webp',
         root,
         root,
         inlineLocalAssets
@@ -94,6 +97,11 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
     const totalCapitalEnd = Number(s.projected_capital_at_end ?? 0);
     const taxBenefit = Number(s.total_tax_benefit ?? 0);
     const cofin = Number(s.total_cofinancing ?? 0);
+    const termMonths = Number(s.target_months ?? s.term_months ?? 0);
+    const inflationRate = Number(s.inflation_rate ?? 0);
+    const targetPresent = Number(s.target_amount_initial ?? goal?.target_amount ?? 0);
+    const targetFuture = Number(s.target_amount_future ?? 0);
+
     const taxBenefitsTotals =
         options?.overallPlan?.tax_benefits?.totals ||
         options?.overallPlan?.summary?.tax_benefits_summary?.totals ||
@@ -101,8 +109,13 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
     const deduction2026 = pickPositive(s.deduction_2026, taxBenefitsTotals.deduction_2026);
     const cofinancing2026 = pickPositive(s.cofinancing_2026, taxBenefitsTotals.cofinancing_2026);
     const nextCalendarYear = new Date().getFullYear() + 1;
-    const targetMonths = Number(s.target_months ?? s.term_months ?? 0);
+
     const { year: displayEndYear, dateLong: displayEndDateLong } = computeInvestmentEndContext(goal, s);
+
+    const rawTitle = String(goal?.goal_name || goal?.name || 'Цель').trim();
+    const goalOrdinal = resolveOtherGoalOrdinal(goal, options.reportGoalsOrdered);
+    const goalThumbSrc = await resolveRostechOtherGoalImageSrc(rawTitle, root, inlineLocalAssets);
+    const footerOther = `НПФ Ростех • ${rawTitle}`;
 
     const clientFirstName =
         String(clientName || '')
@@ -129,7 +142,7 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         cofinancingYear: nextCalendarYear,
     });
 
-    const ownFundsFallback = Math.max(initial + monthly * Math.max(targetMonths, 0), 0);
+    const ownFundsFallback = Math.max(initial + monthly * Math.max(termMonths, 0), 0);
     const ownFundsForPlan = calculateOwnFundsFromSchedule(goal?.details?.monthly_schedule, ownFundsFallback);
     const incomeAndBenefitsForPlan = Math.max(totalCapitalEnd - ownFundsForPlan, 0);
     const totalPlanBase = Math.max(ownFundsForPlan, 1);
@@ -146,14 +159,20 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         ? yearlyEffectiveness.startYear
         : new Date().getFullYear();
 
-    const chartMaxIntro = Math.max(initial, totalCapitalEnd, 1);
-    const introLeftH = Math.max(20, Math.round((initial / chartMaxIntro) * 104));
-    const introRightH = Math.max(20, Math.round((totalCapitalEnd / chartMaxIntro) * 104));
+    const chartMax = Math.max(targetPresent, targetFuture, 1);
+    const chartLeftH = Math.max(18, Math.round((targetPresent / chartMax) * 104));
+    const chartRightH = Math.max(18, Math.round((targetFuture / chartMax) * 104));
+    const inflText =
+        Number.isFinite(inflationRate) && inflationRate > 0
+            ? `${inflationRate.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+            : '—';
 
     const deductionLine =
         Number.isFinite(deduction2026) && deduction2026 > 0
             ? moneyWithPrecision(deduction2026, 2)
             : money(deduction2026);
+
+    const planObjectPhrase = goalPhraseForPlan(rawTitle);
 
     return [
         buildShell({
@@ -170,16 +189,15 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                 <div style="flex:1;min-width:0;background:#fff;border:1px solid #f1f1f1;border-radius:10px;padding:10px;">
                   <div style="font-size:13px;line-height:14px;color:#212121;">
                     Я подготовила детальный план для достижения Вашей финансовой цели.<br/><br/>
-                    Ваш текущий доход — ${esc(money(currentIncomeMonthly))}/мес. после вычета НДФЛ.<br/><br/>
+                    Ваш доход — ${esc(money(currentIncomeMonthly))} после вычета НДФЛ.<br/><br/>
                     Ваша финансовая цель:
                   </div>
                   <div style="display:flex;gap:24px;align-items:flex-start;margin-top:12px;">
-                    <img src="${esc(investmentGoalSrc || cardImg)}" alt="" style="width:120px;height:70px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
+                    <img src="${esc(goalThumbSrc || cardImg)}" alt="" style="width:120px;height:70px;object-fit:cover;border-radius:8px;flex-shrink:0;filter:grayscale(100%);" />
                     <div style="font-size:13px;line-height:14px;color:#212121;">
-                      <b>1. ${esc(INVEST_GOAL_LABEL)}</b><br/><br/>
-                      Первоначальный капитал — ${esc(money(initial))}<br/>
-                      Пополнение капитала — ${esc(moneyPerMonth(monthly))}<br/>
-                      Срок достижения — ${esc(displayEndYear)} г.
+                      <b>${goalOrdinal}. ${esc(rawTitle)}</b><br/><br/>
+                      Срок достижения — ${esc(displayEndYear)} г.<br/>
+                      Стоимость цели — ${esc(money(targetPresent))}
                     </div>
                   </div>
                 </div>
@@ -190,18 +208,19 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                   <div style="position:absolute;right:0;top:0;width:138px;height:1px;background:#8a2d69;"></div>
                 </div>
                 <div style="position:absolute;left:50%;top:-11px;transform:translateX(-50%);background:#fff;padding:0 12px;font-size:16px;font-weight:700;line-height:1.1;">
-                  Прогноз роста капитала
+                  Рост стоимости цели с учетом инфляции
                 </div>
+
                 <div style="display:flex;justify-content:space-evenly;align-items:flex-end;gap:38px;padding-top:8px;">
                   <div style="width:190px;text-align:center;">
-                    <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(money(initial))}</div>
-                    <div style="height:${introLeftH}px;width:53px;background:#8f8f8c;margin:8px auto 0;"></div>
-                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Первоначальный<br/>капитал</div>
+                    <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(money(targetPresent))}</div>
+                    <div style="height:${chartLeftH}px;width:53px;background:#8f8f8c;margin:8px auto 0;"></div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Стоимость цели<br/>в сегодняшних деньгах</div>
                   </div>
                   <div style="width:220px;text-align:center;">
-                    <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(money(totalCapitalEnd))}</div>
-                    <div style="height:${introRightH}px;width:53px;background:#722257;margin:8px auto 0;"></div>
-                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Прогнозный капитал</div>
+                    <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(money(targetFuture))}</div>
+                    <div style="height:${chartRightH}px;width:53px;background:#722257;margin:8px auto 0;"></div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Стоимость цели в ${esc(displayEndYear)} г.<br/>с учетом инфляции ${esc(inflText)} в год</div>
                   </div>
                 </div>
               </div>
@@ -214,18 +233,19 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
             bgSrc,
             showTop: false,
             pagePaddingTop: 16,
-            footerText: FOOTER_INVEST,
+            footerText: footerOther,
             bodyHtml: `
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
                 <div style="flex:1;border:1px solid #e2e2e2;border-radius:10px;background:#fff;padding:8px 10px;">
                   <div style="font-size:12px;line-height:1.25;color:#424242;">
-                    ${esc(clientFirstName)}, для того чтобы Вы смогли накопить ${esc(money(totalCapitalEnd))}, я подготовила финансовый план.
+                    ${esc(clientFirstName)}, амбициозная цель, но я Вас полностью поддерживаю. Итак нам надо накопить ${esc(planObjectPhrase)} ${esc(money(targetPresent))} в сегодняшних деньгах.
                   </div>
                   <div style="display:flex;gap:10px;align-items:flex-start;margin-top:6px;">
-                    <img src="${esc(investmentGoalSrc || cardImg)}" alt="" style="width:100px;height:58px;object-fit:cover;border-radius:8px;flex-shrink:0;filter:grayscale(100%);" />
+                    <img src="${esc(goalThumbSrc || cardImg)}" alt="" style="width:100px;height:58px;object-fit:cover;border-radius:8px;flex-shrink:0;filter:grayscale(100%);" />
                     <div style="font-size:12px;line-height:1.28;color:#424242;">
-                      Дата достижения — ${esc(displayEndDateLong)}
+                      Дата достижения — ${esc(displayEndDateLong)}<br/><br/>
+                      Стоимость цели с учетом инфляции (${esc(inflText)}) — ${esc(money(targetFuture))}
                     </div>
                   </div>
                 </div>
@@ -251,7 +271,7 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                 &nbsp;&nbsp;&nbsp;&nbsp;• За счёт пополнения, софинансирования, инвестиционного дохода Вы накопите ${esc(money(totalCapitalEnd))}.
               </div>
               <div style="margin-top:12px;font-size:10px;line-height:1.15;color:#212121;text-align:center;font-weight:700;">
-                График достижения цели
+                График достижения цели с учетом пополнения
               </div>
               <div style="position:relative;height:138px;margin-top:6px;border-bottom:1px solid #d9d9d9;">
                 <div style="position:absolute;left:0;right:0;top:16px;border-top:1px dashed #d9d9d9;"></div>
@@ -284,7 +304,7 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
             bgSrc,
             showTop: false,
             pagePaddingTop: 18,
-            footerText: FOOTER_INVEST,
+            footerText: footerOther,
             bodyHtml: `
               <div style="display:flex;gap:8px;align-items:flex-start;">
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:66px;object-fit:cover;border-radius:9px;flex-shrink:0;" />
@@ -324,7 +344,7 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                     Итак, если Вы начнете пополнять капитал на ${esc(money(monthly))} в этом году, и будете индексировать пополнение на величину инфляции, то за счет процентов Вы накопите ${esc(money(totalCapitalEnd))}.
                   </div>
                   <div style="margin-top:8px;border-radius:9px;overflow:hidden;height:92px;background:#f0f0f0;">
-                    <img src="${esc(investmentGoalSrc || cardImg)}" alt="" style="width:100%;height:100%;object-fit:cover;filter:grayscale(100%);" />
+                    <img src="${esc(goalThumbSrc || cardImg)}" alt="" style="width:100%;height:100%;object-fit:cover;filter:grayscale(100%);" />
                   </div>
                   <div style="margin-top:8px;font-size:10px;line-height:1.2;color:#343434;">
                     По закону Вы сможете забрать весь капитал, если срок накоплений составил 15 лет
@@ -343,13 +363,13 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
             `,
         }),
         buildShell({
-            title: 'Методика расчета Госпенсии',
-            subtitle: 'Фиксированная выплата + ИПК × стоимость ИПК',
+            title: 'Софинансирование и налоги',
+            subtitle: '',
             logoSrc: logoFromSettings,
             bgSrc,
             showTop: false,
             pagePaddingTop: 0,
-            footerText: FOOTER_INVEST,
+            footerText: footerOther,
             bodyHtml: `
               <div style="position:relative;height:770px;width:535px;background:#ffffff;">
                 <div style="position:absolute;left:0;top:30px;display:flex;gap:10px;width:535px;">
@@ -400,15 +420,15 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                   <div style="height:33px;background:#722257;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;">
                     <div style="font-size:16px;line-height:14px;font-weight:600;color:#fff;">Резюме</div>
                   </div>
-                  <div style="height:205px;background:#f3f3f4;border-radius:0 0 8px 8px;padding:12px 20px 20px;">
-                    <div style="font-size:14px;line-height:14px;color:#000;font-weight:600;margin-bottom:8px;">Цель: ${esc(INVEST_GOAL_LABEL)}</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Дата - ${esc(displayEndYear)} г.</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Первоначальный капитал - ${esc(money(initial))}</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Пополнение капитала - ${esc(moneyPerMonth(monthly))}</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Всего софинансирование - ${esc(money(cofin))}</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Всего налоговых вычетов - ${esc(money(taxBenefit))}</div>
+                  <div style="min-height:218px;background:#f3f3f4;border-radius:0 0 8px 8px;padding:12px 20px 20px;">
+                    <div style="font-size:14px;line-height:14px;color:#000;font-weight:600;margin-bottom:8px;">Цель: ${esc(rawTitle)}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Дата — ${esc(displayEndYear)} г.</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Стоимость цели — ${esc(money(targetPresent))}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Пополнение капитала — ${esc(moneyPerMonth(monthly))}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Всего софинансирование — ${esc(money(cofin))}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Всего налоговых вычетов — ${esc(money(taxBenefit))}</div>
                     <div style="height:1px;background:#722257;margin:12px 0;"></div>
-                    <div style="font-size:15px;line-height:16px;font-weight:700;color:#000;">Прогноз по итоговому капиталу - ${esc(money(totalCapitalEnd))}</div>
+                    <div style="font-size:15px;line-height:16px;font-weight:700;color:#000;">Прогноз по итоговому капиталу — ${esc(money(totalCapitalEnd))}</div>
                   </div>
                 </div>
               </div>
@@ -420,9 +440,9 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
             bgSrc,
             rostechAvatar59Src,
             cardImg,
-            footerText: FOOTER_INVEST,
+            footerText: footerOther,
         }),
     ];
 }
 
-module.exports = { buildRostechInvestmentPagesHtml, computeInvestmentEndContext };
+module.exports = { buildRostechOtherPagesHtml, resolveRostechOtherGoalImageSrc, otherGoalRasterRelativePath };

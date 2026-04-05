@@ -555,6 +555,8 @@ class PdfSettingsService {
                 aiAvatarSrc: aiAvatarSrc || undefined,
                 backgroundOverlayOpacity: s.summary_background_overlay_opacity,
                 backgroundDarknessPercent: s.summary_background_darkness_percent,
+                reportGoalsOrdered: previewMockPayload?.goals || [],
+                clientAvgMonthlyIncome: 280000,
             },
         });
     }

@@ -7,7 +7,8 @@ const pdfSettingsService = require('../services/pdfSettingsService');
 const clientService = require('../services/clientService');
 
 const { buildReportSummaryOverviewHtml } = require('../reports/summary/buildSummaryOverviewHtml');
-const { buildGoalPageHtml } = require('../reports/goalPages/buildGoalPagesHtml');
+const { buildGoalPageHtmlByTheme } = require('../reports/themes/reportRenderers');
+const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 const { resolveReportRasterRef } = require('../utils/reportRasterSrc');
 
 function escapeHtml(s) {
@@ -181,7 +182,9 @@ class ReportPagesController {
                 return;
             }
 
-            const html = await buildGoalPageHtml({
+            const themeKey = resolveReportThemeKey(projectId);
+            const html = await buildGoalPageHtmlByTheme({
+                themeKey,
                 goalType: pageType,
                 goal,
                 clientName,
@@ -196,6 +199,8 @@ class ReportPagesController {
                     backgroundOverlayOpacity,
                     backgroundDarknessPercent,
                     clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
+                    overallPlan: report?.overall_plan || null,
+                    reportGoalsOrdered: report?.goals_detailed || [],
                 },
             });
 

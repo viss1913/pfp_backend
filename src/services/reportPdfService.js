@@ -206,8 +206,12 @@ class ReportPdfService {
             themeKey === 'rostech' &&
             reportGoalTypes.size === 1 &&
             reportGoalTypes.has('INVESTMENT');
+        const isRostechOtherOnly =
+            themeKey === 'rostech' &&
+            reportGoalTypes.size === 1 &&
+            reportGoalTypes.has('OTHER');
 
-        if (includeSummary && !isRostechPensionOnly && !isRostechInvestmentOnly) {
+        if (includeSummary && !isRostechPensionOnly && !isRostechInvestmentOnly && !isRostechOtherOnly) {
             const net = report.current_situation?.net_worth;
             const capitalStr =
                 net != null && Number.isFinite(Number(net))
@@ -254,6 +258,7 @@ class ReportPdfService {
                     backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
                     overallPlan: report?.overall_plan || null,
                     clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
+                    reportGoalsOrdered: report?.goals_detailed || [],
                 },
             });
             if (Array.isArray(pageHtmls) && pageHtmls.length > 0) {
