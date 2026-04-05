@@ -505,6 +505,66 @@ function applyB2cPolicyHorizonTermMonthsToExtractedGoals(extracted) {
 }
 
 /**
+ * Пул first-run: client.total_liquid_capital и/или CASH-актив на месяце 0 (см. calculationService._prepareContext).
+ * Для B2C (ПДС, Квартира) кладём названную сумму «уже есть» в assets type CASH и согласуем goal.initial_capital ↔ total_liquid_capital.
+ */
+function ensureB2cCashAssetAndPoolForConstructor(extracted) {
+    const client = extracted?.client;
+    const goals = extracted?.goals;
+    if (!client || typeof client !== 'object' || !Array.isArray(goals)) return;
+
+    const elig = goals.filter((g) => Number(g.goal_type_id) === 3 || isB2cApartmentExtractionGoal(g));
+    if (elig.length === 0) return;
+
+    let sumIc = 0;
+    for (const g of elig) {
+        const ic = Number(g.initial_capital);
+        if (Number.isFinite(ic) && ic > 0) sumIc += ic;
+    }
+    const tl = Number(client.total_liquid_capital);
+    const hasTl = Number.isFinite(tl) && tl > 0;
+
+    let pool = 0;
+    if (elig.length === 1) {
+        const g0 = elig[0];
+        const ic0 = Number(g0.initial_capital);
+        if (Number.isFinite(ic0) && ic0 > 0) {
+            pool = ic0;
+            if (!hasTl) client.total_liquid_capital = pool;
+        } else if (hasTl) {
+            pool = tl;
+            g0.initial_capital = tl;
+        }
+    } else {
+        pool = sumIc;
+        if (pool > 0 && !hasTl) client.total_liquid_capital = pool;
+    }
+
+    pool = Number(client.total_liquid_capital);
+    if (!Number.isFinite(pool) || pool <= 0) return;
+
+    if (!Array.isArray(client.assets)) client.assets = [];
+    const isCashMonth0 = (a) => {
+        const t = String(a.type || '').toUpperCase();
+        const m = Number(a.unlock_month ?? a.sell_month ?? 0);
+        return (t === 'CASH' || t === 'НАЛИЧНЫЕ') && m === 0 && !a.goal_id;
+    };
+    const idx = client.assets.findIndex(isCashMonth0);
+    const row = {
+        type: 'CASH',
+        name: 'Наличные',
+        current_value: pool,
+        unlock_month: 0,
+        currency: 'RUB',
+    };
+    if (idx >= 0) {
+        client.assets[idx] = { ...client.assets[idx], ...row, current_value: pool };
+    } else {
+        client.assets.push(row);
+    }
+}
+
+/**
  * Клиент для calculateFirstRun: только поля расчёта/карточки + имя из экстракции или nickname (не длинный числовой user_id).
  */
 function buildFirstRunCalcClient(constructorClientRow, extraction, projectId) {
@@ -1277,7 +1337,8 @@ class ConstructorAiService {
 4. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
 5. Если целей нет, массив "goals" пуст.
 6. goal_type_id 3 (Сохранить и приумножить, ПДС): поле term_months не вычисляй и не угадывай (null или опусти ключ). Срок сервер выставит сам из client.birth_date и client.sex. Обязательно вытащи monthly_replenishment (руб/мес); target_amount для типа 3 ставь 0, если в диалоге нет отдельной целевой суммы накоплений.
-7. Цель «Квартира»: goal_type_id всегда 4 (OTHER), name строго «Квартира». target_amount — ориентировочная стоимость квартиры. initial_capital — сколько уже есть на эту цель. client.avg_monthly_income — доход клиента; client.total_liquid_capital — общие накопления, если звучат в диалоге. term_months для квартиры не угадывай (сервер как для ПДС: тот же горизонт из даты рождения и пола).
+7. Цель «Квартира»: goal_type_id всегда 4 (OTHER), name строго «Квартира». target_amount — ориентировочная стоимость квартиры. initial_capital — ОБЯЗАТЕЛЬНО укажи числом, сколько уже отложено именно на квартиру/взнос (если пользователь назвал сумму). Не клади эту сумму только в total_liquid_capital без goals[].initial_capital. client.avg_monthly_income — доход. term_months не угадывай (сервер выставит из даты рождения и пола). После экстракции сервер сам добавит актив type CASH с этой суммой для пула расчёта.
+8. goal_type_id 3 (ПДС): сумму «уже внесено/есть на старте» тоже клади в goals[].initial_capital; сервер продублирует CASH-актив при необходимости.
 `
             },
             {
@@ -1303,6 +1364,7 @@ class ConstructorAiService {
             }
 
             normalizeB2cApartmentGoalsInExtraction(extracted);
+            ensureB2cCashAssetAndPoolForConstructor(extracted);
 
             // Настаиваем на BALANCED для всех целей из мессенджера
             if (extracted.goals && Array.isArray(extracted.goals)) {

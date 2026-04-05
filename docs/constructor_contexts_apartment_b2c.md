@@ -2,7 +2,8 @@
 
 На бэке уже сделано:
 
-- Экстракция JSON: цель квартира → `goal_type_id: 4`, `name: "Квартира"`, `target_amount` = стоимость, `initial_capital` по цели, клиент — доход/капитал/пол/возраст как обычно.
+- Экстракция JSON: цель квартира → `goal_type_id: 4`, `name: "Квартира"`, `target_amount` = стоимость, `initial_capital` по цели, клиент — доход/пол/возраст как обычно.
+- После экстракции сервер сам добавляет в `client.assets` актив **`type: "CASH"`**, `unlock_month: 0`, `current_value` = сумма «уже есть» (из `goals[].initial_capital` или, если модель положила только в `total_liquid_capital`, подставит в цель и пул). Так заполняется пул расчёта, как в API first-run.
 - `term_months` для типа **3** и для **«Квартира»** выставляется **сервером** (те же правила, что для ПДС: пол + дата рождения).
 - После firstRun в хвост генератору добавляются `other_goal_apartment_presentation_structure_ru` и `other_goal_apartment_narrative_hints_ru`.
 
