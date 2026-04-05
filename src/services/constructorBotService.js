@@ -14,6 +14,15 @@ function escapeMarkdown(text) {
     return text.replace(/\\/g, '\\\\').replace(/_/g, '\\_');
 }
 
+/** Токен недействителен или бот удалён в Telegram — дальше polling бессмысленен. */
+function isTelegramBotGoneError(error) {
+    const msg = String(error?.message || '');
+    if (msg.includes('401') || msg.includes('Unauthorized')) return true;
+    if (msg.includes('404') || /404\s+not\s+found/i.test(msg)) return true;
+    const status = error?.response?.statusCode ?? error?.response?.status;
+    return status === 401 || status === 404;
+}
+
 class ConstructorBotService {
     constructor() {
         this.bots = new Map(); // botId -> { instance, token, type, secret }
@@ -61,10 +70,15 @@ class ConstructorBotService {
                         lastPollingErrorLog = now;
                         console.error(`Polling error for bot ${botData.id}:`, error.code, error.message || '');
                     }
-                    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+                    if (isTelegramBotGoneError(error)) {
+                        const msg = String(error?.message || '');
+                        const st = error?.response?.statusCode ?? error?.response?.status;
+                        const reason = msg.includes('404') || st === 404
+                            ? 'bot removed or token invalid (404)'
+                            : 'invalid or unauthorized token (401)';
                         this.stopBot(botData.id);
                         knex('constructor_bots').where('id', botData.id).update({ is_active: false }).catch(console.error);
-                        console.error(`🚫 Bot ${botData.id} deactivated: invalid token (401)`);
+                        console.error(`🚫 Bot ${botData.id} deactivated: ${reason}`);
                     }
                 });
 

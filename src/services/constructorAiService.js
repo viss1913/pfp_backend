@@ -92,9 +92,22 @@ function assistantAskedInitialCapitalRu(assistantText) {
     return false;
 }
 
+/** Последний ответ ассистента спрашивал про месячный доход (ПДС: налог, софинансирование) — перед firstRun роутер часто оставляет /INVESTMENT. */
+function assistantAskedMonthlyIncomeRu(assistantText) {
+    if (!assistantText || typeof assistantText !== 'string') return false;
+    const t = assistantText.toLowerCase();
+    if (/месячн\w*\s+(?:доход|зарплат|заработ|заработок)|доход\s+в\s+месяц/i.test(t)) return true;
+    if (/сколько\s+вы\s+(?:получаете|зарабатываете|вносите)/i.test(t)) return true;
+    if (/(?:укажите|назовите|напишите|сообщите).{0,60}доход/i.test(t)) return true;
+    if (t.includes('доход') && (t.includes('месяц') || t.includes('месяч') || t.includes('ндфл') || t.includes('налог')))
+        return true;
+    return false;
+}
+
 /**
- * Роутер LLM часто на ответе «30 тыс» оставляет текущую стадию; следующим сообщением («И») случайно угадывает firstRun.
- * Если в логах последний ассистент спрашивал капитал, а пользователь ответил суммой — принудительно берём команду firstRun из списка.
+ * Роутер LLM часто на ответе-сумме оставляет текущую стадию; следующим сообщением случайно угадывает firstRun.
+ * Если последний ассистент спрашивал капитал или месячный доход, а пользователь ответил суммой — принудительно firstRun.
+ * (Иначе генератор обещает «сейчас проведу расчёт», а calculateFirstRun не вызывается — типично для Gemma/других роутеров на ПДС.)
  */
 async function maybePromoteToFirstRunAfterCapitalReply(sessionId, userMessage, nextCommand, commands) {
     const firstRunCmd = commands.find((c) => isFirstRunCalculationCommand(c.command));
@@ -104,15 +117,19 @@ async function maybePromoteToFirstRunAfterCapitalReply(sessionId, userMessage, n
 
     const last = await knex('constructor_logs').where('session_id', sessionId).orderBy('id', 'desc').first();
     const prevAssistant = last?.response_generated || '';
-    if (!assistantAskedInitialCapitalRu(prevAssistant)) return nextCommand;
+    const asked =
+        assistantAskedInitialCapitalRu(prevAssistant) || assistantAskedMonthlyIncomeRu(prevAssistant);
+    if (!asked) return nextCommand;
 
     console.log(
-        `[ConstructorAI] firstRun promote: capital-like reply after capital question; router had ${nextCommand.command} → ${firstRunCmd.command}`
+        `[ConstructorAI] firstRun promote: money-like reply after capital/income question; router had ${nextCommand.command} → ${firstRunCmd.command}`
     );
     traceConstructorMeta('step1_classifier_firstRun_promote', {
         from: nextCommand.command,
         to: firstRunCmd.command,
         userPreview: truncateTraceText(userMessage, 80),
+        afterCapitalQuestion: assistantAskedInitialCapitalRu(prevAssistant),
+        afterIncomeQuestion: assistantAskedMonthlyIncomeRu(prevAssistant),
     });
     return firstRunCmd;
 }
