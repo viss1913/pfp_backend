@@ -287,6 +287,23 @@ const OTHER_GOAL_NARRATIVE_HINTS_RU = [
     'goal_type в ответе может быть OTHER / кастомное имя из ввода — ориентируйся на goal_name.',
 ];
 
+/** Презентация firstRun в чате для цели «Квартира» (OTHER, goal_type_id 4, name «Квартира»). */
+const OTHER_GOAL_APARTMENT_PRESENTATION_STRUCTURE_RU = [
+    'Цель «Квартира» (OTHER): тон — про жильё и накопление на первый взнос/полную стоимость, без канцелярита.',
+    '1) Стоимость квартиры **в сегодняшних ценах**: target_amount_initial в summary цели (это ввод пользователя, не прогноз капитала).',
+    '2) Срок плана в модели: target_months месяцев — уже согласован с полом и возрастом на бэке; не придумывай другой горизонт.',
+    '3) Что уже отложено на цель: initial_capital; рекомендуемое ежемесячное пополнение: monthly_replenishment.',
+    '4) Итог: projected_capital_at_end к концу срока vs цель в номинале target_amount_future (с инфляцией сценария) — хватает или нет; status OK или GAP.',
+    '5) Налоги и льготы — по plan_tax_narrative_hints_ru, если в расчёте есть выгоды по ПДС; иначе коротко или пропусти.',
+    'Формулировки: «по модели расчёта», «прогноз»; не обещай гарантированную доходность.',
+];
+
+const OTHER_GOAL_APARTMENT_NARRATIVE_HINTS_RU = [
+    'Следуй other_goal_apartment_presentation_structure_ru; поля — other_goal_field_glossary_ru; имя цели в JSON — goal_name.',
+    'Не путай target_amount_initial (цена «сегодня») с projected_capital_at_end (что успеваем накопить по модели).',
+    'При GAP — мягко про нагрузку на бюджет или необходимость скорректировать взнос/ожидания, без давления.',
+];
+
 const LIFE_INSURANCE_FIELD_GLOSSARY_RU = {
     target_coverage: 'Запрашиваемая сумма страхового покрытия / лимит по программе (упрощённо).',
     target_amount_initial: 'Дублирует покрытие или премию в зависимости от API; сверяй с target_coverage и details.',
@@ -340,7 +357,7 @@ const GOAL_TYPE_ID_LABELS_RU = {
     1: 'Пенсия',
     2: 'Пассивный доход',
     3: 'Инвестиции / накопление капитала',
-    4: 'Прочая цель (квартира, авто, крупная покупка и т.п.)',
+    4: 'Прочая цель (OTHER): квартира, авто, крупная покупка и т.п.; для сценария B2C «Квартира» — строго name «Квартира»',
     5: 'Страхование жизни / НСЖ',
     6: 'Прочая цель (альтернативный тип в БД)',
     7: 'Финансовая подушка / резерв',
@@ -421,7 +438,7 @@ function ageFullYearsAtReference(isoBirth, ref = new Date()) {
 }
 
 /**
- * Горизонт программы «Сохранить и приумножить» (ПДС) в годах по полу и возрасту.
+ * Горизонт в годах по полу и возрасту (ПДС / «Сохранить и приумножить» / B2C «Квартира»).
  * Муж: возраст ≤ 45 → 15 лет; иначе max(10, 60 − возраст).
  * Жен: возраст ≤ 40 → 15 лет; иначе max(10, 55 − возраст).
  */
@@ -439,19 +456,52 @@ function computePdsInvestmentHorizonYears(sex, ageFullYears) {
     return Math.max(10, 55 - ageFullYears);
 }
 
-/** После LLM-экстракции: для goal_type_id 3 выставить term_months из client.birth_date и client.sex. */
-function applyPdsInvestmentTermMonthsToExtractedGoals(extracted) {
+/** Цель «Квартира» в экстракции: OTHER (4), ровно name «Квартира». */
+function isB2cApartmentExtractionGoal(g) {
+    if (!g || Number(g.goal_type_id) !== 4) return false;
+    return trimText(g.name).toLowerCase() === 'квартира';
+}
+
+/**
+ * Если в диалоге явно квартира — нормализуем в goal_type_id 4 и name «Квартира».
+ */
+function normalizeB2cApartmentGoalsInExtraction(extracted) {
+    if (!Array.isArray(extracted?.goals)) return;
+    extracted.goals = extracted.goals.map((g) => {
+        const n = trimText(g?.name);
+        if (n && /квартир/i.test(n)) {
+            return { ...g, goal_type_id: 4, name: 'Квартира' };
+        }
+        return g;
+    });
+}
+
+function hasApartmentOtherGoalInFullCalc(fullGoals) {
+    return (fullGoals || []).some((g) => {
+        if (Number(g?.goal_type_id) !== 4) return false;
+        const n = trimText(g?.goal_name || g?.name || '').toLowerCase();
+        return n === 'квартира';
+    });
+}
+
+/** После LLM-экстракции: для goal_type_id 3 и для «Квартира» (4) выставить term_months из client.birth_date и client.sex. */
+function applyB2cPolicyHorizonTermMonthsToExtractedGoals(extracted) {
     const c = extracted?.client;
     if (!c || typeof c !== 'object' || !Array.isArray(extracted.goals)) return;
-    const hasInv = extracted.goals.some((g) => Number(g.goal_type_id) === 3);
-    if (!hasInv) return;
+    const needs = extracted.goals.some(
+        (g) => Number(g.goal_type_id) === 3 || isB2cApartmentExtractionGoal(g)
+    );
+    if (!needs) return;
     const age = ageFullYearsAtReference(c.birth_date);
     const years = computePdsInvestmentHorizonYears(c.sex, age);
     if (years == null) return;
     const termMonths = Math.round(years * 12);
-    extracted.goals = extracted.goals.map((g) =>
-        Number(g.goal_type_id) === 3 ? { ...g, term_months: termMonths } : g
-    );
+    extracted.goals = extracted.goals.map((g) => {
+        if (Number(g.goal_type_id) === 3 || isB2cApartmentExtractionGoal(g)) {
+            return { ...g, term_months: termMonths };
+        }
+        return g;
+    });
 }
 
 /**
@@ -675,6 +725,11 @@ function buildFirstRunAiTrailingPayload(calculationResult, { constructorClient, 
         ];
     }
 
+    if (hasApartmentOtherGoalInFullCalc(fullGoals)) {
+        payload.other_goal_apartment_presentation_structure_ru = OTHER_GOAL_APARTMENT_PRESENTATION_STRUCTURE_RU;
+        payload.other_goal_apartment_narrative_hints_ru = OTHER_GOAL_APARTMENT_NARRATIVE_HINTS_RU;
+    }
+
     return payload;
 }
 
@@ -702,7 +757,7 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
                 'НАЛОГИ И ЛЬГОТЫ — В ЭТОМ ЖЕ ОТВЕТЕ СРАЗУ: summary.tax_benefits_summary, summary.total_state_benefit; по целям — total_tax_benefit и total_cofinancing при необходимости. Не заканчивай вопросом «рассказать про налоги?». Все суммы по вычетам и льготам формулируй как оценку по модели расчёта, не как гарантию от государства и не как налоговую консультацию.\n' +
                 'НЕ ДУБЛИРУЙ: при одной цели в плане (goals_count === 1) или когда цифры по цели совпадают с итогом плана — не перечисляй одинаковые суммы и «по плану», и «по цели» отдельными списками; один компактный блок или одна фраза-связка.\n' +
                 'Стиль: опирайся на «Стиль общения» бота; избегай тяжёлого канцелярита в финале. В самом конце — одна короткая строка про PDF-отчёт, если пользователю нужны таблицы и детализация (без навязчивости).\n' +
-                'В JSON для firstRun: client_for_ai; расшифровки — plan_tax_and_state_benefits_glossary_ru, goal_summary_tax_glossary_ru, plan_tax_narrative_hints_ru; для пенсии — pension_presentation_structure_ru (желаемый доход, госпенсия и доп. разрыв формулируй **в сегодняшних ценах**; не используй «без учёта инфляции»), pension_*; для других типов — passive_income_*, investment_*, other_goal_*, life_insurance_*, fin_reserve_*, rent_*. На пенсии не путай initial_capital со target_amount_initial; капитал — projected_capital_at_retirement; target_amount_future — желаемый доход в месяц в номинале к пенсии, не капитал.\n' +
+                'В JSON для firstRun: client_for_ai; расшифровки — plan_tax_and_state_benefits_glossary_ru, goal_summary_tax_glossary_ru, plan_tax_narrative_hints_ru; для пенсии — pension_presentation_structure_ru (желаемый доход, госпенсия и доп. разрыв формулируй **в сегодняшних ценах**; не используй «без учёта инфляции»), pension_*; для цели «Квартира» (OTHER, goal_name «Квартира») — other_goal_apartment_presentation_structure_ru и other_goal_apartment_narrative_hints_ru; для остальных — passive_income_*, investment_*, other_goal_*, life_insurance_*, fin_reserve_*, rent_*. На пенсии не путай initial_capital со target_amount_initial; капитал — projected_capital_at_retirement; target_amount_future — желаемый доход в месяц в номинале к пенсии, не капитал.\n' +
                 'ЗАПРЕЩЕНО: «я сейчас рассчитаю», «буквально через мгновение», «подождите», «начинаю расчёт», «сейчас посчитаю» — расчёт уже завершён.\n' +
                 'Не заканчивай ответ только пересказом введённых полей; опирайся на JSON из следующего сообщения.'
         );
@@ -1204,12 +1259,13 @@ class ConstructorAiService {
   },
   "goals": [
     {
-      "goal_type_id": число (1-Пенсия/Госпенсия, 2-Пассивный доход, 3-Сохранить и приумножить/ПДС, 4-Прочее/Квартира/Дом/Бизнес),
-      "name": "Название цели (например: Квартира, Пассивный доход, Капитал для ребенка)",
-      "target_amount": число (желаемая сумма: стоимость цели ИЛИ желаемый доход в месяц для типов 1 и 2),
-      "term_months": число (через сколько месяцев; для типа 3 не заполняй — подставит сервер из даты рождения и пола),
+      "goal_type_id": число (1-Пенсия/Госпенсия, 2-Пассивный доход, 3-Сохранить и приумножить/ПДС, 4-OTHER: квартира и др.; для квартиры см. правило 7),
+      "name": "Название цели; для покупки квартиры строго строка «Квартира»",
+      "target_amount": число (желаемая сумма: стоимость цели ИЛИ желаемый доход в месяц для типов 1 и 2; для цели «Квартира» — стоимость квартиры в рублях),
+      "initial_capital": число (первоначальный капитал именно по этой цели; для «Квартира» — сколько уже отложено на квартиру, 0 если нет),
+      "term_months": число (срок в месяцах; для типа 3 и для цели «Квартира» (тип 4, name «Квартира») не заполняй — подставит сервер из client.birth_date и пола),
       "desired_monthly_income": число (желаемый доход в месяц, дублируй сюда для типов 1 и 2),
-      "monthly_replenishment": число (сколько готов откладывать ежемесячно - только для типа 3)
+      "monthly_replenishment": число (ежемесячное пополнение: для типа 3 обязательно если есть в диалоге; для «Квартира» не обязательно — сервер может посчитать взнос в расчёте, но укажи если пользователь назвал)
     }
   ]
 }
@@ -1220,7 +1276,8 @@ class ConstructorAiService {
 3. Если какое-то поле не найдено, используй значения по умолчанию: birth_date "1990-01-01", income 100000, capital 0.
 4. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
 5. Если целей нет, массив "goals" пуст.
-6. goal_type_id 3 (Сохранить и приумножить, ПДС): поле term_months не вычисляй и не угадывай (null или опусти ключ). Срок до вывода по ПДС сервер выставит сам из client.birth_date и client.sex. Обязательно вытащи monthly_replenishment (руб/мес); target_amount для типа 3 ставь 0, если в диалоге нет отдельной целевой суммы накоплений.
+6. goal_type_id 3 (Сохранить и приумножить, ПДС): поле term_months не вычисляй и не угадывай (null или опусти ключ). Срок сервер выставит сам из client.birth_date и client.sex. Обязательно вытащи monthly_replenishment (руб/мес); target_amount для типа 3 ставь 0, если в диалоге нет отдельной целевой суммы накоплений.
+7. Цель «Квартира»: goal_type_id всегда 4 (OTHER), name строго «Квартира». target_amount — ориентировочная стоимость квартиры. initial_capital — сколько уже есть на эту цель. client.avg_monthly_income — доход клиента; client.total_liquid_capital — общие накопления, если звучат в диалоге. term_months для квартиры не угадывай (сервер как для ПДС: тот же горизонт из даты рождения и пола).
 `
             },
             {
@@ -1245,6 +1302,8 @@ class ConstructorAiService {
                 }
             }
 
+            normalizeB2cApartmentGoalsInExtraction(extracted);
+
             // Настаиваем на BALANCED для всех целей из мессенджера
             if (extracted.goals && Array.isArray(extracted.goals)) {
                 extracted.goals = extracted.goals.map(g => ({
@@ -1253,7 +1312,7 @@ class ConstructorAiService {
                 }));
             }
 
-            applyPdsInvestmentTermMonthsToExtractedGoals(extracted);
+            applyB2cPolicyHorizonTermMonthsToExtractedGoals(extracted);
 
             console.log(`[AI Extraction] Extracted with Balanced Profile:`, extracted);
             return extracted;
