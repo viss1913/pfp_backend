@@ -409,6 +409,51 @@ function estimateAgeYearsFromBirthDate(isoDate) {
     return Math.max(0, Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000)));
 }
 
+/** Полных лет на дату ref (календарно), для правил горизонта ПДС / INVESTMENT. */
+function ageFullYearsAtReference(isoBirth, ref = new Date()) {
+    const b = new Date(trimText(isoBirth));
+    if (!trimText(isoBirth) || Number.isNaN(b.getTime())) return null;
+    const r = ref instanceof Date && !Number.isNaN(ref.getTime()) ? ref : new Date();
+    let years = r.getFullYear() - b.getFullYear();
+    const md = r.getMonth() - b.getMonth();
+    if (md < 0 || (md === 0 && r.getDate() < b.getDate())) years -= 1;
+    return years;
+}
+
+/**
+ * Горизонт программы «Сохранить и приумножить» (ПДС) в годах по полу и возрасту.
+ * Муж: возраст ≤ 45 → 15 лет; иначе max(10, 60 − возраст).
+ * Жен: возраст ≤ 40 → 15 лет; иначе max(10, 55 − возраст).
+ */
+function computePdsInvestmentHorizonYears(sex, ageFullYears) {
+    if (ageFullYears == null || ageFullYears < 0) return null;
+    const s = String(sex || '').toLowerCase();
+    const male = s === 'male' || s === 'm' || s === 'мужской';
+    const female = s === 'female' || s === 'f' || s === 'женский';
+    if (!male && !female) return null;
+    if (male) {
+        if (ageFullYears <= 45) return 15;
+        return Math.max(10, 60 - ageFullYears);
+    }
+    if (ageFullYears <= 40) return 15;
+    return Math.max(10, 55 - ageFullYears);
+}
+
+/** После LLM-экстракции: для goal_type_id 3 выставить term_months из client.birth_date и client.sex. */
+function applyPdsInvestmentTermMonthsToExtractedGoals(extracted) {
+    const c = extracted?.client;
+    if (!c || typeof c !== 'object' || !Array.isArray(extracted.goals)) return;
+    const hasInv = extracted.goals.some((g) => Number(g.goal_type_id) === 3);
+    if (!hasInv) return;
+    const age = ageFullYearsAtReference(c.birth_date);
+    const years = computePdsInvestmentHorizonYears(c.sex, age);
+    if (years == null) return;
+    const termMonths = Math.round(years * 12);
+    extracted.goals = extracted.goals.map((g) =>
+        Number(g.goal_type_id) === 3 ? { ...g, term_months: termMonths } : g
+    );
+}
+
 /**
  * Клиент для calculateFirstRun: только поля расчёта/карточки + имя из экстракции или nickname (не длинный числовой user_id).
  */
@@ -1159,10 +1204,10 @@ class ConstructorAiService {
   },
   "goals": [
     {
-      "goal_type_id": число (1-Пенсия/Госпенсия, 2-Пассивный доход, 3-Инвестиции/Просто посчитать, 4-Прочее/Квартира/Дом/Бизнес),
+      "goal_type_id": число (1-Пенсия/Госпенсия, 2-Пассивный доход, 3-Сохранить и приумножить/ПДС, 4-Прочее/Квартира/Дом/Бизнес),
       "name": "Название цели (например: Квартира, Пассивный доход, Капитал для ребенка)",
       "target_amount": число (желаемая сумма: стоимость цели ИЛИ желаемый доход в месяц для типов 1 и 2),
-      "term_months": число (через сколько месяцев),
+      "term_months": число (через сколько месяцев; для типа 3 не заполняй — подставит сервер из даты рождения и пола),
       "desired_monthly_income": число (желаемый доход в месяц, дублируй сюда для типов 1 и 2),
       "monthly_replenishment": число (сколько готов откладывать ежемесячно - только для типа 3)
     }
@@ -1175,6 +1220,7 @@ class ConstructorAiService {
 3. Если какое-то поле не найдено, используй значения по умолчанию: birth_date "1990-01-01", income 100000, capital 0.
 4. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
 5. Если целей нет, массив "goals" пуст.
+6. goal_type_id 3 (Сохранить и приумножить, ПДС): поле term_months не вычисляй и не угадывай (null или опусти ключ). Срок до вывода по ПДС сервер выставит сам из client.birth_date и client.sex. Обязательно вытащи monthly_replenishment (руб/мес); target_amount для типа 3 ставь 0, если в диалоге нет отдельной целевой суммы накоплений.
 `
             },
             {
@@ -1206,6 +1252,8 @@ class ConstructorAiService {
                     risk_profile: 'BALANCED'
                 }));
             }
+
+            applyPdsInvestmentTermMonthsToExtractedGoals(extracted);
 
             console.log(`[AI Extraction] Extracted with Balanced Profile:`, extracted);
             return extracted;
