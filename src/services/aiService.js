@@ -50,7 +50,7 @@ class AiService {
             ? process.env.OPENROUTER_MODEL
             : this.isSiliconFlow
                 ? 'deepseek-ai/DeepSeek-V3'
-                : 'google/gemini-2.5-flash-lite';
+                : 'google/gemma-3-27b-it';
 
         const effectiveModel = model || defaultModel;
 
@@ -180,7 +180,7 @@ class AiService {
             ? process.env.OPENROUTER_MODEL
             : this.isSiliconFlow
                 ? 'deepseek-ai/DeepSeek-V3'
-                : 'google/gemini-2.5-flash-lite';
+                : 'google/gemma-3-27b-it';
 
         const effectiveModel = model || defaultModel;
 

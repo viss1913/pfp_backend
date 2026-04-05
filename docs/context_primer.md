@@ -8,12 +8,14 @@
 
 ## 1. Порядок сообщений (как в чате API)
 
-| # | Роль | Содержимое |
-|---|------|------------|
-| 1 | **system** | Слои, склеенные через `\n\n`: критические инструкции firstRun с расчётом; имя бота; `base_brain_context`; блоки **Brain** (`constructor_brain_contexts`); `communication_style`; текст сценария команды (`command.response`); строка «Клиент: никнейм / user_context». JSON расчёта сюда **не** кладётся. |
-| 2… | **user** / **assistant** | История из `constructor_logs` (последние N пар), роль чередуется. Размер: `CONSTRUCTOR_GENERATOR_HISTORY_LOGS` (дефолт 10 записей логов). |
-| k | **user** | Текущая реплика пользователя (например ответ «30 тыс»). |
-| k+1 | **user** | **Служебный хвост:** фиксированный префикст + строка `Результат расчёта (JSON):` + **полный JSON** из `buildFirstRunAiTrailingPayload` (расчёт + `client_for_ai` + глоссарии по типам целей + налоги + пенсия и т.д.). |
+
+| #   | Роль                     | Содержимое                                                                                                                                                                                                                                                                                                |
+| --- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **system**               | Слои, склеенные через `\n\n`: критические инструкции firstRun с расчётом; имя бота; `base_brain_context`; блоки **Brain** (`constructor_brain_contexts`); `communication_style`; текст сценария команды (`command.response`); строка «Клиент: никнейм / user_context». JSON расчёта сюда **не** кладётся. |
+| 2…  | **user** / **assistant** | История из `constructor_logs` (последние N пар), роль чередуется. Размер: `CONSTRUCTOR_GENERATOR_HISTORY_LOGS` (дефолт 10 записей логов).                                                                                                                                                                 |
+| k   | **user**                 | Текущая реплика пользователя (например ответ «30 тыс»).                                                                                                                                                                                                                                                   |
+| k+1 | **user**                 | **Служебный хвост:** фиксированный префикст + строка `Результат расчёта (JSON):` + **полный JSON** из `buildFirstRunAiTrailingPayload` (расчёт + `client_for_ai` + глоссарии по типам целей + налоги + пенсия и т.д.).                                                                                    |
+
 
 Префикс хвоста (дословно в коде):
 
@@ -80,23 +82,25 @@ assistant: …
 
 ## 3. Настройка «главного контекста»
 
-| Рычаг | Где задаётся |
-|--------|----------------|
-| Обязательные правила firstRun | Код `buildConstructorGeneratorPromptParts` (менять осторожно). |
-| Личность и тон | `constructor_bots`: `name`, `base_brain_context`, `communication_style`. |
-| Продуктовые вставки | `constructor_brain_contexts` по `project_id`. |
-| Сценарий шага | `constructor_commands.response` для ключа firstRun. |
-| Имя в чате | `constructor_clients.nickname`, `user_context`. |
-| Объём истории | Env `CONSTRUCTOR_GENERATOR_HISTORY_LOGS`. |
-| Содержание цифр | Только JSON-хвост; править через расчёт и `buildFirstRunAiTrailingPayload`. |
-| Налоги в речи | В system зашито: вычеты и софинансирование из `summary.tax_benefits_summary` — **в том же ответе сразу**, не опциональным хвостом «рассказать?». |
-| Пенсия | В JSON есть **`pension_presentation_structure_ru`**: сначала доходы и разрыв (в т.ч. инфляция → `pension_gap_future`), потом смысл капитала и взносы; заголовок «Основная цель: Достойная пенсия». |
+
+| Рычаг                         | Где задаётся                                                                                                                                                                                       |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Обязательные правила firstRun | Код `buildConstructorGeneratorPromptParts` (менять осторожно).                                                                                                                                     |
+| Личность и тон                | `constructor_bots`: `name`, `base_brain_context`, `communication_style`.                                                                                                                           |
+| Продуктовые вставки           | `constructor_brain_contexts` по `project_id`.                                                                                                                                                      |
+| Сценарий шага                 | `constructor_commands.response` для ключа firstRun.                                                                                                                                                |
+| Имя в чате                    | `constructor_clients.nickname`, `user_context`.                                                                                                                                                    |
+| Объём истории                 | Env `CONSTRUCTOR_GENERATOR_HISTORY_LOGS`.                                                                                                                                                          |
+| Содержание цифр               | Только JSON-хвост; править через расчёт и `buildFirstRunAiTrailingPayload`.                                                                                                                        |
+| Налоги в речи                 | В system зашито: вычеты и софинансирование из `summary.tax_benefits_summary` — **в том же ответе сразу**, не опциональным хвостом «рассказать?».                                                   |
+| Пенсия                        | В JSON есть `**pension_presentation_structure_ru`**: сначала доходы и разрыв (в т.ч. инфляция → `pension_gap_future`), потом смысл капитала и взносы; заголовок «Основная цель: Достойная пенсия». |
+
 
 ---
 
 ## 4. Смоук-тест через Gemini (OpenRouter)
 
-1. В `.env`: `OPENROUTER_API_KEY`, опционально `OPENROUTER_MODEL=google/gemini-2.5-flash-lite` или другой Gemini на OpenRouter.
+1. В `.env`: `OPENROUTER_API_KEY`, опционально `OPENROUTER_MODEL=google/gemma-3-27b-it` или другая модель на OpenRouter.
 2. Запуск из корня репозитория:
 
 ```bash
@@ -113,3 +117,4 @@ node scripts/context_primer_gemini_smoke.js
 
 - Полный JSON расчёта firstRun (чтобы модель не игнорировала цифры) — только во **втором user** после реплики пользователя.
 - `yearly_breakdown` в целях в промпте убирает `simplify`; глоссарий налогов предупреждает про нулевой `deduction_2026`.
+

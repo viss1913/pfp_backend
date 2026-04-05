@@ -19,7 +19,7 @@ const fixtureExtraction = JSON.parse(
     fs.readFileSync(path.join(__dirname, 'fixtures', 'context_primer_sample_extraction.json'), 'utf8')
 );
 
-const MODEL = process.env.CONTEXT_PRIMER_MODEL || 'google/gemini-2.5-flash-lite';
+const MODEL = process.env.CONTEXT_PRIMER_MODEL || 'google/gemma-3-27b-it';
 
 function summarizeMessages(messages) {
     return messages.map((m, i) => ({
