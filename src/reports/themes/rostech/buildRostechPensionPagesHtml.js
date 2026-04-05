@@ -186,7 +186,7 @@ function buildMonthlyPlanBodyHtml({ rows, isFirstPage, avatarSrc }) {
             (row) => `
             <div style="display:grid;grid-template-columns:78px 96px 90px 104px 109px;column-gap:16px;align-items:center;">
               <div style="font-size:10px;line-height:20px;color:#000;white-space:nowrap;">${esc(formatMonthYearRu(row.date))}</div>
-              <div style="font-size:10px;line-height:20px;color:#000;white-space:nowrap;">${esc(moneyPerMonth(row.replenishment || 0))}</div>
+              <div style="font-size:10px;line-height:20px;color:#000;white-space:nowrap;">${esc(money(row.replenishment || 0))}</div>
               <div style="font-size:10px;line-height:20px;color:#000;white-space:nowrap;">${esc(money(row.tax_deduction || 0))}</div>
               <div style="font-size:10px;line-height:20px;color:#000;white-space:nowrap;">${esc(money(row.cofinancing || 0))}</div>
               <div style="font-size:10px;line-height:20px;color:#000;white-space:nowrap;">${esc(money(row.total_capital || 0))}</div>
