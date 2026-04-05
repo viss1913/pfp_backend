@@ -16,7 +16,7 @@
 
 ### 3. Настройте переменные окружения
 
-Railway автоматически создаст `MYSQL_URL`, но вы можете добавить дополнительные переменные в **Settings → Variables**:
+Railway автоматически создаст `MYSQL_URL`, но вы можете добавить дополнительные переменные в **Settings → Variables** (или **Variables** у сервиса бэкенда):
 
 ```env
 NODE_ENV=production
@@ -24,6 +24,23 @@ PORT=3000
 ```
 
 **Важно:** Переменная `MYSQL_URL` уже содержит все данные для подключения к БД, дополнительные `DB_HOST`, `DB_USER` и т.д. **не нужны**.
+
+#### ИИ (конструктор B2C, чаты в т.ч. Ростех, Telegram и любые вызовы через `aiService`)
+
+Один и тот же стек: `src/services/aiService.js` (OpenRouter). Рекомендуется **явно** задать модель на проде:
+
+```env
+OPENROUTER_API_KEY=sk-or-v1-...   # уже должен быть
+OPENROUTER_MODEL=google/gemma-3-27b-it
+```
+
+Без `OPENROUTER_MODEL` после деплоя возьмётся дефолт из кода (сейчас тот же `google/gemma-3-27b-it`). Переменная на проде нужна, чтобы менять модель без релиза.
+
+Через [Railway CLI](https://docs.railway.com/develop/cli) (после `railway login` и `railway link` в каталоге проекта):
+
+```bash
+railway variables --set "OPENROUTER_MODEL=google/gemma-3-27b-it"
+```
 
 ### 4. Деплой
 
@@ -80,6 +97,8 @@ Railway автоматически предоставляет:
 - `PORT` - порт для веб-сервера (обычно 3000)
 
 Код автоматически парсит `MYSQL_URL` и использует его для подключения к БД.
+
+Для LLM дополнительно: `OPENROUTER_API_KEY`, опционально `OPENROUTER_MODEL` (см. раздел «ИИ» выше).
 
 ## 🐛 Troubleshooting
 
