@@ -13,6 +13,12 @@ function isConstructorAiTraceOn() {
     return process.env.CONSTRUCTOR_AI_TRACE !== '0';
 }
 
+/** В трейсе сообщений LLM: `CONSTRUCTOR_AI_TRACE_CONTENT=0` — только index/role/длина, без текста (меньше каши в логах). */
+function isConstructorTraceWithMessageBodies() {
+    const v = (process.env.CONSTRUCTOR_AI_TRACE_CONTENT || '1').trim().toLowerCase();
+    return v !== '0' && v !== 'false' && v !== 'no';
+}
+
 const TRACE_MAX_CONTENT = 6000;
 
 function truncateTraceText(str, max = TRACE_MAX_CONTENT) {
@@ -28,13 +34,21 @@ function truncateTraceText(str, max = TRACE_MAX_CONTENT) {
  */
 function traceConstructorMessages(step, messages) {
     if (!isConstructorAiTraceOn() || !Array.isArray(messages)) return;
-    const parts = messages.map((m, i) => ({
-        index: i,
-        role: m.role,
-        contentChars: (m.content || '').length,
-        content: truncateTraceText(m.content || '', TRACE_MAX_CONTENT),
-    }));
-    console.log(`[ConstructorAI::TRACE] ${step}\n${JSON.stringify(parts, null, 2)}`);
+    const withBodies = isConstructorTraceWithMessageBodies();
+    const parts = messages.map((m, i) => {
+        const row = {
+            index: i,
+            role: m.role,
+            contentChars: (m.content || '').length,
+        };
+        if (withBodies) {
+            row.content = truncateTraceText(m.content || '', TRACE_MAX_CONTENT);
+        }
+        return row;
+    });
+    console.log(
+        `[ConstructorAI::TRACE] ${step} (${messages.length} msgs${withBodies ? '' : ', bodies off CONSTRUCTOR_AI_TRACE_CONTENT=0'})\n${JSON.stringify(parts, null, 2)}`
+    );
 }
 
 function traceConstructorMeta(step, obj) {
@@ -66,72 +80,6 @@ function isFirstRunCalculationCommand(cmdKey) {
     if (!k.startsWith('/')) return false;
     if (k === '/firstrun' || k === '/firstrunaib2c' || k === '/first_run_aib2c') return true;
     return k.includes('firstrun');
-}
-
-/** Ответ пользователя похож на сумму/число (в т.ч. «30 тыс», «1 млн», «0», «нет» как ноль). */
-function looksLikeMoneyOrNumericReply(text) {
-    const t = (text || '').trim();
-    if (!t || t.length > 80) return false;
-    if (/^(0|нет|ничего|ноль|не\s*т)\s*[!.]*$/i.test(t)) return true;
-    if (!/\d/.test(t)) return false;
-    const compact = t.replace(/\s+/g, ' ');
-    if (/^[\d\s.,]+$/i.test(compact)) return true;
-    if (/^[\d\s.,]+\s*(тыс|тысяч|тысячи|млн|миллион|миллиона|к|руб|₽)?\s*\.?$/i.test(compact)) return true;
-    return false;
-}
-
-/** Последний ответ ассистента в логах спрашивал про стартовый капитал/накопления (типичный шаг перед firstRun). */
-function assistantAskedInitialCapitalRu(assistantText) {
-    if (!assistantText || typeof assistantText !== 'string') return false;
-    const t = assistantText.toLowerCase();
-    if (/первоначальн\w*\s+капитал|начальн\w*\s+капитал/i.test(t)) return true;
-    if (t.includes('первоначальн') && t.includes('капитал')) return true;
-    if (t.includes('капитал') && (t.includes('накоплен') || t.includes('сбереж') || t.includes('направить') || t.includes('программ')))
-        return true;
-    if (t.includes('долгосрочн') && t.includes('сбереж')) return true;
-    return false;
-}
-
-/** Последний ответ ассистента спрашивал про месячный доход (ПДС: налог, софинансирование) — перед firstRun роутер часто оставляет /INVESTMENT. */
-function assistantAskedMonthlyIncomeRu(assistantText) {
-    if (!assistantText || typeof assistantText !== 'string') return false;
-    const t = assistantText.toLowerCase();
-    if (/месячн\w*\s+(?:доход|зарплат|заработ|заработок)|доход\s+в\s+месяц/i.test(t)) return true;
-    if (/сколько\s+вы\s+(?:получаете|зарабатываете|вносите)/i.test(t)) return true;
-    if (/(?:укажите|назовите|напишите|сообщите).{0,60}доход/i.test(t)) return true;
-    if (t.includes('доход') && (t.includes('месяц') || t.includes('месяч') || t.includes('ндфл') || t.includes('налог')))
-        return true;
-    return false;
-}
-
-/**
- * Роутер LLM часто на ответе-сумме оставляет текущую стадию; следующим сообщением случайно угадывает firstRun.
- * Если последний ассистент спрашивал капитал или месячный доход, а пользователь ответил суммой — принудительно firstRun.
- * (Иначе генератор обещает «сейчас проведу расчёт», а calculateFirstRun не вызывается — типично для Gemma/других роутеров на ПДС.)
- */
-async function maybePromoteToFirstRunAfterCapitalReply(sessionId, userMessage, nextCommand, commands) {
-    const firstRunCmd = commands.find((c) => isFirstRunCalculationCommand(c.command));
-    if (!firstRunCmd || !nextCommand) return nextCommand;
-    if (isFirstRunCalculationCommand(nextCommand.command)) return nextCommand;
-    if (!looksLikeMoneyOrNumericReply(userMessage)) return nextCommand;
-
-    const last = await knex('constructor_logs').where('session_id', sessionId).orderBy('id', 'desc').first();
-    const prevAssistant = last?.response_generated || '';
-    const asked =
-        assistantAskedInitialCapitalRu(prevAssistant) || assistantAskedMonthlyIncomeRu(prevAssistant);
-    if (!asked) return nextCommand;
-
-    console.log(
-        `[ConstructorAI] firstRun promote: money-like reply after capital/income question; router had ${nextCommand.command} → ${firstRunCmd.command}`
-    );
-    traceConstructorMeta('step1_classifier_firstRun_promote', {
-        from: nextCommand.command,
-        to: firstRunCmd.command,
-        userPreview: truncateTraceText(userMessage, 80),
-        afterCapitalQuestion: assistantAskedInitialCapitalRu(prevAssistant),
-        afterIncomeQuestion: assistantAskedMonthlyIncomeRu(prevAssistant),
-    });
-    return firstRunCmd;
 }
 
 function findCommandByKey(commands, key) {
@@ -1250,7 +1198,6 @@ class ConstructorAiService {
                 console.log(`[AI Step 1] Stage Switch: ${currentCommand ? currentCommand.command : 'None'} -> ${nextCommand.command}`);
             }
 
-            nextCommand = await maybePromoteToFirstRunAfterCapitalReply(session.id, userMessage, nextCommand, commands);
             return nextCommand;
         } catch (error) {
             traceConstructorMeta('step1_classifier_error', { message: error.message, stack: error.stack });
