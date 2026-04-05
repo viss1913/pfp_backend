@@ -12,6 +12,7 @@ const {
     extractPensionPlanFacts,
     calculateOwnFundsFromSchedule,
     buildShell,
+    isScheduleInitialLumpRow,
 } = U;
 
 const INVEST_GOAL_LABEL = 'Сохранить и приумножить';
@@ -26,10 +27,11 @@ function computeInvestmentEndContext(goal, s) {
               .slice()
               .sort((a, b) => new Date(a.date) - new Date(b.date))
         : [];
-    const base =
-        schedule.length > 0
-            ? new Date(`${schedule[0].date}T00:00:00Z`)
-            : new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
+    const baseRow =
+        schedule.find((row) => row && row.date && !isScheduleInitialLumpRow(row)) || schedule[0] || null;
+    const base = baseRow
+        ? new Date(`${baseRow.date}T00:00:00Z`)
+        : new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1));
     const end = new Date(base);
     if (Number.isFinite(targetMonths) && targetMonths > 0) {
         end.setUTCMonth(end.getUTCMonth() + targetMonths);
@@ -88,7 +90,6 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
     const s = goal?.summary || {};
     const monthly = Number(s.monthly_replenishment ?? 0);
     const initial = Number(s.initial_capital ?? 0);
-    const inflationRate = Number(s.inflation_rate ?? 0);
     const accumulationYieldPercent = Number(s.accumulation_yield_percent ?? 0);
     const totalCapitalEnd = Number(s.projected_capital_at_end ?? 0);
     const taxBenefit = Number(s.total_tax_benefit ?? 0);
@@ -145,11 +146,6 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         ? yearlyEffectiveness.startYear
         : new Date().getFullYear();
 
-    const inflationLabel =
-        Number.isFinite(inflationRate) && inflationRate > 0
-            ? `${inflationRate.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%`
-            : '5,6%';
-
     const chartMaxIntro = Math.max(initial, totalCapitalEnd, 1);
     const introLeftH = Math.max(20, Math.round((initial / chartMaxIntro) * 104));
     const introRightH = Math.max(20, Math.round((totalCapitalEnd / chartMaxIntro) * 104));
@@ -205,7 +201,7 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                   <div style="width:220px;text-align:center;">
                     <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(money(totalCapitalEnd))}</div>
                     <div style="height:${introRightH}px;width:53px;background:#722257;margin:8px auto 0;"></div>
-                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Прогнозный капитал<br/>с учётом инфляции ${esc(inflationLabel)} в год</div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Прогнозный капитал</div>
                   </div>
                 </div>
               </div>
@@ -244,8 +240,8 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                 &nbsp;&nbsp;&nbsp;&nbsp;• Капитал застрахован (до 2,8 млн руб.).<br/>
                 <br/>
                 2. Дальнейшие шаги:<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал - ${esc(money(planFacts.initialCapital))}.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• В следующие месяцы пополнять по ${esc(money(planFacts.monthlyContribution))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал - ${esc(money(initial))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В следующие месяцы пополнять по ${esc(money(monthly))}.<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Получить ${esc(money(planFacts.cofinancingAmount))} в ${planFacts.cofinancingYear || nextCalendarYear} году от государства.<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• В ${planFacts.taxDeductionYear || nextCalendarYear} г. подать на налоговый вычет ${esc(moneyWithPrecision(planFacts.taxDeductionAmount, 2))} (рассчитан по ставке 13% НДФЛ).<br/>
                 <span style="color:#722257;font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;• Прогнозируемая доходность с учетом софинансирования, налогового вычета, доходности от инвестиций за ${highlightedYieldYear} год - ${esc(highlightedYieldPercent.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}% годовых.</span><br/>
@@ -325,7 +321,7 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                   <div style="font-size:11px;line-height:1.24;color:#343434;">
                     Как видите, доля рисковых активов (акций) не более 7%.<br/>
                     Это позволяет снизить риски потерь при инвестировании. В 2025 году НПФ Ростех заработал своим клиентам на ДДС в среднем 19% годовых.<br/>
-                    Итак, если Вы начнете пополнять капитал на ${esc(money(planFacts.monthlyContribution))} в этом году, и будете индексировать пополнение на величину инфляции, то за счет процентов Вы накопите ${esc(money(totalCapitalEnd))}.
+                    Итак, если Вы начнете пополнять капитал на ${esc(money(monthly))} в этом году, и будете индексировать пополнение на величину инфляции, то за счет процентов Вы накопите ${esc(money(totalCapitalEnd))}.
                   </div>
                   <div style="margin-top:8px;border-radius:9px;overflow:hidden;height:92px;background:#f0f0f0;">
                     <img src="${esc(investmentGoalSrc || cardImg)}" alt="" style="width:100%;height:100%;object-fit:cover;filter:grayscale(100%);" />

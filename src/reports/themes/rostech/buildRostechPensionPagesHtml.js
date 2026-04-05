@@ -97,6 +97,10 @@ function calculateAugNextYearEffectivenessPercent(monthlySchedule) {
     };
 }
 
+function isScheduleInitialLumpRow(row) {
+    return Boolean(row && String(row.schedule_row_kind || '').toUpperCase() === 'INITIAL_LUMP');
+}
+
 function extractPensionPlanFacts(monthlySchedule, fallback = {}) {
     const schedule = Array.isArray(monthlySchedule)
         ? monthlySchedule
@@ -110,13 +114,18 @@ function extractPensionPlanFacts(monthlySchedule, fallback = {}) {
     };
 
     const first = schedule[0] || null;
-    const initialFromSchedule = first
-        ? toNum(first.total_capital) -
-          toNum(first.replenishment) -
-          toNum(first.tax_deduction) -
-          toNum(first.cofinancing)
-        : NaN;
-    const monthlyFromSchedule = first ? toNum(first.replenishment) : NaN;
+    let initialFromSchedule = NaN;
+    if (first && isScheduleInitialLumpRow(first)) {
+        initialFromSchedule = toNum(first.replenishment);
+    } else if (first) {
+        initialFromSchedule =
+            toNum(first.total_capital) -
+            toNum(first.replenishment) -
+            toNum(first.tax_deduction) -
+            toNum(first.cofinancing);
+    }
+    const firstRegular = schedule.find((row) => row && row.date && !isScheduleInitialLumpRow(row)) || null;
+    const monthlyFromSchedule = firstRegular ? toNum(firstRegular.replenishment) : NaN;
 
     const firstTaxRow = schedule.find((row) => toNum(row.tax_deduction) > 0) || null;
     const firstCofRow = schedule.find((row) => toNum(row.cofinancing) > 0) || null;
@@ -1331,7 +1340,7 @@ function buildRostechStandardTailHtmlPages({
 module.exports = {
     buildRostechPensionPagesHtml,
     buildRostechStandardTailHtmlPages,
-    rostechInvestmentPdfUtils: {
+        rostechInvestmentPdfUtils: {
         esc,
         money,
         moneyPerMonth,
@@ -1342,6 +1351,7 @@ module.exports = {
         extractPensionPlanFacts,
         calculateOwnFundsFromSchedule,
         buildShell,
+        isScheduleInitialLumpRow,
     },
 };
 

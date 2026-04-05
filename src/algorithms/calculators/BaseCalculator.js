@@ -156,6 +156,19 @@ class BaseCalculator {
             yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + initialCapital;
         }
 
+        // Первая строка графика — календарный месяц старта: взнос = первоначальный капитал, без доходности/ПДС в этой строке.
+        if (collectMonthlySchedule && initialCapital > 0) {
+            const anchor = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+            monthlySchedule.push({
+                date: formatScheduleDate(anchor),
+                replenishment: Math.round(initialCapital * 100) / 100,
+                total_capital: Math.round(initialCapital * 100) / 100,
+                tax_deduction: 0,
+                cofinancing: 0,
+                schedule_row_kind: 'INITIAL_LUMP',
+            });
+        }
+
         for (let m = 1; m <= termMonths; m++) {
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth() + 1;
