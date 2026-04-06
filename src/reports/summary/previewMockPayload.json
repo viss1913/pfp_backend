@@ -374,5 +374,42 @@
             },
             "risk_profile": "BALANCED"
         }
-    ]
+    ],
+    "comon_showcase": {
+        "enabled": true,
+        "generated_at": "2026-04-06T12:00:00.000Z",
+        "disclaimer_ru": "Информация носит ознакомительный характер и не является индивидуальной инвестиционной рекомендацией. Доходность в прошлом не гарантирует доходность в будущем.",
+        "client_risk_profile_used": "BALANCED",
+        "items": [
+            {
+                "id": 114838,
+                "name": "2 в 1. Дивидендная зарплата и торговый робот по валютному фьючерсу",
+                "url": "https://www.comon.ru/strategies/114838",
+                "min_sum": 310000,
+                "risk_level": 2,
+                "profit_365_days_percent": 9.62,
+                "annual_average_profit_percent": 29.2,
+                "strategy_rating": 0,
+                "tags": ["recommended", "pdbbonus"],
+                "author": "Poly Invest",
+                "premium": false
+            },
+            {
+                "id": 17734,
+                "name": "ПерспективаRu",
+                "url": "https://www.comon.ru/strategies/17734",
+                "min_sum": 75000,
+                "risk_level": 2,
+                "profit_365_days_percent": 1.6,
+                "annual_average_profit_percent": 19.2,
+                "strategy_rating": 1,
+                "tags": ["certified", "recommended"],
+                "author": "Иван Киселев",
+                "premium": false
+            }
+        ],
+        "definitions": {
+            "items": "Карточки стратегий с публичного каталога Comon; отбор по настройкам проекта и профилю клиента."
+        }
+    }
 }

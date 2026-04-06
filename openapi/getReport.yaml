@@ -316,6 +316,13 @@ components:
             на HTML-сводной, пироги «распределение капитала / пополнений» по целям, подсказки page-break.
           additionalProperties: true
 
+        comon_showcase:
+          description: >
+            Витрина стратегий Comon (если включено в projects.settings.comon_showcase).
+            См. docs/report-pdf-frontend-contract.md
+          type: object
+          additionalProperties: true
+
         goals_detailed:
           type: array
           description: "List of calculated goals with their specific summaries"

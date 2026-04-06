@@ -489,7 +489,8 @@ class BaseCalculator {
                 name: product.name,
                 share: item.share_percent,
                 yield: productYield,
-                short_term_yield: shortTermYield
+                short_term_yield: shortTermYield,
+                product_type: prodType || null,
             };
 
             const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();

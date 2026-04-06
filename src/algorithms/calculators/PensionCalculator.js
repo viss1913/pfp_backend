@@ -211,7 +211,8 @@ class PensionCalculator extends BaseCalculator {
                     name: product.name,
                     share: item.share_percent,
                     yield: productYield,
-                    short_term_yield: shortTermYieldP
+                    short_term_yield: shortTermYieldP,
+                    product_type: prodType || null,
                 };
 
                 const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();
@@ -287,7 +288,8 @@ class PensionCalculator extends BaseCalculator {
                 name: 'ПДС НПФ (Updated)',
                 share: 100,
                 yield: weightedYieldAnnual,
-                amount: initialCapital
+                amount: initialCapital,
+                product_type: 'PDS',
             });
         }
         if (pdsProductId && recommendedReplenishment > 0 && monthly_instruments.length === 0) {
@@ -295,7 +297,8 @@ class PensionCalculator extends BaseCalculator {
                 name: 'ПДС НПФ (Updated)',
                 share: 100,
                 yield: weightedYieldAnnual,
-                amount: recommendedReplenishment
+                amount: recommendedReplenishment,
+                product_type: 'PDS',
             });
         }
 

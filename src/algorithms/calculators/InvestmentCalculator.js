@@ -72,10 +72,22 @@ class InvestmentCalculator extends BaseCalculator {
 
         // Fallback for instruments if missing (for Consolidated View)
         if (!initial_instruments || initial_instruments.length === 0) {
-            initial_instruments.push({ name: `Инструменты портфеля "${portfolio.name}"`, share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100, amount: initialCapital });
+            initial_instruments.push({
+                name: `Инструменты портфеля "${portfolio.name}"`,
+                share: 100,
+                yield: Math.round(weightedYieldAnnual * 100) / 100,
+                amount: initialCapital,
+                product_type: null,
+            });
         }
         if (monthlyReplenishment > 0 && (!monthly_instruments || monthly_instruments.length === 0)) {
-            monthly_instruments.push({ name: `Инструменты портфеля "${portfolio.name}"`, share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100, amount: monthlyReplenishment });
+            monthly_instruments.push({
+                name: `Инструменты портфеля "${portfolio.name}"`,
+                share: 100,
+                yield: Math.round(weightedYieldAnnual * 100) / 100,
+                amount: monthlyReplenishment,
+                product_type: null,
+            });
         }
 
         return {

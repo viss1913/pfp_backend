@@ -12,11 +12,11 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 **Сейчас реализовано в коде:**
 
 1. **Обложка** — `buildCoverHtml.js`, настройки в `pdf-settings`.
-2. **Сводная** — `buildSummaryOverviewHtml.js`, `buildSummaryPdfLayoutModel.js` (поле **`pdf_summary_layout`** в данных отчёта), брендинг через `summary_*` в БД.
+2. **Сводная** — `buildSummaryOverviewHtml.js`, `buildSummaryPdfLayoutModel.js` (поле **`pdf_summary_layout`** в данных отчёта), брендинг через `summary_*` в БД. Опциональный блок **Comon-витрина** внизу сводной: поле отчёта **`comon_showcase`**, сервис `comonShowcaseService`, настройки проекта `projects.settings.comon_showcase` (см. `projectComonShowcaseSettings.js`, `docs/report-pdf-frontend-contract.md`).
 3. **Четыре типа страниц целей** — `buildGoalPagesHtml.js`: **`FIN_RESERVE`**, **`LIFE`**, **`INVESTMENT`**, **`OTHER`** (общий брендинг со сводной: фон/лого/цвета из тех же `summary_*`).
 4. **Сборка полного PDF** — `reportPdfService` (Puppeteer): обложка (опц.) → сводная (опц.) → страницы целей (подмножество через query **`goalTypes`**). Эндпоинт **`GET /api/pfp/reports/:clientId/pdf`**.
 5. **HTML одной страницы для клиента** — **`GET /api/pfp/reports/:clientId/pages/:pageType/html`** (`reportPagesController`).
-6. **ЛК клиента (B2C)** — **`GET /api/my/plan/report`**, **`GET /api/my/plan/report/pdf`** (`clientCabinetController`).
+6. **ЛК клиента (B2C)** — **`GET /api/my/plan/report`**, **`GET /api/my/plan/report/pdf`**, **`GET /api/my/plan/comon-showcase`** (`clientCabinetController`).
 7. **Превью в ЛК (мок + настройки агента)** — **`GET /api/pfp/pdf-settings/summary-preview-html`**, **`GET /api/pfp/pdf-settings/pages/:pageType/preview-html`** (`pageType`: `SUMMARY` \| `FIN_RESERVE` \| `LIFE` \| `INVESTMENT` \| `OTHER`).
 
 Новые страницы отчёта или эндпоинты — дописывать в этот skill.

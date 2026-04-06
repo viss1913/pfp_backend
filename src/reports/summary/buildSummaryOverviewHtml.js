@@ -67,6 +67,54 @@ function escapeHtml(s) {
         .replace(/"/g, '&quot;');
 }
 
+/**
+ * Блок витрины Comon для сводной страницы PDF (информационный, не ИИР).
+ * @param {object|null} showcase — из reportService.comon_showcase
+ * @param {string} lineColor
+ * @param {string} textColor
+ */
+function buildComonShowcaseSectionHtml(showcase, lineColor, textColor) {
+    if (!showcase || showcase.enabled !== true) return '';
+
+    const disclaimer = showcase.disclaimer_ru ? escapeHtml(showcase.disclaimer_ru) : '';
+    const items = Array.isArray(showcase.items) ? showcase.items : [];
+
+    const formatMin = (v) => {
+        if (v == null || !Number.isFinite(Number(v))) return '—';
+        return `${Math.round(Number(v)).toLocaleString('ru-RU')} ₽`;
+    };
+
+    let body = '';
+    if (showcase.error) {
+        body = `<p class="comon-show__note">Каталог стратегий временно недоступен. Попробуйте позже или откройте сайт Comon.</p>`;
+    } else if (items.length === 0) {
+        body = `<p class="comon-show__note">По заданным критериям подходящих стратегий не найдено.</p>`;
+    } else {
+        const lis = items
+            .map((it) => {
+                const name = escapeHtml(it.name || '—');
+                const url = escapeHtml(it.url || '');
+                const y = it.profit_365_days_percent;
+                const yStr =
+                    y != null && Number.isFinite(Number(y)) ? `${Number(y).toFixed(1)}% за 12 мес.` : '';
+                return `<li class="comon-show__li">
+            <span class="fw-600">${name}</span>
+            <span class="comon-show__meta"> · мин. ${formatMin(it.min_sum)}${yStr ? ` · ${escapeHtml(yStr)}` : ''}</span>
+            ${url ? `<div class="comon-show__url">${url}</div>` : ''}
+          </li>`;
+            })
+            .join('');
+        body = `<ul class="comon-show__list">${lis}</ul>`;
+    }
+
+    return `<section class="section comon-show">
+      <h2 class="h2" style="border-bottom-color: ${escapeHtml(lineColor)}">Стратегии Comon</h2>
+      <p class="comon-show__lead">Ознакомительные примеры из публичного каталога (подбор по риск-профилю и сумме).</p>
+      ${body}
+      <p class="comon-show__disc">${disclaimer}</p>
+    </section>`;
+}
+
 function sanitizeSummaryChartColor(hex) {
     if (typeof hex !== 'string') return GLOBAL_DEFAULTS.summaryChartColor;
     const t = hex.trim();
@@ -523,6 +571,11 @@ base-uri 'none';
     const bgSrc = customBg ? escapeHtml(await resolveAssetSrc(customBg, root, inlineLocalAssets)) : '';
 
     const payload = options.reportPayload || {};
+    const comonShowcaseSection = buildComonShowcaseSectionHtml(
+        payload.comon_showcase || null,
+        lineColor,
+        textColor
+    );
     const goals = extractGoals(payload);
     const financialReserveGoal = goals.find((g) => g.goal_type === 'FIN_RESERVE');
     const lifeProtectionGoal = goals.find((g) => g.goal_type === 'LIFE');
@@ -859,6 +912,42 @@ base-uri 'none';
       text-align: center;
       color: ${textColor};
     }
+    .comon-show__lead {
+      margin: 0 0 6px 0;
+      font-size: 9px;
+      line-height: 1.35;
+      color: rgba(255,255,255,0.88);
+    }
+    .comon-show__list {
+      margin: 0;
+      padding-left: 14px;
+      max-height: 168px;
+      overflow: hidden;
+    }
+    .comon-show__li {
+      margin-bottom: 4px;
+      font-size: 9px;
+      line-height: 1.3;
+      color: ${textColor};
+    }
+    .comon-show__meta { font-weight: 400; opacity: 0.92; }
+    .comon-show__url {
+      font-size: 8px;
+      opacity: 0.75;
+      word-break: break-all;
+      margin-top: 1px;
+    }
+    .comon-show__note {
+      margin: 0 0 6px 0;
+      font-size: 9px;
+      color: rgba(255,255,255,0.9);
+    }
+    .comon-show__disc {
+      margin: 6px 0 0 0;
+      font-size: 8px;
+      line-height: 1.35;
+      color: rgba(255,255,255,0.72);
+    }
   </style>
 </head>
 <body>
@@ -893,6 +982,7 @@ base-uri 'none';
       ${protectionSection}
       ${mainGoalsHtml}
       ${distributionSection}
+      ${comonShowcaseSection}
     </div>
   </div>
 </body>
@@ -908,6 +998,7 @@ module.exports = {
     getGoalCardImageR2Key,
     buildGoalCardAssetsForAgentLK,
     buildReportSummaryOverviewHtml,
+    buildComonShowcaseSectionHtml,
     buildSummaryLayoutPayload,
     sanitizeSummaryChartColor,
     sanitizeSummaryAccentColor,

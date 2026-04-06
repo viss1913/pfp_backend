@@ -98,7 +98,8 @@ class OtherGoalCalculator extends BaseCalculator {
                 const instrumentData = {
                     name: product.name,
                     share: item.share_percent,
-                    yield: productYield
+                    yield: productYield,
+                    product_type: prodType || null,
                 };
 
                 const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();

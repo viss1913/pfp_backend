@@ -122,6 +122,57 @@ function strategyPageLikeHeaders(comonNumericId) {
     };
 }
 
+/** Каталог стратегий (список) — Referer на раздел стратегий без id. */
+function strategiesCatalogHeaders() {
+    const b = baseUrl();
+    return {
+        Referer: `${b}/strategies`,
+        Origin: b,
+    };
+}
+
+/**
+ * Публичный список стратегий (пагинация).
+ * Путь по умолчанию — типичный для Next/API Comon; переопределение: COMON_STRATEGIES_LIST_PATH (относительно base URL).
+ * @param {{ page?: number, pageSize?: number }} query
+ * @returns {Promise<{ paging?: object, data?: object[] }>}
+ */
+async function fetchStrategiesList(query = {}) {
+    const listPath =
+        (process.env.COMON_STRATEGIES_LIST_PATH && String(process.env.COMON_STRATEGIES_LIST_PATH).trim()) ||
+        '/api/v2/strategies';
+    const page = Number(query.page) > 0 ? Number(query.page) : 1;
+    const pageSize = Number(query.pageSize) > 0 ? Number(query.pageSize) : 100;
+
+    const http = client();
+    const res = await http.get(listPath, {
+        params: { page, pageSize },
+        headers: {
+            Accept: 'application/json',
+            ...strategiesCatalogHeaders(),
+        },
+    });
+
+    if (res.status < 200 || res.status >= 300) {
+        const body = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+        if (res.status === 403) {
+            const err = new Error(
+                'Comon вернул 403 при запросе списка стратегий: IP сервера могут резать. ' +
+                    'Задайте COMON_COOKIE или согласуйте доступ. Тело: ' +
+                    String(body).slice(0, 280)
+            );
+            err.comonHttpStatus = 403;
+            throw err;
+        }
+        const err = new Error(`Comon strategies list HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+        err.comonHttpStatus = res.status;
+        throw err;
+    }
+
+    const data = res.data && typeof res.data === 'object' ? res.data : {};
+    return data;
+}
+
 /**
  * Публичный endpoint Comon (как в UI): статус обслуживания и т.п.
  */
@@ -228,9 +279,11 @@ module.exports = {
     getMaintenanceInfo,
     getStrategyProfit,
     getStrategyPagePayload,
+    fetchStrategiesList,
     extractNextData,
     parseStrategyUrlToId,
     resolveStrategyLink,
     strategyProfitApiUrl,
     baseUrl,
+    strategiesCatalogHeaders,
 };

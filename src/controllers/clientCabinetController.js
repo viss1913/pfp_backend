@@ -1,5 +1,6 @@
 const calculationService = require('../services/calculationService');
 const clientService = require('../services/clientService');
+const { comonShowcaseService } = require('../services/comonShowcaseService');
 const reportService = require('../services/reportService');
 const reportPdfService = require('../services/reportPdfService');
 const { uploadPublicFile } = require('../utils/r2Client');
@@ -85,6 +86,42 @@ class ClientCabinetController {
             const projectId = req.projectId || req.user.projectId;
             const reportData = await reportService.getClientReportData(clientId, projectId);
             res.json(reportData);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /my/plan/comon-showcase — витрина стратегий Comon (тот же отбор, что поле comon_showcase в GET /my/plan/report).
+     */
+    async getMyComonShowcase(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+            const client = await clientService.getFullClient(clientId, projectId);
+            if (!client) {
+                return res.status(404).json({ error: 'Client profile not found' });
+            }
+
+            const assetsTotal = (client.assets || []).reduce(
+                (sum, a) => sum + Number(a.current_value || a.amount || 0),
+                0
+            );
+            const liabilitiesTotal = (client.liabilities || []).reduce(
+                (sum, l) => sum + Number(l.remaining_amount || 0),
+                0
+            );
+            const currentSituation = { net_worth: assetsTotal - liabilitiesTotal };
+
+            const payload = await comonShowcaseService.buildForClient(client, projectId, currentSituation);
+            if (!payload) {
+                return res.json({ enabled: false });
+            }
+            res.json(payload);
         } catch (err) {
             next(err);
         }

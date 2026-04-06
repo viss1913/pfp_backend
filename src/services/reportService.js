@@ -1,6 +1,7 @@
 const clientService = require('./clientService');
 const aiService = require('./aiService');
 const calculationService = require('./calculationService');
+const { comonShowcaseService } = require('./comonShowcaseService');
 const { buildSummaryPdfLayoutModel } = require('../reports/summary/buildSummaryPdfLayoutModel');
 
 class ReportService {
@@ -152,6 +153,14 @@ class ReportService {
 
         const pdfSummaryPayload = { goals: goalsReport, goals_detailed: goalsReport, summary };
 
+        let comon_showcase = null;
+        if (projectId) {
+            comon_showcase = await comonShowcaseService.buildForClient(client, projectId, currentStats);
+        }
+
+        const pdfSummaryPayloadWithShowcase =
+            comon_showcase != null ? { ...pdfSummaryPayload, comon_showcase } : pdfSummaryPayload;
+
         const incomeNum = client.avg_monthly_income != null ? Number(client.avg_monthly_income) : NaN;
         const incomeDisplay = Number.isFinite(incomeNum) && incomeNum > 0
             ? `${Math.round(incomeNum).toLocaleString('ru-RU')} ₽/мес`
@@ -177,7 +186,8 @@ class ReportService {
             goal_type_parameter_catalog: this._buildGoalTypeParameterCatalog(goalsReport),
             ai_executive_summary: aiSummary,
             /** Сводный PDF: целиком блок для фронта (продолжение целей + пироги), без фиксированной A4-обрезки */
-            pdf_summary_layout: buildSummaryPdfLayoutModel(pdfSummaryPayload),
+            pdf_summary_layout: buildSummaryPdfLayoutModel(pdfSummaryPayloadWithShowcase),
+            ...(comon_showcase != null ? { comon_showcase } : {}),
         };
     }
 

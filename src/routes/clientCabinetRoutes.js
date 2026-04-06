@@ -14,6 +14,7 @@ router.get('/plan', clientCabinetController.getMyPlan.bind(clientCabinetControll
 router.get('/plan/report/pdf', clientCabinetController.getMyReportPdf.bind(clientCabinetController));
 router.get('/plan/report/pdf-url', clientCabinetController.getMyReportPdfUrl.bind(clientCabinetController));
 router.get('/plan/report', clientCabinetController.getMyReport.bind(clientCabinetController));
+router.get('/plan/comon-showcase', clientCabinetController.getMyComonShowcase.bind(clientCabinetController));
 
 // Стратегии Comon закреплённого за клиентом агента (информация для клиента)
 router.get('/comon-strategies', clientComonStrategyController.list);

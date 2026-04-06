@@ -100,7 +100,23 @@ paths:
       tags: [ "Финансовый План" ]
       summary: Получить текущий финансовый план
       description: Возвращает сохраненный план для авторизованного клиента
-  
+
+  /my/plan/report:
+    get:
+      tags: [ "Финансовый План" ]
+      summary: JSON отчёта (графики, pdf_summary_layout, ИИ-резюме)
+      description: |
+        Те же данные, что `GET /api/pfp/reports/:clientId` для агента, но только для клиента из JWT.
+        При включённой витрине в `projects.settings.comon_showcase` в ответе может быть поле `comon_showcase`.
+
+  /my/plan/comon-showcase:
+    get:
+      tags: [ "Финансовый План" ]
+      summary: Витрина стратегий Comon (без полного тела отчёта)
+      description: |
+        Тот же отбор и дисклеймер, что в `comon_showcase` внутри `GET /my/plan/report`.
+        Если витрина для проекта выключена — `{ "enabled": false }`.
+
   /my/plan/first-run:
     post:
       tags: [ "Финансовый План" ]

@@ -51,7 +51,9 @@ class PortfolioAggregator {
                 const name = inst.name || 'Unknown';
                 const amt = inst.amount || 0;
                 const y = inst.yield || 0;
-                if (!assetsMap[name]) assetsMap[name] = { amount: 0, weightedYieldSum: 0 };
+                if (!assetsMap[name]) assetsMap[name] = { amount: 0, weightedYieldSum: 0, product_type: null };
+                const pt = inst.product_type != null ? String(inst.product_type).toUpperCase().trim() : '';
+                if (pt && !assetsMap[name].product_type) assetsMap[name].product_type = pt;
                 assetsMap[name].amount += amt;
                 assetsMap[name].weightedYieldSum += (amt * y);
                 totalInitial += amt;
@@ -62,7 +64,9 @@ class PortfolioAggregator {
                 const amt = inst.amount || 0;
                 const y = inst.yield || 0;
                 const freq = inst.payment_frequency || 'monthly';
-                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
+                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq, product_type: null };
+                const pt = inst.product_type != null ? String(inst.product_type).toUpperCase().trim() : '';
+                if (pt && !flowsMap[name].product_type) flowsMap[name].product_type = pt;
                 flowsMap[name].amount += amt;
                 flowsMap[name].weightedYieldSum += (amt * y);
                 if (freq !== 'monthly' && flowsMap[name].payment_frequency === 'monthly') {
@@ -92,23 +96,28 @@ class PortfolioAggregator {
 
             const avgYield = data.weightedYieldSum / data.amount;
 
-            // Расчитываем short_term_yield за 6 месяцев по суммарному объему
+            // Расчитываем short_term_yield за 6 месяцев по суммарному объему + тип продукта из БД
             let shortTermYield = avgYield;
+            let productType = data.product_type || null;
             try {
                 const product = await productRepository.findByName(name, projectId);
-                if (product && product.yields && product.yields.length > 0) {
-                    const TERM = 6;
-                    const amount = data.amount;
-                    const row = product.yields.find(l =>
-                        TERM >= l.term_from_months &&
-                        TERM <= l.term_to_months &&
-                        amount >= parseFloat(l.amount_from) &&
-                        amount <= parseFloat(l.amount_to)
-                    ) || product.yields.reduce((min, l) =>
-                        (parseFloat(l.term_to_months) || 999) < (parseFloat(min.term_to_months) || 999) ? l : min
-                        , product.yields[0]);
+                if (product) {
+                    const pt = (product.product_type || '').toUpperCase().trim();
+                    if (pt) productType = pt;
+                    if (product.yields && product.yields.length > 0) {
+                        const TERM = 6;
+                        const amount = data.amount;
+                        const row = product.yields.find(l =>
+                            TERM >= l.term_from_months &&
+                            TERM <= l.term_to_months &&
+                            amount >= parseFloat(l.amount_from) &&
+                            amount <= parseFloat(l.amount_to)
+                        ) || product.yields.reduce((min, l) =>
+                            (parseFloat(l.term_to_months) || 999) < (parseFloat(min.term_to_months) || 999) ? l : min
+                            , product.yields[0]);
 
-                    if (row) shortTermYield = parseFloat(row.yield_percent);
+                        if (row) shortTermYield = parseFloat(row.yield_percent);
+                    }
                 }
             } catch (e) {
                 console.error(`[PortfolioAggregator] Error fetching yield for ${name}:`, e.message);
@@ -120,7 +129,8 @@ class PortfolioAggregator {
                 share: total > 0 ? Math.round((data.amount / total) * 100) : 0,
                 yield: Math.round(avgYield * 100) / 100,
                 short_term_yield: Math.round(shortTermYield * 100) / 100,
-                payment_frequency: data.payment_frequency
+                payment_frequency: data.payment_frequency,
+                product_type: productType || null,
             });
         }
         return list;

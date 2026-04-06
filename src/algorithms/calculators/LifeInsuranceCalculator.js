@@ -203,10 +203,23 @@ class LifeInsuranceCalculator extends BaseCalculator {
         if (isFallback) {
             result.summary.monthly_replenishment = Math.round(fallbackMonthlyReplenishment * 100) / 100;
             result.details.initial_instruments = [
-                { name: 'НСЖ Династия', share: 100, yield: 5, amount: Math.round(fallbackInitialCapital * 100) / 100 }
+                {
+                    name: 'НСЖ Династия',
+                    share: 100,
+                    yield: 5,
+                    amount: Math.round(fallbackInitialCapital * 100) / 100,
+                    product_type: 'NSZH',
+                },
             ];
             result.details.monthly_instruments = [
-                { name: 'НСЖ Династия', share: 100, yield: 5, amount: Math.round(fallbackMonthlyReplenishment * 100) / 100, payment_frequency: 'monthly' }
+                {
+                    name: 'НСЖ Династия',
+                    share: 100,
+                    yield: 5,
+                    amount: Math.round(fallbackMonthlyReplenishment * 100) / 100,
+                    payment_frequency: 'monthly',
+                    product_type: 'NSZH',
+                },
             ];
         }
 

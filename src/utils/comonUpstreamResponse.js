@@ -9,7 +9,9 @@ function isComonUpstreamError(err) {
         err.comonHttpStatus != null ||
         msg.includes('Comon strategy profit HTTP') ||
         msg.startsWith('Comon вернул 403') ||
-        msg.includes('Comon strategy page HTTP')
+        msg.includes('Comon strategy page HTTP') ||
+        msg.includes('Comon strategies list HTTP') ||
+        msg.includes('списка стратегий')
     );
 }
 

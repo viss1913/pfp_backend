@@ -2,6 +2,7 @@ const clientRepository = require('../repositories/clientRepository');
 const projectRepository = require('../repositories/projectRepository');
 const knex = require('../config/database');
 const { mergeGoalsWithSnapshot } = require('../utils/mergeGoalsWithSnapshot');
+const { enrichGoalsSummaryProductTypes } = require('../utils/enrichGoalsSummaryProductTypes');
 
 function ownerLabel(client) {
     if (!client.agent_id) return 'B2C';
@@ -158,6 +159,14 @@ class ClientService {
         }
 
         mergeGoalsWithSnapshot(clientObj);
+
+        if (projectId) {
+            try {
+                await enrichGoalsSummaryProductTypes(clientObj, projectId);
+            } catch (e) {
+                console.warn('[ClientService] enrichGoalsSummaryProductTypes failed:', e.message);
+            }
+        }
 
         return clientObj;
     }

@@ -48,6 +48,26 @@
 
 Они возвращают данные отчёта, на которых строится PDF.
 
+## Поле `comon_showcase` (витрина Comon)
+
+Появляется **только** если у проекта в `projects.settings` включён блок `comon_showcase.enabled: true` (остальные параметры — см. `src/utils/projectComonShowcaseSettings.js`).
+
+Структура успешного ответа:
+
+- `enabled` (boolean) — всегда `true`, если объект присутствует.
+- `generated_at` (string, ISO-8601).
+- `disclaimer_ru` (string) — обязательный юридический текст.
+- `client_risk_profile_used` (string) — `CONSERVATIVE` \| `BALANCED` \| `AGGRESSIVE`.
+- `items` (array) — до `max_items` элементов:
+  - `id`, `name`, `url`, `min_sum`, `risk_level`, `profit_365_days_percent`, `annual_average_profit_percent`, `strategy_rating`, `tags`, `author`, `premium`.
+- `definitions` (object, optional) — пояснения для UI.
+
+При ошибке загрузки каталога Comon (WAF, сеть): `error: true`, `error_code` (`COMON_FORBIDDEN` \| `COMON_UPSTREAM`), `message`, опционально `comon_http_status`, `items: []`, дисклеймер сохраняется.
+
+Лёгкий эндпоинт без полного отчёта: `GET /api/my/plan/comon-showcase` — тот же контракт или `{ "enabled": false }`, если витрина выключена.
+
+На сводной странице PDF (не тема Rostech) блок печатается внизу страницы, если в payload передан `comon_showcase`.
+
 ## Рекомендации фронту
 
 - Ставить таймаут 60-120 секунд на PDF.

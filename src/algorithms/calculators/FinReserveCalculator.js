@@ -83,7 +83,12 @@ class FinReserveCalculator extends BaseCalculator {
             baseInstruments = portfolio.instruments;
         } else {
             // Fallback
-            baseInstruments = [{ name: 'Банковский депозит / Накопительный счет', share: 100, yield: Math.round(weightedYieldAnnual * 100) / 100 }];
+            baseInstruments = [{
+                name: 'Банковский депозит / Накопительный счет',
+                share: 100,
+                yield: Math.round(weightedYieldAnnual * 100) / 100,
+                product_type: null,
+            }];
         }
 
         const initial_capital_instruments = [];

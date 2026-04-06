@@ -220,7 +220,11 @@ class ReportPdfService {
             pageHtmlList.push(
                 await buildSummaryOverviewHtmlByTheme({
                     themeKey,
-                    reportPayload: { goals_detailed: report.goals_detailed, overall_plan: report.overall_plan },
+                    reportPayload: {
+                        goals_detailed: report.goals_detailed,
+                        overall_plan: report.overall_plan,
+                        ...(report.comon_showcase ? { comon_showcase: report.comon_showcase } : {}),
+                    },
                     clientInfo: {
                         name: clientName,
                         age: report.client_info?.age != null ? String(report.client_info.age) : '—',
