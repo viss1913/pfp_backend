@@ -1541,6 +1541,17 @@ class ConstructorAiService {
             client = await knex('constructor_clients').where('id', client).first();
         }
 
+        // CRM: сразу завести clients + pfp_client_id — ЛК агента видит site-chat с первого сообщения (не только после расчёта)
+        if (!client.pfp_client_id && bot.project_id && bot.agent_id) {
+            try {
+                const { ensurePfpClientLinkedForConstructorSiteChat } = require('./constructorSiteChatCrmLinkService');
+                await ensurePfpClientLinkedForConstructorSiteChat(client, bot, nickname);
+                client = await knex('constructor_clients').where('id', client.id).first();
+            } catch (linkErr) {
+                console.error('[ConstructorAI] ensurePfpClientLinkedForConstructorSiteChat:', linkErr.message || linkErr);
+            }
+        }
+
         let session = await knex('constructor_sessions').where('client_id', client.id).first();
         if (!session) {
             [session] = await knex('constructor_sessions').insert({

@@ -81,6 +81,7 @@ const calculationRequestSchema = Joi.object({
 
 const clientService = require('../services/clientService');
 const aiB2cService = require('../services/aiB2cService');
+const constructorSiteChatAgentService = require('../services/constructorSiteChatAgentService');
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 
@@ -207,21 +208,25 @@ class ClientController {
                 if (!skipChatAi && data.length > 0) {
                     const rawLim = parseInt(req.query.chat_ai_limit, 10);
                     const chatAiLimit = Number.isFinite(rawLim) && rawLim > 0 ? Math.min(rawLim, 500) : 200;
+                    const maxConstructorTurns = Math.max(1, Math.ceil(chatAiLimit / 2));
                     const ids = data.map((c) => c.id);
-                    const [dialogMapAi, dialogMapSite] = await Promise.all([
+                    const [dialogMapAi, dialogMapSite, dialogMapConstructor] = await Promise.all([
                         aiB2cService.listChatAiDialogForClients(ids, chatAiLimit),
-                        aiB2cService.listB2cSiteChatDialogForClients(ids, chatAiLimit)
+                        aiB2cService.listB2cSiteChatDialogForClients(ids, chatAiLimit),
+                        constructorSiteChatAgentService.listConstructorSiteChatMessagesForPfpClients(ids, maxConstructorTurns)
                     ]);
                     data = data.map((c) => ({
                         ...c,
                         chat_ai_messages: dialogMapAi.get(Number(c.id)) || [],
-                        b2c_site_chat_messages: dialogMapSite.get(Number(c.id)) || []
+                        b2c_site_chat_messages: dialogMapSite.get(Number(c.id)) || [],
+                        constructor_site_chat_messages: dialogMapConstructor.get(Number(c.id)) || []
                     }));
                 } else if (data.length > 0) {
                     data = data.map((c) => ({
                         ...c,
                         chat_ai_messages: [],
-                        b2c_site_chat_messages: []
+                        b2c_site_chat_messages: [],
+                        constructor_site_chat_messages: []
                     }));
                 }
                 clients.data = data;
@@ -250,17 +255,25 @@ class ClientController {
             if (!skipChatAi) {
                 const rawLim = parseInt(req.query.chat_ai_limit, 10);
                 const chatAiLimit = Number.isFinite(rawLim) && rawLim > 0 ? Math.min(rawLim, 2000) : 500;
-                const [chatAi, siteChat] = await Promise.all([
+                const maxConstructorTurns = Math.max(1, Math.ceil(chatAiLimit / 2));
+                const [chatAi, siteChat, constructorChat] = await Promise.all([
                     aiB2cService.listChatAiDialogForClient(id, chatAiLimit),
-                    aiB2cService.listB2cSiteChatDialogForClient(id, chatAiLimit)
+                    aiB2cService.listB2cSiteChatDialogForClient(id, chatAiLimit),
+                    constructorSiteChatAgentService.listConstructorSiteChatMessagesForPfpClient(id, maxConstructorTurns)
                 ]);
                 payload = {
                     ...payload,
                     chat_ai_messages: chatAi,
-                    b2c_site_chat_messages: siteChat
+                    b2c_site_chat_messages: siteChat,
+                    constructor_site_chat_messages: constructorChat
                 };
             } else {
-                payload = { ...payload, chat_ai_messages: [], b2c_site_chat_messages: [] };
+                payload = {
+                    ...payload,
+                    chat_ai_messages: [],
+                    b2c_site_chat_messages: [],
+                    constructor_site_chat_messages: []
+                };
             }
             res.json(payload);
         } catch (err) {

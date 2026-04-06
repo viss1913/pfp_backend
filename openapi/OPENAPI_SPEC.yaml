@@ -2495,6 +2495,17 @@ paths:
                               role: { type: string, enum: [user, assistant] }
                               content: { type: string }
                               created_at: { type: string, format: date-time }
+                        constructor_site_chat_messages:
+                          type: array
+                          description: Чат конструктора (`POST /pfp/constructor/site-chat/stream`, `constructor_logs`)
+                          items:
+                            type: object
+                            properties:
+                              id: { type: integer }
+                              stage_key: { type: string }
+                              role: { type: string, enum: [user, assistant] }
+                              content: { type: string }
+                              created_at: { type: string, format: date-time }
                         # остальные поля клиента (first_name, goals_summary, и т.д.)
                   pagination:
                     type: object

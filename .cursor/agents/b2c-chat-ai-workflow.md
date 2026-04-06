@@ -31,7 +31,8 @@ description: Алгоритм и архитектура AI B2C “chat_AI” (о
 - Любые изменения по алгоритму и промптам для динамики — делай только для `chat_AI` (отдельные таблицы/контекст/endpoint).
 
 ## ЛК агента: клиенты и история chat_AI
-- Две таблицы истории: **`ai_b2c_chat_ai_messages`** (`POST …/chat_AI/stream`) и **`ai_b2c_chat_messages`** (обычный `POST …/chat/stream`). В ЛК отдаются **оба** массива: `chat_ai_messages` и `b2c_site_chat_messages` (одинаковый формат строки).
+- Три канала в ЛК: **`chat_ai_messages`** (`ai_b2c_chat_ai_messages`, `…/chat_AI/stream`), **`b2c_site_chat_messages`** (`ai_b2c_chat_messages`, `…/chat/stream`), **`constructor_site_chat_messages`** (`constructor_logs`, `POST …/constructor/site-chat/stream`). Формат сообщений совместимый.
+- Для конструкторского site-chat при **первом** сообщении создаётся запись в `clients` и выставляется `constructor_clients.pfp_client_id`, чтобы агент видел клиента и переписку **до** first-run расчёта.
 - **Список клиентов** `GET /api/pfp/clients` — оба массива на клиента (лимит `chat_ai_limit` **на каждый** канал). Пустые массивы, если по каналу не писали — клиент без расчёта всё равно в списке.
 - Query: **`include_chat_ai=false`** или **`0`** — не тянуть истории (легче ответ). **`chat_ai_limit`** — лимит на канал в списке (по умолчанию 200, макс. 500).
 - **`GET /api/client/:id`** — то же (по умолчанию до 500 сообщений на канал, макс. 2000). Маршрут **`GET /api/pfp/clients/:id/plans`** по умолчанию **не** подмешивает чаты; принудительно: `include_chat_ai=true`.

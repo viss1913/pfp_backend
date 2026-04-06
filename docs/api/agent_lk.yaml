@@ -316,7 +316,9 @@ paths:
         В каждом элементе `data[]` два массива истории (одинаковый формат сообщений):
         - **`chat_ai_messages`** — отдельный поток **chat_AI** (`POST /my/ai-b2c/chat_AI/stream`, таблица `ai_b2c_chat_ai_messages`).
         - **`b2c_site_chat_messages`** — обычный B2C-чат на сайте (`POST /my/ai-b2c/chat/stream`, таблица `ai_b2c_chat_messages`).
-        Пустые массивы, если по этому каналу ещё не было переписки или выключена подгрузка (`include_chat_ai=false`).
+        - **`constructor_site_chat_messages`** — чат конструктора на лендинге (`POST /pfp/constructor/site-chat/stream`), история из `constructor_logs`;
+          при первом сообщении пользователя бэкенд создаёт запись в `clients` и связывает её с `constructor_clients.pfp_client_id`, чтобы агент видел диалог **до** расчёта ПФП.
+        Пустые массивы, если по каналу не было переписки или выключена подгрузка (`include_chat_ai=false`).
         Клиенты без целей / без расчёта в списке остаются — как и раньше.
       parameters:
         - name: page
@@ -1283,6 +1285,13 @@ components:
           items:
             $ref: '#/components/schemas/ChatAiMessage'
           description: История обычного B2C чата (`chat/stream`); пустой массив, если не было или выключено `include_chat_ai`
+        constructor_site_chat_messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatAiMessage'
+          description: |
+            Чат конструктора (`/pfp/constructor/site-chat/stream`); `stage_key` обычно `constructor`.
+            Пустой массив, если не было или выключено `include_chat_ai`.
         owner_label:
           type: string
           nullable: true
