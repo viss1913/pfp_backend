@@ -313,8 +313,10 @@ paths:
         Если в настройках проекта включено «все агенты видят всех» (`settings.agents_see_all_clients` или `client_visibility: all`),
         возвращаются все клиенты проекта; у записи может быть поле `owner_label` (метка владельца: B2C / email агента / ФИО).
 
-        В каждом элементе `data[]` есть **`chat_ai_messages`** — история диалога **chat_AI** (`POST /my/ai-b2c/chat_AI/stream`),
-        хранится в БД отдельно от site-чата. Пустой массив, если пользователь ещё не писал в chat_AI или лимит отключён.
+        В каждом элементе `data[]` два массива истории (одинаковый формат сообщений):
+        - **`chat_ai_messages`** — отдельный поток **chat_AI** (`POST /my/ai-b2c/chat_AI/stream`, таблица `ai_b2c_chat_ai_messages`).
+        - **`b2c_site_chat_messages`** — обычный B2C-чат на сайте (`POST /my/ai-b2c/chat/stream`, таблица `ai_b2c_chat_messages`).
+        Пустые массивы, если по этому каналу ещё не было переписки или выключена подгрузка (`include_chat_ai=false`).
         Клиенты без целей / без расчёта в списке остаются — как и раньше.
       parameters:
         - name: page
@@ -345,13 +347,13 @@ paths:
           required: false
           schema: { type: string, enum: ['0', '1', 'true', 'false'], default: '1' }
           description: |
-            Подгружать историю chat_AI в поле `chat_ai_messages`. Значения `0` или `false` — не ходить в БД за сообщениями
-            (в ответе у каждого клиента будет `chat_ai_messages: []`).
+            Подгружать обе истории (`chat_ai_messages` и `b2c_site_chat_messages`). Значения `0` или `false` — не ходить в БД
+            (оба массива будут `[]` у каждого клиента).
         - name: chat_ai_limit
           in: query
           required: false
           schema: { type: integer, default: 200, minimum: 1, maximum: 500 }
-          description: Сколько последних сообщений chat_AI на одного клиента в этой выдаче (максимум 500).
+          description: Сколько последних сообщений **на каждый канал** (site и chat_AI) на одного клиента в этой выдаче (макс. 500).
       responses:
         '200':
           description: Список клиентов и пагинация
@@ -370,8 +372,8 @@ paths:
         **Фактическое поведение бэка:** возвращается **полная карточка клиента** (профиль, цели, активы, `goals_summary` в упрощённом виде),
         а не отдельный массив «планов». Используйте `goals` и агрегаты для выбора сценария работы.
 
-        История **chat_AI** по умолчанию **не** подмешивается (чтобы не дублировать тяжёлый запрос при открытии этого URL).
-        Чтобы получить сообщения — передайте `include_chat_ai=true` (или откройте `GET /client/{clientId}` с теми же query).
+        Истории чатов по умолчанию **не** подмешиваются (чтобы не дублировать тяжёлый запрос при открытии этого URL).
+        Чтобы получить **`chat_ai_messages`** и **`b2c_site_chat_messages`** — передайте `include_chat_ai=true` (или откройте `GET /client/{clientId}` с теми же query).
       parameters:
         - name: clientId
           in: path
@@ -382,12 +384,12 @@ paths:
           in: query
           required: false
           schema: { type: string, enum: ['0', '1', 'true', 'false'], default: '0' }
-          description: Принудительно подгрузить `chat_ai_messages` (по умолчанию для этого маршрута — пустой массив без запроса к истории).
+          description: Принудительно подгрузить оба массива истории (по умолчанию для этого маршрута — пустые массивы без запроса к БД).
         - name: chat_ai_limit
           in: query
           required: false
           schema: { type: integer, default: 500, minimum: 1, maximum: 2000 }
-          description: Лимит сообщений chat_AI, если включено `include_chat_ai=true`.
+          description: Лимит сообщений **на каждый канал** (site и chat_AI), если включено `include_chat_ai=true`.
       responses:
         '200':
           description: Объект клиента (карточка)
@@ -1228,7 +1230,7 @@ components:
   schemas:
     ChatAiMessage:
       type: object
-      description: Одно сообщение истории chat_AI (таблица `ai_b2c_chat_ai_messages`)
+      description: Одно сообщение B2C-чата (общий формат для site и chat_AI)
       properties:
         id:
           type: integer
@@ -1275,7 +1277,12 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ChatAiMessage'
-          description: История B2C chat_AI; пустой массив, если диалога не было или выключено `include_chat_ai`
+          description: История chat_AI (`chat_AI/stream`); пустой массив, если не было или выключено `include_chat_ai`
+        b2c_site_chat_messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatAiMessage'
+          description: История обычного B2C чата (`chat/stream`); пустой массив, если не было или выключено `include_chat_ai`
         owner_label:
           type: string
           nullable: true

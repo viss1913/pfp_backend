@@ -2446,14 +2446,15 @@ paths:
           name: include_chat_ai
           schema: { type: string, enum: ['0', '1', 'true', 'false'], default: '1' }
           description: |
-            Подмешать историю B2C chat_AI (`POST /api/my/ai-b2c/chat_AI/stream`) в каждый элемент: поле `chat_ai_messages`.
+            Подмешать истории B2C-чатов в каждый элемент: `chat_ai_messages` (endpoint `chat_AI/stream`) и
+            `b2c_site_chat_messages` (обычный `chat/stream`, таблица `ai_b2c_chat_messages`).
             Передай `0` или `false`, чтобы не грузить диалоги (легче ответ).
         - in: query
           name: chat_ai_limit
           schema: { type: integer, default: 200, maximum: 500 }
           description: |
-            Сколько последних сообщений chat_AI на клиента в списке (по умолчанию 200, макс. 500).
-            Для карточки клиента `GET /pfp/clients/:id` по умолчанию 500, макс. 2000.
+            Сколько последних сообщений на клиента **в каждой** из двух историй в списке (по умолчанию 200, макс. 500).
+            Для карточки `GET /client/:id` по умолчанию 500 на канал, макс. 2000.
       responses:
         '200':
           description: Список клиентов с пагинацией
@@ -2475,6 +2476,17 @@ paths:
                         chat_ai_messages:
                           type: array
                           description: История chat_AI (пустой массив если диалога не было или include_chat_ai=0)
+                          items:
+                            type: object
+                            properties:
+                              id: { type: integer }
+                              stage_key: { type: string }
+                              role: { type: string, enum: [user, assistant] }
+                              content: { type: string }
+                              created_at: { type: string, format: date-time }
+                        b2c_site_chat_messages:
+                          type: array
+                          description: История обычного B2C чата на сайте (`chat/stream`)
                           items:
                             type: object
                             properties:

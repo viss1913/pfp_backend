@@ -207,16 +207,22 @@ class ClientController {
                 if (!skipChatAi && data.length > 0) {
                     const rawLim = parseInt(req.query.chat_ai_limit, 10);
                     const chatAiLimit = Number.isFinite(rawLim) && rawLim > 0 ? Math.min(rawLim, 500) : 200;
-                    const dialogMap = await aiB2cService.listChatAiDialogForClients(
-                        data.map((c) => c.id),
-                        chatAiLimit
-                    );
+                    const ids = data.map((c) => c.id);
+                    const [dialogMapAi, dialogMapSite] = await Promise.all([
+                        aiB2cService.listChatAiDialogForClients(ids, chatAiLimit),
+                        aiB2cService.listB2cSiteChatDialogForClients(ids, chatAiLimit)
+                    ]);
                     data = data.map((c) => ({
                         ...c,
-                        chat_ai_messages: dialogMap.get(Number(c.id)) || []
+                        chat_ai_messages: dialogMapAi.get(Number(c.id)) || [],
+                        b2c_site_chat_messages: dialogMapSite.get(Number(c.id)) || []
                     }));
                 } else if (data.length > 0) {
-                    data = data.map((c) => ({ ...c, chat_ai_messages: [] }));
+                    data = data.map((c) => ({
+                        ...c,
+                        chat_ai_messages: [],
+                        b2c_site_chat_messages: []
+                    }));
                 }
                 clients.data = data;
             }
@@ -244,12 +250,17 @@ class ClientController {
             if (!skipChatAi) {
                 const rawLim = parseInt(req.query.chat_ai_limit, 10);
                 const chatAiLimit = Number.isFinite(rawLim) && rawLim > 0 ? Math.min(rawLim, 2000) : 500;
+                const [chatAi, siteChat] = await Promise.all([
+                    aiB2cService.listChatAiDialogForClient(id, chatAiLimit),
+                    aiB2cService.listB2cSiteChatDialogForClient(id, chatAiLimit)
+                ]);
                 payload = {
                     ...payload,
-                    chat_ai_messages: await aiB2cService.listChatAiDialogForClient(id, chatAiLimit)
+                    chat_ai_messages: chatAi,
+                    b2c_site_chat_messages: siteChat
                 };
             } else {
-                payload = { ...payload, chat_ai_messages: [] };
+                payload = { ...payload, chat_ai_messages: [], b2c_site_chat_messages: [] };
             }
             res.json(payload);
         } catch (err) {
