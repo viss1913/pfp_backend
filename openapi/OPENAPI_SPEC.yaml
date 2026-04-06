@@ -2442,6 +2442,18 @@ paths:
           name: search
           schema: { type: string }
           description: Поиск по имени, фамилии, email, телефону, external_uuid
+        - in: query
+          name: include_chat_ai
+          schema: { type: string, enum: ['0', '1', 'true', 'false'], default: '1' }
+          description: |
+            Подмешать историю B2C chat_AI (`POST /api/my/ai-b2c/chat_AI/stream`) в каждый элемент: поле `chat_ai_messages`.
+            Передай `0` или `false`, чтобы не грузить диалоги (легче ответ).
+        - in: query
+          name: chat_ai_limit
+          schema: { type: integer, default: 200, maximum: 500 }
+          description: |
+            Сколько последних сообщений chat_AI на клиента в списке (по умолчанию 200, макс. 500).
+            Для карточки клиента `GET /pfp/clients/:id` по умолчанию 500, макс. 2000.
       responses:
         '200':
           description: Список клиентов с пагинацией
@@ -2460,6 +2472,17 @@ paths:
                         owner_label:
                           type: string
                           description: 'Только если в проекте agents_see_all_clients. Значение: B2C | email агента | ФИО | Агент #id'
+                        chat_ai_messages:
+                          type: array
+                          description: История chat_AI (пустой массив если диалога не было или include_chat_ai=0)
+                          items:
+                            type: object
+                            properties:
+                              id: { type: integer }
+                              stage_key: { type: string }
+                              role: { type: string, enum: [user, assistant] }
+                              content: { type: string }
+                              created_at: { type: string, format: date-time }
                         # остальные поля клиента (first_name, goals_summary, и т.д.)
                   pagination:
                     type: object

@@ -80,6 +80,7 @@ const calculationRequestSchema = Joi.object({
 });
 
 const clientService = require('../services/clientService');
+const aiB2cService = require('../services/aiB2cService');
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 
@@ -200,7 +201,24 @@ class ClientController {
 
             const clients = await clientService.getClientsByAgent(agentId, projectId, { page, limit, sort, order, search });
             if (clients.data) {
-                clients.data = clients.data.map(c => calculationService.simplify(c));
+                let data = clients.data.map((c) => calculationService.simplify(c));
+
+                const skipChatAi = req.query.include_chat_ai === '0' || req.query.include_chat_ai === 'false';
+                if (!skipChatAi && data.length > 0) {
+                    const rawLim = parseInt(req.query.chat_ai_limit, 10);
+                    const chatAiLimit = Number.isFinite(rawLim) && rawLim > 0 ? Math.min(rawLim, 500) : 200;
+                    const dialogMap = await aiB2cService.listChatAiDialogForClients(
+                        data.map((c) => c.id),
+                        chatAiLimit
+                    );
+                    data = data.map((c) => ({
+                        ...c,
+                        chat_ai_messages: dialogMap.get(Number(c.id)) || []
+                    }));
+                } else if (data.length > 0) {
+                    data = data.map((c) => ({ ...c, chat_ai_messages: [] }));
+                }
+                clients.data = data;
             }
             res.json(clients);
         } catch (err) {
@@ -216,7 +234,24 @@ class ClientController {
             if (!client) {
                 return res.status(404).json({ error: 'Client not found' });
             }
-            res.json(calculationService.simplify(client));
+            let payload = calculationService.simplify(client);
+            const forceChatAi = req.query.include_chat_ai === 'true' || req.query.include_chat_ai === '1';
+            const isAgentPlansRoute = req.route && req.route.path === '/:id/plans';
+            const skipChatAi =
+                (!forceChatAi && isAgentPlansRoute) ||
+                req.query.include_chat_ai === '0' ||
+                req.query.include_chat_ai === 'false';
+            if (!skipChatAi) {
+                const rawLim = parseInt(req.query.chat_ai_limit, 10);
+                const chatAiLimit = Number.isFinite(rawLim) && rawLim > 0 ? Math.min(rawLim, 2000) : 500;
+                payload = {
+                    ...payload,
+                    chat_ai_messages: await aiB2cService.listChatAiDialogForClient(id, chatAiLimit)
+                };
+            } else {
+                payload = { ...payload, chat_ai_messages: [] };
+            }
+            res.json(payload);
         } catch (err) {
             next(err);
         }

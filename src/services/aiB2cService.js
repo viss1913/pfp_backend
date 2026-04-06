@@ -441,6 +441,68 @@ ${clientSection}
         ]);
     }
 
+    /**
+     * История chat_AI для одного клиента (хронологический порядок).
+     * Таблица: ai_b2c_chat_ai_messages — отдельно от site-flow (ai_b2c_chat_messages).
+     */
+    async listChatAiDialogForClient(clientId, limitPerClient = 500) {
+        const lim = Math.min(Math.max(Number(limitPerClient) || 500, 1), 2000);
+        const rows = await knex('ai_b2c_chat_ai_messages')
+            .where({ client_id: clientId })
+            .orderBy('created_at', 'desc')
+            .orderBy('id', 'desc')
+            .limit(lim);
+        return rows.reverse().map((row) => ({
+            id: row.id,
+            stage_key: row.stage_key,
+            role: row.role,
+            content: row.content,
+            created_at: row.created_at
+        }));
+    }
+
+    /**
+     * Последние limitPerClient сообщений на каждого client_id (MySQL 8+ ROW_NUMBER).
+     * @returns {Map<number, Array<{id, stage_key, role, content, created_at}>>}
+     */
+    async listChatAiDialogForClients(clientIds, limitPerClient = 200) {
+        const map = new Map();
+        if (!clientIds || clientIds.length === 0) return map;
+
+        const uniqueIds = [...new Set(clientIds.map((id) => Number(id)).filter((n) => Number.isFinite(n) && n > 0))];
+        if (uniqueIds.length === 0) return map;
+
+        const lim = Math.min(Math.max(Number(limitPerClient) || 200, 1), 500);
+        const placeholders = uniqueIds.map(() => '?').join(',');
+        const sql = `
+            SELECT id, client_id, stage_key, role, content, created_at
+            FROM (
+                SELECT m.id, m.client_id, m.stage_key, m.role, m.content, m.created_at,
+                    ROW_NUMBER() OVER (PARTITION BY m.client_id ORDER BY m.created_at DESC, m.id DESC) AS rn
+                FROM ai_b2c_chat_ai_messages m
+                WHERE m.client_id IN (${placeholders})
+            ) x
+            WHERE x.rn <= ?
+            ORDER BY x.client_id ASC, x.created_at ASC, x.id ASC
+        `;
+        const bindings = [...uniqueIds, lim];
+        const result = await knex.raw(sql, bindings);
+        const rows = result && result[0] ? result[0] : [];
+
+        for (const row of rows) {
+            const cid = Number(row.client_id);
+            if (!map.has(cid)) map.set(cid, []);
+            map.get(cid).push({
+                id: row.id,
+                stage_key: row.stage_key,
+                role: row.role,
+                content: row.content,
+                created_at: row.created_at
+            });
+        }
+        return map;
+    }
+
     async _getChatAiBrainContexts(projectId) {
         return knex('ai_b2c_chat_brain_contexts')
             .where({ is_active: true })

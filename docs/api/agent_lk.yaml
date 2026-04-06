@@ -306,57 +306,97 @@ paths:
   /pfp/clients:
     get:
       tags: [ "Клиенты B2C в ЛК Агента" ]
-      summary: Список клиентов с финансовыми планами из B2C ЛК
+      summary: Список клиентов агента (B2C / CRM-хаб)
       description: |
-        Возвращает список клиентов, у которых есть финансовые планы, созданные в B2C личном кабинете.
-        Агент видит только тех клиентов, которые привязаны к его проекту/агентскому коду.
+        Пагинированный список клиентов проекта. По умолчанию — только клиенты текущего агента (`agent_id` из JWT).
+
+        Если в настройках проекта включено «все агенты видят всех» (`settings.agents_see_all_clients` или `client_visibility: all`),
+        возвращаются все клиенты проекта; у записи может быть поле `owner_label` (метка владельца: B2C / email агента / ФИО).
+
+        В каждом элементе `data[]` есть **`chat_ai_messages`** — история диалога **chat_AI** (`POST /my/ai-b2c/chat_AI/stream`),
+        хранится в БД отдельно от site-чата. Пустой массив, если пользователь ещё не писал в chat_AI или лимит отключён.
+        Клиенты без целей / без расчёта в списке остаются — как и раньше.
       parameters:
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, default: 1, minimum: 1 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 50 }
+          description: Размер страницы. `0` или `all` — вернуть всех без пагинации.
+        - name: sort
+          in: query
+          required: false
+          schema: { type: string, default: created_at }
+        - name: order
+          in: query
+          required: false
+          schema: { type: string, enum: [asc, desc], default: desc }
         - name: search
           in: query
           required: false
           schema:
             type: string
-          description: Поиск по имени, email или телефону
-        - name: has_plans
+          description: Поиск по имени, фамилии, email, телефону, external_uuid
+        - name: include_chat_ai
           in: query
           required: false
-          schema:
-            type: boolean
-          description: Фильтр по наличию финансовых планов
+          schema: { type: string, enum: ['0', '1', 'true', 'false'], default: '1' }
+          description: |
+            Подгружать историю chat_AI в поле `chat_ai_messages`. Значения `0` или `false` — не ходить в БД за сообщениями
+            (в ответе у каждого клиента будет `chat_ai_messages: []`).
+        - name: chat_ai_limit
+          in: query
+          required: false
+          schema: { type: integer, default: 200, minimum: 1, maximum: 500 }
+          description: Сколько последних сообщений chat_AI на одного клиента в этой выдаче (максимум 500).
       responses:
         '200':
-          description: Список клиентов
+          description: Список клиентов и пагинация
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ClientShort'
+                $ref: '#/components/schemas/AgentClientsListResponse'
+        '400':
+          description: Нет agent_id в токене
 
   /pfp/clients/{clientId}/plans:
     get:
       tags: [ "Клиенты B2C в ЛК Агента" ]
-      summary: Получить финансовые планы клиента из B2C
+      summary: Карточка клиента (тот же контракт, что GET /client/{id})
       description: |
-        Возвращает список финансовых планов клиента, созданных в B2C ЛК.
-        Используется Агента для выбора плана, с которым он хочет продолжать работать в своём ЛК.
+        **Фактическое поведение бэка:** возвращается **полная карточка клиента** (профиль, цели, активы, `goals_summary` в упрощённом виде),
+        а не отдельный массив «планов». Используйте `goals` и агрегаты для выбора сценария работы.
+
+        История **chat_AI** по умолчанию **не** подмешивается (чтобы не дублировать тяжёлый запрос при открытии этого URL).
+        Чтобы получить сообщения — передайте `include_chat_ai=true` (или откройте `GET /client/{clientId}` с теми же query).
       parameters:
         - name: clientId
           in: path
           required: true
           schema:
             type: string
+        - name: include_chat_ai
+          in: query
+          required: false
+          schema: { type: string, enum: ['0', '1', 'true', 'false'], default: '0' }
+          description: Принудительно подгрузить `chat_ai_messages` (по умолчанию для этого маршрута — пустой массив без запроса к истории).
+        - name: chat_ai_limit
+          in: query
+          required: false
+          schema: { type: integer, default: 500, minimum: 1, maximum: 2000 }
+          description: Лимит сообщений chat_AI, если включено `include_chat_ai=true`.
       responses:
         '200':
-          description: Список планов клиента
+          description: Объект клиента (карточка)
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ClientPlanShort'
+                $ref: '#/components/schemas/AgentClientCardResponse'
         '404':
-          description: Клиент не найден или у него нет планов
+          description: Клиент не найден
 
   /pfp/clients/{clientId}/plans/{planId}/take-over:
     post:
@@ -1186,6 +1226,84 @@ paths:
 
 components:
   schemas:
+    ChatAiMessage:
+      type: object
+      description: Одно сообщение истории chat_AI (таблица `ai_b2c_chat_ai_messages`)
+      properties:
+        id:
+          type: integer
+        stage_key:
+          type: string
+          description: Стадия, с которой связано сообщение
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    AgentClientB2CRow:
+      type: object
+      description: |
+        Строка клиента из БД + вычисляемое/JSON поле `goals_summary` (упрощённый расчёт без тяжёлых вложений).
+        Остальные поля профиля и целей — см. ответ API (схема намеренно расширяемая).
+      properties:
+        id:
+          type: integer
+        project_id:
+          type: integer
+          nullable: true
+        agent_id:
+          type: integer
+          nullable: true
+        user_id:
+          type: integer
+          nullable: true
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        goals_summary:
+          type: object
+          nullable: true
+          description: Сводка по целям и портфелю (упрощённая)
+        chat_ai_messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatAiMessage'
+          description: История B2C chat_AI; пустой массив, если диалога не было или выключено `include_chat_ai`
+        owner_label:
+          type: string
+          nullable: true
+          description: Только в режиме «все агенты видят всех» — подпись владельца клиента
+      additionalProperties: true
+
+    AgentClientsListResponse:
+      type: object
+      required: [data, pagination]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentClientB2CRow'
+        pagination:
+          type: object
+          required: [total, page, limit, totalPages]
+          properties:
+            total: { type: integer }
+            page: { type: integer }
+            limit: { type: integer }
+            totalPages: { type: integer }
+
+    AgentClientCardResponse:
+      allOf:
+        - $ref: '#/components/schemas/AgentClientB2CRow'
+      description: Полная карточка клиента (те же поля, что в списке, плюс goals, assets, liabilities, expenses и т.д.)
+
     ComonResolveBody:
       type: object
       properties:
