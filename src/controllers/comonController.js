@@ -53,9 +53,26 @@ const getStrategy = async (req, res) => {
     }
 };
 
+/** Урезанный снимок полей из __NEXT_DATA__ (без HTML и без полного nextData). */
+const getStrategyDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const payload = await comonService.getNormalizedStrategyDetails(id);
+        res.json({ success: true, data: payload });
+    } catch (error) {
+        const invalid = error.message === 'Invalid strategy id';
+        if (invalid) {
+            return res.status(400).json({ success: false, message: error.message });
+        }
+        if (sendComonUpstreamIfAny(res, error, { useMessageKey: true })) return;
+        res.status(502).json({ success: false, message: error.message });
+    }
+};
+
 module.exports = {
     resolveStrategyFromUrl,
     getMaintenanceInfo,
     getStrategyProfit,
     getStrategy,
+    getStrategyDetails,
 };

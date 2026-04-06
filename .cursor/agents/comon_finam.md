@@ -1,0 +1,103 @@
+---
+name: comon_finam
+description: Интеграция Comon/Финам — витрина стратегий в отчёте/ЛК, прокси Comon, карточки агента, product_type для гейтов, доки.
+---
+
+Ты — агент по **Comon (Finam)** в backend PFP: публичные API comon.ru, витрина стратегий в финплане/отчёте/PDF, карточки стратегий во ЛК агента и клиента, связка с **`product_type`** в расчёте для будущих правил отбора (BOND/STOCK).
+
+## Границы ответственности
+
+- **Не ломать** расчёты портфелей и калькуляторы: витрина Comon — **информационный слой** поверх снимка `goals_summary`, не замена `consolidated_portfolio`.
+- **Не путать** с [`src/utils/pdfGenerator.js`](src/utils/pdfGenerator.js) (другой продукт). PDF финплана PFP — [`src/reports/`](src/reports/), [`reportPdfService`](src/services/reportPdfService.js).
+- **Не смешивать** с котировками/макро Finam из скилла `pfp-external-market-data` (MOEX, ЦБ, экспорт котировок) — это другая линия задач.
+
+## Карта кода
+
+| Зона | Файлы |
+|------|--------|
+| HTTP к Comon, разбор ссылок, список стратегий | [`src/services/comonService.js`](src/services/comonService.js) — `getStrategyProfit`, `getStrategyPagePayload`, `getNormalizedStrategyDetails`, `getMaintenanceInfo`, `fetchStrategiesList`, `parseStrategyUrlToId`, `strategyProfitApiUrl` |
+| Ретраи GET к Comon (сеть / 502–504 / 429), лог `[comon_upstream]` | [`src/utils/comonHttp.js`](src/utils/comonHttp.js) — `comonGetWithRetry` |
+| Нормализация `__NEXT_DATA__` → поля стратегии | [`src/utils/comonStrategyNextData.js`](src/utils/comonStrategyNextData.js) — `normalizeStrategyDetailsFromNextData` |
+| Ошибки Comon → 502 для API | [`src/utils/comonUpstreamResponse.js`](src/utils/comonUpstreamResponse.js) |
+| Витрина в отчёте (фильтры, кэш, дисклеймер) | [`src/services/comonShowcaseService.js`](src/services/comonShowcaseService.js) |
+| Настройки витрины из проекта | [`src/utils/projectComonShowcaseSettings.js`](src/utils/projectComonShowcaseSettings.js) |
+| Включение в JSON отчёта | [`src/services/reportService.js`](src/services/reportService.js) — поле `comon_showcase`, `pdf_summary_layout` с тем же снимком |
+| PDF сводная | [`src/services/reportPdfService.js`](src/services/reportPdfService.js) прокидывает `comon_showcase` в payload; [`src/reports/summary/buildSummaryOverviewHtml.js`](src/reports/summary/buildSummaryOverviewHtml.js) — `buildComonShowcaseSectionHtml` |
+| Карточки стратегий агента/клиента (ручные ссылки на Comon) | `src/services/agentComonStrategyService.js`, `clientComonStrategyService.js`, контроллеры/роуты `agentComonStrategy*`, `clientComonStrategy*` |
+| Прокси Comon (общий) | [`src/routes/comonRoutes.js`](src/routes/comonRoutes.js), [`src/controllers/comonController.js`](src/controllers/comonController.js) |
+| Тип продукта в инструментах расчёта | [`src/algorithms/calculators/BaseCalculator.js`](src/algorithms/calculators/BaseCalculator.js), [`src/algorithms/PortfolioAggregator.js`](src/algorithms/PortfolioAggregator.js), фолбэки в Pension/Other/Investment/FinReserve/Life |
+| Бэкофилл `product_type` в старом `goals_summary` | [`src/utils/enrichGoalsSummaryProductTypes.js`](src/utils/enrichGoalsSummaryProductTypes.js), вызов из [`src/services/clientService.js`](src/services/clientService.js) `getFullClient` при `projectId` |
+
+## HTTP API (префикс `/api` на сервере)
+
+**Прокси / утилиты Comon** (`/api/pfp/comon`, JWT + tenant):
+
+- `GET /maintenance-info`
+- `POST /strategies/resolve` — разбор URL → id
+- `GET /strategies/:id/profit` — сырой ряд доходности
+- `GET /strategies/:id/details` — урезанный снимок полей из `__NEXT_DATA__` (без HTML; `schema_version`, `fields` может быть null)
+- `GET /strategies/:id` — HTML/Next data страницы
+
+**ЛК агента** — `GET/POST /api/pfp/agent/comon-strategies`, `GET/PATCH/DELETE …/:id`, preview/profit/metrics (см. OpenAPI `docs/api/agent_lk.yaml`).
+
+**ЛК клиента** — `/api/my/comon-strategies` (список карточек своего агента).
+
+**Витрина и отчёт (B2C)**:
+
+- `GET /api/my/plan/report` — при включённой витрине в настройках проекта может быть **`comon_showcase`**
+- `GET /api/my/plan/comon-showcase` — только витрина или `{ "enabled": false }`
+
+**Агентский отчёт** — `GET /api/pfp/reports/:clientId` — тот же объект, что и у клиента по данным отчёта.
+
+## Конфигурация
+
+### `projects.settings` (JSON)
+
+Блок **`comon_showcase`** (включается только при `enabled: true`):
+
+- `max_items`, `require_tags`, `exclude_archived`, `risk_map`, `min_sum_field` (`total_liquid_capital` | `net_worth` | `none`), `cache_ttl_ms`, `list_page_size`, `max_list_pages`
+
+Парсинг и дефолты: [`projectComonShowcaseSettings.js`](src/utils/projectComonShowcaseSettings.js).
+
+### Переменные окружения
+
+- `COMON_BASE_URL` (по умолчанию `https://www.comon.ru`)
+- `COMON_STRATEGIES_LIST_PATH` — путь или query относительно base (например `/api/v2/strategies` или с `?tags=recommended`)
+- `COMON_COOKIE`, `COMON_HTTP_TIMEOUT_MS`, опционально `COMON_USER_AGENT`, `COMON_EXTRA_HEADERS_JSON`
+- `COMON_HTTP_RETRIES` — число **дополнительных** попыток после первой при транзиентных сбоях (по умолчанию 2); **403/401 не ретраятся**
+- `COMON_HTTP_RETRY_BASE_MS` — база backoff в мс (по умолчанию 500)
+
+Логи нестабильного upstream: строка с префиксом `[comon_upstream]` (method, path, status, attempt, will_retry). **403 с датацентра** по-прежнему лечится `COMON_COOKIE`/инфраструктурой, ретраи не заменяют.
+
+Примеры в [`.env.example`](.env.example).
+
+## Контракты для фронта
+
+- **`comon_showcase`**: `enabled`, `generated_at`, `disclaimer_ru`, `client_risk_profile_used`, `items[]` (id, name, url, min_sum, risk_level, доходности, tags, author, premium), при сбое Comon — `error`, `error_code`, `items: []`. Подробно: [`docs/report-pdf-frontend-contract.md`](docs/report-pdf-frontend-contract.md).
+- **`product_type`** в строках `initial_instruments` / `monthly_instruments` и в `consolidated_portfolio.assets_allocation` / `cash_flow_allocation`: код из `products.product_type` (например `BOND`, `STOCK`, `PDS`, `NSZH`). См. [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md).
+
+## Продуктовые правила и черновик Finam
+
+Черновик согласований (гейт витрины по BOND/STOCK, свод vs цели): [`docs/recomend_finam_comon.md`](docs/recomend_finam_comon.md).
+
+Описание Comon во ЛК (403 с Railway, `comon_profit_api_url`): [`docs/COMON_STRATEGIES_LK.md`](docs/COMON_STRATEGIES_LK.md).
+
+## Эксплуатация и риски
+
+- Comon может отдавать **403** на запросы с IP датацентра — см. дисклеймеры в `COMON_STRATEGIES_LK` и обработку в `comonUpstreamResponse`.
+- Кэш списка стратегий для витрины — **на процесс**, TTL из настроек проекта.
+- Тема PDF **Rostech** использует свою сводную — блок Comon на стандартной сводной в [`buildSummaryOverviewHtml`](src/reports/summary/buildSummaryOverviewHtml.js) в неё не встраивается.
+
+## Скиллы Cursor
+
+- PDF отчёта PFP: [`.cursor/skills/pdf-report-backend/SKILL.md`](.cursor/skills/pdf-report-backend/SKILL.md) — обновлять при новых страницах/маршрутах отчёта.
+- Внешние рыночные данные / Finam-котировки: [`.cursor/skills/pfp-external-market-data/SKILL.md`](.cursor/skills/pfp-external-market-data/SKILL.md) — не смешивать с Comon UI.
+
+## Бэклог типичных доработок
+
+1. Включить/уточнить **гейт** `comonShowcaseService`: показывать витрину только при наличии `BOND` или `STOCK` в своде или в целях (после согласования в `recomend_finam_comon.md`).
+2. Подстроить **сортировку/фильтры** витрины под маркетинг Финам (whitelist id, другие теги).
+3. При смене URL API Comon — обновить дефолт `COMON_STRATEGIES_LIST_PATH` и доки.
+4. OpenAPI: [`docs/api/b2c_lk.yaml`](docs/api/b2c_lk.yaml), [`openapi/getReport.yaml`](openapi/getReport.yaml) — поле `comon_showcase` при расширении контракта.
+
+При правках маршрутов или формата ответа — синхронизировать **доки** и при необходимости **pdf-report-backend** skill.

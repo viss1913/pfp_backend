@@ -1953,6 +1953,26 @@ paths:
         '502':
           description: Ошибка Comon
 
+  /pfp/comon/strategies/{id}/details:
+    get:
+      summary: Урезанные поля карточки стратегии из __NEXT_DATA__ (без HTML)
+      description: |
+        Парсинг структуры Next.js на странице стратегии не является стабильным контрактом Comon.
+        Поле `schema_version` в ответе; `fields` может быть null, если форма страницы изменилась.
+      tags:
+        - Comon
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: success, data.strategyId, schema_version, fields, page_props_keys
+        '502':
+          description: Ошибка Comon
+
   /pfp/comon/strategies/{id}:
     get:
       summary: HTML/Next data страницы стратегии (если доступно)

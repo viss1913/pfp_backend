@@ -11,7 +11,8 @@ function isComonUpstreamError(err) {
         msg.startsWith('Comon вернул 403') ||
         msg.includes('Comon strategy page HTTP') ||
         msg.includes('Comon strategies list HTTP') ||
-        msg.includes('списка стратегий')
+        msg.includes('списка стратегий') ||
+        msg.includes('Comon maintenance-info HTTP')
     );
 }
 

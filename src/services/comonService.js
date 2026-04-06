@@ -1,4 +1,6 @@
 const axios = require('axios');
+const { comonGetWithRetry } = require('../utils/comonHttp');
+const { normalizeStrategyDetailsFromNextData } = require('../utils/comonStrategyNextData');
 
 const DEFAULT_BASE = 'https://www.comon.ru';
 const DEFAULT_UA =
@@ -132,6 +134,25 @@ function strategiesCatalogHeaders() {
 }
 
 /**
+ * Мягкая нормализация тела списка стратегий: всегда массив data.
+ * @param {unknown} body
+ * @returns {{ data: object[], paging: object }}
+ */
+function normalizeStrategiesListPayload(body) {
+    if (body && typeof body === 'object' && !Array.isArray(body)) {
+        let data = body.data;
+        if (!Array.isArray(data)) {
+            console.warn('[comonService] strategies list: "data" is not an array, using []');
+            data = [];
+        }
+        const paging = body.paging && typeof body.paging === 'object' ? body.paging : {};
+        return { ...body, data, paging };
+    }
+    console.warn('[comonService] strategies list: unexpected body shape, using empty data');
+    return { data: [], paging: {} };
+}
+
+/**
  * Публичный список стратегий (пагинация).
  * Путь по умолчанию — типичный для Next/API Comon; переопределение: COMON_STRATEGIES_LIST_PATH (относительно base URL).
  * @param {{ page?: number, pageSize?: number }} query
@@ -145,7 +166,7 @@ async function fetchStrategiesList(query = {}) {
     const pageSize = Number(query.pageSize) > 0 ? Number(query.pageSize) : 100;
 
     const http = client();
-    const res = await http.get(listPath, {
+    const res = await comonGetWithRetry(http, listPath, {
         params: { page, pageSize },
         headers: {
             Accept: 'application/json',
@@ -169,8 +190,7 @@ async function fetchStrategiesList(query = {}) {
         throw err;
     }
 
-    const data = res.data && typeof res.data === 'object' ? res.data : {};
-    return data;
+    return normalizeStrategiesListPayload(res.data);
 }
 
 /**
@@ -178,12 +198,14 @@ async function fetchStrategiesList(query = {}) {
  */
 async function getMaintenanceInfo() {
     const http = client();
-    const res = await http.get('/api/v1/maintenance-info', {
+    const res = await comonGetWithRetry(http, '/api/v1/maintenance-info', {
         headers: { Accept: 'application/json' },
     });
     if (res.status < 200 || res.status >= 300) {
         const body = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-        throw new Error(`Comon maintenance-info HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+        const err = new Error(`Comon maintenance-info HTTP ${res.status}: ${String(body).slice(0, 400)}`);
+        err.comonHttpStatus = res.status;
+        throw err;
     }
     return res.data;
 }
@@ -220,7 +242,7 @@ async function getStrategyProfit(strategyId) {
     const id = assertNumericStrategyId(strategyId);
     const http = client();
     const path = `/api/v2/strategies/${id}/profit`;
-    const res = await http.get(path, {
+    const res = await comonGetWithRetry(http, path, {
         headers: {
             Accept: 'application/json',
             ...strategyPageLikeHeaders(id),
@@ -252,7 +274,7 @@ async function getStrategyPagePayload(strategyId) {
     const id = assertNumericStrategyId(strategyId);
     const http = client();
     const path = `/strategies/${id}/`;
-    const res = await http.get(path, {
+    const res = await comonGetWithRetry(http, path, {
         headers: {
             Accept: 'text/html,application/xhtml+xml',
             ...strategyPageLikeHeaders(id),
@@ -275,12 +297,29 @@ async function getStrategyPagePayload(strategyId) {
     };
 }
 
+/**
+ * Карточка стратегии в урезанном виде из __NEXT_DATA__ (без сырого HTML).
+ * @param {string|number} strategyId
+ */
+async function getNormalizedStrategyDetails(strategyId) {
+    const id = assertNumericStrategyId(strategyId);
+    const page = await getStrategyPagePayload(id);
+    const normalized = normalizeStrategyDetailsFromNextData(id, page.nextData);
+    return {
+        ...normalized,
+        pageUrl: page.pageUrl,
+        hasNextData: page.hasNextData,
+    };
+}
+
 module.exports = {
     getMaintenanceInfo,
     getStrategyProfit,
     getStrategyPagePayload,
+    getNormalizedStrategyDetails,
     fetchStrategiesList,
     extractNextData,
+    normalizeStrategiesListPayload,
     parseStrategyUrlToId,
     resolveStrategyLink,
     strategyProfitApiUrl,
