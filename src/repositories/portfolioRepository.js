@@ -294,6 +294,15 @@ class PortfolioRepository {
             throw e;
         }
         const targetId = Number(classId);
+        const normalizeClassId = (value) => {
+            if (value === null || value === undefined) return null;
+            if (typeof value === 'object') {
+                if (value.id !== undefined && value.id !== null) return Number(value.id);
+                if (value.class_id !== undefined && value.class_id !== null) return Number(value.class_id);
+                return null;
+            }
+            return Number(value);
+        };
         const classLinksTableExists = await db.schema.hasTable('portfolio_class_links');
 
         for (const p of candidates) {
@@ -313,8 +322,12 @@ class PortfolioRepository {
                 classes = classes !== null && classes !== undefined ? [classes] : [];
             }
 
-            // Convert everything to numbers for reliable comparison
-            const isMatchFromJson = classes.some(c => Number(c) === targetId);
+            // Convert everything to numbers for reliable comparison.
+            // Supports arrays like [2], ["2"], [{id:2}], [{class_id:2}]
+            const normalizedClasses = classes
+                .map(normalizeClassId)
+                .filter(c => Number.isFinite(c));
+            const isMatchFromJson = normalizedClasses.some(c => c === targetId);
             if (isMatchFromJson) {
                 console.log(`[PortfolioRepo] Portfolio ${p.id} matched class ${targetId} via portfolios.classes`);
                 return this._transformPortfolio(p, db);
