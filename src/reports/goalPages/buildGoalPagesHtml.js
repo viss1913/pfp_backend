@@ -3,6 +3,13 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const { resolveGoalCardImageSrc, GLOBAL_DEFAULTS } = require('../summary/buildSummaryOverviewHtml');
 const { resolveReportRasterRef } = require('../../utils/reportRasterSrc');
+const {
+    buildRostechStyleAchievementBlock,
+    buildMonthlyCashflowTableInner,
+    getMonthlyScheduleChunksFromRows,
+    buildAggregatedMonthlyScheduleByGoals,
+} = require('./defaultRostechStyleCharts');
+const { buildRostechPensionPagesHtml } = require('../themes/rostech/buildRostechPensionPagesHtml');
 
 function escapeHtml(s) {
     if (s == null) return '';
@@ -18,6 +25,12 @@ function formatMoneyRu(n) {
     const x = Number(n);
     if (!Number.isFinite(x)) return '—';
     return `${Math.round(x).toLocaleString('ru-RU')} ₽`;
+}
+
+function formatPercentRu(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '—';
+    return `${n.toFixed(1).replace('.', ',')}%`;
 }
 
 function sanitizeHexColor(hex, fallback) {
@@ -106,11 +119,16 @@ function buildAreaChartSvg(data, {
     paddingBottom = 34,
     accentColor = '#3b82f6',
     targetColor = '#10b981',
+    gridColor = 'rgba(148,163,184,0.35)',
+    labelColor = '#475569',
+    axisUnitColor = '#64748b',
+    legendBg = 'rgba(255,255,255,0.96)',
+    legendBorder = 'rgba(148,163,184,0.45)',
 } = {}) {
     if (!Array.isArray(data) || data.length < 2) {
         return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
   <rect x="0" y="0" width="${width}" height="${height}" fill="transparent"/>
-  <text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="12">Нет данных</text>
+  <text x="${width / 2}" y="${height / 2}" text-anchor="middle" fill="#64748b" font-size="12">Нет данных</text>
 </svg>`;
     }
 
@@ -147,32 +165,19 @@ function buildAreaChartSvg(data, {
     const gridYs = Array.from({ length: gridCount + 1 }).map((_, i) => y0 + ((y1 - y0) * i) / gridCount);
 
     const grid = gridYs
-        .map((gy) => `<line x1="${x0}" y1="${gy}" x2="${x1}" y2="${gy}" stroke="rgba(255,255,255,0.10)" stroke-width="1" />`)
+        .map((gy) => `<line x1="${x0}" y1="${gy}" x2="${x1}" y2="${gy}" stroke="${gridColor}" stroke-width="1" />`)
         .join('\n');
 
-    // X labels: разрежаем подписи, чтобы на длинных горизонтах не было "простыни" месяцев.
-    // Сейчас data содержит точки каждый месяц, но подписывать каждый месяц — плохо читается в PDF.
-    const maxXLabels = 7;
     const lastMonth = data[data.length - 1]?.month ?? (data.length - 1);
-
-    // Набор "красивых" шагов. Выбираем минимальный шаг, который даёт <= maxXLabels подписей.
-    const stepChoices = [1, 2, 3, 4, 6, 12, 18, 24, 30, 36, 48, 60, 72, 84, 96, 120];
-    let step = stepChoices[stepChoices.length - 1];
-    for (const s of stepChoices) {
-        const labelsCount = Math.floor(lastMonth / s) + 1;
-        if (labelsCount <= maxXLabels) {
-            step = s;
-            break;
-        }
-    }
-
-    // Для больших сроков показываем "годы" вместо "месяцев".
-    const useYears = lastMonth >= 60;
+    const step = 12; // подпись каждый год
     const labelY = height - 10; // фикс внутри SVG, чтобы не налезало на график
     const mCandidates = new Set([0]);
     for (let m = 0; m <= lastMonth; m += step) mCandidates.add(m);
     mCandidates.add(lastMonth);
 
+    const startDate = new Date();
+    startDate.setDate(1);
+    const dateFmt = new Intl.DateTimeFormat('ru-RU', { month: 'short', year: '2-digit' });
     const xLabels = [];
     const sortedMs = [...mCandidates].sort((a, b) => a - b);
     for (const m of sortedMs) {
@@ -180,17 +185,19 @@ function buildAreaChartSvg(data, {
         if (idx < 0) continue;
         const px = points[idx]?.x;
         if (px == null) continue;
-        const labelText = useYears ? Math.round(m / 12) : m;
+        const d = new Date(startDate);
+        d.setMonth(d.getMonth() + m);
+        const labelText = dateFmt.format(d).replace(/\s?г\./, '');
         xLabels.push(
-            `<text x="${px}" y="${labelY}" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="${useYears ? 9 : 8}">${labelText}</text>`
+            `<text x="${px}" y="${labelY}" text-anchor="middle" fill="${labelColor}" font-size="9">${labelText}</text>`
         );
     }
 
     const targetLegend = `
 <g>
-  <rect x="${x1 - 132}" y="${y0 - 6}" width="132" height="22" rx="10" fill="rgba(30,41,59,0.65)" stroke="rgba(255,255,255,0.14)" />
+  <rect x="${x1 - 132}" y="${y0 - 6}" width="132" height="22" rx="10" fill="${legendBg}" stroke="${legendBorder}" />
   <line x1="${x1 - 118}" y1="${y0 + 5}" x2="${x1 - 98}" y2="${y0 + 5}" stroke="${targetColor}" stroke-width="3" stroke-linecap="round" />
-  <text x="${x1 - 92}" y="${y0 + 10}" fill="rgba(255,255,255,0.85)" font-size="10">Цель</text>
+  <text x="${x1 - 92}" y="${y0 + 10}" fill="${labelColor}" font-size="10">Цель</text>
 </g>`;
 
     return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="Прогноз накопления">
@@ -207,7 +214,7 @@ function buildAreaChartSvg(data, {
   <path d="${targetPath}" fill="none" stroke="${targetColor}" stroke-width="2" stroke-dasharray="6 4" />
   <g>
     ${xLabels.join('\n')}
-    <text x="${x0}" y="${y0 - 4}" fill="rgba(255,255,255,0.65)" font-size="10">₽</text>
+    <text x="${x0}" y="${y0 - 4}" fill="${axisUnitColor}" font-size="10">₽</text>
   </g>
   ${targetLegend}
 </svg>`;
@@ -264,10 +271,66 @@ function getRisks(goal) {
     return Array.isArray(r) ? r : [];
 }
 
+function buildInstrumentsYieldRows(items, limit = 3) {
+    const list = Array.isArray(items) ? items.slice(0, limit) : [];
+    if (!list.length) {
+        return '<tr><td colspan="3">Данные по инструментам пока не заполнены</td></tr>';
+    }
+    return list
+        .map((item) => {
+            const name = escapeHtml(item?.name || 'Инструмент');
+            const share = Number(item?.share);
+            const shareCell = Number.isFinite(share) ? `${Math.round(share)}%` : '—';
+            const yieldCell = formatPercentRu(item?.yield_percent ?? item?.yield);
+            return `<tr><td>${name}</td><td>${shareCell}</td><td>${yieldCell}</td></tr>`;
+        })
+        .join('');
+}
+
+function buildMonthlyContributionsRows(monthlyContributions, limit = 4) {
+    const rows = Array.isArray(monthlyContributions?.rows) ? monthlyContributions.rows.slice(0, limit) : [];
+    if (!rows.length) return '<tr><td colspan="2">Нет помесячного графика пополнений</td></tr>';
+    return rows
+        .map((row) => `<tr><td>${escapeHtml(row?.date || '—')}</td><td>${formatMoneyRu(row?.replenishment)}</td></tr>`)
+        .join('');
+}
+
+function buildGoalPerformanceSection(goal) {
+    const metrics = goal?.pdf_metrics || {};
+    const portfolioYield = formatPercentRu(metrics?.portfolio_yield_percent ?? goal?.summary?.accumulation_yield_percent);
+    const instruments = metrics?.initial_instruments || goal?.details?.initial_instruments || [];
+    const monthlyContributions = metrics?.monthly_contributions || null;
+
+    return `
+      <div class="perf-grid">
+        <div class="perf-card">
+          <div class="perf-card__title">Доходность портфеля цели</div>
+          <div class="perf-card__value">${portfolioYield}</div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-card__title">Доходность инструментов</div>
+          <table class="perf-table">
+            <thead><tr><th>Инструмент</th><th>Доля</th><th>Доходн.</th></tr></thead>
+            <tbody>${buildInstrumentsYieldRows(instruments)}</tbody>
+          </table>
+        </div>
+        <div class="perf-card">
+          <div class="perf-card__title">Помесячные пополнения</div>
+          <table class="perf-table">
+            <thead><tr><th>Месяц</th><th>Пополнение</th></tr></thead>
+            <tbody>${buildMonthlyContributionsRows(monthlyContributions)}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+}
+
 function buildBasePageHtml({
     clientName,
     logoSrc,
     aiAvatarSrc,
+    aiTitle,
+    aiText,
     backgroundSrc,
     accentColor,
     textColor,
@@ -276,8 +339,8 @@ function buildBasePageHtml({
     backgroundDarknessPercent,
     inlineLocalAssets,
 }) {
-    const c = sanitizeHexColor(accentColor, '#8b5cf6');
-    const t = sanitizeHexColor(textColor, '#ffffff');
+    const c = sanitizeHexColor(accentColor, '#5b6cff');
+    const t = sanitizeHexColor(textColor, '#0f172a');
     const line = sanitizeHexColor(lineColor, c);
 
     const overlayOpacity = sanitizePercent(
@@ -328,18 +391,18 @@ base-uri 'none';
       font-size: 14px;
       line-height: 1.45;
       color: ${t};
-      background: #0f172a;
+      background: #f8fafc;
     }
     .page__bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-    .page__bg--fallback { background: linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #0f172a 100%); }
+    .page__bg--fallback { background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 48%, #f8fafc 100%); }
     .page__bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
     .page__bg-overlay {
       position: absolute; inset: 0; z-index: 0; pointer-events: none;
       background: linear-gradient(
         135deg,
-        rgba(15,23,42,${overlayOpacity}) 0%,
-        rgba(30,41,59,${Math.max(0, overlayOpacity - 0.08)}) 45%,
-        rgba(15,23,42,${Math.min(1, overlayOpacity + 0.04)}) 100%
+        rgba(255,255,255,${Math.min(0.92, Math.max(0.78, 1 - overlayOpacity))}) 0%,
+        rgba(248,250,252,${Math.min(0.96, Math.max(0.82, 1 - overlayOpacity + 0.05))}) 45%,
+        rgba(241,245,249,${Math.min(0.98, Math.max(0.84, 1 - overlayOpacity + 0.08))}) 100%
       );
     }
     .page__inner { position: relative; z-index: 1; height: 100%; overflow: hidden; }
@@ -360,27 +423,28 @@ base-uri 'none';
 
     .ai-panel {
       display: flex; gap: 14px; margin-bottom: 10px;
-      padding: 12px; border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.28);
-      background: rgba(15,23,42,0.42);
-      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      padding: 12px; border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.35);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%);
+      box-shadow: 0 12px 28px rgba(15,23,42,0.08);
     }
-    .ai-panel__avatar { width: 50px; height: 50px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .ai-panel__avatar { width: 50px; height: 50px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 2px solid rgba(148,163,184,0.45); box-shadow: 0 4px 12px rgba(15,23,42,0.1); }
     .ai-panel__avatar img { width: 100%; height: 100%; object-fit: cover; display:block; }
     .ai-panel__text { font-size: 11px; line-height: 1.35; color: ${t}; opacity: 0.92; }
+    .ai-panel__title { font-weight: 800; margin-bottom: 6px; }
 
     .client-panel {
       margin-bottom: 10px;
       padding: 10px;
       border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.28);
-      background: rgba(15,23,42,0.42);
-      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      border: 1px solid rgba(148,163,184,0.35);
+      background: rgba(255,255,255,0.96);
+      box-shadow: 0 10px 24px rgba(15,23,42,0.08);
     }
     .client-panel__title {
       font-size: 14px; font-weight: 700; margin: 0 0 8px 0;
       padding-bottom: 5px;
-      border-bottom: 1px solid rgba(255,255,255,0.18);
+      border-bottom: 1px solid rgba(148,163,184,0.35);
     }
 
     .section { margin-top: 10px; }
@@ -388,36 +452,36 @@ base-uri 'none';
 
     .card {
       border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.22);
-      background: rgba(15,23,42,0.35);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.22);
+      border: 1px solid rgba(148,163,184,0.35);
+      background: rgba(255,255,255,0.94);
+      box-shadow: 0 8px 20px rgba(15,23,42,0.08);
     }
 
     .goal-hero {
       margin: 10px 0 12px 0;
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 14px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.06);
-      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      border: 1px solid rgba(148,163,184,0.34);
+      background: linear-gradient(160deg, rgba(255,255,255,0.96) 0%, rgba(241,245,249,0.92) 100%);
+      box-shadow: 0 12px 30px rgba(15,23,42,0.08);
     }
     .goal-hero__row { display:flex; align-items:center; gap: 16px; }
-    .goal-hero__img { width: 74px; height: 74px; border-radius: 18px; overflow:hidden; border: 2px solid rgba(255,255,255,0.18); flex-shrink:0; }
+    .goal-hero__img { width: 74px; height: 74px; border-radius: 18px; overflow:hidden; border: 2px solid rgba(148,163,184,0.3); flex-shrink:0; }
     .goal-hero__img img { width:100%; height:100%; object-fit:cover; display:block; }
     .goal-hero__title { font-size: 20px; font-weight: 800; margin: 0; }
-    .goal-hero__sub { margin-top: 4px; font-size: 12px; opacity: 0.75; }
+    .goal-hero__sub { margin-top: 4px; font-size: 12px; opacity: 0.72; color: #475569; }
 
     .metrics { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-    .metric { border-radius: 14px; padding: 12px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); }
+    .metric { border-radius: 14px; padding: 12px; border: 1px solid rgba(148,163,184,0.32); background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.96) 100%); box-shadow: 0 8px 18px rgba(15,23,42,0.06); }
     .metric__label { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; }
     .metric__value { font-size: 20px; font-weight: 900; margin-top: 6px; }
 
     .chart-wrap {
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 14px;
       border: 1px solid rgba(${lineRgb},0.16);
-      background: rgba(255,255,255,0.05);
-      box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%);
+      box-shadow: 0 10px 28px rgba(15,23,42,0.08);
     }
     .chart-title {
       font-size: 14px;
@@ -492,6 +556,37 @@ base-uri 'none';
       gap: 10px;
       align-items: center;
     }
+    .perf-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .perf-card {
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.35);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.96) 100%);
+      box-shadow: 0 8px 20px rgba(15,23,42,0.07);
+      padding: 8px;
+      min-height: 126px;
+      overflow: hidden;
+    }
+    .perf-card__title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      opacity: 0.86;
+      margin-bottom: 6px;
+    }
+    .perf-card__value {
+      font-size: 20px;
+      font-weight: 900;
+      margin-top: 10px;
+    }
+    .perf-table { width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.25; }
+    .perf-table th, .perf-table td { padding: 3px 0; text-align: left; border-bottom: 1px dashed rgba(148,163,184,0.25); }
+    .perf-table tbody tr:last-child td { border-bottom: 0; }
+    .perf-table th:last-child, .perf-table td:last-child { text-align: right; }
   </style>
   <title>Отчет</title>
 </head>
@@ -503,8 +598,8 @@ base-uri 'none';
       <div class="ai-panel" role="presentation">
         <div class="ai-panel__avatar"><img src="${escapeHtml(aiAvatarSrc)}" alt="" /></div>
         <div class="ai-panel__text">
-          <div style="font-weight:800; margin-bottom: 6px;">ИИ Консультант</div>
-          <div>Принял в расчёт ваши параметры и собрал прогноз по выбранной цели.</div>
+          <div class="ai-panel__title">${escapeHtml(aiTitle || 'ИИ-консультант: коротко по цели')}</div>
+          <div>${escapeHtml(aiText || 'Я собрал прогноз по цели и показываю ключевые метрики доходности, состава портфеля и пополнений.')}</div>
         </div>
       </div>
       <!-- Блок клиента удалён по ТЗ: в печатных страницах целей он не нужен -->
@@ -523,56 +618,117 @@ function buildGoalPageFinishHtml() {
 </html>`;
 }
 
-async function buildFinReservePageHtml({ goal, clientName, reportPayload, options = {} }) {
+async function loadDefaultGoalPageSkin(options = {}) {
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
-
     const accentColor = options.accentColor ?? GLOBAL_DEFAULTS.summaryChartColor;
     const textColor = options.textColor ?? GLOBAL_DEFAULTS.summaryTextColor;
     const lineColor = options.lineColor ?? options.accentColor ?? GLOBAL_DEFAULTS.summaryChartColor;
     const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
     const backgroundDarknessPercent =
         options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
-    const bgSrc = options.backgroundSrc
-        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
-        : '';
+    const bgSrc = '';
     const logoSrc =
         options.logoSrc ||
         (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockLogoPath, root, root, inlineLocalAssets));
     const aiAvatarSrc =
         options.aiAvatarSrc ||
         (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockAiAvatarPath, root, root, inlineLocalAssets));
+    return {
+        root,
+        inlineLocalAssets,
+        accentColor,
+        textColor,
+        lineColor,
+        backgroundOverlayOpacity,
+        backgroundDarknessPercent,
+        bgSrc,
+        logoSrc,
+        aiAvatarSrc,
+    };
+}
+
+function getScheduleGoalsFromOptions(options = {}, fallbackGoal = null) {
+    const ordered = Array.isArray(options?.reportGoalsOrdered)
+        ? options.reportGoalsOrdered.filter((g) => Array.isArray(g?.details?.monthly_schedule) && g.details.monthly_schedule.length)
+        : [];
+    if (ordered.length) return ordered;
+    return fallbackGoal ? [fallbackGoal] : [];
+}
+
+function shouldRenderGlobalSchedule(goalType, options = {}) {
+    const scheduleGoals = getScheduleGoalsFromOptions(options, null);
+    if (!scheduleGoals.length) return false;
+    return String(scheduleGoals[0]?.goal_type || '').toUpperCase() === String(goalType || '').toUpperCase();
+}
+
+async function buildMonthlySchedulePdfPages({ goals, clientName, skin }) {
+    const aggregatedRows = buildAggregatedMonthlyScheduleByGoals(goals);
+    const { chunks } = getMonthlyScheduleChunksFromRows(aggregatedRows);
+    if (!chunks.length) return [];
+    const total = chunks.length;
+    const pages = [];
+    for (let i = 0; i < chunks.length; i++) {
+        const aiTitle = 'ИИ-консультант: график достижения целей';
+        const aiText =
+            total > 1
+                ? `Страница ${i + 1} из ${total}: суммарный помесячный график пополнений и капитала по всем целям.`
+                : `Суммарный помесячный график пополнений и капитала по всем целям.`;
+        const base = buildBasePageHtml({
+            clientName,
+            logoSrc: skin.logoSrc,
+            aiAvatarSrc: skin.aiAvatarSrc,
+            aiTitle,
+            aiText,
+            backgroundSrc: skin.bgSrc,
+            accentColor: skin.accentColor,
+            textColor: skin.textColor,
+            lineColor: skin.lineColor,
+            backgroundOverlayOpacity: skin.backgroundOverlayOpacity,
+            backgroundDarknessPercent: skin.backgroundDarknessPercent,
+            inlineLocalAssets: skin.inlineLocalAssets,
+        });
+        const inner = buildMonthlyCashflowTableInner({
+            rows: chunks[i],
+            isFirstPage: i === 0,
+            avatarSrc: skin.aiAvatarSrc,
+        });
+        pages.push(base + inner + buildGoalPageFinishHtml());
+    }
+    return pages;
+}
+
+async function buildFinReservePageHtml({ goal, clientName, reportPayload, options = {}, skin: skinIn }) {
+    const skin = skinIn || (await loadDefaultGoalPageSkin(options));
+    const { root, inlineLocalAssets } = skin;
 
     const cardImg = await resolveGoalCardImageSrc('FIN_RESERVE', root, inlineLocalAssets, root);
 
     const s = goal?.summary || {};
     const init = Number(s.initial_capital ?? 0);
     const monthly = Number(s.monthly_replenishment ?? 0);
-    const targetMonths = Number(s.target_months ?? 12);
     const yieldPercent = Number(s.accumulation_yield_percent ?? 0);
     const targetValue = Number(s.target_amount_future ?? s.projected_capital_at_end ?? 0);
     const instrumentName = getFirstInstrumentName(goal);
+    const achievementHtml = buildRostechStyleAchievementBlock(goal, options.overallPlan || null);
 
-    const series = buildProjectionSeries(s);
-    const chartSvg = buildAreaChartSvg(series, {
-        width: 520,
-        height: 170,
-        accentColor: accentColor,
-        targetColor: '#10b981',
-    });
-
+    const aiText = `По цели "${goal?.goal_name || 'Финансовый резерв'}" фокус на ликвидности и предсказуемом росте капитала. Ниже — прогноз в стиле корпоративного отчёта, блок достижения цели и доходность портфеля.`;
     const html = buildBasePageHtml({
         clientName,
-        logoSrc,
-        aiAvatarSrc,
-        backgroundSrc: bgSrc,
-        accentColor,
-        textColor,
-        lineColor,
-        backgroundOverlayOpacity,
-        backgroundDarknessPercent,
-        inlineLocalAssets,
+        logoSrc: skin.logoSrc,
+        aiAvatarSrc: skin.aiAvatarSrc,
+        aiTitle: 'ИИ-консультант: стратегия финансового резерва',
+        aiText,
+        backgroundSrc: skin.bgSrc,
+        accentColor: skin.accentColor,
+        textColor: skin.textColor,
+        lineColor: skin.lineColor,
+        backgroundOverlayOpacity: skin.backgroundOverlayOpacity,
+        backgroundDarknessPercent: skin.backgroundDarknessPercent,
+        inlineLocalAssets: skin.inlineLocalAssets,
     });
+
+    const yieldLabel = formatPercentRu(yieldPercent);
 
     return (
         html +
@@ -588,30 +744,44 @@ async function buildFinReservePageHtml({ goal, clientName, reportPayload, option
         </div>
 
         <div class="metrics">
-          <div class="metric" style="background: rgba(147,51,234,0.14); border-color: rgba(147,51,234,0.35);">
+          <div class="metric" style="background: #f4f2ff; border-color: rgba(147,51,234,0.35);">
             <div class="metric__label">Начальный капитал</div>
             <div class="metric__value">${escapeHtml(Math.round(init).toLocaleString('ru-RU'))} ₽</div>
           </div>
-          <div class="metric" style="background: rgba(59,130,246,0.14); border-color: rgba(59,130,246,0.35);">
+          <div class="metric" style="background: #eff6ff; border-color: rgba(59,130,246,0.35);">
             <div class="metric__label">Ежемесячно</div>
             <div class="metric__value">${escapeHtml(Math.round(monthly).toLocaleString('ru-RU'))} ₽</div>
           </div>
-          <div class="metric" style="background: rgba(16,185,129,0.14); border-color: rgba(16,185,129,0.35);">
+          <div class="metric" style="background: #ecfdf5; border-color: rgba(16,185,129,0.35);">
             <div class="metric__label">Целевая сумма</div>
             <div class="metric__value">${escapeHtml(Math.round(targetValue).toLocaleString('ru-RU'))} ₽</div>
           </div>
         </div>
 
         <div class="chart-wrap">
-          <div class="chart-title">Прогноз накопления за ${escapeHtml(targetMonths)} месяцев</div>
-          <div>${chartSvg}</div>
-          <div style="margin-top:8px; font-size:12px; opacity:0.86;">
-            Доходность: <b>${escapeHtml(yieldPercent)}%</b> годовых
+          <div class="chart-title">График достижения цели</div>
+          <div style="margin-top:8px; font-size:12px; color:#334155;">
+            Доходность: <b>${escapeHtml(yieldLabel)}</b> годовых
           </div>
+          ${achievementHtml}
         </div>
 ` +
         buildGoalPageFinishHtml()
     );
+}
+
+async function buildFinReservePagesHtml(args) {
+    const skin = await loadDefaultGoalPageSkin(args.options || {});
+    const main = await buildFinReservePageHtml({ ...args, skin });
+    const renderSchedule = shouldRenderGlobalSchedule('FIN_RESERVE', args.options || {});
+    const rest = renderSchedule
+        ? await buildMonthlySchedulePdfPages({
+              goals: getScheduleGoalsFromOptions(args.options || {}, args.goal),
+              clientName: args.clientName,
+              skin,
+          })
+        : [];
+    return [main, ...rest];
 }
 
 async function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
@@ -623,9 +793,7 @@ async function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
     const lineColor = options.lineColor ?? options.accentColor ?? GLOBAL_DEFAULTS.summaryChartColor;
     const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
     const backgroundDarknessPercent = options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
-    const bgSrc = options.backgroundSrc
-        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
-        : '';
+    const bgSrc = '';
     const aiAvatarSrc =
         options.aiAvatarSrc ||
         (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockAiAvatarPath, root, root, inlineLocalAssets));
@@ -645,10 +813,13 @@ async function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
 
     const risks = getRisks(goal).slice(0, 3);
 
+    const aiText = `По цели "${goal?.goal_name || 'Защита жизни'}" собран план с акцентом на страховую защиту и стабильные взносы. Смотри ниже структуру доходности и пополнений.`;
     const html = buildBasePageHtml({
         clientName,
         logoSrc,
         aiAvatarSrc,
+        aiTitle: 'ИИ-консультант: страховая защита',
+        aiText,
         backgroundSrc: bgSrc,
         accentColor,
         textColor,
@@ -672,15 +843,15 @@ async function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
         </div>
 
         <div class="metrics">
-          <div class="metric" style="background: rgba(147,51,234,0.14); border-color: rgba(147,51,234,0.35);">
+          <div class="metric" style="background: #f4f2ff; border-color: rgba(147,51,234,0.35);">
             <div class="metric__label">Покрытие</div>
             <div class="metric__value">${escapeHtml(Math.round(coverage).toLocaleString('ru-RU'))} ₽</div>
           </div>
-          <div class="metric" style="background: rgba(59,130,246,0.14); border-color: rgba(59,130,246,0.35);">
+          <div class="metric" style="background: #eff6ff; border-color: rgba(59,130,246,0.35);">
             <div class="metric__label">Годовой взнос</div>
             <div class="metric__value">${escapeHtml(Math.round(yearlyPremium).toLocaleString('ru-RU'))} ₽</div>
           </div>
-          <div class="metric" style="background: rgba(16,185,129,0.14); border-color: rgba(16,185,129,0.35);">
+          <div class="metric" style="background: #ecfdf5; border-color: rgba(16,185,129,0.35);">
             <div class="metric__label">Налоговая льгота</div>
             <div class="metric__value">${escapeHtml(Math.round(taxBenefit).toLocaleString('ru-RU'))} ₽</div>
           </div>
@@ -717,6 +888,7 @@ async function buildLifeProtectionPageHtml({ goal, clientName, options = {} }) {
             Ожидаемый взнос: <b>${escapeHtml(Math.round(monthlyPremium).toLocaleString('ru-RU'))} ₽</b> в месяц
           </div>
         </div>
+        ${buildGoalPerformanceSection(goal)}
 ` +
         buildGoalPageFinishHtml()
     );
@@ -732,9 +904,7 @@ async function buildPensionPageHtml({ goal, clientName, options = {} }) {
     const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
     const backgroundDarknessPercent =
         options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
-    const bgSrc = options.backgroundSrc
-        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
-        : '';
+    const bgSrc = '';
     const aiAvatarSrc =
         options.aiAvatarSrc ||
         (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockAiAvatarPath, root, root, inlineLocalAssets));
@@ -750,10 +920,13 @@ async function buildPensionPageHtml({ goal, clientName, options = {} }) {
     const projectedPensionMonthlyPresent = Number(s.projected_pension_monthly_present ?? 0);
     const yearsToPension = Number(goal?.details?.state_pension?.years_to_pension ?? 0);
 
+    const aiText = `По пенсионной цели рассчитан долгосрочный сценарий: темп накопления, ожидаемая доходность и дисциплина пополнений по месяцам.`;
     const html = buildBasePageHtml({
         clientName,
         logoSrc,
         aiAvatarSrc,
+        aiTitle: 'ИИ-консультант: пенсионный сценарий',
+        aiText,
         backgroundSrc: bgSrc,
         accentColor,
         textColor,
@@ -778,15 +951,15 @@ async function buildPensionPageHtml({ goal, clientName, options = {} }) {
         </div>
 
         <div class="metrics">
-          <div class="metric" style="background: rgba(147,51,234,0.14); border-color: rgba(147,51,234,0.35);">
+          <div class="metric" style="background: #f4f2ff; border-color: rgba(147,51,234,0.35);">
             <div class="metric__label">Начальный капитал</div>
             <div class="metric__value">${escapeHtml(Math.round(initCapital).toLocaleString('ru-RU'))} ₽</div>
           </div>
-          <div class="metric" style="background: rgba(59,130,246,0.14); border-color: rgba(59,130,246,0.35);">
+          <div class="metric" style="background: #eff6ff; border-color: rgba(59,130,246,0.35);">
             <div class="metric__label">Ежемесячно</div>
             <div class="metric__value">${escapeHtml(Math.round(monthlyReplenishment).toLocaleString('ru-RU'))} ₽</div>
           </div>
-          <div class="metric" style="background: rgba(16,185,129,0.14); border-color: rgba(16,185,129,0.35);">
+          <div class="metric" style="background: #ecfdf5; border-color: rgba(16,185,129,0.35);">
             <div class="metric__label">Желаемый доход</div>
             <div class="metric__value">${escapeHtml(Math.round(projectedPensionMonthlyPresent).toLocaleString('ru-RU'))} ₽</div>
           </div>
@@ -803,25 +976,9 @@ async function buildPensionPageHtml({ goal, clientName, options = {} }) {
     );
 }
 
-async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} }) {
-    const root = path.join(__dirname, '../../..');
-    const inlineLocalAssets = Boolean(options.inlineLocalAssets);
-
-    const accentColor = options.accentColor ?? GLOBAL_DEFAULTS.summaryChartColor;
-    const textColor = options.textColor ?? GLOBAL_DEFAULTS.summaryTextColor;
-    const lineColor = options.lineColor ?? options.accentColor ?? GLOBAL_DEFAULTS.summaryChartColor;
-    const backgroundOverlayOpacity = options.backgroundOverlayOpacity ?? GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity;
-    const backgroundDarknessPercent =
-        options.backgroundDarknessPercent ?? Math.round(backgroundOverlayOpacity * 100);
-    const bgSrc = options.backgroundSrc
-        ? await resolveReportRasterRef(options.backgroundSrc, root, root, inlineLocalAssets)
-        : '';
-    const aiAvatarSrc =
-        options.aiAvatarSrc ||
-        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockAiAvatarPath, root, root, inlineLocalAssets));
-    const logoSrc =
-        options.logoSrc ||
-        (await resolveReportRasterRef(GLOBAL_DEFAULTS.stockLogoPath, root, root, inlineLocalAssets));
+async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {}, skin: skinIn }) {
+    const skin = skinIn || (await loadDefaultGoalPageSkin(options));
+    const { root, inlineLocalAssets } = skin;
 
     const cardImg =
         pageLabel === 'INVESTMENT'
@@ -831,42 +988,35 @@ async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} })
     const s = goal?.summary || {};
     const init = Number(s.initial_capital ?? 0);
     const monthly = Number(s.monthly_replenishment ?? 0);
-    const months = Number(s.target_months ?? 12);
     const yieldPercent = Number(s.accumulation_yield_percent ?? 0);
     const targetValue = Number(s.projected_capital_at_end ?? s.target_amount_future ?? 0);
-
-    const series = buildProjectionSeries(s);
-    const chartSvg = buildAreaChartSvg(series, {
-        width: 520,
-        height: 160,
-        accentColor,
-        targetColor: '#10b981',
-    });
-
+    const achievementHtml = buildRostechStyleAchievementBlock(goal, options.overallPlan || null);
     const portfolioInitial = Array.isArray(goal?.details?.initial_instruments)
         ? goal.details.initial_instruments.map((x) => ({ name: x.name, value: Number(x.share ?? x.value ?? 0) }))
         : [];
-
     const portfolioMonthly = Array.isArray(goal?.details?.monthly_instruments)
         ? goal.details.monthly_instruments.map((x) => ({ name: x.name, value: Number(x.share ?? x.value ?? 0) }))
         : [];
+    const pieInitial = buildConicPieHtml(portfolioInitial, { size: 72 });
+    const pieMonthly = buildConicPieHtml(portfolioMonthly, { size: 72 });
 
-    // Уменьшаем круги, чтобы легенда и подписи поместились в фиксированной области карточек (PDF жёстко клипается)
-    const pieInitial = buildConicPieHtml(portfolioInitial, { size: 104 });
-    const pieMonthly = buildConicPieHtml(portfolioMonthly, { size: 104 });
-
+    const aiText = `По цели "${goal?.goal_name || (pageLabel === 'INVESTMENT' ? 'Сохранить и приумножить' : 'OTHER')}" — прогноз накопления в стиле корпоративного отчёта, структура портфеля и помесячные пополнения.`;
     const html = buildBasePageHtml({
         clientName,
-        logoSrc,
-        aiAvatarSrc,
-        backgroundSrc: bgSrc,
-        accentColor,
-        textColor,
-        lineColor,
-        backgroundOverlayOpacity,
-        backgroundDarknessPercent,
-        inlineLocalAssets,
+        logoSrc: skin.logoSrc,
+        aiAvatarSrc: skin.aiAvatarSrc,
+        aiTitle: 'ИИ-консультант: инвестиционная цель',
+        aiText,
+        backgroundSrc: skin.bgSrc,
+        accentColor: skin.accentColor,
+        textColor: skin.textColor,
+        lineColor: skin.lineColor,
+        backgroundOverlayOpacity: skin.backgroundOverlayOpacity,
+        backgroundDarknessPercent: skin.backgroundDarknessPercent,
+        inlineLocalAssets: skin.inlineLocalAssets,
     });
+
+    const yieldLabel = formatPercentRu(yieldPercent);
 
     return (
         html +
@@ -882,34 +1032,34 @@ async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} })
         </div>
 
         <div class="metrics">
-          <div class="metric" style="background: rgba(147,51,234,0.14); border-color: rgba(147,51,234,0.35);">
+          <div class="metric" style="background: #f4f2ff; border-color: rgba(147,51,234,0.35);">
             <div class="metric__label">Начальный капитал</div>
             <div class="metric__value">${escapeHtml(Math.round(init).toLocaleString('ru-RU'))} ₽</div>
           </div>
-          <div class="metric" style="background: rgba(59,130,246,0.14); border-color: rgba(59,130,246,0.35);">
+          <div class="metric" style="background: #eff6ff; border-color: rgba(59,130,246,0.35);">
             <div class="metric__label">Ежемесячно</div>
             <div class="metric__value">${escapeHtml(Math.round(monthly).toLocaleString('ru-RU'))} ₽</div>
           </div>
-          <div class="metric" style="background: rgba(16,185,129,0.14); border-color: rgba(16,185,129,0.35);">
+          <div class="metric" style="background: #ecfdf5; border-color: rgba(16,185,129,0.35);">
             <div class="metric__label">Итоговый капитал</div>
             <div class="metric__value">${escapeHtml(Math.round(targetValue).toLocaleString('ru-RU'))} ₽</div>
           </div>
         </div>
 
         <div class="chart-wrap">
-          <div class="chart-title">Прогноз накопления за ${escapeHtml(months)} месяцев</div>
-          ${chartSvg}
-          <div style="margin-top:8px; font-size:12px; opacity:0.86;">
-            Доходность: <b>${escapeHtml(yieldPercent)}%</b> годовых
+          <div class="chart-title">График достижения цели</div>
+          <div style="margin-top:8px; font-size:12px; color:#334155;">
+            Доходность: <b>${escapeHtml(yieldLabel)}</b> годовых
           </div>
+          ${achievementHtml}
         </div>
 
-        <div class="pie-grid">
-          <div class="chart-wrap pie-card">
+        <div class="pie-grid" style="margin-top:8px;">
+          <div class="chart-wrap pie-card" style="height:138px;">
             <div class="pie-card__title">Портфель начального капитала</div>
             ${pieInitial}
           </div>
-          <div class="chart-wrap pie-card">
+          <div class="chart-wrap pie-card" style="height:138px;">
             <div class="pie-card__title">Портфель пополнений</div>
             ${pieMonthly}
           </div>
@@ -917,6 +1067,39 @@ async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} })
 ` +
         buildGoalPageFinishHtml()
     );
+}
+
+async function buildInOutPagesHtml(args) {
+    const skin = await loadDefaultGoalPageSkin(args.options || {});
+    const main = await buildInOutPageHtml({ ...args, skin });
+    const renderSchedule = shouldRenderGlobalSchedule(args.pageLabel, args.options || {});
+    const rest = renderSchedule
+        ? await buildMonthlySchedulePdfPages({
+              goals: getScheduleGoalsFromOptions(args.options || {}, args.goal),
+              clientName: args.clientName,
+              skin,
+          })
+        : [];
+    return [main, ...rest];
+}
+
+function adaptRostechPensionTemplateToDefault(html, accentColor) {
+    if (typeof html !== 'string' || !html.trim()) return '';
+    const accent = sanitizeHexColor(accentColor, '#5b6cff');
+    return html
+        .replace(/#722257/gi, accent)
+        .replace(/#7f1f67/gi, accent);
+}
+
+async function buildPensionPagesHtml(args) {
+    const skin = await loadDefaultGoalPageSkin(args.options || {});
+    const pages = await buildRostechPensionPagesHtml({
+        ...args,
+        options: { ...(args.options || {}), backgroundSrc: '', logoSrc: skin.logoSrc },
+    });
+    return (Array.isArray(pages) ? pages : [])
+        .map((x) => adaptRostechPensionTemplateToDefault(x, skin.accentColor))
+        .filter(Boolean);
 }
 
 /**
@@ -928,18 +1111,23 @@ async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {} })
  * @param {string} args.clientName
  * @param {{ inlineLocalAssets?: boolean, accentColor?: string, textColor?: string, backgroundSrc?: string, aiAvatarSrc?: string }} [args.options]
  */
-async function buildGoalPageHtml({ goalType, goal, clientName, options = {} }) {
+async function buildGoalPagesHtml({ goalType, goal, clientName, options = {} }) {
     if (goalType === 'FIN_RESERVE') {
-        return await buildFinReservePageHtml({ goal, clientName, reportPayload: null, options });
+        return await buildFinReservePagesHtml({ goal, clientName, reportPayload: null, options });
     }
-    if (goalType === 'LIFE') return await buildLifeProtectionPageHtml({ goal, clientName, options });
-    if (goalType === 'PENSION') return await buildPensionPageHtml({ goal, clientName, options });
+    if (goalType === 'LIFE') return [await buildLifeProtectionPageHtml({ goal, clientName, options })];
+    if (goalType === 'PENSION') return await buildPensionPagesHtml({ goalType, goal, clientName, options });
     if (goalType === 'INVESTMENT') {
-        return await buildInOutPageHtml({ goal, clientName, pageLabel: 'INVESTMENT', options });
+        return await buildInOutPagesHtml({ goal, clientName, pageLabel: 'INVESTMENT', options });
     }
-    if (goalType === 'OTHER') return await buildInOutPageHtml({ goal, clientName, pageLabel: 'OTHER', options });
+    if (goalType === 'OTHER') return await buildInOutPagesHtml({ goal, clientName, pageLabel: 'OTHER', options });
     throw new Error(`Unknown goalType for goal page: ${goalType}`);
 }
 
-module.exports = { buildGoalPageHtml };
+async function buildGoalPageHtml({ goalType, goal, clientName, options = {} }) {
+    const pages = await buildGoalPagesHtml({ goalType, goal, clientName, options });
+    return pages[0] || '';
+}
+
+module.exports = { buildGoalPageHtml, buildGoalPagesHtml };
 

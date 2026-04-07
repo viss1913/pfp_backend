@@ -145,7 +145,7 @@ const GLOBAL_DEFAULTS = {
     coverTitle: 'персональное финансовое решение',
     titleBandColor: '#722257',
     /** относительный путь от корня репо */
-    coverBackgroundPath: 'assets/reports/rostech/cover-background.jpg',
+    coverBackgroundPath: 'assets/reports/rostech/cover-background.webp',
 };
 
 /**

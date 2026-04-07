@@ -5,6 +5,84 @@ const { comonShowcaseService } = require('./comonShowcaseService');
 const { buildSummaryPdfLayoutModel } = require('../reports/summary/buildSummaryPdfLayoutModel');
 
 class ReportService {
+    _toFiniteNumber(value, fallback = 0) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
+    }
+
+    _extractGoalMonthlyContributions(goal, maxRows = 6) {
+        const schedule = Array.isArray(goal?.details?.monthly_schedule)
+            ? goal.details.monthly_schedule
+            : [];
+
+        const rows = schedule
+            .filter((row) => Number(this._toFiniteNumber(row?.replenishment, 0)) > 0)
+            .slice(0, maxRows)
+            .map((row) => ({
+                date: row?.date || null,
+                replenishment: this._toFiniteNumber(row?.replenishment, 0),
+            }));
+
+        return {
+            rows,
+            total_rows: schedule.length,
+        };
+    }
+
+    _buildGoalPdfMetrics(goal) {
+        const summary = goal?.summary && typeof goal.summary === 'object' ? goal.summary : {};
+        const details = goal?.details && typeof goal.details === 'object' ? goal.details : {};
+        const initialInstruments = Array.isArray(details.initial_instruments) ? details.initial_instruments : [];
+        const monthlyInstruments = Array.isArray(details.monthly_instruments) ? details.monthly_instruments : [];
+
+        const mapInstrument = (instrument) => ({
+            name: instrument?.name || 'Инструмент',
+            share: this._toFiniteNumber(instrument?.share ?? instrument?.value, 0),
+            yield_percent: this._toFiniteNumber(instrument?.yield, null),
+            short_term_yield_percent: this._toFiniteNumber(instrument?.short_term_yield, null),
+        });
+
+        return {
+            goal_type: String(goal?.goal_type || 'OTHER').toUpperCase(),
+            portfolio_yield_percent: this._toFiniteNumber(summary?.accumulation_yield_percent, null),
+            initial_instruments: initialInstruments.map(mapInstrument),
+            monthly_instruments: monthlyInstruments.map(mapInstrument),
+            monthly_contributions: this._extractGoalMonthlyContributions(goal),
+        };
+    }
+
+    _buildPortfolioPdfMetrics(summary, goalsReport) {
+        const consolidated = summary?.consolidated_portfolio && typeof summary.consolidated_portfolio === 'object'
+            ? summary.consolidated_portfolio
+            : {};
+
+        const mapAllocation = (item) => ({
+            name: item?.name || 'Инструмент',
+            share_percent: this._toFiniteNumber(item?.share, 0),
+            yield_percent: this._toFiniteNumber(item?.yield, null),
+            short_term_yield_percent: this._toFiniteNumber(item?.short_term_yield, null),
+        });
+
+        const goalYields = (Array.isArray(goalsReport) ? goalsReport : [])
+            .map((goal) => this._toFiniteNumber(goal?.summary?.accumulation_yield_percent, null))
+            .filter((v) => Number.isFinite(v));
+        const averageGoalYield = goalYields.length
+            ? goalYields.reduce((sum, value) => sum + value, 0) / goalYields.length
+            : null;
+
+        return {
+            total_initial_capital: this._toFiniteNumber(consolidated?.total_initial_capital, 0),
+            total_monthly_replenishment: this._toFiniteNumber(consolidated?.total_monthly_replenishment, 0),
+            estimated_portfolio_yield_percent: averageGoalYield,
+            assets_allocation: Array.isArray(consolidated?.assets_allocation)
+                ? consolidated.assets_allocation.map(mapAllocation)
+                : [],
+            cash_flow_allocation: Array.isArray(consolidated?.cash_flow_allocation)
+                ? consolidated.cash_flow_allocation.map(mapAllocation)
+                : [],
+        };
+    }
+
     calculateAge(birthDate) {
         if (!birthDate) return null;
         const dt = new Date(birthDate);
@@ -145,13 +223,20 @@ class ReportService {
                 total_projected: Math.round(totalProjectedCapital)
             },
             consolidated_portfolio: summary.consolidated_portfolio || {},
-            tax_benefits: summary.tax_benefits_summary || {}
+            tax_benefits: summary.tax_benefits_summary || {},
+            pdf_metrics: {
+                portfolio: this._buildPortfolioPdfMetrics(summary, goalsReport),
+            },
         };
 
         // 6. Section: AI Executive Summary
         const aiSummary = await this._generateExecutiveSummary(client, overallPlan, goalsReport);
 
         const pdfSummaryPayload = { goals: goalsReport, goals_detailed: goalsReport, summary };
+        const goalsWithPdfMetrics = goalsReport.map((goal) => ({
+            ...goal,
+            pdf_metrics: this._buildGoalPdfMetrics(goal),
+        }));
 
         let comon_showcase = null;
         if (projectId) {
@@ -182,7 +267,7 @@ class ReportService {
             },
             current_situation: currentStats,
             overall_plan: overallPlan,
-            goals_detailed: goalsReport,
+            goals_detailed: goalsWithPdfMetrics,
             goal_type_parameter_catalog: this._buildGoalTypeParameterCatalog(goalsReport),
             ai_executive_summary: aiSummary,
             /** Сводный PDF: целиком блок для фронта (продолжение целей + пироги), без фиксированной A4-обрезки */

@@ -1,5 +1,5 @@
 const { buildReportSummaryOverviewHtml } = require('../summary/buildSummaryOverviewHtml');
-const { buildGoalPageHtml } = require('../goalPages/buildGoalPagesHtml');
+const { buildGoalPageHtml, buildGoalPagesHtml } = require('../goalPages/buildGoalPagesHtml');
 const { buildRostechSummaryOverviewHtml } = require('./rostech/buildRostechSummaryOverviewHtml');
 const { buildRostechGoalPageHtml, buildRostechGoalPagesHtml } = require('./rostech/buildRostechGoalPageHtml');
 
@@ -15,7 +15,7 @@ async function buildGoalPageHtmlByTheme({ themeKey, ...args }) {
 
 async function buildGoalPagesHtmlByTheme({ themeKey, ...args }) {
     if (themeKey === 'rostech') return buildRostechGoalPagesHtml(args);
-    return [await buildGoalPageHtml(args)];
+    return await buildGoalPagesHtml(args);
 }
 
 module.exports = {

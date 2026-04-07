@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const axios = require('axios');
 const { publicUrlFromKey } = require('./r2Client');
 const { bufferToWebp } = require('./imageToWebp');
 
@@ -25,6 +26,39 @@ function localRasterToDataUrl(absPath) {
     const buf = fs.readFileSync(absPath);
     const mime = mimeTypeForRaster(absPath);
     return `data:${mime};base64,${buf.toString('base64')}`;
+}
+
+function extFromUrl(urlString) {
+    try {
+        const u = new URL(urlString);
+        return path.extname(u.pathname || '').toLowerCase();
+    } catch {
+        return '';
+    }
+}
+
+async function ensureRemoteRasterWebpOrOriginal(urlString, repoRoot) {
+    const ext = extFromUrl(urlString);
+    if (ext !== '.png' && ext !== '.gif') return null;
+
+    const dir = cacheDirForRepo(repoRoot);
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    const tag = crypto.createHash('sha256').update(urlString).digest('hex');
+    const cachedPath = path.join(dir, `remote-${tag}.webp`);
+    if (fs.existsSync(cachedPath)) return cachedPath;
+
+    const response = await axios.get(urlString, {
+        responseType: 'arraybuffer',
+        timeout: 30000,
+        validateStatus: (status) => status >= 200 && status < 300,
+        maxContentLength: 25 * 1024 * 1024,
+    });
+    const srcBuffer = Buffer.from(response.data);
+    const webp = await bufferToWebp(srcBuffer, { quality: WEBP_QUALITY, effort: WEBP_EFFORT });
+    fs.writeFileSync(cachedPath, webp);
+    return cachedPath;
 }
 
 /**
@@ -90,7 +124,17 @@ async function resolveReportRasterRef(
     if (ref == null || !String(ref).trim()) return '';
     const s = String(ref).trim();
     if (/^data:/i.test(s)) return s;
-    if (/^https?:\/\//i.test(s)) return s;
+    if (/^https?:\/\//i.test(s)) {
+        if (inlineLocalAssets) {
+            try {
+                const optimizedRemote = await ensureRemoteRasterWebpOrOriginal(s, repoRoot);
+                if (optimizedRemote) return localRasterToDataUrl(optimizedRemote);
+            } catch {
+                return s;
+            }
+        }
+        return s;
+    }
 
     const abs = path.isAbsolute(s) ? path.normalize(s) : path.resolve(rootDir, s);
 

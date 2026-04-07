@@ -236,9 +236,10 @@ class ReportPdfService {
                     summaryChartColor: pdfSettings?.summary_chart_color || undefined,
                     summaryBackgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
                     summaryBackgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
-                    summaryTextColor: pdfSettings?.summary_text_color || '#ffffff',
-                    summaryLineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#8b5cf6',
+                    summaryTextColor: pdfSettings?.summary_text_color || '#0f172a',
+                    summaryLineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#5b6cff',
                     inlineLocalAssets: true,
+                    renderMode: 'overview',
                 })
             );
         }
@@ -254,10 +255,10 @@ class ReportPdfService {
                 options: {
                     inlineLocalAssets: true,
                     accentColor: pdfSettings?.summary_chart_color || undefined,
-                    textColor: pdfSettings?.summary_text_color || '#ffffff',
+                    textColor: pdfSettings?.summary_text_color || '#0f172a',
                     logoSrc: pdfSettings?.summary_logo_url || undefined,
                     backgroundSrc: pdfSettings?.summary_background_url || '',
-                    lineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#8b5cf6',
+                    lineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#5b6cff',
                     backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
                     backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
                     overallPlan: report?.overall_plan || null,

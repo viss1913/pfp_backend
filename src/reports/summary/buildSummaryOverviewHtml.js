@@ -38,7 +38,7 @@ const GOAL_CARDS_R2_PREFIX = 'pdf-report-goal-cards';
 const GOAL_CARD_EXT_BY_TYPE = {
     FIN_RESERVE: 'webp',
     LIFE: 'webp',
-    DEFAULT: 'png',
+    DEFAULT: 'webp',
 };
 
 /** R2 ключи стоковых ассетов для превью сводной (logo/avatar/font) */
@@ -46,11 +46,11 @@ const SUMMARY_STOCK_ASSETS_R2_PREFIX = 'pdf-report-summary-stock-assets';
 
 const GLOBAL_DEFAULTS = {
     /** Акцент секций и будущих диаграмм (пироги и т.д.) */
-    summaryChartColor: '#8b5cf6',
+    summaryChartColor: '#5b6cff',
     /** Цвет текста на странице */
-    summaryTextColor: '#ffffff',
+    summaryTextColor: '#0f172a',
     /** Непрозрачность затемнения фона (0..1) */
-    summaryBackgroundOverlayOpacity: 0.58,
+    summaryBackgroundOverlayOpacity: 0.12,
     /** от корня репо */
     stockLogoPath: 'assets/reports/summary/stock-logo.png',
     stockAiAvatarPath: 'assets/reports/summary/stock-ai-avatar.png',
@@ -492,6 +492,22 @@ function buildDistributionChartHtml(title, goals, amounts, totalDisplay) {
     </article>`;
 }
 
+function buildPortfolioYieldRows(items, limit = 5) {
+    const list = Array.isArray(items) ? items.slice(0, limit) : [];
+    if (!list.length) return '<tr><td colspan="3">Нет данных по составу портфеля</td></tr>';
+    return list
+        .map((item) => {
+            const share = Number(item?.share_percent ?? item?.share);
+            const y = Number(item?.yield_percent ?? item?.yield);
+            return `<tr>
+              <td>${escapeHtml(item?.name || 'Инструмент')}</td>
+              <td>${Number.isFinite(share) ? `${Math.round(share)}%` : '—'}</td>
+              <td>${Number.isFinite(y) ? `${y.toFixed(1).replace('.', ',')}%` : '—'}</td>
+            </tr>`;
+        })
+        .join('');
+}
+
 /**
  * @param {Object} options
  * @param {Object} [options.reportPayload] — как investment-summary.json или фрагмент ответа GET /reports (goals / goals_detailed + summary / overall_plan)
@@ -509,6 +525,7 @@ function buildDistributionChartHtml(title, goals, amounts, totalDisplay) {
  * @param {boolean} [options.inlineLocalAssets] — true для превью в браузере ЛК: картинки/шрифт с диска как data:, не file://
  */
 async function buildReportSummaryOverviewHtml(options = {}) {
+    const renderMode = options.renderMode || 'full'; // full | overview | portfolio
     const root = path.join(__dirname, '../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
     const chartColor = sanitizeSummaryChartColor(
@@ -649,6 +666,40 @@ base-uri 'none';
       </section>`
         : '';
 
+    const portfolioMetrics =
+        payload?.overall_plan?.pdf_metrics?.portfolio && typeof payload.overall_plan.pdf_metrics.portfolio === 'object'
+            ? payload.overall_plan.pdf_metrics.portfolio
+            : null;
+    const consolidatedPortfolio =
+        payload?.overall_plan?.consolidated_portfolio ||
+        payload?.summary?.consolidated_portfolio ||
+        {};
+    const totalInitialCapital = portfolioMetrics?.total_initial_capital ?? consolidatedPortfolio?.total_initial_capital ?? 0;
+    const totalMonthlyReplenishment =
+        portfolioMetrics?.total_monthly_replenishment ?? consolidatedPortfolio?.total_monthly_replenishment ?? 0;
+    const estimatedPortfolioYield = portfolioMetrics?.estimated_portfolio_yield_percent ?? null;
+    const assetsAllocation = portfolioMetrics?.assets_allocation || consolidatedPortfolio?.assets_allocation || [];
+    const portfolioSummarySection = `<section class="section">
+      <h2 class="h2" style="border-bottom-color: ${escapeHtml(lineColor)}">Итоговый портфель</h2>
+      <div class="portfolio-grid">
+        <div class="dist-card">
+          <h3 class="dist-card__title">Ключевые метрики</h3>
+          <div class="portfolio-kpis">
+            <div><span>Стартовый капитал:</span><b>${escapeHtml(formatMoneyRu(totalInitialCapital))}</b></div>
+            <div><span>Помесячное пополнение:</span><b>${escapeHtml(formatMoneyRu(totalMonthlyReplenishment))}/мес</b></div>
+            <div><span>Оценочная доходность:</span><b>${Number.isFinite(Number(estimatedPortfolioYield)) ? `${Number(estimatedPortfolioYield).toFixed(1).replace('.', ',')}%` : '—'}</b></div>
+          </div>
+        </div>
+        <div class="dist-card">
+          <h3 class="dist-card__title">Структура и доходность инструментов</h3>
+          <table class="portfolio-table">
+            <thead><tr><th>Инструмент</th><th>Доля</th><th>Доходн.</th></tr></thead>
+            <tbody>${buildPortfolioYieldRows(assetsAllocation)}</tbody>
+          </table>
+        </div>
+      </div>
+    </section>`;
+
     const S = SUMMARY_RENDER_SPEC;
     const pad = S.padding_px;
     const bgBlock = bgSrc
@@ -689,7 +740,7 @@ base-uri 'none';
       font-size: 14px;
       line-height: 1.45;
       color: ${textColor};
-      background: #0f172a;
+      background: #f8fafc;
     }
     .page__bg {
       position: absolute;
@@ -701,7 +752,7 @@ base-uri 'none';
       pointer-events: none;
     }
     .page__bg--fallback {
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #0f172a 100%);
+      background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 48%, #f8fafc 100%);
     }
     .page__bg-img {
       position: absolute;
@@ -718,9 +769,9 @@ base-uri 'none';
       pointer-events: none;
       background: linear-gradient(
         135deg,
-        rgba(15, 23, 42, ${overlayOpacity}) 0%,
-        rgba(30, 41, 59, ${Math.max(0, overlayOpacity - 0.08)}) 45%,
-        rgba(15, 23, 42, ${Math.min(1, overlayOpacity + 0.04)}) 100%
+        rgba(255, 255, 255, ${Math.min(0.94, Math.max(0.78, 1 - overlayOpacity))}) 0%,
+        rgba(248, 250, 252, ${Math.min(0.96, Math.max(0.82, 1 - overlayOpacity + 0.05))}) 45%,
+        rgba(241, 245, 249, ${Math.min(0.98, Math.max(0.84, 1 - overlayOpacity + 0.08))}) 100%
       );
     }
     .page__inner {
@@ -734,10 +785,10 @@ base-uri 'none';
       gap: 14px;
       margin-bottom: 10px;
       padding: 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.28);
-      background: rgba(15, 23, 42, 0.42);
-      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.35);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%);
+      box-shadow: 0 12px 28px rgba(15,23,42,0.08);
     }
     .ai-panel__avatar {
       flex-shrink: 0;
@@ -745,17 +796,17 @@ base-uri 'none';
       height: 50px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid rgba(255,255,255,0.85);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      border: 2px solid rgba(148,163,184,0.45);
+      box-shadow: 0 4px 12px rgba(15,23,42,0.1);
     }
     .ai-panel__text { font-size: 11px; line-height: 1.35; color: ${textColor}; }
     .client-panel {
       margin-bottom: 10px;
       padding: 10px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.28);
-      background: rgba(15, 23, 42, 0.42);
-      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.35);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%);
+      box-shadow: 0 12px 26px rgba(15,23,42,0.08);
     }
     .client-panel__title {
       font-size: 14px;
@@ -773,15 +824,15 @@ base-uri 'none';
     .client-cell {
       padding: 7px;
       border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.22);
-      background: rgba(15, 23, 42, 0.35);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid rgba(148,163,184,0.32);
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 4px 12px rgba(15,23,42,0.06);
     }
     .client-cell__label {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: rgba(255,255,255,0.72);
+      color: #64748b;
       margin-bottom: 4px;
     }
     .client-cell__val { font-weight: 600; color: ${textColor}; font-size: 11px; }
@@ -809,7 +860,7 @@ base-uri 'none';
       border-radius: 8px;
       overflow: hidden;
       height: 130px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      box-shadow: 0 8px 20px rgba(15,23,42,0.08);
     }
     .goal-card--tall { height: 122px; }
     .goal-card__bg {
@@ -829,23 +880,21 @@ base-uri 'none';
     .glass {
       border-radius: 7px;
       padding: 6px;
-      border: 1px solid rgba(255,255,255,0.34);
-      background: rgba(15, 23, 42, 0.52);
+      border: 1px solid rgba(148,163,184,0.35);
+      background: rgba(255,255,255,0.94);
     }
     .goal-card__title {
       margin: 0 0 4px 0;
       font-size: 11px;
       font-weight: 700;
-      color: #fff;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.75);
+      color: ${textColor};
     }
     .goal-card__rows { font-size: 9px; }
     .goal-card__rows .row {
       display: flex;
       justify-content: space-between;
       gap: 6px;
-      color: #fff;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.75);
+      color: ${textColor};
       margin-top: 1px;
     }
     .dist-grid {
@@ -858,8 +907,8 @@ base-uri 'none';
       border-radius: 8px;
       padding: 8px;
       border: 1px solid ${lineColor};
-      background: rgba(15, 23, 42, 0.42);
-      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.96) 100%);
+      box-shadow: 0 12px 28px rgba(15,23,42,0.08);
       min-height: 176px;
     }
     .dist-card__title {
@@ -877,8 +926,8 @@ base-uri 'none';
       aspect-ratio: 1 / 1;
       margin: 0 auto 5px auto;
       border-radius: 50%;
-      border: 1px solid rgba(255,255,255,0.9);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+      border: 1px solid rgba(148,163,184,0.45);
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.18);
     }
     .dist-legend {
       list-style: none;
@@ -903,7 +952,7 @@ base-uri 'none';
       height: 6px;
       border-radius: 50%;
       flex-shrink: 0;
-      border: 1px solid rgba(255,255,255,0.5);
+      border: 1px solid rgba(148,163,184,0.45);
     }
     .dist-total {
       margin-top: 6px;
@@ -916,7 +965,7 @@ base-uri 'none';
       margin: 0 0 6px 0;
       font-size: 9px;
       line-height: 1.35;
-      color: rgba(255,255,255,0.88);
+      color: #334155;
     }
     .comon-show__list {
       margin: 0;
@@ -946,8 +995,20 @@ base-uri 'none';
       margin: 6px 0 0 0;
       font-size: 8px;
       line-height: 1.35;
-      color: rgba(255,255,255,0.72);
+      color: #64748b;
     }
+    .portfolio-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .portfolio-kpis { display: grid; gap: 6px; font-size: 11px; }
+    .portfolio-kpis div { display: flex; justify-content: space-between; gap: 8px; }
+    .portfolio-kpis b { font-size: 12px; }
+    .portfolio-table { width: 100%; border-collapse: collapse; font-size: 10px; line-height: 1.25; }
+    .portfolio-table th, .portfolio-table td { padding: 3px 0; text-align: left; border-bottom: 1px dashed rgba(148,163,184,0.25); }
+    .portfolio-table tbody tr:last-child td { border-bottom: 0; }
+    .portfolio-table th:last-child, .portfolio-table td:last-child { text-align: right; }
   </style>
 </head>
 <body>
@@ -979,10 +1040,11 @@ base-uri 'none';
           </div>
         </div>
       </div>
-      ${protectionSection}
-      ${mainGoalsHtml}
-      ${distributionSection}
-      ${comonShowcaseSection}
+      ${renderMode === 'portfolio' ? '' : protectionSection}
+      ${renderMode === 'portfolio' ? '' : mainGoalsHtml}
+      ${renderMode === 'portfolio' ? '' : distributionSection}
+      ${renderMode === 'overview' ? '' : portfolioSummarySection}
+      ${renderMode === 'portfolio' ? '' : comonShowcaseSection}
     </div>
   </div>
 </body>
