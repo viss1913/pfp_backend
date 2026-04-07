@@ -58,7 +58,10 @@
         "employment_status": "employed",
         "monthly_income": 120000
       },
-      "family_obligations": ["mortgage_payments", "child_education"],
+      "family_obligations": [
+        { "type": "mortgage", "amount_monthly": 85000 },
+        { "type": "education", "amount_monthly": 25000 }
+      ],
       "real_estate": [
         {
           "name": "Основная квартира",
@@ -80,12 +83,12 @@
 - `marital_status`: `single`, `married`, `divorced`, `widowed`, `civil_union`
 - `spouse.employment_status`: `employed`, `self_employed`, `unemployed`, `retired`, `other`
 - `real_estate.status`: `owned`, `mortgage`
-- `family_obligations`:
+- `family_obligations[]`: `{ type, amount_monthly }`
+- `family_obligations.type`:
+  - `loans` (кредиты)
+  - `mortgage` (ипотека)
+  - `rent` (аренда недвижимости)
   - `alimony` (алименты)
+  - `education` (обучение детей)
   - `elder_support` (поддержка родителей)
-  - `child_education` (детское образование)
-  - `medical_care` (регулярные медрасходы)
-  - `rent` (аренда)
-  - `mortgage_payments` (ипотечные платежи)
-  - `other_loans` (прочие кредиты)
   - `other` (прочее)

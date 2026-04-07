@@ -277,16 +277,7 @@ components:
         family_obligations:
           type: array
           items:
-            type: string
-            enum:
-              - alimony
-              - elder_support
-              - child_education
-              - medical_care
-              - rent
-              - mortgage_payments
-              - other_loans
-              - other
+            $ref: '#/components/schemas/FamilyObligation'
         real_estate:
           type: array
           items:
@@ -306,7 +297,11 @@ components:
         spouse:
           employment_status: employed
           monthly_income: 120000
-        family_obligations: [mortgage_payments, child_education]
+        family_obligations:
+          - type: mortgage
+            amount_monthly: 85000
+          - type: education
+            amount_monthly: 25000
         real_estate:
           - name: Main apartment
             estimated_value: 14500000
@@ -371,6 +366,16 @@ components:
           type: boolean
         notes:
           type: string
+
+    FamilyObligation:
+      type: object
+      required: [type, amount_monthly]
+      properties:
+        type:
+          type: string
+          enum: [loans, mortgage, rent, alimony, education, elder_support, other]
+        amount_monthly:
+          type: number
 
     CalculationResponse:
       type: object

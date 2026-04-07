@@ -18,8 +18,8 @@
 - `children[]`: `{ first_name, birth_date }`
 - `contacts[]`: `{ name, relation, phone?, email? }`
 - `spouse`: `{ employment_status, monthly_income }`
-- `family_obligations[]`:
-  `alimony|elder_support|child_education|medical_care|rent|mortgage_payments|other_loans|other`
+- `family_obligations[]`: `{ type, amount_monthly }`
+  где `type`: `loans|mortgage|rent|alimony|education|elder_support|other`
 - `real_estate[]`: `{ name?, estimated_value, status(owned|mortgage) }`
 - `confidentiality`: `{ allow_spouse_access, allow_family_contact, notes? }`
 

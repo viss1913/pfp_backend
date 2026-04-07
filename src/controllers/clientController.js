@@ -17,18 +17,18 @@ const familyProfileSchema = Joi.object({
         employment_status: Joi.string().valid('employed', 'self_employed', 'unemployed', 'retired', 'other').optional(),
         monthly_income: Joi.number().min(0).allow(null).optional()
     }).optional(),
-    family_obligations: Joi.array().items(
-        Joi.string().valid(
-            'alimony',
-            'elder_support',
-            'child_education',
-            'medical_care',
+    family_obligations: Joi.array().items(Joi.object({
+        type: Joi.string().valid(
+            'loans',
+            'mortgage',
             'rent',
-            'mortgage_payments',
-            'other_loans',
+            'alimony',
+            'education',
+            'elder_support',
             'other'
-        )
-    ).optional(),
+        ).required(),
+        amount_monthly: Joi.number().min(0).required()
+    })).optional(),
     real_estate: Joi.array().items(Joi.object({
         name: Joi.string().trim().optional(),
         estimated_value: Joi.number().min(0).required(),
