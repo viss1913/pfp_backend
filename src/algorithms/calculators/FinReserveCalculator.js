@@ -16,12 +16,16 @@ class FinReserveCalculator extends BaseCalculator {
         const { productRepository, portfolioRepository } = repositories;
 
         // 1. Get Portfolio & Yield
+        const initialCapitalForSearch = (goal.smart_initial_capital !== undefined)
+            ? Number(goal.smart_initial_capital)
+            : Number(goal.initial_capital || 0);
+
         let portfolio;
         try {
             portfolio = await portfolioRepository.findByCriteria({
                 projectId: context.projectId,
                 classId: goal.goal_type_id,
-                amount: goal.initial_capital || 0,
+                amount: initialCapitalForSearch,
                 term: 12 // Fixed term for FinReserve
             });
         } catch (e) {

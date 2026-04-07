@@ -10,10 +10,14 @@ class InvestmentCalculator extends BaseCalculator {
         const db_inflation_year_percent = settings.inflation_rate_year || 4.0;
 
         // 0. Найти портфель
+        const initialCapitalForSearch = (goal.smart_initial_capital !== undefined)
+            ? Number(goal.smart_initial_capital)
+            : Number(goal.initial_capital || 0);
+
         const portfolio = await portfolioRepository.findByCriteria({
             projectId: context.projectId,
             classId: goal.goal_type_id,
-            amount: goal.initial_capital || 0,
+            amount: initialCapitalForSearch,
             term: goal.term_months
         });
 
