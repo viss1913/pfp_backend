@@ -134,6 +134,13 @@ class ClientRepository {
                 // ignore
             }
         }
+        if (typeof clientObj.family_profile === 'string') {
+            try {
+                clientObj.family_profile = JSON.parse(clientObj.family_profile);
+            } catch (e) {
+                // ignore
+            }
+        }
 
         return clientObj;
     }

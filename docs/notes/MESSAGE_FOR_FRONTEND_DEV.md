@@ -2,6 +2,27 @@
 
 Мы добавили на бэкенд логику для построения дашбордов и динамического пересчета плана.
 
+## 0. Новый справочный блок семьи (без влияния на расчет)
+
+Теперь в `client` можно передавать поле `family_profile`.
+Это **справочная информация**, расчётные формулы его не используют.
+
+Поддерживается в:
+- `POST /api/client/calculate`
+- `POST /api/client/first-run`
+- `POST /api/my/plan/first-run`
+- `PUT /api/client/:id` (через обновление профиля)
+
+Коротко по структуре:
+- `marital_status`: `single|married|divorced|widowed|civil_union`
+- `children[]`: `{ first_name, birth_date }`
+- `contacts[]`: `{ name, relation, phone?, email? }`
+- `spouse`: `{ employment_status, monthly_income }`
+- `family_obligations[]`:
+  `alimony|elder_support|child_education|medical_care|rent|mortgage_payments|other_loans|other`
+- `real_estate[]`: `{ name?, estimated_value, status(owned|mortgage) }`
+- `confidentiality`: `{ allow_spouse_access, allow_family_contact, notes? }`
+
 ## 1. Получение данных клиента (Дашборды)
 **Endpoint**: `GET /api/client/:id`
 

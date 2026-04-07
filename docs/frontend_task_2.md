@@ -31,3 +31,61 @@
 
 ---
 **Важно:** Для всех защищенных запросов по-прежнему требуется заголовок `x-api-key`.
+
+## 5. Семейная справка (`client.family_profile`)
+Поле добавлено как справочное и **не влияет на расчеты** (`/calculate`, `/first-run`, `/my/plan/first-run`).
+
+- **Где передавать:** внутри `client` в теле first-run/calculate/update.
+- **Формат:** объект `family_profile` (опциональный).
+
+```json
+{
+  "client": {
+    "family_profile": {
+      "marital_status": "married",
+      "children": [
+        { "first_name": "Анна", "birth_date": "2017-05-10" }
+      ],
+      "contacts": [
+        {
+          "name": "Елена Петрова",
+          "relation": "spouse",
+          "phone": "+7-900-000-00-00",
+          "email": "elena@example.com"
+        }
+      ],
+      "spouse": {
+        "employment_status": "employed",
+        "monthly_income": 120000
+      },
+      "family_obligations": ["mortgage_payments", "child_education"],
+      "real_estate": [
+        {
+          "name": "Основная квартира",
+          "estimated_value": 14500000,
+          "status": "mortgage"
+        }
+      ],
+      "confidentiality": {
+        "allow_spouse_access": true,
+        "allow_family_contact": false,
+        "notes": ""
+      }
+    }
+  }
+}
+```
+
+Справочники для UI:
+- `marital_status`: `single`, `married`, `divorced`, `widowed`, `civil_union`
+- `spouse.employment_status`: `employed`, `self_employed`, `unemployed`, `retired`, `other`
+- `real_estate.status`: `owned`, `mortgage`
+- `family_obligations`:
+  - `alimony` (алименты)
+  - `elder_support` (поддержка родителей)
+  - `child_education` (детское образование)
+  - `medical_care` (регулярные медрасходы)
+  - `rent` (аренда)
+  - `mortgage_payments` (ипотечные платежи)
+  - `other_loans` (прочие кредиты)
+  - `other` (прочее)

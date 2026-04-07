@@ -4,6 +4,19 @@ const knex = require('../config/database');
 const { mergeGoalsWithSnapshot } = require('../utils/mergeGoalsWithSnapshot');
 const { enrichGoalsSummaryProductTypes } = require('../utils/enrichGoalsSummaryProductTypes');
 
+function normalizeJsonField(value) {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value);
+        } catch (e) {
+            return value;
+        }
+    }
+    return value;
+}
+
 function ownerLabel(client) {
     if (!client.agent_id) return 'B2C';
     const email = client.agent_email;
@@ -51,6 +64,7 @@ class ClientService {
             delete clientData.fio;
             delete clientData.sex;
             delete clientData.uuid;
+            clientData.family_profile = normalizeJsonField(clientData.family_profile);
 
 
             // 1. Check if client exists by email (Upsert logic)
@@ -157,6 +171,7 @@ class ClientService {
                 // ignore
             }
         }
+        clientObj.family_profile = normalizeJsonField(clientObj.family_profile);
 
         mergeGoalsWithSnapshot(clientObj);
 
@@ -230,6 +245,7 @@ class ClientService {
             delete clientData.sex;
             delete clientData.uuid;
             delete clientData.id;
+            clientData.family_profile = normalizeJsonField(clientData.family_profile);
 
             // 1. Update Profile
             await clientRepository.update(clientId, clientData, null, trx);

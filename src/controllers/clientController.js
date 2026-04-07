@@ -1,6 +1,46 @@
 const calculationService = require('../services/calculationService');
 const Joi = require('joi');
 
+const familyProfileSchema = Joi.object({
+    marital_status: Joi.string().valid('single', 'married', 'divorced', 'widowed', 'civil_union').optional(),
+    children: Joi.array().items(Joi.object({
+        first_name: Joi.string().trim().required(),
+        birth_date: Joi.string().isoDate().required()
+    })).optional(),
+    contacts: Joi.array().items(Joi.object({
+        name: Joi.string().trim().required(),
+        relation: Joi.string().trim().required(),
+        phone: Joi.string().trim().optional(),
+        email: Joi.string().email().optional()
+    })).optional(),
+    spouse: Joi.object({
+        employment_status: Joi.string().valid('employed', 'self_employed', 'unemployed', 'retired', 'other').optional(),
+        monthly_income: Joi.number().min(0).allow(null).optional()
+    }).optional(),
+    family_obligations: Joi.array().items(
+        Joi.string().valid(
+            'alimony',
+            'elder_support',
+            'child_education',
+            'medical_care',
+            'rent',
+            'mortgage_payments',
+            'other_loans',
+            'other'
+        )
+    ).optional(),
+    real_estate: Joi.array().items(Joi.object({
+        name: Joi.string().trim().optional(),
+        estimated_value: Joi.number().min(0).required(),
+        status: Joi.string().valid('owned', 'mortgage').required()
+    })).optional(),
+    confidentiality: Joi.object({
+        allow_spouse_access: Joi.boolean().optional(),
+        allow_family_contact: Joi.boolean().optional(),
+        notes: Joi.string().allow('').optional()
+    }).optional()
+}).optional();
+
 // Схема валидации для запроса расчета
 const calculationRequestSchema = Joi.object({
     goals: Joi.array().items(Joi.object({
@@ -74,7 +114,9 @@ const calculationRequestSchema = Joi.object({
             sex: Joi.string().valid('male', 'female', 'M', 'F').optional()
                 .description('Пол застрахованного')
         }).optional()
-            .description('Данные застрахованного лица (если отличается от страхователя)')
+            .description('Данные застрахованного лица (если отличается от страхователя)'),
+        family_profile: familyProfileSchema
+            .description('Справочный семейный профиль (не влияет на расчеты)')
     }).optional()
         .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ и Пенсии)')
 });

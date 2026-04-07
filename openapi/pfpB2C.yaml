@@ -254,6 +254,123 @@ components:
             q8: { type: integer, minimum: 1, maximum: 5 }
             q9: { type: integer, minimum: 1, maximum: 5 }
             q10: { type: integer, minimum: 1, maximum: 5 }
+        family_profile:
+          $ref: '#/components/schemas/FamilyProfile'
+
+    FamilyProfile:
+      type: object
+      description: Reference family profile metadata, not used in calculations.
+      properties:
+        marital_status:
+          type: string
+          enum: [single, married, divorced, widowed, civil_union]
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/FamilyChild'
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/FamilyContact'
+        spouse:
+          $ref: '#/components/schemas/FamilySpouse'
+        family_obligations:
+          type: array
+          items:
+            type: string
+            enum:
+              - alimony
+              - elder_support
+              - child_education
+              - medical_care
+              - rent
+              - mortgage_payments
+              - other_loans
+              - other
+        real_estate:
+          type: array
+          items:
+            $ref: '#/components/schemas/FamilyRealEstateItem'
+        confidentiality:
+          $ref: '#/components/schemas/FamilyConfidentiality'
+      example:
+        marital_status: married
+        children:
+          - first_name: Anna
+            birth_date: '2017-05-10'
+        contacts:
+          - name: Elena Petrova
+            relation: spouse
+            phone: '+7-900-000-00-00'
+            email: 'elena@example.com'
+        spouse:
+          employment_status: employed
+          monthly_income: 120000
+        family_obligations: [mortgage_payments, child_education]
+        real_estate:
+          - name: Main apartment
+            estimated_value: 14500000
+            status: mortgage
+        confidentiality:
+          allow_spouse_access: true
+          allow_family_contact: false
+          notes: ''
+
+    FamilyChild:
+      type: object
+      required: [first_name, birth_date]
+      properties:
+        first_name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+
+    FamilyContact:
+      type: object
+      required: [name, relation]
+      properties:
+        name:
+          type: string
+        relation:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+
+    FamilySpouse:
+      type: object
+      properties:
+        employment_status:
+          type: string
+          enum: [employed, self_employed, unemployed, retired, other]
+        monthly_income:
+          type: number
+          nullable: true
+
+    FamilyRealEstateItem:
+      type: object
+      required: [estimated_value, status]
+      properties:
+        name:
+          type: string
+        estimated_value:
+          type: number
+        status:
+          type: string
+          enum: [owned, mortgage]
+
+    FamilyConfidentiality:
+      type: object
+      properties:
+        allow_spouse_access:
+          type: boolean
+        allow_family_contact:
+          type: boolean
+        notes:
+          type: string
 
     CalculationResponse:
       type: object
