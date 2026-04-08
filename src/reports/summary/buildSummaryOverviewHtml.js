@@ -1068,6 +1068,122 @@ base-uri 'none';
 </html>`;
 }
 
+/**
+ * Отдельная страница PDF: "Автоследование Comon".
+ * Рендерится как самостоятельный лист, независимо от наличия целей.
+ */
+async function buildComonAutofollowPageHtml(options = {}) {
+    const root = path.join(__dirname, '../../..');
+    const inlineLocalAssets = Boolean(options.inlineLocalAssets);
+    const chartColor = sanitizeSummaryChartColor(
+        options.summaryChartColor ?? options.summaryAccentColor
+    );
+    const textColor = sanitizeHexColor(options.summaryTextColor, GLOBAL_DEFAULTS.summaryTextColor);
+    const lineColor = sanitizeHexColor(options.summaryLineColor, chartColor);
+    const overlayOpacity = sanitizeOpacity(
+        options.summaryBackgroundOverlayOpacity,
+        GLOBAL_DEFAULTS.summaryBackgroundOverlayOpacity
+    );
+    const avatarSrc = escapeHtml(
+        await resolveAssetSrc(GLOBAL_DEFAULTS.stockAiAvatarPath, root, inlineLocalAssets)
+    );
+
+    const payload = options.reportPayload || {};
+    const showcase = payload.comon_showcase && typeof payload.comon_showcase === 'object'
+        ? payload.comon_showcase
+        : null;
+    const items = Array.isArray(showcase?.items) ? showcase.items : [];
+    const disclaimer = showcase?.disclaimer_ru ? escapeHtml(showcase.disclaimer_ru) : '';
+
+    const body = (() => {
+        if (!showcase || showcase.error) {
+            return `<p class="comon-page__note">Каталог стратегий временно недоступен. Попробуйте позже.</p>`;
+        }
+        if (items.length === 0) {
+            return `<p class="comon-page__note">Подходящие стратегии пока не найдены.</p>`;
+        }
+        return `<div class="comon-page__grid">${items.slice(0, 12).map((it) => {
+            const name = escapeHtml(it?.name || 'Стратегия');
+            const url = escapeHtml(String(it?.url || '').trim());
+            const y = Number(it?.profit_365_days_percent);
+            const yStr = Number.isFinite(y) ? `${y.toFixed(1)}% за 12 мес.` : '—';
+            return `<article class="comon-page__card">
+  <h3 class="comon-page__card-title">${name}</h3>
+  <p class="comon-page__card-meta">${escapeHtml(yStr)}</p>
+  ${url ? `<a class="comon-page__cta" href="${url}" target="_blank" rel="noopener noreferrer">Перейти к стратегии</a>` : ''}
+</article>`;
+        }).join('')}</div>`;
+    })();
+
+    return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @page { size: 595px 842px; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    .page {
+      position: relative;
+      width: 595px;
+      height: 842px;
+      overflow: hidden;
+      padding: 24px 32px 28px 32px;
+      font-family: 'ReportSummary', 'DejaVu Sans', sans-serif;
+      color: ${textColor};
+      background: linear-gradient(135deg, rgba(248,251,255,1) 0%, rgba(238,244,255,${Math.max(0.6, 1 - overlayOpacity)}) 48%, rgba(248,250,252,1) 100%);
+    }
+    .comon-page__head { display:flex; gap:12px; align-items:center; margin-bottom: 12px; }
+    .comon-page__avatar { width:42px; height:42px; border-radius:50%; border:2px solid rgba(148,163,184,0.35); }
+    .comon-page__title { margin:0; font-size:20px; font-weight:900; }
+    .comon-page__sub { margin:4px 0 0 0; font-size:12px; opacity:0.82; }
+    .comon-page__grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .comon-page__card {
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.32);
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 8px 20px rgba(15,23,42,0.07);
+      padding: 10px;
+      min-height: 98px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .comon-page__card-title { margin:0; font-size:12px; line-height:1.35; font-weight:800; }
+    .comon-page__card-meta { margin:0; font-size:10px; opacity:0.84; }
+    .comon-page__cta {
+      display:inline-block;
+      align-self:flex-start;
+      text-decoration:none;
+      border: 1px solid ${lineColor};
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 10px;
+      font-weight: 700;
+      color: ${textColor};
+      background: rgba(255,255,255,0.95);
+    }
+    .comon-page__note { margin-top: 12px; font-size: 13px; opacity: 0.84; }
+    .comon-page__disc { position:absolute; left:32px; right:32px; bottom:20px; margin:0; font-size:9px; color:#64748b; line-height:1.35; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="comon-page__head">
+      <img class="comon-page__avatar" src="${avatarSrc}" alt="" />
+      <div>
+        <h1 class="comon-page__title">Автоследование Comon</h1>
+        <p class="comon-page__sub">Подборка стратегий с переходом на платформу Comon</p>
+      </div>
+    </header>
+    ${body}
+    <p class="comon-page__disc">${disclaimer}</p>
+  </div>
+</body>
+</html>`;
+}
+
 module.exports = {
     SUMMARY_RENDER_SPEC,
     GOAL_CARDS_DIR,
@@ -1077,6 +1193,7 @@ module.exports = {
     getGoalCardImageR2Key,
     buildGoalCardAssetsForAgentLK,
     buildReportSummaryOverviewHtml,
+    buildComonAutofollowPageHtml,
     buildComonShowcaseSectionHtml,
     buildSummaryLayoutPayload,
     sanitizeSummaryChartColor,

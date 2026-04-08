@@ -325,6 +325,29 @@ function buildGoalPerformanceSection(goal) {
     `;
 }
 
+function buildComonAutoStrategiesSection(showcase) {
+    if (!showcase || showcase.enabled !== true || showcase.error) return '';
+    const items = Array.isArray(showcase.items) ? showcase.items.slice(0, 3) : [];
+    if (!items.length) return '';
+
+    const rows = items
+        .map((it) => {
+            const name = escapeHtml(it?.name || 'Стратегия');
+            const url = String(it?.url || '').trim();
+            const safeUrl = escapeHtml(url);
+            return `<div class="comon-card">
+  <div class="comon-card__name">${name}</div>
+  ${url ? `<a class="comon-card__btn" href="${safeUrl}" target="_blank" rel="noopener noreferrer">Перейти к стратегии</a>` : ''}
+</div>`;
+        })
+        .join('');
+
+    return `<div class="section">
+  <h2 class="h2">Автостратегии Финам</h2>
+  <div class="comon-grid">${rows}</div>
+</div>`;
+}
+
 function buildBasePageHtml({
     clientName,
     logoSrc,
@@ -587,6 +610,32 @@ base-uri 'none';
     .perf-table th, .perf-table td { padding: 3px 0; text-align: left; border-bottom: 1px dashed rgba(148,163,184,0.25); }
     .perf-table tbody tr:last-child td { border-bottom: 0; }
     .perf-table th:last-child, .perf-table td:last-child { text-align: right; }
+    .comon-grid { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .comon-card {
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.35);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.96) 100%);
+      box-shadow: 0 8px 20px rgba(15,23,42,0.07);
+      padding: 8px;
+      min-height: 88px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .comon-card__name { font-size: 10px; font-weight: 800; line-height: 1.3; }
+    .comon-card__btn {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(${lineRgb},0.55);
+      color: ${t};
+      text-decoration: none;
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(255,255,255,0.95);
+      align-self: flex-start;
+    }
   </style>
   <title>Отчет</title>
 </head>
@@ -1000,7 +1049,11 @@ async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {}, s
     const pieInitial = buildConicPieHtml(portfolioInitial, { size: 72 });
     const pieMonthly = buildConicPieHtml(portfolioMonthly, { size: 72 });
 
-    const aiText = `По цели "${goal?.goal_name || (pageLabel === 'INVESTMENT' ? 'Сохранить и приумножить' : 'OTHER')}" — прогноз накопления в стиле корпоративного отчёта, структура портфеля и помесячные пополнения.`;
+    const displayGoalName =
+        pageLabel === 'INVESTMENT'
+            ? 'Сохранить и приумножить'
+            : (goal?.goal_name || 'Квартира');
+    const aiText = `По цели "${displayGoalName}" — прогноз накопления в стиле корпоративного отчёта, структура портфеля и помесячные пополнения.`;
     const html = buildBasePageHtml({
         clientName,
         logoSrc: skin.logoSrc,
@@ -1025,7 +1078,7 @@ async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {}, s
           <div class="goal-hero__row">
             <div class="goal-hero__img"><img src="${escapeHtml(cardImg)}" alt="" /></div>
             <div>
-              <div class="goal-hero__title">${escapeHtml(goal?.goal_name || (pageLabel === 'INVESTMENT' ? 'Сохранить и приумножить' : 'Квартира'))}</div>
+              <div class="goal-hero__title">${escapeHtml(displayGoalName)}</div>
               <div class="goal-hero__sub">Цель ${escapeHtml(pageLabel === 'INVESTMENT' ? 'INVESTMENT' : 'OTHER')}</div>
             </div>
           </div>
@@ -1064,6 +1117,7 @@ async function buildInOutPageHtml({ goal, clientName, pageLabel, options = {}, s
             ${pieMonthly}
           </div>
         </div>
+        ${pageLabel === 'INVESTMENT' ? buildComonAutoStrategiesSection(options.comonShowcase) : ''}
 ` +
         buildGoalPageFinishHtml()
     );

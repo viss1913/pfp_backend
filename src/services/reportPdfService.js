@@ -5,6 +5,7 @@ const puppeteer = require('puppeteer');
 const reportService = require('./reportService');
 const pdfSettingsService = require('./pdfSettingsService');
 const { buildReportCoverHtml } = require('../reports/cover/buildCoverHtml');
+const { buildComonAutofollowPageHtml } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('../reports/themes/reportRenderers');
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 
@@ -244,6 +245,22 @@ class ReportPdfService {
             );
         }
 
+        // Dedicated Comon page (independent of goal types), disabled for Rostech theme.
+        if (themeKey !== 'rostech') {
+            pageHtmlList.push(
+                await buildComonAutofollowPageHtml({
+                    reportPayload: {
+                        ...(report.comon_showcase ? { comon_showcase: report.comon_showcase } : {}),
+                    },
+                    summaryChartColor: pdfSettings?.summary_chart_color || undefined,
+                    summaryTextColor: pdfSettings?.summary_text_color || '#0f172a',
+                    summaryLineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#5b6cff',
+                    summaryBackgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
+                    inlineLocalAssets: true,
+                })
+            );
+        }
+
         for (const goalType of targetGoalTypes) {
             const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
             if (!goal) continue;
@@ -262,6 +279,7 @@ class ReportPdfService {
                     backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
                     backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
                     overallPlan: report?.overall_plan || null,
+                    comonShowcase: report?.comon_showcase || null,
                     clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
                     reportGoalsOrdered: report?.goals_detailed || [],
                 },
