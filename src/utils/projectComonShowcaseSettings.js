@@ -44,7 +44,13 @@ function getComonShowcaseConfigFromProject(project) {
     if (String(project.public_key || '') !== FINAM_PROJECT_PUBLIC_KEY) return null;
     const root = parseProjectSettingsJson(project.settings);
     const raw = root.comon_showcase;
-    if (!raw || typeof raw !== 'object') return null;
+    // For Finam project, allow showcase with defaults even when explicit settings are missing.
+    if (!raw || typeof raw !== 'object') {
+        return {
+            ...DEFAULT_SHOWCASE,
+            enabled: true,
+        };
+    }
     if (!raw.enabled) return null;
 
     const risk_map = {

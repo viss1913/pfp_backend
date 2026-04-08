@@ -101,6 +101,7 @@ function buildComonShowcaseSectionHtml(showcase, lineColor, textColor) {
             <span class="fw-600">${name}</span>
             <span class="comon-show__meta"> · мин. ${formatMin(it.min_sum)}${yStr ? ` · ${escapeHtml(yStr)}` : ''}</span>
             ${url ? `<div class="comon-show__url">${url}</div>` : ''}
+            ${url ? `<a class="comon-show__cta" href="${url}" target="_blank" rel="noopener noreferrer">Перейти к стратегии</a>` : ''}
           </li>`;
             })
             .join('');
@@ -407,7 +408,10 @@ async function renderMainGoalCard(goal, rootDir, inlineLocalAssets) {
         gt === 'INVESTMENT' ||
         (/сохранить/.test(normalizedGoalName) && /(преумнож|приумнож)/.test(normalizedGoalName));
     const img = escapeHtml(await resolveGoalCardImageSrc(gt, rootDir, inlineLocalAssets, rootDir));
-    const title = escapeHtml(goal.goal_name || 'Цель');
+    const titleRaw = gt === 'INVESTMENT'
+        ? 'Сохранить и приумножить'
+        : (goal.goal_name || 'Цель');
+    const title = escapeHtml(titleRaw);
     const months = Number(goal.summary?.target_months ?? goal.summary?.term_months);
     const years = Number.isFinite(months) ? Math.max(1, Math.round(months / 12)) : '—';
     let rightLabel = 'Стоимость:';
@@ -985,6 +989,19 @@ base-uri 'none';
       opacity: 0.75;
       word-break: break-all;
       margin-top: 1px;
+    }
+    .comon-show__cta {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid ${lineColor};
+      background: rgba(255,255,255,0.92);
+      color: ${textColor};
+      font-size: 8px;
+      font-weight: 700;
+      text-decoration: none;
+      line-height: 1.2;
     }
     .comon-show__note {
       margin: 0 0 6px 0;

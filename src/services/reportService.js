@@ -5,6 +5,12 @@ const { comonShowcaseService } = require('./comonShowcaseService');
 const { buildSummaryPdfLayoutModel } = require('../reports/summary/buildSummaryPdfLayoutModel');
 
 class ReportService {
+    _normalizeGoalDisplayName(goal) {
+        const goalType = String(goal?.goal_type || '').toUpperCase();
+        if (goalType === 'INVESTMENT') return 'Сохранить и приумножить';
+        return goal?.goal_name || null;
+    }
+
     _toFiniteNumber(value, fallback = 0) {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
@@ -235,6 +241,7 @@ class ReportService {
         const pdfSummaryPayload = { goals: goalsReport, goals_detailed: goalsReport, summary };
         const goalsWithPdfMetrics = goalsReport.map((goal) => ({
             ...goal,
+            goal_name: this._normalizeGoalDisplayName(goal),
             pdf_metrics: this._buildGoalPdfMetrics(goal),
         }));
 
