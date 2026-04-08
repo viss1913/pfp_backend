@@ -5,7 +5,8 @@
 
 const DEFAULT_SHOWCASE = {
     enabled: false,
-    max_items: 5,
+    // Default aligns with Comon standalone page layout (2x6 cards).
+    max_items: 12,
     require_tags: [],
     exclude_archived: true,
     /** Сопоставление risk_profile клиента (CONSERVATIVE|BALANCED|AGGRESSIVE) → допустимые riskLevel Comon */
