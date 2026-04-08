@@ -401,12 +401,17 @@ class ReportService {
         Тон: Профессиональный, ободряющий, но реалистичный. ТОЛЬКО РУССКИЙ ЯЗЫК.`;
 
         // Generate Summary
-        let aiGeneratedSummary = "Не удалось сгенерировать резюме.";
+        const summaryModel =
+            process.env.OPENROUTER_MODEL_SUMMARY ||
+            process.env.OPENROUTER_MODEL ||
+            'google/gemma-3-27b-it';
+        let aiGeneratedSummary =
+            'Резюме временно недоступно. Пересчитайте отчет чуть позже: данные по целям и стратегиям уже сформированы.';
         try {
             const messages = [{ role: 'system', content: systemPrompt }];
-            aiGeneratedSummary = await aiService.getCompletion(messages, 'Qwen/Qwen2.5-14B-Instruct');
+            aiGeneratedSummary = await aiService.getCompletion(messages, summaryModel);
         } catch (e) {
-            console.error('AI Summary generation failed:', e);
+            console.error(`[ReportService] AI Summary generation failed (model=${summaryModel}):`, e.message);
         }
 
         return {
