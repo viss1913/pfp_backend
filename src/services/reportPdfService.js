@@ -10,6 +10,7 @@ const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 
 const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'OTHER'];
+const FINAM_PROJECT_ID = 14;
 
 function normalizeGoalTypes(goalTypesRaw) {
     if (!goalTypesRaw) return null;
@@ -245,21 +246,20 @@ class ReportPdfService {
             );
         }
 
-        // Dedicated Comon page (independent of goal types), disabled for Rostech theme.
-        if (themeKey !== 'rostech') {
-            pageHtmlList.push(
-                await buildComonAutofollowPageHtml({
-                    reportPayload: {
-                        ...(report.comon_showcase ? { comon_showcase: report.comon_showcase } : {}),
-                    },
-                    summaryChartColor: pdfSettings?.summary_chart_color || undefined,
-                    summaryTextColor: pdfSettings?.summary_text_color || '#0f172a',
-                    summaryLineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#5b6cff',
-                    summaryBackgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
-                    inlineLocalAssets: true,
-                })
-            );
-        }
+        const shouldIncludeComonAutofollowPage =
+            themeKey !== 'rostech' && Number(projectId) === FINAM_PROJECT_ID;
+        const comonAutofollowPageHtml = shouldIncludeComonAutofollowPage
+            ? await buildComonAutofollowPageHtml({
+                reportPayload: {
+                    ...(report.comon_showcase ? { comon_showcase: report.comon_showcase } : {}),
+                },
+                summaryChartColor: pdfSettings?.summary_chart_color || undefined,
+                summaryTextColor: pdfSettings?.summary_text_color || '#0f172a',
+                summaryLineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#5b6cff',
+                summaryBackgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
+                inlineLocalAssets: true,
+            })
+            : null;
 
         for (const goalType of targetGoalTypes) {
             const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
@@ -286,6 +286,19 @@ class ReportPdfService {
             });
             if (Array.isArray(pageHtmls) && pageHtmls.length > 0) {
                 pageHtmlList.push(...pageHtmls.filter((x) => typeof x === 'string' && x.trim()));
+            }
+        }
+
+        if (comonAutofollowPageHtml) {
+            // Place Comon page before inflation page when present; otherwise right after summary.
+            const inflationIdx = pageHtmlList.findIndex((html) => /инфляц/i.test(String(html)));
+            if (inflationIdx >= 0) {
+                pageHtmlList.splice(inflationIdx, 0, comonAutofollowPageHtml);
+            } else {
+                const afterSummaryIndex =
+                    (includeCover ? 1 : 0) +
+                    (includeSummary && !isRostechPensionOnly && !isRostechInvestmentOnly && !isRostechOtherOnly ? 1 : 0);
+                pageHtmlList.splice(Math.min(afterSummaryIndex, pageHtmlList.length), 0, comonAutofollowPageHtml);
             }
         }
 
