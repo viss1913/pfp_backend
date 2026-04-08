@@ -286,7 +286,13 @@ components:
               description: Insured person sex (if different from policy holder)
               example: "female"
         family_profile:
-          $ref: '#/components/schemas/FamilyProfile'
+          oneOf:
+            - $ref: '#/components/schemas/FamilyProfile'
+            - type: array
+              items:
+                type: object
+                additionalProperties: true
+          description: Семейный профиль в формате объекта или массива объектов (справочные данные, не участвуют в расчетах)
     FamilyProfile:
       type: object
       description: Reference family profile metadata, not used in calculations.
@@ -1057,6 +1063,10 @@ components:
           format: email
         avg_monthly_income:
           type: number
+        spouse_avg_monthly_income:
+          type: number
+          nullable: true
+          description: Среднемесячный доход супруги/супруга ДО НДФЛ (₽/мес). Справочное поле, пока не участвует в расчетах
         employment_type:
           type: string
         tax_mode:
@@ -1083,7 +1093,13 @@ components:
           items:
             type: object
         family_profile:
-          $ref: '#/components/schemas/FamilyProfile'
+          oneOf:
+            - $ref: '#/components/schemas/FamilyProfile'
+            - type: array
+              items:
+                type: object
+                additionalProperties: true
+          description: Семейный профиль в формате объекта или массива объектов (справочные данные, не участвуют в расчетах)
         created_at:
           type: string
           format: date-time

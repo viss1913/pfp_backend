@@ -1,7 +1,7 @@
 const calculationService = require('../services/calculationService');
 const Joi = require('joi');
 
-const familyProfileSchema = Joi.object({
+const familyProfileObjectSchema = Joi.object({
     marital_status: Joi.string().valid('single', 'married', 'divorced', 'widowed', 'civil_union').optional(),
     children: Joi.array().items(Joi.object({
         first_name: Joi.string().trim().required(),
@@ -40,6 +40,11 @@ const familyProfileSchema = Joi.object({
         notes: Joi.string().allow('').optional()
     }).optional()
 }).optional();
+
+const familyProfileSchema = Joi.alternatives().try(
+    familyProfileObjectSchema,
+    Joi.array().items(Joi.object().unknown(true))
+).optional();
 
 // Схема валидации для запроса расчета
 const calculationRequestSchema = Joi.object({
@@ -92,6 +97,8 @@ const calculationRequestSchema = Joi.object({
             .description('Email клиента'),
         avg_monthly_income: Joi.number().min(0).optional()
             .description('Среднемесячный доход до НДФЛ (₽/мес). Используется для оценки ИПК при расчете пенсии и для расчета софинансирования ПДС'),
+        spouse_avg_monthly_income: Joi.number().min(0).allow(null).optional()
+            .description('Среднемесячный доход супруги/супруга до НДФЛ (₽/мес). Пока сохраняется как справочное поле и не участвует в расчетах'),
         ipk_current: Joi.number().min(0).allow(null).optional()
             .description('Текущий ИПК (индивидуальный пенсионный коэффициент) клиента. Если не указан, будет оценен на основе дохода'),
         total_liquid_capital: Joi.number().min(0).optional().default(0)

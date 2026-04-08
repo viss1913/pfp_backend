@@ -1289,6 +1289,13 @@ components:
         last_name:
           type: string
           nullable: true
+        avg_monthly_income:
+          type: number
+          nullable: true
+        spouse_avg_monthly_income:
+          type: number
+          nullable: true
+          description: Среднемесячный доход супруги/супруга до НДФЛ (справочное поле, пока не участвует в расчётах)
         goals_summary:
           type: object
           nullable: true
