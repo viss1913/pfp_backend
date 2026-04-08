@@ -975,7 +975,6 @@ base-uri 'none';
       background: linear-gradient(145deg, rgba(255,255,255,0.52), rgba(255,255,255,0.28));
       border: 1px solid rgba(148,163,184,0.36);
       box-shadow: 0 10px 28px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.5);
-      backdrop-filter: blur(10px);
       border-radius: 16px;
       padding: 12px 14px;
     }
@@ -1169,7 +1168,6 @@ async function buildComonAutofollowPageHtml(options = {}) {
       border: 1px solid rgba(148,163,184,0.3);
       background: linear-gradient(145deg, rgba(255,255,255,0.5), rgba(255,255,255,0.25));
       box-shadow: 0 8px 24px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.5);
-      backdrop-filter: blur(10px);
     }
     .comon-page__grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
     .comon-page__card {
@@ -1177,7 +1175,6 @@ async function buildComonAutofollowPageHtml(options = {}) {
       border: 1px solid rgba(148,163,184,0.30);
       background: linear-gradient(150deg, rgba(255,255,255,0.56), rgba(255,255,255,0.26));
       box-shadow: 0 10px 26px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.5);
-      backdrop-filter: blur(10px);
       padding: 10px;
       min-height: 98px;
       display: flex;
