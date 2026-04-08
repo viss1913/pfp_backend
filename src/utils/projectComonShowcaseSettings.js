@@ -20,6 +20,7 @@ const DEFAULT_SHOWCASE = {
     list_page_size: 100,
     max_list_pages: 3,
 };
+const FINAM_PROJECT_PUBLIC_KEY = 'pk_fedf4e6cb9ad07f8e7ce2c81';
 
 function parseProjectSettingsJson(settings) {
     if (settings == null) return {};
@@ -39,6 +40,8 @@ function parseProjectSettingsJson(settings) {
  */
 function getComonShowcaseConfigFromProject(project) {
     if (!project) return null;
+    // Finam-only gate: showcase is available only for the configured Finam project key.
+    if (String(project.public_key || '') !== FINAM_PROJECT_PUBLIC_KEY) return null;
     const root = parseProjectSettingsJson(project.settings);
     const raw = root.comon_showcase;
     if (!raw || typeof raw !== 'object') return null;

@@ -157,6 +157,7 @@ class ReportPagesController {
                     reportPayload: {
                         goals_detailed: report.goals_detailed,
                         overall_plan: report.overall_plan,
+                        ...(report.comon_showcase ? { comon_showcase: report.comon_showcase } : {}),
                     },
                     clientInfo,
                     summaryLogoUrl: pdfSettings?.summary_logo_url || undefined,
