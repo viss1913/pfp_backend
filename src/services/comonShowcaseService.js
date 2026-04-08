@@ -1,5 +1,7 @@
-const comonService = require('./comonService');
+const fs = require('fs');
+const path = require('path');
 const projectRepository = require('../repositories/projectRepository');
+const comonRecommendedStrategyRepository = require('../repositories/comonRecommendedStrategyRepository');
 const { getComonShowcaseConfigFromProject } = require('../utils/projectComonShowcaseSettings');
 
 const DISCLAIMER_RU =
@@ -7,8 +9,10 @@ const DISCLAIMER_RU =
     'Доходность в прошлом не гарантирует доходность в будущем. Условия стратегий на стороне оператора (Comon) могут меняться. ' +
     'Подбор стратегий на экране выполняется автоматически по общим критериям (в т.ч. риск-профиль и минимальная сумма) и не заменяет консультацию.';
 
-/** @type {Map<string, { expires: number, rows: object[] }>} */
+/** @type {Map<string, { expires: number, rows: object[], dbVersion?: number, sourceMtime?: number|null }>} */
 const listCacheByProject = new Map();
+const MANUAL_SOURCE_DEFAULT = path.resolve(process.cwd(), 'data', 'comonRecommendedStrategies.json');
+let manualSourceMtimeMs = null;
 
 function cacheKeyProject(projectId) {
     return String(projectId);
@@ -37,7 +41,7 @@ function resolveCompareCapital(client, minSumField, currentSituation) {
 }
 
 /**
- * @param {object} row — элемент из Comon data[]
+ * @param {object} row — элемент из Comon data[] (поля как в API)
  */
 function toShowcaseItem(row) {
     if (!row || typeof row !== 'object') return null;
@@ -58,33 +62,88 @@ function toShowcaseItem(row) {
     };
 }
 
+function resolveManualSourceFilePath() {
+    const raw = process.env.COMON_SHOWCASE_SOURCE_FILE;
+    if (raw && String(raw).trim()) {
+        return path.resolve(process.cwd(), String(raw).trim());
+    }
+    return MANUAL_SOURCE_DEFAULT;
+}
+
+function normalizeManualRows(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (payload && typeof payload === 'object' && Array.isArray(payload.items)) return payload.items;
+    throw new Error('Manual Comon showcase source must be array or object with items[]');
+}
+
+function loadRowsFromManualSource() {
+    const sourcePath = resolveManualSourceFilePath();
+    let stat;
+    try {
+        stat = fs.statSync(sourcePath);
+    } catch {
+        throw new Error(`Manual Comon showcase source file not found: ${sourcePath}`);
+    }
+    const raw = fs.readFileSync(sourcePath, 'utf8');
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (e) {
+        const msg = e && e.message ? String(e.message) : 'invalid json';
+        throw new Error(`Manual Comon showcase source has invalid JSON: ${msg}`);
+    }
+    const rows = normalizeManualRows(parsed);
+    manualSourceMtimeMs = Number(stat.mtimeMs) || Date.now();
+    return rows;
+}
+
+/**
+ * @returns {Promise<object[]>}
+ */
 async function loadAllListRows(config, projectId) {
     const key = cacheKeyProject(projectId);
     const now = Date.now();
     const hit = listCacheByProject.get(key);
-    if (hit && hit.expires > now && Array.isArray(hit.rows)) {
+
+    let dbVersion = 0;
+    try {
+        dbVersion = await comonRecommendedStrategyRepository.getMaxUpdatedAtMs();
+    } catch (e) {
+        console.warn('[comonShowcaseService] comon_recommended_strategies:', e.message);
+    }
+
+    const sourceFile = resolveManualSourceFilePath();
+    const sourceMtimeMs = (() => {
+        try {
+            return Number(fs.statSync(sourceFile).mtimeMs) || null;
+        } catch {
+            return null;
+        }
+    })();
+    const sourceFileChanged =
+        sourceMtimeMs != null && manualSourceMtimeMs != null && sourceMtimeMs !== manualSourceMtimeMs;
+
+    const dbChanged = hit && hit.dbVersion !== undefined && hit.dbVersion !== dbVersion;
+
+    if (!sourceFileChanged && !dbChanged && hit && hit.expires > now && Array.isArray(hit.rows)) {
         return hit.rows;
     }
 
-    const all = [];
-    let totalPages = 1;
-    for (let page = 1; page <= config.max_list_pages; page += 1) {
-        const chunk = await comonService.fetchStrategiesList({
-            page,
-            pageSize: config.list_page_size,
-        });
-        const rows = Array.isArray(chunk.data) ? chunk.data : [];
-        all.push(...rows);
-        const p = chunk.paging;
-        if (p && Number(p.totalPages) > 0) {
-            totalPages = Number(p.totalPages);
-        }
-        if (page >= totalPages) break;
+    let all = [];
+    try {
+        all = await comonRecommendedStrategyRepository.listActivePayloadsOrdered();
+    } catch (e) {
+        console.warn('[comonShowcaseService] DB strategies load failed:', e.message);
+    }
+
+    if (!Array.isArray(all) || all.length === 0) {
+        all = loadRowsFromManualSource();
     }
 
     listCacheByProject.set(key, {
         expires: now + config.cache_ttl_ms,
         rows: all,
+        dbVersion,
     });
     return all;
 }
@@ -149,7 +208,7 @@ class ComonShowcaseService {
                 items,
                 definitions: {
                     items:
-                        'Карточки стратегий с публичного каталога Comon; отбор по настройкам проекта и профилю клиента.',
+                        'Карточки стратегий из БД (table comon_recommended_strategies, полный payload из Comon); при пустой таблице — fallback на JSON-файл. Отбор по настройкам проекта и профилю клиента.',
                 },
             };
         } catch (e) {
