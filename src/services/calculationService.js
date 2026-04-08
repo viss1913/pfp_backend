@@ -14,6 +14,7 @@ const otherGoalCalculator = require('../algorithms/calculators/OtherGoalCalculat
 const rentCalculator = require('../algorithms/calculators/RentCalculator');
 const riskProfileService = require('./riskProfileService');
 const portfolioAggregator = require('../algorithms/PortfolioAggregator');
+const { getLifeFirstPaymentAmount } = require('../algorithms/calculators/lifeUpfrontAmount');
 
 const CALCULATORS = {
     1: pensionCalculator,     // PENSION
@@ -26,6 +27,12 @@ const CALCULATORS = {
     9: otherGoalCalculator,      // Map 9 to OTHER
     6: otherGoalCalculator       // Map 6 to OTHER
 };
+
+/** Доля пула под первоначальный капитал пенсии: от возраста, макс. 20% */
+const PENSION_SHARE_MIN = 0.05;
+const PENSION_SHARE_MAX = 0.20;
+const PENSION_SHARE_AGE_LOW = 30;
+const PENSION_SHARE_AGE_HIGH = 55;
 
 class CalculationService {
     /**
@@ -131,43 +138,85 @@ class CalculationService {
         return map[goal.goal_type_id] || 5;
     }
 
+    _getClientAgeYears(client) {
+        if (!client || !client.birth_date) return 40;
+        const b = new Date(client.birth_date);
+        const t = new Date();
+        let age = t.getFullYear() - b.getFullYear();
+        const m = t.getMonth() - b.getMonth();
+        if (m < 0 || (m === 0 && t.getDate() < b.getDate())) age--;
+        return Math.max(0, age);
+    }
+
+    /** Линейная интерполяция 5% (до 30 лет) … 20% (с 55 лет), не выше 20% */
+    _pensionInitialShareFromAge(ageYears) {
+        const a = Number(ageYears);
+        if (!Number.isFinite(a)) return PENSION_SHARE_MIN;
+        if (a <= PENSION_SHARE_AGE_LOW) return PENSION_SHARE_MIN;
+        if (a >= PENSION_SHARE_AGE_HIGH) return PENSION_SHARE_MAX;
+        return PENSION_SHARE_MIN + (PENSION_SHARE_MAX - PENSION_SHARE_MIN) * (a - PENSION_SHARE_AGE_LOW) / (PENSION_SHARE_AGE_HIGH - PENSION_SHARE_AGE_LOW);
+    }
+
     /**
-     * Calculate Life Insurance needed capital via NSJ API
-     * @param {Object} goal - Life Insurance goal
-     * @param {Object} context - Calculation context
-     * @returns {Promise<number>} Required initial capital
+     * Вес цели «стоимость / срок» для пропорций (пенсия / пассивка / прочее).
      */
-    async _calculateLifeInsuranceNeeded(goal, context) {
-        const { client, services } = context;
-        const { nsjApiService } = services;
+    _smartGoalWeight(goal, context) {
+        let term = goal.term_months || 120;
+        let target = goal.target_amount || 0;
 
-        const nsjParams = {
-            target_amount: goal.target_amount || 0,
-            term_months: goal.term_months || 120,
-            client: client || {},
-            payment_variant: goal.payment_variant || 12,
-            program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
-        };
+        if (goal.goal_type_id === 1) {
+            const birthYear = context.client.birth_date ? new Date(context.client.birth_date).getFullYear() : 1980;
+            const sex = context.client.sex || 'male';
+            const isMale = sex === 'male' || sex === 'M' || sex === 'мужской';
+            const retAge = isMale ? 65 : 60;
+            const yearsToRet = Math.max(retAge - (new Date().getFullYear() - birthYear), 0.5);
+            term = Math.round(yearsToRet * 12);
 
-        try {
-            logger.info(`[CalculationService] Calling NSJ API for Life goal: ${goal.name} (ID: ${goal.id})`);
-            const apiResult = await nsjApiService.calculateLifeInsurance(nsjParams);
-            const isSinglePremium = (goal.payment_variant === 0);
-
-            if (isSinglePremium) {
-                logger.info(`[_calculateLifeInsuranceNeeded] NSJ API Success for Goal ${goal.id}. Required: ${apiResult.data.required_capital}`);
-                return apiResult.data.required_capital;
-            } else {
-                // For monthly/annual payments, total_premium_rur already represents the periodic premium
-                const monthlyPremium = apiResult.data.total_premium_rur || apiResult.data.total_premium || 0;
-                logger.info(`[_calculateLifeInsuranceNeeded] NSJ API Success for Goal ${goal.id}. Required: ${monthlyPremium} (monthly)`);
-                return monthlyPremium;
+            if (goal.desired_monthly_income > 0) {
+                target = goal.desired_monthly_income;
             }
-        } catch (error) {
-            logger.error(`[_calculateLifeInsuranceNeeded] NSJ API returned error for Goal ${goal.id}`, { error: error.message });
-            // Fallback (e.g. basic formula)
-            return (goal.target_amount || 0) * 0.9;
+        } else if (goal.goal_type_id === 2) {
+            if (goal.desired_monthly_income > 0) {
+                target = goal.desired_monthly_income * 150;
+            } else if (target > 0 && target < 10000000) {
+                target = target * 150;
+            }
         }
+
+        const t = Math.max(term, 1);
+        return Math.max(target / t, 1e-9);
+    }
+
+    _weightInvestmentOrRent(goal) {
+        const term = goal.term_months || (goal.goal_type_id === 8 ? 12 : 120);
+        const target = Number(goal.target_amount || goal.initial_capital || 0);
+        const t = Math.max(term, 1);
+        return Math.max(target / t, 1e-9);
+    }
+
+    /**
+     * Списывает с пула до sliceCap суммарно, делит между goals по weightFn.
+     * @returns {number} фактически списано
+     */
+    _allocatePoolSliceAmongGoals(goals, sliceCap, context, weightFn) {
+        if (!goals || goals.length === 0 || sliceCap <= 0) return 0;
+        const weights = goals.map(g => Math.max(weightFn(g, context), 1e-9));
+        const sumW = weights.reduce((a, b) => a + b, 0);
+        let budgetLeft = sliceCap;
+        let totalTaken = 0;
+
+        for (let i = 0; i < goals.length; i++) {
+            const isLast = i === goals.length - 1;
+            const ideal = isLast ? budgetLeft : (sliceCap * weights[i]) / sumW;
+            const take = Math.min(ideal, budgetLeft);
+            const actual = this._internalDeduct(take, context);
+            const g = goals[i];
+            g.smart_initial_capital = (g.smart_initial_capital || 0) + actual;
+            totalTaken += actual;
+            budgetLeft -= actual;
+            if (budgetLeft <= 0) break;
+        }
+        return totalTaken;
     }
 
     async _prepareContext(clientData, options = {}) {
@@ -329,144 +378,117 @@ class CalculationService {
     }
 
     /**
-     * Smart Capital Allocation (Burden-Based)
-     * Distributes poolBalance among goals based on their "monthly savings burden".
-     * Goals with higher required monthly savings get more capital to reduce that burden.
+     * Smart Capital Allocation
+     * Фаза 1: резерв + LIFE (первый взнос по NSJ/fallback).
+     * Фаза 2: 60% остатка (или 100%) — инвестиции (3) и RENT (8), 50/50 между классами при обоих; внутри класса — по весу стоимость/срок.
+     * Фаза 3a: пенсия — доля остатка от возраста, макс. 20%.
+     * Фаза 3b: остальные цели — пропорционально стоимость/срок, последняя в группе забирает бюджетный хвост.
      */
     async _calculateSmartAllocation(indexedGoals, context) {
         let pool = context.poolBalance || 0;
         if (pool <= 0) return;
 
-        // 1. Reserve High Priority (FinReserve/Life) needs first
-        // These are "Hard Constraints" - we must satisfy them if possible.
-        // We use a temporary pool tracking for this phase.
         let tempPool = pool;
-        const burdenGoals = [];
 
+        // 1. Reserve FinReserve + LIFE
         for (const { goal } of indexedGoals) {
             const priority = this._getPriority(goal);
+            if (priority > 2) continue;
 
-            // Priority 1 & 2 (Reserve & Life) -> Take what they need (Target or Initial)
-            if (priority <= 2) {
-                let needed = 0;
-
-                // NEW LOGIC (Partner NSJ fallback):
-                // For both FinReserve and Life (goal_type_id=5) on First Run, we treat
-                // goal.initial_capital as already-calculated upfront cost (e.g. limit/years for NSJ).
-                // We simply deduct this from the shared pool, without extra NSJ reservation here.
+            let needed = 0;
+            if (goal.goal_type_id === 5) {
+                needed = await getLifeFirstPaymentAmount(goal, context);
+            } else {
                 needed = goal.initial_capital || 0;
                 if (priority === 1 && needed === 0) needed = goal.target_amount || 0;
-
-                const take = Math.min(tempPool, needed);
-                // Real deduction from pool events to reserve the capital
-                const actualTaken = this._internalDeduct(take, context);
-                goal.smart_initial_capital = actualTaken;
-                tempPool -= actualTaken;
-                logger.info(`[CalculationService] Reserved ${actualTaken} for ${goal.name} (Priority ${priority})`);
             }
-            // Phase 2 & 3 handled after this loop
+
+            const take = Math.min(tempPool, needed);
+            const actualTaken = this._internalDeduct(take, context);
+            goal.smart_initial_capital = actualTaken;
+            tempPool -= actualTaken;
+            logger.info(`[CalculationService] Reserved ${actualTaken} for ${goal.name} (Priority ${priority})`);
         }
 
-        // Check if there are "Other" goals (Priority > 2 and NOT Investment)
-        // We need this to decide if Investment takes 60% or 100% of remainder.
         const hasOtherGoals = indexedGoals.some(i => {
             const p = this._getPriority(i.goal);
-            return p > 2 && i.goal.goal_type_id !== 3; // Not Safety, Not Investment
+            return p > 2 && i.goal.goal_type_id !== 3 && i.goal.goal_type_id !== 8;
         });
 
-        // 2. Investment Special Rule (ID 3)
-        // Allocates 60% of REMAINING free capital (after safety) if other goals exist.
-        // If NO other goals, allocates 100% of remainder.
-        const investmentGoalObj = indexedGoals.find(i => i.goal.goal_type_id === 3);
-        if (investmentGoalObj && tempPool > 0) {
+        const invGoals = indexedGoals.filter(i => i.goal.goal_type_id === 3).map(i => i.goal);
+        const rentGoals = indexedGoals.filter(i => i.goal.goal_type_id === 8).map(i => i.goal);
+        const hasInv = invGoals.length > 0;
+        const hasRent = rentGoals.length > 0;
+
+        // 2. Investment + RENT
+        if ((hasInv || hasRent) && tempPool > 0) {
             const ratio = hasOtherGoals ? 0.60 : 1.0;
-            const ruleAmount = tempPool * ratio; // 60% of Remainder
+            const ruleAmount = tempPool * ratio;
 
-            const take = ruleAmount; // It's derived from tempPool, so always available
-            const actualTaken = this._internalDeduct(take, context);
-
-            // Add to any existing initial (though unlikely for auto-algo)
-            const currentInit = investmentGoalObj.goal.smart_initial_capital || 0;
-            investmentGoalObj.goal.smart_initial_capital = currentInit + actualTaken;
-
-            tempPool -= actualTaken;
-            logger.info(`[CalculationService] Reserved ${actualTaken} for ${investmentGoalObj.goal.name} (Investment Rule)`);
-        }
-
-        // 3. Distribute Remaining Pool weighted by Burden (Other Goals)
-        // Filter out goals already processed (Safety & Investment)
-        for (const { goal } of indexedGoals) {
-            const p = this._getPriority(goal);
-            if (p <= 2 || goal.goal_type_id === 3) continue;
-
-            // Calculate burden-ready params
-            let term = goal.term_months || 120;
-            let target = goal.target_amount || 0;
-
-            // SPECIAL HANDLING FOR PENSION/PASSIVE INCOME
-            if (goal.goal_type_id === 1) { // PENSION
-                const birthYear = context.client.birth_date ? new Date(context.client.birth_date).getFullYear() : 1980;
-                const sex = context.client.sex || 'male';
-                const isMale = sex === 'male' || sex === 'M' || sex === 'мужской';
-                const retAge = isMale ? 65 : 60;
-                const yearsToRet = Math.max(retAge - (new Date().getFullYear() - birthYear), 0.5);
-                term = Math.round(yearsToRet * 12);
-
-                if (goal.desired_monthly_income > 0) {
-                    target = goal.desired_monthly_income;
-                }
-            } else if (goal.goal_type_id === 2) { // PASSIVE_INCOME
-                if (goal.desired_monthly_income > 0) {
-                    target = goal.desired_monthly_income * 150;
-                } else if (target > 0 && target < 10000000) {
-                    target = target * 150;
-                }
+            let invPart = 0;
+            let rentPart = 0;
+            if (hasInv && hasRent) {
+                invPart = ruleAmount * 0.5;
+                rentPart = ruleAmount * 0.5;
+            } else if (hasInv) {
+                invPart = ruleAmount;
+            } else {
+                rentPart = ruleAmount;
             }
 
-            const burden = target / term;
-            burdenGoals.push({ goal, burden, target, term });
+            const tInv = this._allocatePoolSliceAmongGoals(invGoals, invPart, context, (g) => this._weightInvestmentOrRent(g));
+            const tRent = this._allocatePoolSliceAmongGoals(rentGoals, rentPart, context, (g) => this._weightInvestmentOrRent(g));
+            tempPool -= (tInv + tRent);
+            logger.info(`[CalculationService] Phase2 INV/RENT: inv=${tInv}, rent=${tRent}, ruleAmount=${ruleAmount}`);
         }
 
-        if (tempPool > 0 && burdenGoals.length > 0) {
-            const totalBurden = burdenGoals.reduce((sum, item) => sum + item.burden, 0);
+        // 3a. Пенсия — доля от остатка по возрасту (макс. 20%)
+        const pensionGoals = indexedGoals
+            .map(({ goal }) => goal)
+            .filter(g => this._getPriority(g) > 2 && g.goal_type_id === 1);
 
-            if (totalBurden > 0) {
-                for (let i = 0; i < burdenGoals.length; i++) {
-                    const item = burdenGoals[i];
-                    const isLast = (i === burdenGoals.length - 1);
+        if (pensionGoals.length > 0 && tempPool > 0) {
+            const age = this._getClientAgeYears(context.client);
+            const share = this._pensionInitialShareFromAge(age);
+            const pensionCap = tempPool * Math.min(share, PENSION_SHARE_MAX);
+            const tPen = this._allocatePoolSliceAmongGoals(
+                pensionGoals,
+                pensionCap,
+                context,
+                (g, ctx) => this._smartGoalWeight(g, ctx)
+            );
+            tempPool -= tPen;
+            logger.info(`[CalculationService] Phase3a Pension age=${age} share=${share} taken=${tPen}`);
+        }
 
-                    let allocation = 0;
-                    if (isLast) {
-                        // Последняя цель забирает всё, что осталось (не округляем, чтобы не терять деньги из пула)
-                        allocation = tempPool;
-                    } else {
-                        const weight = item.burden / totalBurden;
-                        allocation = tempPool * weight;
+        // 3b. Пассивка, прочее и т.д. (без 1,3,8 и без p<=2)
+        const restGoals = indexedGoals
+            .map(({ goal }) => goal)
+            .filter(g => {
+                const p = this._getPriority(g);
+                return p > 2 && g.goal_type_id !== 3 && g.goal_type_id !== 8 && g.goal_type_id !== 1;
+            });
 
-                        // CAPPING & DISCOUNTING
-                        const years = item.term / 12;
-                        if (years > 5) {
-                            const discount = 1 / Math.pow(1.07, years);
-                            allocation = Math.min(allocation, item.target * discount);
-                        } else {
-                            allocation = Math.min(allocation, item.target);
-                        }
-
-                        // ОКРУГЛЕНИЕ ДО 50 000 (в меньшую сторону)
-                        allocation = Math.floor(allocation / 50000) * 50000;
-                    }
-
-                    const currentInit = item.goal.smart_initial_capital || 0;
-                    const actualTaken = this._internalDeduct(allocation, context);
-                    item.goal.smart_initial_capital = currentInit + actualTaken;
-                    tempPool -= actualTaken;
-                    logger.info(`[CalculationService] Reserved ${actualTaken} for ${item.goal.name} (Smart allocation, isLast: ${isLast})`);
+        if (restGoals.length > 0 && tempPool > 0) {
+            const wFn = (g, ctx) => this._smartGoalWeight(g, ctx);
+            const sumW = restGoals.reduce((s, g) => s + wFn(g, context), 0);
+            if (sumW <= 0 || !Number.isFinite(sumW)) {
+                const n = restGoals.length;
+                let rem = tempPool;
+                for (let i = 0; i < n; i++) {
+                    const isLast = i === n - 1;
+                    const take = isLast ? rem : rem / (n - i);
+                    const actual = this._internalDeduct(take, context);
+                    const g = restGoals[i];
+                    g.smart_initial_capital = (g.smart_initial_capital || 0) + actual;
+                    rem -= actual;
+                    tempPool -= actual;
                 }
+                logger.info('[CalculationService] Phase3b equal split (zero weights)');
             } else {
-                // If no burden target, dump to last
-                const last = burdenGoals[burdenGoals.length - 1];
-                const actualTaken = this._internalDeduct(tempPool, context);
-                last.goal.smart_initial_capital = (last.goal.smart_initial_capital || 0) + actualTaken;
+                const tRest = this._allocatePoolSliceAmongGoals(restGoals, tempPool, context, wFn);
+                tempPool -= tRest;
+                logger.info(`[CalculationService] Phase3b proportional taken=${tRest}`);
             }
         }
     }

@@ -1,4 +1,5 @@
 const BaseCalculator = require('./BaseCalculator');
+const { fetchLifeNsjResult, deriveLifeCostNow } = require('./lifeUpfrontAmount');
 
 /** @param {Date} d */
 function formatScheduleDate(d) {
@@ -44,79 +45,35 @@ function buildLifeMonthlySchedule({
 class LifeInsuranceCalculator extends BaseCalculator {
     async calculate(goal, context) {
         const { client, services, assets, settings } = context;
-        const { nsjApiService } = services;
 
         // 1. Calculate NSJ Parameters first (we need the premium amount)
         const termMonths = Number(goal.term_months || 120);
         const targetAmount = Number(goal.target_amount || 0);
 
-        let nsjResult;
-        let apiError = null;
-
-        const nsjParams = {
-            target_amount: targetAmount,
-            term_months: termMonths,
-            client: client || {},
-            payment_variant: goal.payment_variant || 12, // Default monthly
-            program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
-        };
-
-        try {
-            nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
-        } catch (err) {
-            console.warn('NSJ API Error, using fallback:', err.message);
-            apiError = err;
-            // Заглушка: считаем сами по формулам, пока партнёр не работает
-            const termY = Math.ceil(termMonths / 12);
-            const fallbackAnnualPremium = termMonths > 0 ? (targetAmount * 12) / termMonths : targetAmount;
-            nsjResult = {
-                success: true,
-                _fallback: true,
-                total_premium: fallbackAnnualPremium,
-                term_years: termY,
-                total_limit: targetAmount
-            };
+        const { nsjResult, apiError } = await fetchLifeNsjResult(goal, context);
+        if (apiError) {
+            console.warn('NSJ API Error, using fallback:', apiError.message);
         }
 
         // 2. Determine payment frequency and premium distribution
-        // Logic: FIRST premium goes to initial_capital (costNow)
-        // Subsequent premiums go to replenishment with payment_frequency indicator
-
         const isSinglePremium = (goal.payment_variant === 0);
-        const isMonthlyPayment = (goal.payment_variant === 1 || goal.payment_variant === 12); // 12 может означать ежемесячный
         const isAnnualPayment = (goal.payment_variant === 'annual' || goal.payment_variant === 'yearly');
 
-        let costNow = 0; // First premium (goes to initial_capital)
-        let replenishmentAmount = 0; // Subsequent premiums
-        let paymentFrequency = 'once'; // 'once', 'monthly', 'annual'
-        let totalPremium = targetAmount;
-        let termYears = Math.ceil(termMonths / 12);
+        let costNow = deriveLifeCostNow(goal, nsjResult);
+        let replenishmentAmount = 0;
+        let paymentFrequency = 'once';
+        let totalPremium = nsjResult ? (nsjResult.total_premium || targetAmount) : targetAmount;
+        let termYears = nsjResult ? (nsjResult.term_years || Math.ceil(termMonths / 12)) : Math.ceil(termMonths / 12);
 
-        if (nsjResult) {
-            totalPremium = nsjResult.total_premium || targetAmount;
-            termYears = nsjResult.term_years || Math.ceil(termMonths / 12);
-
-            if (isSinglePremium) {
-                // Single payment: all premium goes to initial capital
-                costNow = totalPremium;
-                replenishmentAmount = 0;
-                paymentFrequency = 'once';
-            } else if (isAnnualPayment || goal.payment_variant === 12) {
-                // Annual payment: totalPremium is annual premium
-                // First year premium goes to initial capital
-                costNow = totalPremium;
-                // Subsequent years - same annual amount
-                replenishmentAmount = totalPremium;
-                paymentFrequency = 'annual';
-            } else {
-                // Monthly payment: totalPremium is annual, so monthly is /12
-                const monthlyPremium = Math.round(totalPremium / 12);
-                // First month goes to initial capital
-                costNow = monthlyPremium;
-                // Subsequent months
-                replenishmentAmount = monthlyPremium;
-                paymentFrequency = 'monthly';
-            }
+        if (isSinglePremium) {
+            replenishmentAmount = 0;
+            paymentFrequency = 'once';
+        } else if (isAnnualPayment || goal.payment_variant === 12) {
+            replenishmentAmount = totalPremium;
+            paymentFrequency = 'annual';
+        } else {
+            replenishmentAmount = Math.round(totalPremium / 12);
+            paymentFrequency = 'monthly';
         }
 
         // 3. Calculate Tax Deduction for Life Insurance
@@ -148,9 +105,14 @@ class LifeInsuranceCalculator extends BaseCalculator {
             }
         }
 
-        // 4. Resolve Initial Capital (respects reservation)
-        // For Life, costNow is the target for deduction if no smart allocation
-        const deductedCapital = this.resolveInitialCapital({ ...goal, initial_capital: costNow }, context);
+        // 4. Initial capital: smart-аллокация уже списала с пула, если smart > 0; иначе — списываем первый взнос здесь
+        let deductedCapital;
+        const smart = goal.smart_initial_capital;
+        if (smart !== undefined && smart !== null && Number(smart) > 0) {
+            deductedCapital = Number(smart);
+        } else {
+            deductedCapital = this.deductFromSharedPool(costNow, context);
+        }
 
         // 5. Construct Result with Payment Frequency
         const isFallback = !!(nsjResult && nsjResult._fallback);
