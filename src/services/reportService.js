@@ -89,6 +89,30 @@ class ReportService {
         };
     }
 
+    _sumByProductType(items, productType) {
+        const target = String(productType || '').toUpperCase().trim();
+        if (!target) return 0;
+        return (Array.isArray(items) ? items : []).reduce((sum, item) => {
+            const pt = String(item?.product_type || '').toUpperCase().trim();
+            if (pt !== target) return sum;
+            const amount = Number(item?.amount);
+            return Number.isFinite(amount) ? sum + amount : sum;
+        }, 0);
+    }
+
+    _buildComonStockCapitalContext(summary) {
+        const consolidated = summary?.consolidated_portfolio && typeof summary.consolidated_portfolio === 'object'
+            ? summary.consolidated_portfolio
+            : {};
+        const stockInitial = this._sumByProductType(consolidated.assets_allocation, 'STOCK');
+        const stockMonthly = this._sumByProductType(consolidated.cash_flow_allocation, 'STOCK');
+        return {
+            stock_initial_capital: Math.round(stockInitial * 100) / 100,
+            stock_monthly_replenishment: Math.round(stockMonthly * 100) / 100,
+            stock_total_capital_for_min_sum: Math.round((stockInitial + stockMonthly) * 100) / 100,
+        };
+    }
+
     calculateAge(birthDate) {
         if (!birthDate) return null;
         const dt = new Date(birthDate);
@@ -173,6 +197,7 @@ class ReportService {
         const calcData = rawCalc.calculation != null ? rawCalc.calculation : rawCalc;
         const goalsReport = Array.isArray(calcData.goals) ? calcData.goals : [];
         const summary = calcData.summary && typeof calcData.summary === 'object' ? calcData.summary : {};
+        const stockCapitalContext = this._buildComonStockCapitalContext(summary);
 
         // 4. Section: Current Situation (Assets & Net Worth)
         // Recalculating from client data strictly to ensure consistency
@@ -183,6 +208,7 @@ class ReportService {
             assets_total: assetsTotal,
             liabilities_total: liabilitiesTotal,
             net_worth: assetsTotal - liabilitiesTotal,
+            stock_capital_context: stockCapitalContext,
             assets_breakdown: (client.assets || []).map(a => ({
                 name: a.name || a.type,
                 value: Number(a.current_value || a.amount || 0)

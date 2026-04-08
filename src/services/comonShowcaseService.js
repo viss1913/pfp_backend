@@ -32,6 +32,10 @@ function allowedRiskLevels(config, riskProfile) {
 
 function resolveCompareCapital(client, minSumField, currentSituation) {
     if (minSumField === 'none') return null;
+    const stockCapital = Number(currentSituation?.stock_capital_context?.stock_total_capital_for_min_sum);
+    if (Number.isFinite(stockCapital) && stockCapital > 0) {
+        return stockCapital;
+    }
     if (minSumField === 'net_worth') {
         const n = currentSituation && currentSituation.net_worth != null ? Number(currentSituation.net_worth) : NaN;
         return Number.isFinite(n) ? n : null;
@@ -55,6 +59,7 @@ function toShowcaseItem(row) {
         risk_level: row.riskLevel != null ? Number(row.riskLevel) : null,
         profit_365_days_percent: row.profit365Days != null ? Number(row.profit365Days) : null,
         annual_average_profit_percent: row.annualAverageProfit != null ? Number(row.annualAverageProfit) : null,
+        follower_count: row.followerCount != null ? Number(row.followerCount) : null,
         strategy_rating: row.strategyRating != null ? Number(row.strategyRating) : null,
         tags: Array.isArray(row.tags) ? row.tags.map((t) => String(t)) : [],
         author: row.author != null ? String(row.author) : null,
@@ -171,6 +176,9 @@ function filterAndRank(rows, config, client, currentSituation) {
     });
 
     list.sort((a, b) => {
+        const ya = a.profit365Days != null ? Number(a.profit365Days) : -Infinity;
+        const yb = b.profit365Days != null ? Number(b.profit365Days) : -Infinity;
+        if (yb !== ya) return yb - ya;
         const ra = a.strategyRating != null ? Number(a.strategyRating) : -Infinity;
         const rb = b.strategyRating != null ? Number(b.strategyRating) : -Infinity;
         if (rb !== ra) return rb - ra;

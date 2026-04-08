@@ -57,6 +57,10 @@ const GLOBAL_DEFAULTS = {
 };
 
 const DISTRIBUTION_CHART_COLORS = ['#3b82f6', '#6366f1', '#a855f7', '#60a5fa', '#8b5cf6', '#2563eb'];
+const COMON_AUTOFOLLOW_LEAD_RU =
+    'Автоследование (копитрейдинг) позволяет подключиться к стратегии профессионального трейдера: ' +
+    'сделки повторяются на вашем счете автоматически, при этом деньги остаются у вас и не передаются в доверительное управление. ' +
+    'Важно помнить о рисках: возможны просадки и убытки.';
 
 function escapeHtml(s) {
     if (s == null) return '';
@@ -95,11 +99,13 @@ function buildComonShowcaseSectionHtml(showcase, lineColor, textColor) {
                 const name = escapeHtml(it.name || '—');
                 const url = escapeHtml(it.url || '');
                 const y = it.profit_365_days_percent;
+                const followers = Number(it?.follower_count);
                 const yStr =
                     y != null && Number.isFinite(Number(y)) ? `${Number(y).toFixed(1)}% за 12 мес.` : '';
+                const followersStr = Number.isFinite(followers) ? ` · Подписчики: ${Math.round(followers).toLocaleString('ru-RU')}` : '';
                 return `<li class="comon-show__li">
             <span class="fw-600">${name}</span>
-            <span class="comon-show__meta"> · мин. ${formatMin(it.min_sum)}${yStr ? ` · ${escapeHtml(yStr)}` : ''}</span>
+            <span class="comon-show__meta"> · мин. ${formatMin(it.min_sum)}${yStr ? ` · ${escapeHtml(yStr)}` : ''}${followersStr ? escapeHtml(followersStr) : ''}</span>
             ${url ? `<div class="comon-show__url">${url}</div>` : ''}
             ${url ? `<a class="comon-show__cta" href="${url}" target="_blank" rel="noopener noreferrer">Перейти к стратегии</a>` : ''}
           </li>`;
@@ -110,7 +116,7 @@ function buildComonShowcaseSectionHtml(showcase, lineColor, textColor) {
 
     return `<section class="section comon-show">
       <h2 class="h2" style="border-bottom-color: ${escapeHtml(lineColor)}">Стратегии Comon</h2>
-      <p class="comon-show__lead">Ознакомительные примеры из публичного каталога (подбор по риск-профилю и сумме).</p>
+      <p class="comon-show__lead">${escapeHtml(COMON_AUTOFOLLOW_LEAD_RU)}</p>
       ${body}
       <p class="comon-show__disc">${disclaimer}</p>
     </section>`;
@@ -965,23 +971,36 @@ base-uri 'none';
       text-align: center;
       color: ${textColor};
     }
+    .comon-show {
+      background: linear-gradient(145deg, rgba(255,255,255,0.52), rgba(255,255,255,0.28));
+      border: 1px solid rgba(148,163,184,0.36);
+      box-shadow: 0 10px 28px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.5);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 12px 14px;
+    }
     .comon-show__lead {
-      margin: 0 0 6px 0;
+      margin: 0 0 8px 0;
       font-size: 9px;
-      line-height: 1.35;
-      color: #334155;
+      line-height: 1.38;
+      color: #1e293b;
     }
     .comon-show__list {
       margin: 0;
-      padding-left: 14px;
+      padding-left: 0;
       max-height: 168px;
       overflow: hidden;
+      list-style: none;
     }
     .comon-show__li {
-      margin-bottom: 4px;
+      margin-bottom: 5px;
       font-size: 9px;
       line-height: 1.3;
       color: ${textColor};
+      padding: 6px 8px;
+      border: 1px solid rgba(148,163,184,0.28);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.58);
     }
     .comon-show__meta { font-weight: 400; opacity: 0.92; }
     .comon-show__url {
@@ -996,7 +1015,7 @@ base-uri 'none';
       padding: 3px 8px;
       border-radius: 999px;
       border: 1px solid ${lineColor};
-      background: rgba(255,255,255,0.92);
+      background: rgba(255,255,255,0.70);
       color: ${textColor};
       font-size: 8px;
       font-weight: 700;
@@ -1012,7 +1031,7 @@ base-uri 'none';
       margin: 6px 0 0 0;
       font-size: 8px;
       line-height: 1.35;
-      color: #64748b;
+      color: #475569;
     }
     .portfolio-grid {
       display: grid;
@@ -1106,10 +1125,13 @@ async function buildComonAutofollowPageHtml(options = {}) {
             const name = escapeHtml(it?.name || 'Стратегия');
             const url = escapeHtml(String(it?.url || '').trim());
             const y = Number(it?.profit_365_days_percent);
+            const followers = Number(it?.follower_count);
             const yStr = Number.isFinite(y) ? `${y.toFixed(1)}% за 12 мес.` : '—';
+            const followersStr = Number.isFinite(followers) ? `Подписчики: ${Math.round(followers).toLocaleString('ru-RU')}` : null;
             return `<article class="comon-page__card">
   <h3 class="comon-page__card-title">${name}</h3>
   <p class="comon-page__card-meta">${escapeHtml(yStr)}</p>
+  ${followersStr ? `<p class="comon-page__card-meta">${escapeHtml(followersStr)}</p>` : ''}
   ${url ? `<a class="comon-page__cta" href="${url}" target="_blank" rel="noopener noreferrer">Перейти к стратегии</a>` : ''}
 </article>`;
         }).join('')}</div>`;
@@ -1133,16 +1155,29 @@ async function buildComonAutofollowPageHtml(options = {}) {
       color: ${textColor};
       background: linear-gradient(135deg, rgba(248,251,255,1) 0%, rgba(238,244,255,${Math.max(0.6, 1 - overlayOpacity)}) 48%, rgba(248,250,252,1) 100%);
     }
-    .comon-page__head { display:flex; gap:12px; align-items:center; margin-bottom: 12px; }
+    .comon-page__head { display:flex; gap:12px; align-items:center; margin-bottom: 10px; }
     .comon-page__avatar { width:42px; height:42px; border-radius:50%; border:2px solid rgba(148,163,184,0.35); }
     .comon-page__title { margin:0; font-size:20px; font-weight:900; }
     .comon-page__sub { margin:4px 0 0 0; font-size:12px; opacity:0.82; }
+    .comon-page__lead {
+      margin: 0 0 10px 0;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #1e293b;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,0.3);
+      background: linear-gradient(145deg, rgba(255,255,255,0.5), rgba(255,255,255,0.25));
+      box-shadow: 0 8px 24px rgba(15,23,42,0.08), inset 0 1px 0 rgba(255,255,255,0.5);
+      backdrop-filter: blur(10px);
+    }
     .comon-page__grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
     .comon-page__card {
       border-radius: 14px;
-      border: 1px solid rgba(148,163,184,0.32);
-      background: rgba(255,255,255,0.95);
-      box-shadow: 0 8px 20px rgba(15,23,42,0.07);
+      border: 1px solid rgba(148,163,184,0.30);
+      background: linear-gradient(150deg, rgba(255,255,255,0.56), rgba(255,255,255,0.26));
+      box-shadow: 0 10px 26px rgba(15,23,42,0.10), inset 0 1px 0 rgba(255,255,255,0.5);
+      backdrop-filter: blur(10px);
       padding: 10px;
       min-height: 98px;
       display: flex;
@@ -1162,7 +1197,7 @@ async function buildComonAutofollowPageHtml(options = {}) {
       font-size: 10px;
       font-weight: 700;
       color: ${textColor};
-      background: rgba(255,255,255,0.95);
+      background: rgba(255,255,255,0.72);
     }
     .comon-page__note { margin-top: 12px; font-size: 13px; opacity: 0.84; }
     .comon-page__disc { position:absolute; left:32px; right:32px; bottom:20px; margin:0; font-size:9px; color:#64748b; line-height:1.35; }
@@ -1177,6 +1212,7 @@ async function buildComonAutofollowPageHtml(options = {}) {
         <p class="comon-page__sub">Подборка стратегий с переходом на платформу Comon</p>
       </div>
     </header>
+    <p class="comon-page__lead">${escapeHtml(COMON_AUTOFOLLOW_LEAD_RU)}</p>
     ${body}
     <p class="comon-page__disc">${disclaimer}</p>
   </div>
