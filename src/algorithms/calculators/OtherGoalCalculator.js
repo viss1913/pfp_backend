@@ -19,15 +19,44 @@ class OtherGoalCalculator extends BaseCalculator {
         const inflationMonthly = this.getMonthlyInflation(inflationRate);
         const targetAmountFuture = (goal.target_amount || 0) * Math.pow(1 + inflationMonthly, termMonths);
 
-        const initialCapitalForSearch = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
+        const initialCapitalForSearchRaw = (goal.smart_initial_capital !== undefined)
+            ? Number(goal.smart_initial_capital)
+            : Number(goal.initial_capital || 0);
+        const initialCapitalForSearch = Number.isFinite(initialCapitalForSearchRaw) ? initialCapitalForSearchRaw : 0;
+        const useAmountFilter = initialCapitalForSearch > 0;
 
-        // Поиск портфеля (ID 4 - Прочее)
-        const portfolio = await portfolioRepository.findByCriteria({
+        // Поиск портфеля (класс OTHER). Сначала стандартный путь по id=4,
+        // затем fallback по фактическому class id в проекте.
+        let searchClassId = 4;
+        let portfolio = await portfolioRepository.findByCriteria({
             projectId: context.projectId,
-            classId: 4,
-            amount: initialCapitalForSearch,
+            classId: searchClassId,
+            amount: useAmountFilter ? initialCapitalForSearch : undefined,
             term: termMonths
         });
+
+        if (!portfolio) {
+            const classes = await portfolioRepository.getClasses(context.projectId);
+            const otherClass = (classes || []).find(c => (c.code || '').toUpperCase() === 'OTHER');
+            if (otherClass && Number(otherClass.id) !== 4) {
+                searchClassId = Number(otherClass.id);
+                portfolio = await portfolioRepository.findByCriteria({
+                    projectId: context.projectId,
+                    classId: searchClassId,
+                    amount: useAmountFilter ? initialCapitalForSearch : undefined,
+                    term: termMonths
+                });
+            }
+        }
+
+        // Для целей без стартового капитала берём портфель только по классу+сроку.
+        if (!portfolio && !useAmountFilter) {
+            portfolio = await portfolioRepository.findByCriteria({
+                projectId: context.projectId,
+                classId: searchClassId,
+                term: termMonths
+            });
+        }
 
         if (!portfolio) throw new Error('Portfolio for OTHER goals not found');
 
