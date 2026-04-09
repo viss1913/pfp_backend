@@ -162,6 +162,33 @@ class ReportPdfService {
         includeSummary = true,
         goalTypes = null,
     }) {
+        const htmlPkg = await this.generateClientReportHtmlPackage({
+            clientId,
+            agentId,
+            brandingAgentId,
+            projectId,
+            includeCover,
+            includeSummary,
+            goalTypes,
+        });
+        const pdfBuffer = await this._renderPdfFromMergedHtml(htmlPkg.mergedHtml);
+        return {
+            pdfBuffer,
+            toc: htmlPkg.toc,
+            pageHtmlList: htmlPkg.pageHtmlList,
+            mergedHtml: htmlPkg.mergedHtml,
+        };
+    }
+
+    async generateClientReportHtmlPackage({
+        clientId,
+        agentId,
+        brandingAgentId,
+        projectId = null,
+        includeCover = true,
+        includeSummary = true,
+        goalTypes = null,
+    }) {
         const report = await reportService.getClientReportData(clientId, projectId);
         const themeKey = resolveReportThemeKey(projectId);
 
@@ -313,8 +340,7 @@ class ReportPdfService {
         }
 
         const mergedHtml = buildFramesContainerHtml(pageHtmlList);
-        const pdfBuffer = await this._renderPdfFromMergedHtml(mergedHtml);
-        return { pdfBuffer, toc, pageHtmlList };
+        return { mergedHtml, toc, pageHtmlList };
     }
 
     async _renderPdfFromMergedHtml(mergedHtml) {

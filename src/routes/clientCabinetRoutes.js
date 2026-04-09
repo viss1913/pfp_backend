@@ -13,6 +13,7 @@ router.get('/plan', clientCabinetController.getMyPlan.bind(clientCabinetControll
 // GET /my/plan/report — JSON отчёта (pdf_summary_layout и т.д.)
 router.get('/plan/report/pdf', clientCabinetController.getMyReportPdf.bind(clientCabinetController));
 router.get('/plan/report/pdf-url', clientCabinetController.getMyReportPdfUrl.bind(clientCabinetController));
+router.get('/plan/report/html', clientCabinetController.getMyReportHtml.bind(clientCabinetController));
 router.get('/plan/report', clientCabinetController.getMyReport.bind(clientCabinetController));
 router.get('/plan/comon-showcase', clientCabinetController.getMyComonShowcase.bind(clientCabinetController));
 

@@ -119,6 +119,7 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 |--------|------|------------|
 | GET | `/api/my/plan/report` | Тот же JSON, что **`/api/pfp/reports/:clientId`**, для **`req.user.clientId`** |
 | GET | `/api/my/plan/report/pdf` | PDF: те же query, что у агентского PDF; стиль из **`agent_report_pdf_settings`** закреплённого агента или дефолты |
+| GET | `/api/my/plan/report/html` | JSON для предпросмотра: `html` (склеенный документ), `pages[]` (страницы по отдельности), `toc[]` |
 
 Ответы PdfSettings включают **`editor_schema`** (контракт для ЛК): у каждого **`templates[]`** — **`preview_page_type`** и **`preview_html`** (путь к GET превью HTML вкладки, кроме обложки). Плюс **`cover_layout`** (геометрия + resolved цвета/текст). **Публичный URL фона нигде не дублируется:** только корневое поле **`cover_background_url`** (или **`GET /api/pfp/pdf-settings/cover-image`**, если нужен signed). Внутри `cover_layout.background` — лишь `uses_custom_upload` и `fallback_repo_relative_path` к стоковому jpg в репо, когда свой фон не задан.
 

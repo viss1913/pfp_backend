@@ -276,6 +276,52 @@ class ClientCabinetController {
     }
 
     /**
+     * GET /my/plan/report/html — HTML отчёта текущего клиента (для предпросмотра на фронте).
+     */
+    async getMyReportHtml(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+            const client = await clientService.getFullClient(clientId, projectId);
+            if (!client) {
+                return res.status(404).json({ error: 'Client profile not found' });
+            }
+
+            const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
+            const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
+            const goalTypes = req.query.goalTypes || null;
+
+            const brandingAgentId =
+                client.agent_id != null && client.agent_id !== ''
+                    ? Number(client.agent_id)
+                    : null;
+
+            const { mergedHtml, pageHtmlList, toc } = await reportPdfService.generateClientReportHtmlPackage({
+                clientId: Number(clientId),
+                agentId: null,
+                brandingAgentId,
+                projectId,
+                includeCover,
+                includeSummary,
+                goalTypes,
+            });
+
+            res.json({
+                html: mergedHtml,
+                pages: pageHtmlList,
+                toc: Array.isArray(toc) ? toc : [],
+                generated_at: new Date().toISOString(),
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
      * POST /my/plan/first-run — Create the client's first financial plan
      */
     async createMyPlan(req, res, next) {

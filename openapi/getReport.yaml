@@ -160,6 +160,67 @@ paths:
         '500':
           description: Ошибка генерации PDF
 
+  /my/plan/report/html:
+    get:
+      summary: HTML отчёта текущего клиента (ЛК B2C)
+      description: |
+        Возвращает HTML-представление отчёта для фронтового предпросмотра без рендера PDF.
+        Полезно, когда нужно быстро показать страницы в веб-интерфейсе и отдельно запускать экспорт в PDF.
+      parameters:
+        - name: includeCover
+          in: query
+          required: false
+          description: Обложка включена по умолчанию; `0` или `false` — пропустить.
+          schema:
+            type: string
+        - name: includeSummary
+          in: query
+          required: false
+          description: Сводная по умолчанию включена; `0` или `false` — пропустить.
+          schema:
+            type: string
+        - name: goalTypes
+          in: query
+          required: false
+          description: Подмножество страниц целей через запятую (как у PDF-эндпоинтов).
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: HTML отчёта и страницы по отдельности
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  html:
+                    type: string
+                    description: Единый HTML со всеми страницами отчёта.
+                  pages:
+                    type: array
+                    description: Массив HTML-страниц (по одной строке на страницу).
+                    items:
+                      type: string
+                  toc:
+                    type: array
+                    description: Оглавление (если доступно для текущей темы/набора страниц).
+                    items:
+                      type: object
+                      additionalProperties: true
+                  generated_at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Нет clientId в токене
+        '401':
+          description: Нет токена
+        '404':
+          description: Профиль клиента не найден
+        '500':
+          description: Ошибка генерации HTML
+
   /pfp/reports/{clientId}/pages/{pageType}/html:
     get:
       summary: HTML одной страницы отчёта клиента
