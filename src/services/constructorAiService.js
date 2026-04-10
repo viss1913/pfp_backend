@@ -918,8 +918,9 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
         calculationResult != null &&
         typeof calculationResult === 'object' &&
         Object.keys(calculationResult).length > 0;
-    const firstRunWithCalc = isFirstRunCalculationCommand(cmdKeyNorm) && hasCalcPayload;
-    const firstRunStageNoCalc = isFirstRunCalculationCommand(cmdKeyNorm) && !hasCalcPayload;
+    const calcOk = firstRunCalculationSucceeded(calculationResult);
+    const firstRunWithCalc = isFirstRunCalculationCommand(cmdKeyNorm) && calcOk;
+    const firstRunStageNoCalc = isFirstRunCalculationCommand(cmdKeyNorm) && !calcOk;
 
     if (firstRunWithCalc) {
         sections.push(
@@ -960,8 +961,8 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
         sections.push(cmdKey ? `Сценарий (${cmdKey}):\n${trimText(resp)}` : `Сценарий:\n${trimText(resp)}`);
     }
 
-    // JSON в system — только не firstRun (например /homeownerscalc). Иначе дублируем в user-хвосте ниже.
-    if (hasCalcPayload && !firstRunWithCalc) {
+    // JSON в system — только не firstRun (например /homeownerscalc). Для firstRun успешный JSON только в user-хвосте.
+    if (hasCalcPayload && !isFirstRunCalculationCommand(cmdKeyNorm)) {
         const forPrompt = calculationPayloadForGeneratorPrompt(calculationResult);
         sections.push(`Результат расчёта (JSON):\n${JSON.stringify(forPrompt, null, 2)}`);
     }
@@ -1593,18 +1594,8 @@ class ConstructorAiService {
             return extracted;
         } catch (error) {
             console.error('[AI] Error extracting financial params:', error);
-            return {
-                client: {
-                    first_name: null,
-                    last_name: null,
-                    fio: null,
-                    sex: 'male',
-                    birth_date: '1990-01-01',
-                    avg_monthly_income: 100000,
-                    total_liquid_capital: 0,
-                },
-                goals: []
-            };
+            // Без фейкового client: иначе synthetic pension + minimal validation доводят до calculateFirstRun на выдуманных данных.
+            return { client: {}, goals: [] };
         }
     }
 
@@ -1686,7 +1677,13 @@ class ConstructorAiService {
         if (isFirstRunCalculationCommand(cmdKeyEarly) && !firstRunCalculationSucceeded(calculationResult)) {
             const msg = FIRST_RUN_CALC_FAILED_USER_MESSAGE;
             if (res && typeof res.write === 'function' && !res.writableEnded) {
-                res.write(`data: ${JSON.stringify({ type: 'text', text: msg })}\n\n`);
+                res.write(
+                    `data: ${JSON.stringify({
+                        type: 'calc_error',
+                        text: msg,
+                        error_code: 'FIRST_RUN_CALC_FAILED',
+                    })}\n\n`
+                );
                 res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
                 res.end();
             }

@@ -509,6 +509,8 @@ class ConstructorController {
      * Чат на сайте без регистрации: выбираем project по x-project-key (tenantMiddleware),
      * сессию — по sessionId/куке (используем как user_id в constructor_clients),
      * ответ стримим как SSE.
+     * События: type=session|classifier_command|text|calc_error|pdf_url|done|error.
+     * При провале first-run расчёта: type=calc_error, поля text и error_code=FIRST_RUN_CALC_FAILED (без LLM-«плана»).
      */
     async handleSiteChatStream(req, res) {
         const knex = require('../config/database');
