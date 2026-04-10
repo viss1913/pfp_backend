@@ -219,6 +219,20 @@ class CalculationService {
         return totalTaken;
     }
 
+    /**
+     * Актив «наличные/депозит» на мес.0 — уже отражён в total_liquid_capital или в derived pool;
+     * не добавляем второй раз в sharedPoolEvents (иначе пул фактически удваивается).
+     */
+    _isMonthZeroLiquidAssetMergedIntoPool(a) {
+        const month = a.unlock_month || a.sell_month || 0;
+        if (month !== 0) return false;
+        const type = (a.type || '').toUpperCase();
+        return type === 'CASH'
+            || type === 'НАЛИЧНЫЕ'
+            || type === 'DEPOSIT'
+            || type === 'DEPOSIT_ACCOUNT';
+    }
+
     async _prepareContext(clientData, options = {}) {
         // Collect assets and pool
         const isFirstRun = options.isFirstRun !== false;
@@ -234,9 +248,7 @@ class CalculationService {
             Array.isArray(assets) &&
             assets.length > 0) {
             const derivedLiquid = assets.reduce((sum, a) => {
-                const month = a.unlock_month || a.sell_month || 0;
-                const type = (a.type || '').toUpperCase();
-                if (month === 0 && (type === 'CASH' || type === 'НАЛИЧНЫЕ' || type === 'DEPOSIT' || type === 'DEPOSIT_ACCOUNT')) {
+                if (this._isMonthZeroLiquidAssetMergedIntoPool(a)) {
                     return sum + Number(a.amount || a.current_value || 0);
                 }
                 return sum;
@@ -252,14 +264,7 @@ class CalculationService {
         const sharedPoolEvents = assets
             .filter(a => !a.goal_id)
             // Prevent double-counting: if it's CASH/DEPOSIT at month 0, we assume it's part of total_liquid_capital
-            .filter(a => {
-                const month = a.unlock_month || a.sell_month || 0;
-                const type = (a.type || '').toUpperCase();
-                if (month === 0 && (type === 'CASH' || type === 'Наличные')) {
-                    return false;
-                }
-                return true;
-            })
+            .filter(a => !this._isMonthZeroLiquidAssetMergedIntoPool(a))
             .map(a => ({
                 month: a.unlock_month || a.sell_month || 0,
                 amount: Number(a.amount || a.current_value || 0)
@@ -539,7 +544,7 @@ class CalculationService {
             usePool: options.usePool
         });
         try {
-            const { goals, client } = data;
+            const { goals, client, assets: requestRootAssets } = data;
             const isFirstRun = options.isFirstRun !== false; // Default to true for backward compatibility
 
             const clientData = client ? {
@@ -547,6 +552,11 @@ class CalculationService {
                 gender: client.gender || client.sex || 'male',
                 birth_date: client.birth_date || '1985-01-01'
             } : {};
+
+            // ЛК/фронт часто шлёт assets в корне тела, а не в client.assets — иначе пул=0 и смарт-аллокация не бежит
+            const assetsFromClient = Array.isArray(clientData.assets) ? clientData.assets : [];
+            const assetsFromRoot = Array.isArray(requestRootAssets) ? requestRootAssets : [];
+            clientData.assets = assetsFromClient.length > 0 ? assetsFromClient : assetsFromRoot;
 
             logger.info(`[CalculationService] calculateFirstRun for project: ${clientData.project_id}, Goals: ${goals?.length}`);
 
