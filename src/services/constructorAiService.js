@@ -56,6 +56,18 @@ function traceConstructorMeta(step, obj) {
     console.log(`[ConstructorAI::TRACE] ${step} ${JSON.stringify(obj, null, 2)}`);
 }
 
+/** Один data: JSON ивент для site-chat SSE (после session/classifier). Не бросает. */
+function writeConstructorSiteChatSseData(res, payload) {
+    if (!res || typeof res.write !== 'function' || res.writableEnded) return false;
+    try {
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        return true;
+    } catch (e) {
+        console.warn('[ConstructorAI] site-chat SSE write failed:', e.message || e);
+        return false;
+    }
+}
+
 /** Сколько последних записей constructor_logs подмешивать в промпт (1 запись = 1 ход: user + assistant). */
 function envPositiveInt(name, fallback) {
     const n = parseInt(process.env[name], 10);
@@ -2029,16 +2041,38 @@ class ConstructorAiService {
             firstRunExtraction
         ) {
             try {
-                const r = await constructorPfpPersistService.persistConstructorFirstRunAndUploadPdf({
-                    constructorClientRow: client,
-                    bot,
-                    extraction: firstRunExtraction,
-                    calculationResponse: calculationResult,
-                });
-                pfpReportPdfUrl = r.pdfUrl;
-                console.log(
-                    `[ConstructorAI] firstRun(stream): persist OK pfp_client_id=${r.clientId} pdfUrl=${pfpReportPdfUrl ? 'set' : 'MISSING (check R2 / PFP_PUBLIC_API_BASE_URL)'}`
-                );
+                const botFresh = await knex('constructor_bots').where('id', bot.id).first();
+                bot = await backfillConstructorBotAgentId(botFresh || bot);
+                client = await knex('constructor_clients').where('id', client.id).first();
+
+                if (!bot?.agent_id || !bot?.project_id) {
+                    console.error(
+                        '[ConstructorAI] firstRun(stream): persist skipped — bot missing agent_id or project_id after DB refresh + backfill',
+                        { botId: bot?.id, agent_id: bot?.agent_id ?? null, project_id: bot?.project_id ?? null }
+                    );
+                } else {
+                    const r = await constructorPfpPersistService.persistConstructorFirstRunAndUploadPdf({
+                        constructorClientRow: client,
+                        bot,
+                        extraction: firstRunExtraction,
+                        calculationResponse: calculationResult,
+                    });
+                    pfpReportPdfUrl = r.pdfUrl;
+                    console.log(
+                        `[ConstructorAI] firstRun(stream): persist OK pfp_client_id=${r.clientId} pdfUrl=${pfpReportPdfUrl ? 'set' : 'MISSING (check R2 / PFP_PUBLIC_API_BASE_URL)'}`
+                    );
+                    if (r.clientId != null) {
+                        writeConstructorSiteChatSseData(res, {
+                            type: 'pfp_client',
+                            pfp_client_id: r.clientId,
+                            agent_id: Number(bot.agent_id),
+                            project_id: Number(bot.project_id),
+                        });
+                    }
+                    if (pfpReportPdfUrl) {
+                        writeConstructorSiteChatSseData(res, { type: 'pdf_url', pdf_url: pfpReportPdfUrl });
+                    }
+                }
             } catch (persistErr) {
                 console.error(
                     '[ConstructorAI] persistConstructorFirstRun (stream) failed:',
