@@ -15,6 +15,7 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 2. **Сводная** — `buildSummaryOverviewHtml.js`, `buildSummaryPdfLayoutModel.js` (поле **`pdf_summary_layout`** в данных отчёта), брендинг через `summary_*` в БД. Опциональный блок **Comon-витрина** внизу сводной: поле отчёта **`comon_showcase`**, сервис `comonShowcaseService`, настройки проекта `projects.settings.comon_showcase` (см. `projectComonShowcaseSettings.js`, `docs/report-pdf-frontend-contract.md`).
 3. **Четыре типа страниц целей** — `buildGoalPagesHtml.js`: **`FIN_RESERVE`**, **`LIFE`**, **`INVESTMENT`**, **`OTHER`** (общий брендинг со сводной: фон/лого/цвета из тех же `summary_*`).
 4. **Сборка полного PDF** — `reportPdfService` (Puppeteer): обложка (опц.) → сводная (опц.) → страницы целей (подмножество через query **`goalTypes`**). Эндпоинт **`GET /api/pfp/reports/:clientId/pdf`**.
+4a. **Полный HTML отчёта для ЛК агента** — **`GET /api/pfp/reports/:clientId/html`** (`reportController.getClientReportHtml`): JSON с `html`, `pages[]`, `toc[]` без рендера PDF.
 5. **HTML одной страницы для клиента** — **`GET /api/pfp/reports/:clientId/pages/:pageType/html`** (`reportPagesController`).
 6. **ЛК клиента (B2C)** — **`GET /api/my/plan/report`**, **`GET /api/my/plan/report/pdf`**, **`GET /api/my/plan/comon-showcase`** (`clientCabinetController`).
 7. **Превью в ЛК (мок + настройки агента)** — **`GET /api/pfp/pdf-settings/summary-preview-html`**, **`GET /api/pfp/pdf-settings/pages/:pageType/preview-html`** (`pageType`: `SUMMARY` \| `FIN_RESERVE` \| `LIFE` \| `INVESTMENT` \| `OTHER`).
@@ -109,6 +110,7 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 |--------|------|------------|
 | GET | `/api/pfp/reports/:clientId` | Структурированные данные отчёта (в т.ч. **`pdf_summary_layout`**) |
 | GET | `/api/pfp/reports/:clientId/pdf` | Готовый PDF: query **`includeCover`**, **`includeSummary`**, **`goalTypes`**; **`disposition=attachment`** — скачивание вместо inline |
+| GET | `/api/pfp/reports/:clientId/html` | Полный HTML отчёта (JSON: `html`, `pages[]`, `toc[]`), те же query, что у PDF |
 | GET | `/api/pfp/reports/:clientId/pages/:pageType/html` | HTML одной страницы для печати/PDF; **`pageType`** как в превью (`SUMMARY`, …) |
 
 ## HTTP API: отчёт в ЛК клиента (`/api/my`, JWT с `clientId`)
