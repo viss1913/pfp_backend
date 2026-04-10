@@ -509,8 +509,9 @@ class ConstructorController {
      * Чат на сайте без регистрации: выбираем project по x-project-key (tenantMiddleware),
      * сессию — по sessionId/куке (используем как user_id в constructor_clients),
      * ответ стримим как SSE.
-     * События: type=session|classifier_command|pfp_client|pdf_url|text|calc_error|done|error.
-     * После успешного persist first-run (до стрима LLM): type=pfp_client (pfp_client_id, agent_id, project_id), затем при наличии URL — type=pdf_url; в конце стрима дублируются pdf_url и type=text со ссылкой на PDF.
+     * События: type=session|classifier_command|persist_status|pfp_client|pdf_url|text|calc_error|done|error.
+     * persist_status: { status: ok|skipped|failed, reason?, ... } — диагностика CRM/PDF до стрима LLM.
+     * При успехе: затем pfp_client, pdf_url (если есть URL); в конце стрима дублируются pdf_url и type=text со ссылкой на PDF.
      * При провале first-run расчёта: type=calc_error, поля text и error_code=FIRST_RUN_CALC_FAILED (без LLM-«плана»).
      */
     async handleSiteChatStream(req, res) {

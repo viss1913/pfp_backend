@@ -1745,6 +1745,16 @@ class ConstructorAiService {
      */
     async generateResponseStream(session, command, userMessage, calculationResult = null, res, streamExtras = {}) {
         const cmdKeyEarly = trimText(command?.command || '').toLowerCase();
+        console.log(
+            '[ConstructorAI] generateResponseStream enter ' +
+                JSON.stringify({
+                    cmdKeyEarly,
+                    commandId: command?.id ?? null,
+                    calcOk: firstRunCalculationSucceeded(calculationResult),
+                    isFirstRunCmd: isFirstRunCalculationCommand(cmdKeyEarly),
+                    hasCalcPayload: calculationResult != null && typeof calculationResult === 'object',
+                })
+        );
         if (isFirstRunCalculationCommand(cmdKeyEarly) && !firstRunCalculationSucceeded(calculationResult)) {
             const msg = FIRST_RUN_CALC_FAILED_USER_MESSAGE;
             if (res && typeof res.write === 'function' && !res.writableEnded) {
@@ -1950,6 +1960,16 @@ class ConstructorAiService {
         let pdfPath = null;
         let firstRunExtraction = null;
 
+        console.log(
+            '[ConstructorAI] firstRun(stream): step=after_router ' +
+                JSON.stringify({
+                    cmdKey,
+                    commandId: nextCommand?.id ?? null,
+                    commandRaw: nextCommand?.command ?? null,
+                    isFirstRunCmd: isFirstRunCalculationCommand(cmdKey),
+                })
+        );
+
         // Технически расчёты и PDF тут могут быть, но для сайта пока достаточно текстовой ветки.
         // Мы оставляем логику как в processMessage, но не отдаем PDF отдельно (Telegram его отдаёт иначе).
         if (cmdKey === '/homeownerscalc') {
@@ -1984,6 +2004,7 @@ class ConstructorAiService {
                 calculationResult = { calculations, limits };
             }
         } else if (isFirstRunCalculationCommand(cmdKey)) {
+            console.log('[ConstructorAI] firstRun(stream): step=first_run_branch_enter');
             firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
             ensureFirstRunExtractionHasPensionGoal(firstRunExtraction);
             if (firstRunExtractionMinimallyValidForCalc(firstRunExtraction)) {
@@ -2029,27 +2050,64 @@ class ConstructorAiService {
                     })
                 );
             }
+            const calcOkFinal = firstRunCalculationSucceeded(calculationResult);
             console.log(
-                `[ConstructorAI] firstRun(stream): cmdKey=${cmdKey} calcOk=${firstRunCalculationSucceeded(calculationResult)} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
+                `[ConstructorAI] firstRun(stream): cmdKey=${cmdKey} calcOk=${calcOkFinal} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
             );
         }
 
         let pfpReportPdfUrl = null;
-        if (
-            isFirstRunCalculationCommand(cmdKey) &&
-            firstRunCalculationSucceeded(calculationResult) &&
-            firstRunExtraction
-        ) {
+        const calcOkForPersist =
+            isFirstRunCalculationCommand(cmdKey) && firstRunCalculationSucceeded(calculationResult) && !!firstRunExtraction;
+
+        if (isFirstRunCalculationCommand(cmdKey) && !calcOkForPersist) {
+            const reason = !firstRunExtraction
+                ? 'no_firstRunExtraction'
+                : !firstRunCalculationSucceeded(calculationResult)
+                  ? 'calc_ok_false'
+                  : 'unknown';
+            console.error(
+                '[ConstructorAI] firstRun(stream): persist SKIPPED (precondition) ' +
+                    JSON.stringify({
+                        reason,
+                        cmdKey,
+                        calcOk: firstRunCalculationSucceeded(calculationResult),
+                        hasExtraction: !!firstRunExtraction,
+                        goalsLen: Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : null,
+                    })
+            );
+            writeConstructorSiteChatSseData(res, {
+                type: 'persist_status',
+                status: 'skipped',
+                reason,
+                cmdKey,
+                calc_ok: firstRunCalculationSucceeded(calculationResult),
+            });
+        }
+
+        if (calcOkForPersist) {
             try {
+                console.log('[ConstructorAI] firstRun(stream): step=persist_enter');
                 const botFresh = await knex('constructor_bots').where('id', bot.id).first();
                 bot = await backfillConstructorBotAgentId(botFresh || bot);
                 client = await knex('constructor_clients').where('id', client.id).first();
 
                 if (!bot?.agent_id || !bot?.project_id) {
+                    const detail = {
+                        botId: bot?.id,
+                        agent_id: bot?.agent_id ?? null,
+                        project_id: bot?.project_id ?? null,
+                    };
                     console.error(
-                        '[ConstructorAI] firstRun(stream): persist skipped — bot missing agent_id or project_id after DB refresh + backfill',
-                        { botId: bot?.id, agent_id: bot?.agent_id ?? null, project_id: bot?.project_id ?? null }
+                        '[ConstructorAI] firstRun(stream): persist skipped — bot missing agent_id or project_id after DB refresh + backfill ' +
+                            JSON.stringify(detail)
                     );
+                    writeConstructorSiteChatSseData(res, {
+                        type: 'persist_status',
+                        status: 'skipped',
+                        reason: 'bot_missing_agent_id_or_project_id',
+                        ...detail,
+                    });
                 } else {
                     const r = await constructorPfpPersistService.persistConstructorFirstRunAndUploadPdf({
                         constructorClientRow: client,
@@ -2059,33 +2117,63 @@ class ConstructorAiService {
                     });
                     pfpReportPdfUrl = r.pdfUrl;
                     console.log(
-                        `[ConstructorAI] firstRun(stream): persist OK pfp_client_id=${r.clientId} pdfUrl=${pfpReportPdfUrl ? 'set' : 'MISSING (check R2 / PFP_PUBLIC_API_BASE_URL)'}`
+                        '[ConstructorAI] firstRun(stream): persist OK ' +
+                            JSON.stringify({
+                                pfp_client_id: r.clientId,
+                                pdf_url_set: !!pfpReportPdfUrl,
+                                pdf_url_preview: pfpReportPdfUrl
+                                    ? String(pfpReportPdfUrl).slice(0, 120) + (pfpReportPdfUrl.length > 120 ? '…' : '')
+                                    : null,
+                                agent_id: bot.agent_id,
+                                project_id: bot.project_id,
+                            })
                     );
                     if (r.clientId != null) {
-                        writeConstructorSiteChatSseData(res, {
+                        const okPfp = writeConstructorSiteChatSseData(res, {
                             type: 'pfp_client',
                             pfp_client_id: r.clientId,
                             agent_id: Number(bot.agent_id),
                             project_id: Number(bot.project_id),
                         });
+                        console.log('[ConstructorAI] firstRun(stream): SSE emitted pfp_client written=' + okPfp);
                     }
                     if (pfpReportPdfUrl) {
-                        writeConstructorSiteChatSseData(res, { type: 'pdf_url', pdf_url: pfpReportPdfUrl });
+                        const okPdf = writeConstructorSiteChatSseData(res, { type: 'pdf_url', pdf_url: pfpReportPdfUrl });
+                        console.log('[ConstructorAI] firstRun(stream): SSE emitted pdf_url written=' + okPdf);
+                    } else {
+                        console.warn(
+                            '[ConstructorAI] firstRun(stream): persist OK but pdf_url empty (R2/JWT/PFP_PUBLIC_API_BASE_URL)'
+                        );
                     }
+                    writeConstructorSiteChatSseData(res, {
+                        type: 'persist_status',
+                        status: 'ok',
+                        pfp_client_id: r.clientId,
+                        pdf_url_set: !!pfpReportPdfUrl,
+                    });
                 }
             } catch (persistErr) {
                 console.error(
                     '[ConstructorAI] persistConstructorFirstRun (stream) failed:',
                     persistErr.message || persistErr
                 );
+                writeConstructorSiteChatSseData(res, {
+                    type: 'persist_status',
+                    status: 'failed',
+                    message: String(persistErr.message || persistErr).slice(0, 500),
+                });
             }
-        } else if (
-            isFirstRunCalculationCommand(cmdKey) &&
-            firstRunCalculationSucceeded(calculationResult) &&
-            !firstRunExtraction
-        ) {
-            console.error('[ConstructorAI] firstRun(stream): calcOk but firstRunExtraction missing — persist skipped');
         }
+
+        console.log(
+            '[ConstructorAI] firstRun(stream): step=before_generator ' +
+                JSON.stringify({
+                    cmdKey,
+                    generatorCommand: nextCommand?.command ?? null,
+                    generatorCommandId: nextCommand?.id ?? null,
+                    pdfInResponse: !!pfpReportPdfUrl,
+                })
+        );
 
         const pdfSuffix = pfpReportPdfUrl ? `\n\n📄 Ваш персональный отчёт (PDF): ${pfpReportPdfUrl}` : '';
         // 2) Стриминг ответа
