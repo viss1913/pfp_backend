@@ -148,14 +148,12 @@ async function persistConstructorFirstRunAndUploadPdf({
         const token = signSiteChatReportPdfToken({ clientId, projectId: bot.project_id });
         pdfUrl = buildSiteChatReportPdfUrl(token);
         if (pdfUrl) {
-            console.warn('[ConstructorPfpPersist] R2 URL missing — using signed report-pdf link for site-chat');
+            console.warn(
+                `[ConstructorPfpPersist] R2 URL missing — signed report-pdf link (${getSiteChatReportPdfPublicBase() ? 'absolute' : 'relative /api/...'})`
+            );
         } else if (!token) {
             console.error(
                 '[ConstructorPfpPersist] No PDF URL: R2 failed and JWT_SECRET missing (cannot sign fallback link)'
-            );
-        } else if (!getSiteChatReportPdfPublicBase()) {
-            console.error(
-                '[ConstructorPfpPersist] No PDF URL: R2 failed; set PFP_PUBLIC_API_BASE_URL for signed PDF link (see .env.example)'
             );
         }
     }

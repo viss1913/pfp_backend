@@ -70,10 +70,15 @@ function verifySiteChatReportPdfToken(token) {
 function buildSiteChatReportPdfUrl(token) {
     if (!token) return null;
     const base = getSiteChatReportPdfPublicBase();
-    if (!base) return null;
-    const suffix = '/pfp/constructor/site-chat/report-pdf';
-    const path = base.endsWith('/api') ? `${base}${suffix}` : `${base}/api${suffix}`;
-    return `${path}?t=${encodeURIComponent(token)}`;
+    const relPath = '/api/pfp/constructor/site-chat/report-pdf';
+    const q = `t=${encodeURIComponent(token)}`;
+    if (!base) {
+        // Нет PFP_PUBLIC_API_BASE_URL — отдаём относительный путь (сработает только если фронт бьёт в тот же API-хост)
+        return `${relPath}?${q}`;
+    }
+    const norm = base.replace(/\/+$/, '');
+    const path = norm.endsWith('/api') ? `${norm}/pfp/constructor/site-chat/report-pdf` : `${norm}${relPath}`;
+    return `${path}?${q}`;
 }
 
 module.exports = {
