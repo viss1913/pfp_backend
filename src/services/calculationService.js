@@ -390,7 +390,7 @@ class CalculationService {
      * Smart Capital Allocation
      * Фаза 1: резерв + LIFE (первый взнос по NSJ/fallback).
      * Фаза 2: 60% остатка (или 100%) — инвестиции (3) и RENT (8), 50/50 между классами при обоих; внутри класса — по весу стоимость/срок.
-     * Фаза 3a: пенсия — доля остатка от возраста, макс. 20%.
+     * Фаза 3a: пенсия — доля остатка от возраста, макс. 20%; если в плане нет инвестиций/аренды и нет «хвостовых» целей (пассивка, прочее) — весь остаток пула на пенсию.
      * Фаза 3b: остальные цели — пропорционально стоимость/срок, последняя в группе забирает бюджетный хвост.
      */
     async _calculateSmartAllocation(indexedGoals, context) {
@@ -455,26 +455,7 @@ class CalculationService {
             logger.info(`[CalculationService] Phase2 INV/RENT: inv=${tInv}, rent=${tRent}, ruleAmount=${ruleAmount}`);
         }
 
-        // 3a. Пенсия — доля от остатка по возрасту (макс. 20%)
-        const pensionGoals = indexedGoals
-            .map(({ goal }) => goal)
-            .filter(g => this._getPriority(g) > 2 && g.goal_type_id === 1);
-
-        if (pensionGoals.length > 0 && tempPool > 0) {
-            const age = this._getClientAgeYears(context.client);
-            const share = this._pensionInitialShareFromAge(age);
-            const pensionCap = tempPool * Math.min(share, PENSION_SHARE_MAX);
-            const tPen = this._allocatePoolSliceAmongGoals(
-                pensionGoals,
-                pensionCap,
-                context,
-                (g, ctx) => this._smartGoalWeight(g, ctx)
-            );
-            tempPool -= tPen;
-            logger.info(`[CalculationService] Phase3a Pension age=${age} share=${share} taken=${tPen}`);
-        }
-
-        // 3b. Пассивка, прочее и т.д. (без 1,3,8 и без p<=2)
+        // Пассивка, прочее (фаза 3b) — нужно до 3a, чтобы при «только пенсия» не резать пул до 5–20%
         const restGoals = indexedGoals
             .map(({ goal }) => goal)
             .filter(g => {
@@ -482,6 +463,29 @@ class CalculationService {
                 return p > 2 && g.goal_type_id !== 3 && g.goal_type_id !== 8 && g.goal_type_id !== 1;
             });
 
+        // 3a. Пенсия — доля от остатка по возрасту (макс. 20%), либо весь остаток, если больше некуда класть капитал
+        const pensionGoals = indexedGoals
+            .map(({ goal }) => goal)
+            .filter(g => this._getPriority(g) > 2 && g.goal_type_id === 1);
+
+        if (pensionGoals.length > 0 && tempPool > 0) {
+            const age = this._getClientAgeYears(context.client);
+            const share = this._pensionInitialShareFromAge(age);
+            const pensionOnlyReceivesRemainder = restGoals.length === 0 && !hasInv && !hasRent;
+            const pensionCap = pensionOnlyReceivesRemainder
+                ? tempPool
+                : tempPool * Math.min(share, PENSION_SHARE_MAX);
+            const tPen = this._allocatePoolSliceAmongGoals(
+                pensionGoals,
+                pensionCap,
+                context,
+                (g, ctx) => this._smartGoalWeight(g, ctx)
+            );
+            tempPool -= tPen;
+            logger.info(`[CalculationService] Phase3a Pension age=${age} share=${share} onlyTail=${pensionOnlyReceivesRemainder} cap=${pensionCap} taken=${tPen}`);
+        }
+
+        // 3b. Пассивка, прочее и т.д. (без 1,3,8 и без p<=2)
         if (restGoals.length > 0 && tempPool > 0) {
             const wFn = (g, ctx) => this._smartGoalWeight(g, ctx);
             const sumW = restGoals.reduce((s, g) => s + wFn(g, context), 0);
