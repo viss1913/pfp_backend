@@ -285,6 +285,10 @@ class ClientService {
             delete clientData.id;
             clientData.family_profile = serializeJsonField(normalizeJsonField(clientData.family_profile));
 
+            // Как в createFullClient: в БД first_name/last_name NOT NULL — экстракция/LLM часто шлёт null
+            clientData.first_name = clientData.first_name || ' ';
+            clientData.last_name = clientData.last_name || ' ';
+
             // 1. Update Profile
             await clientRepository.update(clientId, clientData, null, trx);
 
