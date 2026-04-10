@@ -82,6 +82,20 @@ function isFirstRunCalculationCommand(cmdKey) {
     return k.includes('firstrun');
 }
 
+/** Текст без LLM, если first run без успешного расчёта (нельзя выдумывать цифры). */
+const FIRST_RUN_CALC_FAILED_USER_MESSAGE =
+    'Сейчас не удалось выполнить расчёт финансового плана на сервере. Без готового расчёта я не показываю суммы и рекомендации — иначе это будут не цифры из модели, а фантазия.\n\n' +
+    'Проверьте, что в диалоге есть: доход в месяц (руб.), дата рождения или возраст, пол, накопления и параметры цели (для пенсии — желаемый пенсионный доход в месяц; для квартиры — стоимость и взнос при наличии). ' +
+    'Напишите данные ещё раз одним сообщением или начните сначала.';
+
+/** Есть хотя бы одна цель без поля error — значит calculateFirstRun отработал по сути. */
+function firstRunCalculationSucceeded(calculationResult) {
+    if (!calculationResult || typeof calculationResult !== 'object') return false;
+    const goals = calculationResult.goals;
+    if (!Array.isArray(goals) || goals.length === 0) return false;
+    return goals.some((g) => g && typeof g === 'object' && !g.error);
+}
+
 function findCommandByKey(commands, key) {
     if (!key || !commands?.length) return null;
     const normalized = key.startsWith('/') ? key : `/${key}`;
@@ -106,6 +120,12 @@ function trimText(v) {
 
 /** Дефолтный system-промпт экстракции JSON (first run), если в админке пусто / нет команды. */
 const DEFAULT_FINANCIAL_EXTRACTION_SYSTEM_PROMPT = `Ты — финансовый аналитик. Твоя задача: извлечь данные о клиенте и его целях из диалога для расчета финансового плана (на текущий 2026 год).
+
+КРИТИЧЕСКИ ВАЖНО:
+- Ответ — ТОЛЬКО один JSON-объект, без текста до/после, без markdown (\`\`\`), без комментариев.
+- Ключи строго как в схеме ниже (латиница). Числа — числа JSON, не строки.
+- В client обязательно поле "sex": "male" или "female" (англ.). Если в диалоге только «мужчина/женщина» — сопоставь сам.
+- Обычно одна цель в "goals"; не добавляй лишних целей и не копируй огромные вложенные объекты CRM.
 
 Возвращай ТОЛЬКО чистый JSON по следующей структуре:
 {
@@ -552,6 +572,20 @@ function parseFinancialPlanJsonFromLlmText(text) {
     }
 }
 
+/**
+ * Не вызывать calculateFirstRun с заведомо пустой/битой экстракцией (меньше шума в логах и калькуляторе).
+ */
+function firstRunExtractionMinimallyValidForCalc(extraction) {
+    const goals = extraction?.goals;
+    if (!Array.isArray(goals) || goals.length === 0) return false;
+    const c = extraction?.client && typeof extraction.client === 'object' ? extraction.client : {};
+    if (!trimText(c.birth_date)) return false;
+    if (!inferCanonicalSex(c.sex) && !inferCanonicalSex(c.gender)) return false;
+    const income = Number(c.avg_monthly_income);
+    if (!Number.isFinite(income) || income <= 0) return false;
+    return true;
+}
+
 /** Цель «Квартира» в экстракции: OTHER (4), ровно name «Квартира». */
 function isB2cApartmentExtractionGoal(g) {
     if (!g || Number(g.goal_type_id) !== 4) return false;
@@ -929,8 +963,8 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
 
     if (firstRunStageNoCalc) {
         sections.push(
-            'ВАЖНО: На этом шаге серверный расчёт финансового плана не был получен (ошибка или нехватка данных).\n' +
-                'Не обещай результат «через мгновение» и не ври про готовый расчёт. Кратко извинись и предложи повторить ответ цифрами или написать позже.'
+            'КРИТИЧЕСКИ ВАЖНО: серверный расчёт НЕ выполнен. ЗАПРЕЩЕНО придумывать суммы, проценты, взносы, сроки и «примерный план».\n' +
+                'Не обещай расчёт «сейчас» или «через минуту». Два коротких предложения: извинение + попроси пользователя повторить цифры (доход, возраст/дата рождения, пол, капитал, цель).'
         );
     }
 
@@ -1604,6 +1638,11 @@ class ConstructorAiService {
      * Шаг 2: Генерация ответа (Послойный промпт)
      */
     async generateResponse(session, command, userMessage, calculationResult = null, responseOptions = {}) {
+        const cmdKeyEarly = trimText(command?.command || '').toLowerCase();
+        if (isFirstRunCalculationCommand(cmdKeyEarly) && !firstRunCalculationSucceeded(calculationResult)) {
+            return FIRST_RUN_CALC_FAILED_USER_MESSAGE;
+        }
+
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
@@ -1669,6 +1708,18 @@ class ConstructorAiService {
      * Важно: используется только для финального текста (классификация всё равно non-stream).
      */
     async generateResponseStream(session, command, userMessage, calculationResult = null, res, streamExtras = {}) {
+        const cmdKeyEarly = trimText(command?.command || '').toLowerCase();
+        if (isFirstRunCalculationCommand(cmdKeyEarly) && !firstRunCalculationSucceeded(calculationResult)) {
+            const msg = FIRST_RUN_CALC_FAILED_USER_MESSAGE;
+            if (res && typeof res.write === 'function' && !res.writableEnded) {
+                res.write(`data: ${JSON.stringify({ type: 'text', text: msg })}\n\n`);
+                res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+                res.end();
+            }
+            const suffix = streamExtras.appendToFullText || '';
+            return suffix ? `${msg}${suffix}` : msg;
+        }
+
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
@@ -1888,29 +1939,48 @@ class ConstructorAiService {
         } else if (isFirstRunCalculationCommand(cmdKey)) {
             firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
             ensureFirstRunExtractionHasPensionGoal(firstRunExtraction);
-            try {
-                const calcData = {
-                    client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
-                    goals: firstRunExtraction.goals || []
-                };
-                console.log(
-                    '[ConstructorAI] FirstRun calc payload → calculateFirstRun (site-chat stream):\n',
-                    JSON.stringify(calcData, null, 2)
+            if (firstRunExtractionMinimallyValidForCalc(firstRunExtraction)) {
+                try {
+                    const calcData = {
+                        client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
+                        goals: firstRunExtraction.goals || []
+                    };
+                    console.log(
+                        '[ConstructorAI] FirstRun calc payload → calculateFirstRun (site-chat stream):\n',
+                        JSON.stringify(calcData, null, 2)
+                    );
+                    calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
+                        isFirstRun: true,
+                        usePool: true,
+                    });
+                } catch (calcErr) {
+                    console.error('[Flow] FirstRun Calculation failed:', calcErr);
+                }
+            } else {
+                console.warn(
+                    '[ConstructorAI] FirstRun (stream): extraction failed minimal validation, skip calculateFirstRun',
+                    JSON.stringify({
+                        goalsLen: Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : null,
+                        hasBirth: !!(firstRunExtraction?.client && trimText(firstRunExtraction.client.birth_date)),
+                        hasSex: !!(
+                            inferCanonicalSex(firstRunExtraction?.client?.sex) ||
+                            inferCanonicalSex(firstRunExtraction?.client?.gender)
+                        ),
+                        income: firstRunExtraction?.client?.avg_monthly_income,
+                    })
                 );
-                calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
-                    isFirstRun: true,
-                    usePool: true,
-                });
-            } catch (calcErr) {
-                console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
             console.log(
-                `[ConstructorAI] firstRun(stream): cmdKey=${cmdKey} hasCalc=${!!calculationResult} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
+                `[ConstructorAI] firstRun(stream): cmdKey=${cmdKey} calcOk=${firstRunCalculationSucceeded(calculationResult)} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
             );
         }
 
         let pfpReportPdfUrl = null;
-        if (isFirstRunCalculationCommand(cmdKey) && calculationResult && firstRunExtraction) {
+        if (
+            isFirstRunCalculationCommand(cmdKey) &&
+            firstRunCalculationSucceeded(calculationResult) &&
+            firstRunExtraction
+        ) {
             try {
                 const r = await constructorPfpPersistService.persistConstructorFirstRunAndUploadPdf({
                     constructorClientRow: client,
@@ -2112,27 +2182,32 @@ class ConstructorAiService {
             console.log(`[Flow] Performing Full Financial Plan Calculation for client:`, client.nickname);
             console.log(`[Flow] Extraction Result:`, JSON.stringify(firstRunExtraction, null, 2));
 
-            try {
-                // Подготавливаем данные для calculationService
-                const calcData = {
-                    client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
-                    goals: firstRunExtraction.goals || []
-                };
+            if (firstRunExtractionMinimallyValidForCalc(firstRunExtraction)) {
+                try {
+                    const calcData = {
+                        client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
+                        goals: firstRunExtraction.goals || []
+                    };
 
-                console.log(
-                    '[ConstructorAI] FirstRun calc payload → calculateFirstRun (telegram/max):\n',
-                    JSON.stringify(calcData, null, 2)
+                    console.log(
+                        '[ConstructorAI] FirstRun calc payload → calculateFirstRun (telegram/max):\n',
+                        JSON.stringify(calcData, null, 2)
+                    );
+                    calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
+                        isFirstRun: true,
+                        usePool: true,
+                    });
+                    console.log(`[Flow] FirstRun Calculation Success. Total Capital: ${calculationResult.summary?.total_capital}`);
+                } catch (calcErr) {
+                    console.error('[Flow] FirstRun Calculation failed:', calcErr);
+                }
+            } else {
+                console.warn(
+                    '[ConstructorAI] FirstRun (telegram): extraction failed minimal validation, skip calculateFirstRun'
                 );
-                calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
-                    isFirstRun: true,
-                    usePool: true,
-                });
-                console.log(`[Flow] FirstRun Calculation Success. Total Capital: ${calculationResult.summary?.total_capital}`);
-            } catch (calcErr) {
-                console.error('[Flow] FirstRun Calculation failed:', calcErr);
             }
             console.log(
-                `[ConstructorAI] firstRun(telegram): cmdKey=${cmdKey} hasCalc=${!!calculationResult} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
+                `[ConstructorAI] firstRun(telegram): cmdKey=${cmdKey} calcOk=${firstRunCalculationSucceeded(calculationResult)} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
             );
         } else {
             console.log(
@@ -2141,7 +2216,11 @@ class ConstructorAiService {
         }
 
         let pfpReportPdfUrl = null;
-        if (isFirstRunCalculationCommand(cmdKey) && calculationResult && firstRunExtraction) {
+        if (
+            isFirstRunCalculationCommand(cmdKey) &&
+            firstRunCalculationSucceeded(calculationResult) &&
+            firstRunExtraction
+        ) {
             try {
                 const r = await constructorPfpPersistService.persistConstructorFirstRunAndUploadPdf({
                     constructorClientRow: client,
