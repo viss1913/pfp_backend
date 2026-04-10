@@ -1,0 +1,30 @@
+---
+description: Как менять промпт экстракции /extractFinancialPlanParams и first run (API, файл, код).
+globs: src/services/constructorAiService.js,data/prompts/**/*.txt,scripts/push-financial-extraction-prompt.js
+alwaysApply: false
+---
+
+# Конструктор: экстракция JSON и firstRunAIB2C
+
+## Где логика
+
+- [`src/services/constructorAiService.js`](src/services/constructorAiService.js) — `extractFinancialPlanParams`, firstrun-команды, `firstRunCalculationSucceeded`, ранний выход без LLM при провале расчёта.
+- Текст промпта по умолчанию: [`data/prompts/financialExtractionFirstRun.txt`](data/prompts/financialExtractionFirstRun.txt) (читается при старте модуля).
+- Скрипт заливки на прод: [`scripts/push-financial-extraction-prompt.js`](scripts/push-financial-extraction-prompt.js).
+
+## Обновить промпт в БД (прод/стенд) через API
+
+1. `POST {BASE}/auth/login` с JSON `{"email","password"}` → взять `token`.
+2. Заголовки для шагов 2–3: `Authorization: Bearer <token>`, `x-project-key: <публичный ключ проекта>` (не полагаться только на query `project_id`).
+3. `GET {BASE}/pfp/constructor/commands?is_template=true` — найти строку с `command: "/extractFinancialPlanParams"`, запомнить `id`.
+4. `PUT {BASE}/pfp/constructor/commands/:id` с телом: те же поля, что в строке (`command`, `classifier`, `response`, `section`, `is_template`, `bot_id`), **обновить в основном `response`** (длинный текст из `financialExtractionFirstRun.txt`).
+
+`BASE` по умолчанию в скрипте: `https://pfpbackend-production.up.railway.app/api`. Учётные данные только через env: `PFP_LOGIN_EMAIL`, `PFP_LOGIN_PASSWORD`.
+
+## Обновить без API
+
+Правка `data/prompts/financialExtractionFirstRun.txt` + commit/push + деплой. Если в БД у бота заполнен кастомный `response` у `/extractFinancialPlanParams`, он **перекрывает** файл — тогда либо очистить response в админке, либо снова залить скриптом.
+
+## Субагент под эту зону
+
+`.cursor/agents/constructor-firstrun-extraction.md` — вызов: **«вызови constructor-firstrun-extraction»** или описание задачи про JSON first run / `/firstRunAIB2C`.
