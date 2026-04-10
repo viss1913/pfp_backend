@@ -41,6 +41,12 @@ async function ensureClientReportAccess({ user, clientId, projectId }) {
  * @param {object} client
  * @returns {{ agentId?: number, brandingAgentId?: null }}
  */
+function wantsReportHtmlDocument(req) {
+    const inline = String(req.query.inline || '').toLowerCase();
+    const format = String(req.query.format || '').toLowerCase();
+    return inline === '1' || inline === 'true' || format === 'html';
+}
+
 function reportBrandingOpts(user, client) {
     const jwtAgentId =
         Number.isFinite(Number(user?.agentId)) && Number(user.agentId) > 0 ? Number(user.agentId) : null;
@@ -147,6 +153,13 @@ class ReportController {
                 goalTypes,
                 ...reportBrandingOpts(req.user, client),
             });
+
+            if (wantsReportHtmlDocument(req)) {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.setHeader('Cache-Control', 'private, no-store');
+                res.send(mergedHtml);
+                return;
+            }
 
             res.json({
                 html: mergedHtml,

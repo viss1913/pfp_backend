@@ -118,12 +118,31 @@ paths:
           description: Подмножество страниц целей через запятую (как у PDF).
           schema:
             type: string
+        - name: inline
+          in: query
+          required: false
+          description: |
+            `1` или `true` — ответ **`text/html`** (цельный документ для вкладки браузера или `iframe src`),
+            без JSON. По умолчанию — JSON с полями `html`, `pages`, `toc`.
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          description: `html` — то же, что `inline=1` (отдать документ как `text/html`).
+          schema:
+            type: string
+            enum:
+              - html
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: HTML-документ и страницы по отдельности
+          description: По умолчанию JSON; при `inline=1` или `format=html` — готовый HTML-документ
           content:
+            text/html:
+              schema:
+                type: string
             application/json:
               schema:
                 type: object
@@ -250,12 +269,29 @@ paths:
           description: Подмножество страниц целей через запятую (как у PDF-эндпоинтов).
           schema:
             type: string
+        - name: inline
+          in: query
+          required: false
+          description: `1` или `true` — ответ `text/html` (цельный документ), иначе JSON.
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          description: `html` — то же, что `inline=1`.
+          schema:
+            type: string
+            enum:
+              - html
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: HTML отчёта и страницы по отдельности
+          description: По умолчанию JSON; при `inline=1` или `format=html` — `text/html`
           content:
+            text/html:
+              schema:
+                type: string
             application/json:
               schema:
                 type: object

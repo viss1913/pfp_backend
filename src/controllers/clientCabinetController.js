@@ -8,6 +8,12 @@ const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const Joi = require('joi');
 
+function wantsReportHtmlDocument(req) {
+    const inline = String(req.query.inline || '').toLowerCase();
+    const format = String(req.query.format || '').toLowerCase();
+    return inline === '1' || inline === 'true' || format === 'html';
+}
+
 /** Не даём телу запроса из ЛК клиента менять привязку к агенту/юзеру (иначе agent_id мог уехать в NULL). */
 function stripClientOwnershipFields(obj) {
     if (!obj || typeof obj !== 'object') return;
@@ -54,6 +60,12 @@ const familyProfileSchema = Joi.object({
         notes: Joi.string().allow('').optional()
     }).optional()
 }).optional();
+const taxChildSchema = Joi.object({
+    first_name: Joi.string().trim().optional(),
+    birth_date: Joi.string().isoDate().required(),
+    is_full_time_student: Joi.boolean().optional(),
+    is_disabled: Joi.boolean().optional()
+});
 
 // Reuse the same validation schema as clientController
 const calculationRequestSchema = Joi.object({
@@ -79,7 +91,9 @@ const calculationRequestSchema = Joi.object({
             Joi.string().regex(/^q[2-9]|q10$/),
             Joi.number().integer().min(1).max(5)
         ).optional(),
-        family_profile: familyProfileSchema
+        family_profile: familyProfileSchema,
+        enable_children_tax_deduction: Joi.boolean().optional(),
+        tax_children: Joi.array().items(taxChildSchema).optional()
     }).optional()
 }).options({ allowUnknown: true });
 
@@ -309,6 +323,13 @@ class ClientCabinetController {
                 includeSummary,
                 goalTypes,
             });
+
+            if (wantsReportHtmlDocument(req)) {
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.setHeader('Cache-Control', 'private, no-store');
+                res.send(mergedHtml);
+                return;
+            }
 
             res.json({
                 html: mergedHtml,
