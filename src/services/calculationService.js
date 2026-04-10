@@ -665,8 +665,10 @@ class CalculationService {
                         resultsIndexed.push({
                             index,
                             result: {
-                                goal_id: goal.id || goal.goal_id || goal.goal_type_id,
+                                goal_id: goal.id || goal.goal_id || null,
                                 goal_name: goal.name || goal.goal_name || 'Ошибка расчета',
+                                goal_type_id: goal.goal_type_id,
+                                goal_type: goal.goal_type || 'OTHER',
                                 error: err.message
                             }
                         });
@@ -801,6 +803,8 @@ class CalculationService {
     _generateTaxBenefitsSummary(results) {
         let pdsTotalDeductions = 0;
         let pdsTotalCofinancing = 0;
+        let iisTotalDeductions = 0;
+        let childrenTotalDeductions = 0;
 
         let nsjAnnualPremium = 0;
         let nsjDeduction2026 = 0;
@@ -808,20 +812,17 @@ class CalculationService {
 
         let pdsDeduction2026 = 0;
         let pdsCofinancing2026 = 0;
+        let iisDeduction2026 = 0;
+        let childrenDeduction2026 = 0;
 
         // Collect from all goals
         results.forEach(result => {
             if (result.details) {
-                // PDS tax refunds (from Pension, Passive Income, Investment goals)
+                const isLifeGoal = result.goal_type_id === 5 || result.goal_type === 'LIFE';
+                const hasBreakdown = Array.isArray(result.details.yearly_breakdown)
+                    && result.details.yearly_breakdown.some((row) => row.tax_refund_breakdown);
                 const taxRef = result.details.total_tax_deductions_nominal || result.details.total_tax_refund || result.summary?.total_tax_benefit || 0;
-                // Avoid double counting if using summary (which includes NSJ for LIFE, but here we want PDS? No, summary is total per goal)
-                // Actually, strict logic:
-                // If goal is LIFE, tax benefit is NSJ.
-                // If goal is NOT LIFE, tax benefit is likely PDS/IIS.
-
-                if (result.goal_id === 5 || result.goal_type === 'LIFE') {
-                    // NSJ Logic handled below
-                } else {
+                if (!isLifeGoal && !hasBreakdown) {
                     pdsTotalDeductions += taxRef;
                 }
 
@@ -830,7 +831,7 @@ class CalculationService {
                 pdsTotalCofinancing += cofin;
 
                 // NSJ from Life goal
-                if (result.goal_id === 5 || result.goal_type === 'LIFE') {
+                if (isLifeGoal) {
                     nsjAnnualPremium = result.details.annual_premium || 0;
                     nsjDeduction2026 = result.details.tax_deduction_2026 || 0;
                     // Check summary if details missing
@@ -844,17 +845,29 @@ class CalculationService {
                     // To show "Benefits for 2026", we look at cash flows in 2027.
                     const year2027 = result.details.yearly_breakdown.find(y => y.year === 2027);
                     if (year2027) {
-                        pdsDeduction2026 += (year2027.tax_refund_projected || 0);
+                        const br = year2027.tax_refund_breakdown || {};
+                        const hasBreakdown = Number(br.pds || 0) + Number(br.iis || 0) + Number(br.children || 0) > 0;
+                        pdsDeduction2026 += hasBreakdown ? Number(br.pds || 0) : Number(year2027.tax_refund_projected || 0);
+                        iisDeduction2026 += Number(br.iis || 0);
+                        childrenDeduction2026 += Number(br.children || 0);
                         pdsCofinancing2026 += (year2027.cofinancing_for_year || 0);
                     }
+
+                    result.details.yearly_breakdown.forEach((row) => {
+                        const br = row.tax_refund_breakdown || {};
+                        if (!br || typeof br !== 'object') return;
+                        pdsTotalDeductions += Number(br.pds || 0);
+                        iisTotalDeductions += Number(br.iis || 0);
+                        childrenTotalDeductions += Number(br.children || 0);
+                    });
                 }
             }
         });
 
-        const totalDeduction2026 = Math.round((pdsDeduction2026 + nsjDeduction2026) * 100) / 100;
+        const totalDeduction2026 = Math.round((pdsDeduction2026 + iisDeduction2026 + childrenDeduction2026 + nsjDeduction2026) * 100) / 100;
         const totalCofinancing2026 = Math.round(pdsCofinancing2026 * 100) / 100;
 
-        const totalDeductionsAll = Math.round((pdsTotalDeductions + nsjTotalDeductions) * 100) / 100;
+        const totalDeductionsAll = Math.round((pdsTotalDeductions + iisTotalDeductions + childrenTotalDeductions + nsjTotalDeductions) * 100) / 100;
         const totalCofinancingAll = Math.round(pdsTotalCofinancing * 100) / 100;
 
         return {
@@ -863,6 +876,14 @@ class CalculationService {
                 cofinancing_2026: Math.round(pdsCofinancing2026 * 100) / 100,
                 total_deductions: Math.round(pdsTotalDeductions * 100) / 100,
                 total_cofinancing: Math.round(pdsTotalCofinancing * 100) / 100
+            },
+            iis_benefits: {
+                deduction_2026: Math.round(iisDeduction2026 * 100) / 100,
+                total_deductions: Math.round(iisTotalDeductions * 100) / 100
+            },
+            children_benefits: {
+                deduction_2026: Math.round(childrenDeduction2026 * 100) / 100,
+                total_deductions: Math.round(childrenTotalDeductions * 100) / 100
             },
             nsj_benefits: {
                 annual_premium: Math.round(nsjAnnualPremium * 100) / 100,

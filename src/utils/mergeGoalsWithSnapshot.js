@@ -49,7 +49,18 @@ function mergeGoalsWithSnapshot(clientObj) {
         if (rowId == null || Number.isNaN(rowId)) {
             return dbGoal;
         }
-        const snap = byGoalId.get(rowId);
+        let snap = byGoalId.get(rowId);
+        // Старые снимки: goal_id ошибочно совпадал с goal_type_id → слияние по имени и типу
+        if (!snap && snapshotGoals.length > 0) {
+            const dbName = String(dbGoal.name || '').trim();
+            const dbType = Number(dbGoal.goal_type_id);
+            snap = snapshotGoals.find((sg) => {
+                const sgName = String(sg.goal_name || sg.name || '').trim();
+                const sgType = Number(sg.goal_type_id);
+                if (!dbName || Number.isNaN(dbType) || Number.isNaN(sgType)) return false;
+                return sgName === dbName && sgType === dbType;
+            });
+        }
         if (!snap) {
             return dbGoal;
         }

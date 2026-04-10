@@ -134,7 +134,7 @@ class LifeInsuranceCalculator extends BaseCalculator {
         const fallbackMonthlyReplenishment = termMonths > 0 ? targetAmount / termMonths : 0;
 
         const result = {
-            goal_id: goal.id || goal.goal_type_id,
+            goal_id: goal.id || goal.goal_id,
             goal_type_id: 5,
             goal_type: 'LIFE',
             summary: {
