@@ -553,6 +553,11 @@ class CalculationService {
                 birth_date: client.birth_date || '1985-01-01'
             } : {};
 
+            // Экстракция/фронт могут прислать только gender; _smartGoalWeight и госпенсия читают client.sex
+            if (clientData.sex == null || clientData.sex === '') {
+                clientData.sex = clientData.gender;
+            }
+
             // ЛК/фронт часто шлёт assets в корне тела, а не в client.assets — иначе пул=0 и смарт-аллокация не бежит
             const assetsFromClient = Array.isArray(clientData.assets) ? clientData.assets : [];
             const assetsFromRoot = Array.isArray(requestRootAssets) ? requestRootAssets : [];

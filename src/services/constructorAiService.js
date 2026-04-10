@@ -491,6 +491,67 @@ function computePdsInvestmentHorizonYears(sex, ageFullYears) {
     return Math.max(10, 55 - ageFullYears);
 }
 
+/** Нормализация пола для горизонта ПДС/квартиры и calculateFirstRun (male|female). */
+function inferCanonicalSex(value) {
+    if (value == null || value === '') return null;
+    const s = String(value).trim().toLowerCase();
+    if (s === 'male' || s === 'm' || s === 'мужской') return 'male';
+    if (s === 'female' || s === 'f' || s === 'женский') return 'female';
+    return null;
+}
+
+/**
+ * После JSON.parse экстракции: client.sex из gender, total_liquid_capital из current_value, goals — массив.
+ */
+function normalizeExtractedFinancialPlanPayload(extracted) {
+    if (!extracted || typeof extracted !== 'object') {
+        return { client: {}, goals: [] };
+    }
+    if (!Array.isArray(extracted.goals)) {
+        extracted.goals = [];
+    }
+    if (!extracted.client || typeof extracted.client !== 'object') {
+        extracted.client = {};
+    }
+    const c = extracted.client;
+    const canonical = inferCanonicalSex(c.sex) || inferCanonicalSex(c.gender);
+    if (canonical) {
+        c.sex = canonical;
+    }
+    const tl = Number(c.total_liquid_capital);
+    const hasTl = Number.isFinite(tl) && tl >= 0;
+    const cvClient = Number(c.current_value);
+    if (!hasTl && Number.isFinite(cvClient) && cvClient >= 0) {
+        c.total_liquid_capital = cvClient;
+    }
+    const rootCv = Number(extracted.current_value);
+    const tlNow = Number(c.total_liquid_capital);
+    if (!Number.isFinite(tlNow) && Number.isFinite(rootCv) && rootCv >= 0) {
+        c.total_liquid_capital = rootCv;
+    }
+    return extracted;
+}
+
+function parseFinancialPlanJsonFromLlmText(text) {
+    const cleanResult = String(text || '')
+        .replace(/```json|```/g, '')
+        .trim();
+    try {
+        return JSON.parse(cleanResult);
+    } catch (e1) {
+        const i = cleanResult.indexOf('{');
+        const j = cleanResult.lastIndexOf('}');
+        if (i >= 0 && j > i) {
+            try {
+                return JSON.parse(cleanResult.slice(i, j + 1));
+            } catch (e2) {
+                /* fallthrough */
+            }
+        }
+        throw e1;
+    }
+}
+
 /** Цель «Квартира» в экстракции: OTHER (4), ровно name «Квартира». */
 function isB2cApartmentExtractionGoal(g) {
     if (!g || Number(g.goal_type_id) !== 4) return false;
@@ -528,7 +589,8 @@ function applyB2cPolicyHorizonTermMonthsToExtractedGoals(extracted) {
     );
     if (!needs) return;
     const age = ageFullYearsAtReference(c.birth_date);
-    const years = computePdsInvestmentHorizonYears(c.sex, age);
+    const sexForHorizon = inferCanonicalSex(c.sex) || inferCanonicalSex(c.gender);
+    const years = computePdsInvestmentHorizonYears(sexForHorizon, age);
     if (years == null) return;
     const termMonths = Math.round(years * 12);
     extracted.goals = extracted.goals.map((g) => {
@@ -577,13 +639,12 @@ function ensureB2cPoolSyncForConstructor(extracted) {
 /**
  * Экстрактор часто заполняет только client.* и оставляет goals: []. Тогда calculateFirstRun отрабатывает без целей,
  * summary пустой, а генератор «рассказывает» план по истории чата без JSON расчёта — пользователь видит «подождите».
- * Для first-run добиваем минимум одну цель «Пенсия» (goal_type_id 1).
+ * Если LLM уже вернул хотя бы одну цель (например только «Квартира»), синтетическую пенсию не добавляем.
  */
 function ensureFirstRunExtractionHasPensionGoal(extraction) {
     if (!extraction || typeof extraction !== 'object') return;
     if (!Array.isArray(extraction.goals)) extraction.goals = [];
-    const hasPension = extraction.goals.some((g) => Number(g?.goal_type_id) === 1);
-    if (hasPension) return;
+    if (extraction.goals.length > 0) return;
 
     const c = extraction.client && typeof extraction.client === 'object' ? extraction.client : {};
     const income = Number(c.avg_monthly_income);
@@ -602,7 +663,7 @@ function ensureFirstRunExtractionHasPensionGoal(extraction) {
         risk_profile: 'BALANCED',
     });
     console.warn(
-        '[ConstructorAI] firstRun: в экстракции не было цели пенсии (goal_type_id=1) — добавлена синтетическая цель для расчёта',
+        '[ConstructorAI] firstRun: goals пустой — добавлена синтетическая цель «Пенсия» (goal_type_id=1) для расчёта',
         JSON.stringify({ target_amount: target, initial_capital: safeCapital, avg_monthly_income: safeIncome })
     );
 }
@@ -647,7 +708,7 @@ function buildClientProfileForAi(constructorClient, extractionClient) {
         first_name: fn || null,
         last_name: trimText(ec.last_name) || null,
         fio: trimText(ec.fio) || null,
-        sex: ec.sex != null ? ec.sex : null,
+        sex: inferCanonicalSex(ec.sex) || inferCanonicalSex(ec.gender) || ec.sex || ec.gender || null,
         birth_date: birth,
         age_years_estimated: birth ? estimateAgeYearsFromBirthDate(birth) : null,
         avg_monthly_income: ec.avg_monthly_income != null ? Number(ec.avg_monthly_income) : null,
@@ -1486,8 +1547,16 @@ class ConstructorAiService {
         try {
             console.log(`[AI Extraction] Extracting Financial Params...`);
             const result = await aiService.getCompletion(prompt);
-            const cleanResult = result.replace(/```json|```/g, '').trim();
-            const extracted = JSON.parse(cleanResult);
+            let extracted;
+            try {
+                extracted = parseFinancialPlanJsonFromLlmText(result);
+            } catch (parseErr) {
+                console.error('[AI] Error parsing financial extraction JSON:', parseErr.message);
+                console.error('[AI] Raw LLM extraction (truncated):', truncateTraceText(result, 800));
+                throw parseErr;
+            }
+
+            normalizeExtractedFinancialPlanPayload(extracted);
 
             if (extracted.client && typeof extracted.client === 'object') {
                 const c = extracted.client;
