@@ -35,6 +35,26 @@ async function ensureClientReportAccess({ user, clientId, projectId }) {
     return client;
 }
 
+/**
+ * Настройки брендинга отчёта: из JWT агента; если нет (админ и т.п.) — агент с карточки клиента; иначе дефолты.
+ * @param {object} user
+ * @param {object} client
+ * @returns {{ agentId?: number, brandingAgentId?: null }}
+ */
+function reportBrandingOpts(user, client) {
+    const jwtAgentId =
+        Number.isFinite(Number(user?.agentId)) && Number(user.agentId) > 0 ? Number(user.agentId) : null;
+    const ownerAgentId =
+        client?.agent_id != null && client.agent_id !== '' && Number.isFinite(Number(client.agent_id))
+            ? Number(client.agent_id)
+            : null;
+    const settingsAgentId = jwtAgentId || ownerAgentId;
+    if (settingsAgentId) {
+        return { agentId: settingsAgentId };
+    }
+    return { brandingAgentId: null };
+}
+
 class ReportController {
     async getClientReport(req, res) {
         try {
@@ -61,7 +81,6 @@ class ReportController {
 
     async getClientReportPdf(req, res) {
         try {
-            const agentId = req.user.agentId;
             const clientId = Number(req.params.clientId);
             const projectId = req.projectId || req.user?.projectId;
 
@@ -70,7 +89,7 @@ class ReportController {
                 return;
             }
 
-            await ensureClientReportAccess({ user: req.user, clientId, projectId });
+            const client = await ensureClientReportAccess({ user: req.user, clientId, projectId });
 
             const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
@@ -78,11 +97,11 @@ class ReportController {
 
             const pdfBuffer = await reportPdfService.generateClientReportPdf({
                 clientId,
-                agentId,
                 projectId,
                 includeCover,
                 includeSummary,
                 goalTypes,
+                ...reportBrandingOpts(req.user, client),
             });
 
             const useAttachment = String(req.query.disposition || '').toLowerCase() === 'attachment';
@@ -106,7 +125,6 @@ class ReportController {
 
     async getClientReportHtml(req, res) {
         try {
-            const agentId = req.user.agentId;
             const clientId = Number(req.params.clientId);
             const projectId = req.projectId || req.user?.projectId;
 
@@ -115,7 +133,7 @@ class ReportController {
                 return;
             }
 
-            await ensureClientReportAccess({ user: req.user, clientId, projectId });
+            const client = await ensureClientReportAccess({ user: req.user, clientId, projectId });
 
             const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
@@ -123,11 +141,11 @@ class ReportController {
 
             const { mergedHtml, pageHtmlList, toc } = await reportPdfService.generateClientReportHtmlPackage({
                 clientId,
-                agentId,
                 projectId,
                 includeCover,
                 includeSummary,
                 goalTypes,
+                ...reportBrandingOpts(req.user, client),
             });
 
             res.json({
@@ -148,7 +166,6 @@ class ReportController {
 
     async getClientReportPdfUrl(req, res) {
         try {
-            const agentId = req.user.agentId;
             const clientId = Number(req.params.clientId);
             const projectId = req.projectId || req.user?.projectId;
 
@@ -157,7 +174,7 @@ class ReportController {
                 return;
             }
 
-            await ensureClientReportAccess({ user: req.user, clientId, projectId });
+            const client = await ensureClientReportAccess({ user: req.user, clientId, projectId });
 
             const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
@@ -165,11 +182,11 @@ class ReportController {
 
             const { pdfBuffer, toc } = await reportPdfService.generateClientReportPdfPackage({
                 clientId,
-                agentId,
                 projectId,
                 includeCover,
                 includeSummary,
                 goalTypes,
+                ...reportBrandingOpts(req.user, client),
             });
 
             const ts = new Date().toISOString().replace(/[:.]/g, '-');

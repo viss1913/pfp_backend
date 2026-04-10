@@ -4,9 +4,6 @@ const reportController = require('../controllers/reportController');
 const reportPagesController = require('../controllers/reportPagesController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
-// GET /api/pfp/reports/:clientId - Get structured data for PDF report
-router.get('/:clientId', authMiddleware, reportController.getClientReport);
-
 // GET /api/pfp/reports/:clientId/pdf - generate and return ready PDF report
 // query:
 // - includeCover=true|false (default true)
@@ -21,5 +18,8 @@ router.get('/:clientId/pdf-url', authMiddleware, reportController.getClientRepor
 // GET /api/pfp/reports/:clientId/pages/:pageType/html - get goal page HTML for PDF printing
 // pageType: SUMMARY | FIN_RESERVE | LIFE | INVESTMENT | OTHER
 router.get('/:clientId/pages/:pageType/html', authMiddleware, reportPagesController.getPageHtml);
+
+// GET /api/pfp/reports/:clientId - Get structured data for PDF report (после более специфичных путей)
+router.get('/:clientId', authMiddleware, reportController.getClientReport);
 
 module.exports = router;
