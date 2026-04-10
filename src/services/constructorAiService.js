@@ -506,6 +506,47 @@ function inferCanonicalSex(value) {
     return null;
 }
 
+/** Доход/суммы из экстрактора: LLM часто шлёт строки "150 000" или дублирует поля — иначе minimal validation падает без причины. */
+function parseMoneyishNumber(v) {
+    if (v == null || v === '') return NaN;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;
+    const s = String(v)
+        .replace(/\s/g, '')
+        .replace(/\u00a0/g, '')
+        .replace(/,/g, '.');
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+}
+
+function coerceClientMoneyAndIncomeInExtraction(extracted) {
+    const c = extracted?.client;
+    if (!c || typeof c !== 'object') return;
+    let inc = parseMoneyishNumber(c.avg_monthly_income);
+    if (!Number.isFinite(inc) || inc <= 0) {
+        inc = parseMoneyishNumber(c.monthly_income);
+    }
+    if (!Number.isFinite(inc) || inc <= 0) {
+        inc = parseMoneyishNumber(c.salary);
+    }
+    if (!Number.isFinite(inc) || inc <= 0) {
+        inc = parseMoneyishNumber(c.income);
+    }
+    if (Number.isFinite(inc) && inc > 0) {
+        c.avg_monthly_income = inc;
+    }
+
+    let cap = parseMoneyishNumber(c.total_liquid_capital);
+    if (!Number.isFinite(cap) || cap < 0) {
+        cap = parseMoneyishNumber(c.current_value);
+    }
+    if (!Number.isFinite(cap) || cap < 0) {
+        cap = parseMoneyishNumber(c.savings);
+    }
+    if (Number.isFinite(cap) && cap >= 0) {
+        c.total_liquid_capital = cap;
+    }
+}
+
 /**
  * После JSON.parse экстракции: client.sex из gender, total_liquid_capital из current_value, goals — массив.
  */
@@ -535,6 +576,7 @@ function normalizeExtractedFinancialPlanPayload(extracted) {
     if (!Number.isFinite(tlNow) && Number.isFinite(rootCv) && rootCv >= 0) {
         c.total_liquid_capital = rootCv;
     }
+    coerceClientMoneyAndIncomeInExtraction(extracted);
     return extracted;
 }
 
@@ -1565,18 +1607,25 @@ class ConstructorAiService {
             }
         ];
 
+        let result;
         try {
             console.log(`[AI Extraction] Extracting Financial Params...`);
-            const result = await aiService.getCompletion(prompt);
-            let extracted;
-            try {
-                extracted = parseFinancialPlanJsonFromLlmText(result);
-            } catch (parseErr) {
-                console.error('[AI] Error parsing financial extraction JSON:', parseErr.message);
-                console.error('[AI] Raw LLM extraction (truncated):', truncateTraceText(result, 800));
-                throw parseErr;
-            }
+            result = await aiService.getCompletion(prompt);
+        } catch (error) {
+            console.error('[AI] Error extracting financial params (LLM):', error);
+            return { client: {}, goals: [] };
+        }
 
+        let extracted;
+        try {
+            extracted = parseFinancialPlanJsonFromLlmText(result);
+        } catch (parseErr) {
+            console.error('[AI] Error parsing financial extraction JSON:', parseErr.message);
+            console.error('[AI] Raw LLM extraction (truncated):', truncateTraceText(result, 800));
+            return { client: {}, goals: [] };
+        }
+
+        try {
             normalizeExtractedFinancialPlanPayload(extracted);
 
             if (extracted.client && typeof extracted.client === 'object') {
@@ -1592,11 +1641,10 @@ class ConstructorAiService {
             normalizeB2cApartmentGoalsInExtraction(extracted);
             ensureB2cPoolSyncForConstructor(extracted);
 
-            // Настаиваем на BALANCED для всех целей из мессенджера
             if (extracted.goals && Array.isArray(extracted.goals)) {
-                extracted.goals = extracted.goals.map(g => ({
+                extracted.goals = extracted.goals.map((g) => ({
                     ...g,
-                    risk_profile: 'BALANCED'
+                    risk_profile: 'BALANCED',
                 }));
             }
 
@@ -1604,10 +1652,9 @@ class ConstructorAiService {
 
             console.log(`[AI Extraction] Extracted with Balanced Profile:`, extracted);
             return extracted;
-        } catch (error) {
-            console.error('[AI] Error extracting financial params:', error);
-            // Без фейкового client: иначе synthetic pension + minimal validation доводят до calculateFirstRun на выдуманных данных.
-            return { client: {}, goals: [] };
+        } catch (normErr) {
+            console.error('[AI] Error normalizing financial extraction (возвращаем сырой JSON после парса):', normErr);
+            return extracted;
         }
     }
 
