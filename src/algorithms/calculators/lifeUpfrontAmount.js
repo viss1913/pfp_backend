@@ -48,21 +48,13 @@ async function fetchLifeNsjResult(goal, context) {
 function deriveLifeCostNow(goal, nsjResult) {
     if (!nsjResult) return 0;
 
-    const isSinglePremium = goal.payment_variant === 0;
-    const isAnnualPayment = goal.payment_variant === 'annual' || goal.payment_variant === 'yearly';
-    const termMonths = Number(goal.term_months || 120);
     const targetAmount = Number(goal.target_amount || 0);
+    const totalPremium = Number(nsjResult.total_premium || targetAmount);
+    if (!Number.isFinite(totalPremium) || totalPremium <= 0) return 0;
 
-    let totalPremium = nsjResult.total_premium || targetAmount;
-
-    if (isSinglePremium) {
-        return totalPremium;
-    }
-    if (isAnnualPayment || goal.payment_variant === 12) {
-        return totalPremium;
-    }
-    const monthlyPremium = Math.round(totalPremium / 12);
-    return monthlyPremium;
+    // Business rule for smart allocation:
+    // reserve full first-year LIFE premium from the shared pool, never /12.
+    return totalPremium;
 }
 
 /**
