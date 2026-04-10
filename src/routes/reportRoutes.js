@@ -13,6 +13,7 @@ router.get('/:clientId', authMiddleware, reportController.getClientReport);
 // - includeSummary=true|false (default true)
 // - goalTypes=FIN_RESERVE,LIFE,INVESTMENT,OTHER (optional subset)
 router.get('/:clientId/pdf', authMiddleware, reportController.getClientReportPdf);
+router.get('/:clientId/html', authMiddleware, reportController.getClientReportHtml);
 
 // GET /api/pfp/reports/:clientId/pdf-url - generate, upload and return PDF URL + toc
 router.get('/:clientId/pdf-url', authMiddleware, reportController.getClientReportPdfUrl);

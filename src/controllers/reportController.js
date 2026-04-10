@@ -104,6 +104,48 @@ class ReportController {
         }
     }
 
+    async getClientReportHtml(req, res) {
+        try {
+            const agentId = req.user.agentId;
+            const clientId = Number(req.params.clientId);
+            const projectId = req.projectId || req.user?.projectId;
+
+            if (!clientId || Number.isNaN(clientId)) {
+                res.status(400).json({ error: 'Invalid clientId' });
+                return;
+            }
+
+            await ensureClientReportAccess({ user: req.user, clientId, projectId });
+
+            const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
+            const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
+            const goalTypes = req.query.goalTypes || null;
+
+            const { mergedHtml, pageHtmlList, toc } = await reportPdfService.generateClientReportHtmlPackage({
+                clientId,
+                agentId,
+                projectId,
+                includeCover,
+                includeSummary,
+                goalTypes,
+            });
+
+            res.json({
+                html: mergedHtml,
+                pages: pageHtmlList,
+                toc: Array.isArray(toc) ? toc : [],
+                generated_at: new Date().toISOString(),
+            });
+        } catch (error) {
+            if (error?.statusCode) {
+                res.status(error.statusCode).json({ error: error.message });
+                return;
+            }
+            console.error('Report HTML Generation Error:', error);
+            res.status(500).json({ error: error.message || 'Failed to generate HTML report' });
+        }
+    }
+
     async getClientReportPdfUrl(req, res) {
         try {
             const agentId = req.user.agentId;

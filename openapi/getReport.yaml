@@ -88,6 +88,71 @@ paths:
         '500':
           description: Ошибка генерации (в т.ч. не выбрано ни одной страницы)
 
+  /pfp/reports/{clientId}/html:
+    get:
+      summary: HTML полного отчёта клиента (агентский контур)
+      description: |
+        Собирает полный HTML отчёта (обложка, сводная, страницы целей) без рендера PDF.
+        Удобно для предпросмотра в ЛК агента.
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: includeCover
+          in: query
+          required: false
+          description: Обложка включена по умолчанию; передайте `0` или `false`, чтобы пропустить.
+          schema:
+            type: string
+        - name: includeSummary
+          in: query
+          required: false
+          description: Сводная включена по умолчанию; `0` или `false` — пропустить.
+          schema:
+            type: string
+        - name: goalTypes
+          in: query
+          required: false
+          description: Подмножество страниц целей через запятую (как у PDF).
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: HTML-документ и страницы по отдельности
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  html:
+                    type: string
+                  pages:
+                    type: array
+                    items:
+                      type: string
+                  toc:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  generated_at:
+                    type: string
+                    format: date-time
+        '400':
+          description: Некорректный clientId
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент не найден
+        '500':
+          description: Ошибка генерации HTML
+
   /my/plan/report:
     get:
       summary: JSON отчёта текущего клиента (ЛК B2C)
