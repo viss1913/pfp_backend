@@ -73,13 +73,15 @@ const CLASSIFIER_COMMAND_TYPOS = {
 /**
  * Команды сценария, при которых вызывается calculateFirstRun.
  * В админке ключ может называться не /firstrun, а например /firstRunAIB2C — смысл тот же.
- * Плюс кастомные ключи: если в пути есть подстрока firstrun (после lower), считаем тем же сценарием.
+ * Важно: /first_run и /first-run НЕ содержат подстроку «firstrun» (мешает _), без этого теста расчёт и стоп без calc не срабатывают.
  */
 function isFirstRunCalculationCommand(cmdKey) {
     const k = (cmdKey || '').trim().toLowerCase().replace(/\s+/g, '');
     if (!k.startsWith('/')) return false;
     if (k === '/firstrun' || k === '/firstrunaib2c' || k === '/first_run_aib2c') return true;
-    return k.includes('firstrun');
+    if (k.includes('firstrun')) return true;
+    const slug = k.slice(1).replace(/-/g, '_');
+    return slug.includes('first_run');
 }
 
 /** Текст без LLM, если first run без успешного расчёта (нельзя выдумывать цифры). */
@@ -88,12 +90,22 @@ const FIRST_RUN_CALC_FAILED_USER_MESSAGE =
     'Проверьте, что в диалоге есть: доход в месяц (руб.), дата рождения или возраст, пол, накопления и параметры цели (для пенсии — желаемый пенсионный доход в месяц; для квартиры — стоимость и взнос при наличии). ' +
     'Напишите данные ещё раз одним сообщением или начните сначала.';
 
-/** Есть хотя бы одна цель без поля error — значит calculateFirstRun отработал по сути. */
+/**
+ * Цель считается успешно посчитанной только если нет error и есть объект summary от калькулятора.
+ * Иначе (!error но пустая структура) firstRunCalculationSucceeded был бы true — генератор получал бы слабый JSON, а модель додумывала бы цифры из чата.
+ */
+function firstRunGoalHasUsableCalc(g) {
+    if (!g || typeof g !== 'object') return false;
+    if (g.error) return false;
+    return g.summary != null && typeof g.summary === 'object';
+}
+
+/** Есть хотя бы одна цель с реальным результатом калькулятора (summary), не только «без error». */
 function firstRunCalculationSucceeded(calculationResult) {
     if (!calculationResult || typeof calculationResult !== 'object') return false;
     const goals = calculationResult.goals;
     if (!Array.isArray(goals) || goals.length === 0) return false;
-    return goals.some((g) => g && typeof g === 'object' && !g.error);
+    return goals.some(firstRunGoalHasUsableCalc);
 }
 
 function findCommandByKey(commands, key) {

@@ -6,6 +6,29 @@ description: >-
   Заливка текста промпта на прод через API или файл data/prompts/financialExtractionFirstRun.txt.
   Вызывай при правках экстракции, «ломается JSON», пустой расчёт, site-chat SSE после firstrun. Используй проактивно после изменений в constructorAiService или промпте экстракции.
 ---
+Доступ для редктирвоания extractFinancialPlanParams:
+vissarovav2408@yandex.ru
+123456
+Это тестовый так что можешь спокойно пользоваться.
+Логинешься, получаешь токен и можешь редактирвать:
+
+
+https://pfpbackend-production.up.railway.app/api/pfp/constructor/commands/36 
+
+{command: "/extractFinancialPlanParams", classifier: "тест тест",…}
+classifier
+: 
+"тест тест"
+command
+: 
+"/extractFinancialPlanParams"
+is_template
+: 
+true
+response
+: 
+"Ты извлекаешь данные и"
+
 
 Ты — **инженер по first run конструктора PFP**: экстракция → расчёт → (опционально) ответ ИИ и PDF. Не путай с B2C `chat_AI` в ЛК — только **конструктор** (`constructorAiService`, site-chat stream, MAX/Telegram).
 
@@ -13,14 +36,14 @@ description: >-
 
 | Что | Где |
 |-----|-----|
-| Команды firstrun | `isFirstRunCalculationCommand` в [`src/services/constructorAiService.js`](src/services/constructorAiService.js) (`/firstRunAIB2C`, `/firstrun`, любой ключ с `firstrun`) |
+| Команды firstrun | `isFirstRunCalculationCommand` в [`src/services/constructorAiService.js`](src/services/constructorAiService.js): подстрока `firstrun` **или** в ключе после `/` есть `first_run` (в т.ч. `/first-run` → нормализация), иначе расчёт не вызовется и ИИ уйдёт в свободный режим. |
 | Экстракция JSON | `extractFinancialPlanParams` → `resolveFinancialExtractionSystemPrompt` (команда БД `/extractFinancialPlanParams` **или** файл промпта) |
 | Канонический текст промпта (дефолт + синхронизация) | [`data/prompts/financialExtractionFirstRun.txt`](data/prompts/financialExtractionFirstRun.txt) |
 | Парс / нормализация | `parseFinancialPlanJsonFromLlmText`, `normalizeExtractedFinancialPlanPayload`, `inferCanonicalSex`, квартира `normalizeB2cApartmentGoalsInExtraction`, горизонт `applyB2cPolicyHorizonTermMonthsToExtractedGoals` |
 | Синтетическая пенсия только если goals пустой | `ensureFirstRunExtractionHasPensionGoal` |
 | Валидация до calc | `firstRunExtractionMinimallyValidForCalc` |
 | Расчёт | `calculationService.calculateFirstRun` в [`src/services/calculationService.js`](src/services/calculationService.js) (`clientData.sex` из `gender` при необходимости) |
-| Успех расчёта | `firstRunCalculationSucceeded` — есть goal без `error` |
+| Успех расчёта | `firstRunCalculationSucceeded` — есть goal **с `summary`** и без `error` (не только отсутствие `error`) |
 | Без успешного расчёта — **не звать генератор** с выдумкой цифр | `FIRST_RUN_CALC_FAILED_USER_MESSAGE`, ранний выход в `generateResponse` / `generateResponseStream` |
 | CRM + PDF | [`src/services/constructorPfpPersistService.js`](src/services/constructorPfpPersistService.js) только если расчёт успешен |
 | Сайт SSE | `processMessageStream` → `handleSiteChatStream`; тенант: заголовок **`x-project-key`**, не query в одиночку |
