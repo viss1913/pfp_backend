@@ -17,6 +17,29 @@ function normalizeJsonField(value) {
     return value;
 }
 
+function serializeJsonField(value) {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value === 'string') return value;
+    return JSON.stringify(value);
+}
+
+/** Активы из тела first-run (client.assets) → строки таблицы client_assets */
+function mapCalcAssetsToClientAssetRows(list) {
+    if (!Array.isArray(list) || list.length === 0) return [];
+    return list.map((a) => {
+        const type = String(a.type || 'OTHER').slice(0, 50);
+        const name = String(a.name || type || 'Актив').slice(0, 255);
+        const currentValue = Number(a.current_value ?? a.amount ?? 0);
+        return {
+            type,
+            name,
+            current_value: currentValue,
+            currency: 'RUB'
+        };
+    });
+}
+
 function ownerLabel(client) {
     if (!client.agent_id) return 'B2C';
     const email = client.agent_email;
@@ -64,8 +87,21 @@ class ClientService {
             delete clientData.fio;
             delete clientData.sex;
             delete clientData.uuid;
-            clientData.family_profile = normalizeJsonField(clientData.family_profile);
+            delete clientData.insured_person;
+            clientData.family_profile = serializeJsonField(normalizeJsonField(clientData.family_profile));
 
+            if (clientData.tax_children !== undefined) {
+                clientData.tax_children = serializeJsonField(
+                    normalizeJsonField(clientData.tax_children)
+                );
+            }
+
+            const nestedClientAssets = Array.isArray(clientData.assets) ? [...clientData.assets] : [];
+            delete clientData.assets;
+            const mergedCalcAssets = [
+                ...(Array.isArray(data.assets) ? data.assets : []),
+                ...nestedClientAssets
+            ];
 
             // 1. Check if client exists by email (Upsert logic)
             if (clientData.email) {
@@ -96,8 +132,9 @@ class ClientService {
             }
 
             // 3. Add Related Data
-            if (data.assets && data.assets.length > 0) {
-                const assets = data.assets.map(a => ({ ...a, client_id: clientId }));
+            const assetRows = mapCalcAssetsToClientAssetRows(mergedCalcAssets);
+            if (assetRows.length > 0) {
+                const assets = assetRows.map((a) => ({ ...a, client_id: clientId }));
                 await clientRepository.addAssets(assets, trx);
             }
 
@@ -172,6 +209,7 @@ class ClientService {
             }
         }
         clientObj.family_profile = normalizeJsonField(clientObj.family_profile);
+        clientObj.tax_children = normalizeJsonField(clientObj.tax_children);
 
         mergeGoalsWithSnapshot(clientObj);
 
@@ -245,7 +283,7 @@ class ClientService {
             delete clientData.sex;
             delete clientData.uuid;
             delete clientData.id;
-            clientData.family_profile = normalizeJsonField(clientData.family_profile);
+            clientData.family_profile = serializeJsonField(normalizeJsonField(clientData.family_profile));
 
             // 1. Update Profile
             await clientRepository.update(clientId, clientData, null, trx);
