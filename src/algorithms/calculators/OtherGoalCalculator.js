@@ -3,6 +3,39 @@ const productRepository = require('../../repositories/productRepository');
 const portfolioRepository = require('../../repositories/portfolioRepository');
 
 class OtherGoalCalculator extends BaseCalculator {
+    _getIisContributionParamsSafe(goal, initialInstruments = [], monthlyInstruments = [], initialCapital = 0) {
+        if (typeof this.getIisContributionParams === 'function') {
+            return this.getIisContributionParams(goal, initialInstruments, monthlyInstruments, initialCapital);
+        }
+
+        // Backward-compatible fallback for mixed-runtime deployments where BaseCalculator is stale.
+        const termMonths = Number(goal?.term_months || 0);
+        if (termMonths < 60) {
+            return {
+                iisEligibleInitialCapital: 0,
+                iisEligibleMonthlyShare: 0
+            };
+        }
+
+        const eligibleTypes = new Set(['BOND', 'STOCK']);
+        const initialShare = (initialInstruments || []).reduce((sum, item) => {
+            const type = (item.product_type || '').toUpperCase().trim();
+            if (!eligibleTypes.has(type)) return sum;
+            return sum + (Number(item.share || 0) / 100);
+        }, 0);
+
+        const monthlyShare = (monthlyInstruments || []).reduce((sum, item) => {
+            const type = (item.product_type || '').toUpperCase().trim();
+            if (!eligibleTypes.has(type)) return sum;
+            return sum + (Number(item.share || 0) / 100);
+        }, 0);
+
+        return {
+            iisEligibleInitialCapital: Math.max(0, Number(initialCapital || 0)) * Math.max(0, Math.min(1, initialShare)),
+            iisEligibleMonthlyShare: Math.max(0, Math.min(1, monthlyShare))
+        };
+    }
+
     async calculate(goal, context) {
         const { client, settings, repositories, assets } = context;
         const { portfolioRepository } = repositories;
@@ -157,7 +190,7 @@ class OtherGoalCalculator extends BaseCalculator {
 
         const effectiveInitialCapital = initialCapital;
         const allInflowsForSimulation = inflowData.allInflows.filter(i => i.month > 0);
-        const { iisEligibleInitialCapital, iisEligibleMonthlyShare } = this.getIisContributionParams(
+        const { iisEligibleInitialCapital, iisEligibleMonthlyShare } = this._getIisContributionParamsSafe(
             goal,
             initial_instruments,
             monthly_instruments,
