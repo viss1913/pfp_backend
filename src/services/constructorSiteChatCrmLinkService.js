@@ -3,11 +3,24 @@ const clientService = require('./clientService');
 
 /**
  * У site-бота иногда в БД пустой agent_id (расчёт идёт по project_id, а CRM/persist без agent_id падают).
- * Подставляем первого агента проекта и сохраняем в constructor_bots.
+ * Порядок: CONSTRUCTOR_BACKFILL_AGENT_ID (если агент в этом project_id) → первый агент проекта по id.
  */
 async function backfillConstructorBotAgentId(bot) {
     if (!bot?.id || !bot.project_id || bot.agent_id) return bot;
-    const agent = await knex('agents').where({ project_id: bot.project_id }).orderBy('id', 'asc').first();
+
+    const fromEnv = parseInt(String(process.env.CONSTRUCTOR_BACKFILL_AGENT_ID || '').trim(), 10);
+    let agent = null;
+    if (Number.isFinite(fromEnv) && fromEnv > 0) {
+        agent = await knex('agents').where({ id: fromEnv, project_id: bot.project_id }).first();
+        if (!agent) {
+            console.warn(
+                `[ConstructorCRM] CONSTRUCTOR_BACKFILL_AGENT_ID=${fromEnv} not in project ${bot.project_id} — falling back to first agent`
+            );
+        }
+    }
+    if (!agent) {
+        agent = await knex('agents').where({ project_id: bot.project_id }).orderBy('id', 'asc').first();
+    }
     if (!agent) {
         console.error(
             `[ConstructorCRM] bot ${bot.id}: project_id=${bot.project_id} but no agents row — cannot set agent_id`
@@ -17,9 +30,9 @@ async function backfillConstructorBotAgentId(bot) {
     await knex('constructor_bots')
         .where({ id: bot.id })
         .update({ agent_id: agent.id, updated_at: knex.fn.now() });
-    console.warn(
-        `[ConstructorCRM] bot ${bot.id}: had null agent_id — backfilled agent_id=${agent.id} (first agent in project ${bot.project_id})`
-    );
+    const src =
+        Number.isFinite(fromEnv) && fromEnv > 0 && agent.id === fromEnv ? 'CONSTRUCTOR_BACKFILL_AGENT_ID' : 'first agent in project';
+    console.warn(`[ConstructorCRM] bot ${bot.id}: had null agent_id — backfilled agent_id=${agent.id} (${src})`);
     return { ...bot, agent_id: agent.id };
 }
 
