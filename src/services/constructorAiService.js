@@ -1988,6 +1988,18 @@ class ConstructorAiService {
                         isFirstRun: true,
                         usePool: true,
                     });
+                    try {
+                        const compactCalc = compactCalculationForPresentationPrompt(calculationResult);
+                        console.log(
+                            '[ConstructorAI] FirstRun calc response compact (site-chat stream):\n',
+                            JSON.stringify(compactCalc, null, 2)
+                        );
+                    } catch (logErr) {
+                        console.warn(
+                            '[ConstructorAI] FirstRun calc response compact log failed (stream):',
+                            logErr.message || logErr
+                        );
+                    }
                 } catch (calcErr) {
                     console.error('[Flow] FirstRun Calculation failed:', calcErr);
                 }
@@ -2247,6 +2259,18 @@ class ConstructorAiService {
                         usePool: true,
                     });
                     console.log(`[Flow] FirstRun Calculation Success. Total Capital: ${calculationResult.summary?.total_capital}`);
+                    try {
+                        const compactCalc = compactCalculationForPresentationPrompt(calculationResult);
+                        console.log(
+                            '[ConstructorAI] FirstRun calc response compact (telegram/max):\n',
+                            JSON.stringify(compactCalc, null, 2)
+                        );
+                    } catch (logErr) {
+                        console.warn(
+                            '[ConstructorAI] FirstRun calc response compact log failed (telegram):',
+                            logErr.message || logErr
+                        );
+                    }
                 } catch (calcErr) {
                     console.error('[Flow] FirstRun Calculation failed:', calcErr);
                 }
