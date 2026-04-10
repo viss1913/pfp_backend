@@ -505,6 +505,39 @@ function ensureB2cPoolSyncForConstructor(extracted) {
 }
 
 /**
+ * Экстрактор часто заполняет только client.* и оставляет goals: []. Тогда calculateFirstRun отрабатывает без целей,
+ * summary пустой, а генератор «рассказывает» план по истории чата без JSON расчёта — пользователь видит «подождите».
+ * Для first-run добиваем минимум одну цель «Пенсия» (goal_type_id 1).
+ */
+function ensureFirstRunExtractionHasPensionGoal(extraction) {
+    if (!extraction || typeof extraction !== 'object') return;
+    if (!Array.isArray(extraction.goals)) extraction.goals = [];
+    const hasPension = extraction.goals.some((g) => Number(g?.goal_type_id) === 1);
+    if (hasPension) return;
+
+    const c = extraction.client && typeof extraction.client === 'object' ? extraction.client : {};
+    const income = Number(c.avg_monthly_income);
+    const capital = Number(c.total_liquid_capital);
+    const safeIncome = Number.isFinite(income) && income > 0 ? income : 100000;
+    const safeCapital = Number.isFinite(capital) && capital >= 0 ? capital : 0;
+    const target = Math.max(1, Math.round(safeIncome * 0.7));
+
+    extraction.goals.push({
+        goal_type_id: 1,
+        name: 'Пенсия',
+        target_amount: target,
+        desired_monthly_income: target,
+        initial_capital: safeCapital,
+        monthly_replenishment: 0,
+        risk_profile: 'BALANCED',
+    });
+    console.warn(
+        '[ConstructorAI] firstRun: в экстракции не было цели пенсии (goal_type_id=1) — добавлена синтетическая цель для расчёта',
+        JSON.stringify({ target_amount: target, initial_capital: safeCapital, avg_monthly_income: safeIncome })
+    );
+}
+
+/**
  * Клиент для calculateFirstRun: только поля расчёта/карточки + имя из экстракции или nickname (не длинный числовой user_id).
  */
 function buildFirstRunCalcClient(constructorClientRow, extraction, projectId) {
@@ -873,6 +906,68 @@ function userMessageImpliesExplicitStartCommand(userMessage) {
     return false;
 }
 
+function normalizeConstructorCommandKey(cmd) {
+    return String(cmd || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
+}
+
+/**
+ * Тексты всех реплик пользователя из истории для роутера + текущее сообщение.
+ * Имя без возраста/пола не считаем достаточным для /vozrast — см. shouldStayOnStartpfpInsteadOfVozrast.
+ */
+function concatUserTextsForClassifierGate(historyMessages, userMessage) {
+    const fromHistory = (Array.isArray(historyMessages) ? historyMessages : [])
+        .filter((m) => m && m.role === 'user')
+        .map((m) => trimText(m.content))
+        .filter(Boolean);
+    const last = trimText(userMessage);
+    const parts = last ? [...fromHistory, last] : fromHistory;
+    return parts.join('\n');
+}
+
+/** Явно указанный возраст (число лет), без догадок по имени. */
+function userDialogueHasExplicitAge(text) {
+    const t = (text || '').toLowerCase();
+    if (!t) return false;
+    if (/\bмне\s+(\d{1,2})\b/.test(t)) {
+        const m = t.match(/\bмне\s+(\d{1,2})\b/);
+        const n = parseInt(m[1], 10);
+        if (n >= 14 && n <= 99) return true;
+    }
+    if (/\bвозраст\s*[:\-–]?\s*(\d{1,2})\b/.test(t)) {
+        const m = t.match(/\bвозраст\s*[:\-–]?\s*(\d{1,2})\b/);
+        const n = parseInt(m[1], 10);
+        if (n >= 14 && n <= 99) return true;
+    }
+    if (/\b(\d{1,2})\s*(лет|года|год)\b/.test(t)) return true;
+    return false;
+}
+
+/** Явный пол; только имя (например «Юля») или угадывание по имени — НЕ достаточно. */
+function userDialogueHasExplicitGender(text) {
+    const raw = text || '';
+    const t = raw.toLowerCase();
+    if (/[👩👨⚧️]/.test(raw)) return true;
+    if (/\b(мужчина|женщина|мужской|женский|девушка|парень)\b/.test(t)) return true;
+    if (/\bпол\s*[:\-–]?\s*(м|ж|муж|жен|муж\.|жен\.)\b/.test(t)) return true;
+    if (/\bя\s+мужчина\b/.test(t) || /\bя\s+женщина\b/.test(t)) return true;
+    return false;
+}
+
+/**
+ * Роутер часто выбирает /vozrast, «выводя» пол из имени. Держим /startpfp, пока в репликах пользователя
+ * нет и явного возраста, и явного пола.
+ */
+function shouldStayOnStartpfpInsteadOfVozrast(currentCommandKey, nextCommandKey, historyMessages, userMessage) {
+    if (normalizeConstructorCommandKey(currentCommandKey) !== '/startpfp') return false;
+    if (normalizeConstructorCommandKey(nextCommandKey) !== '/vozrast') return false;
+    const blob = concatUserTextsForClassifierGate(historyMessages, userMessage);
+    const ok = userDialogueHasExplicitAge(blob) && userDialogueHasExplicitGender(blob);
+    return !ok;
+}
+
 class ConstructorAiService {
     /**
      * Строка команды /start для генератора: сначала у этого bot_id, иначе шаблон проекта
@@ -1179,9 +1274,31 @@ class ConstructorAiService {
                 }
             }
 
+            let forcedStayStartpfpOverVozrast = false;
+            if (
+                currentCommand &&
+                nextCommand &&
+                shouldStayOnStartpfpInsteadOfVozrast(
+                    currentCommand.command,
+                    nextCommand.command,
+                    historyMessages,
+                    userMessage
+                )
+            ) {
+                const startpfp = findCommandByKey(commands, '/startpfp');
+                if (startpfp) {
+                    console.log(
+                        '[AI Step 1] Forced stay on /startpfp: /vozrast отклонён — в репликах пользователя нет явного возраста и пола одновременно'
+                    );
+                    nextCommand = startpfp;
+                    forcedStayStartpfpOverVozrast = true;
+                }
+            }
+
             traceConstructorMeta('step1_classifier_resolved', {
                 nextCommand: nextCommand ? { id: nextCommand.id, command: nextCommand.command } : null,
                 forcedStartpfp,
+                forcedStayStartpfpOverVozrast,
                 namePatternMatched: shouldForceStartpfpFromStart(userMessage),
             });
 
@@ -1305,10 +1422,11 @@ class ConstructorAiService {
 2. Если назвали только имя — заполни first_name, last_name и fio оставь null. Если дали ФИО целиком — заполни fio и по возможности разбей на first_name/last_name.
 3. Если какое-то поле не найдено, используй значения по умолчанию: birth_date "1990-01-01", income 100000, capital 0.
 4. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
-5. Если целей нет, массив "goals" пуст.
+5. Если целей нет, массив "goals" пуст — НО см. правило 9 (first-run пенсии): там goals не должен оставаться пустым.
 6. goal_type_id 3 (Сохранить и приумножить, ПДС): поле term_months не вычисляй и не угадывай (null или опусти ключ). Срок сервер выставит сам из client.birth_date и client.sex. Обязательно вытащи monthly_replenishment (руб/мес); target_amount для типа 3 ставь 0, если в диалоге нет отдельной целевой суммы накоплений.
 7. Цель «Квартира»: goal_type_id всегда 4 (OTHER), name строго «Квартира». target_amount — ориентировочная стоимость квартиры. initial_capital — ОБЯЗАТЕЛЬНО укажи числом, сколько уже отложено именно на квартиру/взнос (если пользователь назвал сумму). Не клади эту сумму только в total_liquid_capital без goals[].initial_capital. client.avg_monthly_income — доход. term_months не угадывай (сервер выставит из даты рождения и пола). Пул расчёта — как у пенсии: client.total_liquid_capital и goals[].initial_capital; сервер при необходимости подставит одно из другого, без отдельного массива assets в JSON.
 8. goal_type_id 3 (ПДС): сумму «уже внесено/есть на старте» клади в goals[].initial_capital; при необходимости сервер выставит total_liquid_capital (та же схема, что пенсия + старт по цели).
+9. Сценарий «госпенсия / доплата к пенсии / first-run пенсии»: если пользователь дал доход, желаемую доплату к пенсии (или желаемый пенсионный доход в месяц) и стартовый капитал — ОБЯЗАТЕЛЬНО добавь в "goals" ровно одну цель goal_type_id: 1 (имя «Пенсия» или «Госпенсия»). Поле target_amount = желаемый суммарный месячный доход на пенсии в сегодняшних ценах; если названа только «доплата к госпенсии», оцени суммарный желаемый доход из смысла реплик (госпенсия + доплата) или, если пользователь явно назвал «хочу X ₽ в месяц на пенсии», используй X. initial_capital этой цели = стартовый капитал из диалога; согласуй с client.total_liquid_capital. Не оставляй goals пустым, если эти параметры в диалоге есть.
 `
             },
             {
@@ -1652,6 +1770,7 @@ class ConstructorAiService {
             }
         } else if (isFirstRunCalculationCommand(cmdKey)) {
             firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
+            ensureFirstRunExtractionHasPensionGoal(firstRunExtraction);
             try {
                 const calcData = {
                     client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
@@ -1868,6 +1987,7 @@ class ConstructorAiService {
         } else if (isFirstRunCalculationCommand(cmdKey)) {
             console.log(`[Flow] DEBUG: first-run calculation command (${cmdKey}). Starting extraction...`);
             firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
+            ensureFirstRunExtractionHasPensionGoal(firstRunExtraction);
             console.log(`[Flow] Performing Full Financial Plan Calculation for client:`, client.nickname);
             console.log(`[Flow] Extraction Result:`, JSON.stringify(firstRunExtraction, null, 2));
 
