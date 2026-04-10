@@ -104,6 +104,76 @@ function trimText(v) {
     return String(v).trim();
 }
 
+/** Дефолтный system-промпт экстракции JSON (first run), если в админке пусто / нет команды. */
+const DEFAULT_FINANCIAL_EXTRACTION_SYSTEM_PROMPT = `Ты — финансовый аналитик. Твоя задача: извлечь данные о клиенте и его целях из диалога для расчета финансового плана (на текущий 2026 год).
+
+Возвращай ТОЛЬКО чистый JSON по следующей структуре:
+{
+  "client": {
+    "first_name": null,
+    "last_name": null,
+    "fio": null,
+    "sex": "male" или "female",
+    "birth_date": "YYYY-MM-DD (дата рождения, посчитай учитывая сегодняшний день и возраст клиента)",
+    "avg_monthly_income": число (доход в месяц),
+    "total_liquid_capital": число (текущие накопления)
+  },
+  "goals": [
+    {
+      "goal_type_id": число (1-Пенсия/Госпенсия, 2-Пассивный доход, 3-Сохранить и приумножить/ПДС, 4-OTHER: квартира и др.; для квартиры см. правило 7),
+      "name": "Название цели; для покупки квартиры строго строка «Квартира»",
+      "target_amount": число (желаемая сумма: стоимость цели ИЛИ желаемый доход в месяц для типов 1 и 2; для цели «Квартира» — стоимость квартиры в рублях),
+      "initial_capital": число (первоначальный капитал именно по этой цели; для «Квартира» — сколько уже отложено на квартиру, 0 если нет),
+      "term_months": число (срок в месяцах; для типа 3 и для цели «Квартира» (тип 4, name «Квартира») не заполняй — подставит сервер из client.birth_date и пола),
+      "desired_monthly_income": число (желаемый доход в месяц, дублируй сюда для типов 1 и 2),
+      "monthly_replenishment": число (ежемесячное пополнение: для типа 3 обязательно если есть в диалоге; для «Квартира» не обязательно — сервер может посчитать взнос в расчёте, но укажи если пользователь назвал)
+    }
+  ]
+}
+
+ПРАВИЛА:
+1. first_name, last_name, fio — строка или null (не число). Имя извлекай ТОЛЬКО из явных реплик пользователя; не выдумывай. Если отказ от имени («не скажу», «без имени») — все три поля null.
+2. Если назвали только имя — заполни first_name, last_name и fio оставь null. Если дали ФИО целиком — заполни fio и по возможности разбей на first_name/last_name.
+3. Если какое-то поле не найдено, используй значения по умолчанию: birth_date "1990-01-01", income 100000, capital 0.
+4. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
+5. Если целей нет, массив "goals" пуст — НО см. правило 9 (first-run пенсии): там goals не должен оставаться пустым.
+6. goal_type_id 3 (Сохранить и приумножить, ПДС): поле term_months не вычисляй и не угадывай (null или опусти ключ). Срок сервер выставит сам из client.birth_date и client.sex. Обязательно вытащи monthly_replenishment (руб/мес); target_amount для типа 3 ставь 0, если в диалоге нет отдельной целевой суммы накоплений.
+7. Цель «Квартира»: goal_type_id всегда 4 (OTHER), name строго «Квартира». target_amount — ориентировочная стоимость квартиры. initial_capital — ОБЯЗАТЕЛЬНО укажи числом, сколько уже отложено именно на квартиру/взнос (если пользователь назвал сумму). Не клади эту сумму только в total_liquid_capital без goals[].initial_capital. client.avg_monthly_income — доход. term_months не угадывай (сервер выставит из даты рождения и пола). Пул расчёта — как у пенсии: client.total_liquid_capital и goals[].initial_capital; сервер при необходимости подставит одно из другого, без отдельного массива assets в JSON.
+8. goal_type_id 3 (ПДС): сумму «уже внесено/есть на старте» клади в goals[].initial_capital; при необходимости сервер выставит total_liquid_capital (та же схема, что пенсия + старт по цели).
+9. Сценарий «госпенсия / доплата к пенсии / first-run пенсии»: если пользователь дал доход, желаемую доплату к пенсии (или желаемый пенсионный доход в месяц) и стартовый капитал — ОБЯЗАТЕЛЬНО добавь в "goals" ровно одну цель goal_type_id: 1 (имя «Пенсия» или «Госпенсия»). Поле target_amount = желаемый суммарный месячный доход на пенсии в сегодняшних ценах; если названа только «доплата к госпенсии», оцени суммарный желаемый доход из смысла реплик (госпенсия + доплата) или, если пользователь явно назвал «хочу X ₽ в месяц на пенсии», используй X. initial_capital этой цели = стартовый капитал из диалога; согласуй с client.total_liquid_capital. Не оставляй goals пустым, если эти параметры в диалоге есть.
+`;
+
+const EXTRACT_FINANCIAL_PLAN_PARAMS_COMMAND = '/extractFinancialPlanParams';
+
+/**
+ * Команды бота + шаблоны проекта (тот же запрос, что в classifyStage).
+ * @returns {Promise<object[]>}
+ */
+async function loadConstructorCommandsForBot(botId) {
+    const bot = await knex('constructor_bots').where('id', botId).first();
+    if (!bot) return [];
+    return knex('constructor_commands')
+        .where('bot_id', bot.id)
+        .orWhere(function () {
+            this.where('is_template', true).andWhere('project_id', bot.project_id);
+        })
+        .orderByRaw('bot_id DESC, is_template ASC');
+}
+
+/**
+ * System-промпт для extractFinancialPlanParams: поле response команды /extractFinancialPlanParams или дефолт.
+ * @returns {Promise<{ content: string, source: 'custom'|'default', commandId: number|null }>}
+ */
+async function resolveFinancialExtractionSystemPrompt(botId) {
+    const commands = await loadConstructorCommandsForBot(botId);
+    const row = findCommandByKey(commands, EXTRACT_FINANCIAL_PLAN_PARAMS_COMMAND);
+    const custom = row && trimText(row.response);
+    if (custom) {
+        return { content: row.response.trim(), source: 'custom', commandId: row.id != null ? Number(row.id) : null };
+    }
+    return { content: DEFAULT_FINANCIAL_EXTRACTION_SYSTEM_PROMPT, source: 'default', commandId: null };
+}
+
 /** Копия расчёта для промпта генератора: без лишней глубины, чтобы модель не «тонула» и не игнорировала блок. */
 function calculationPayloadForGeneratorPrompt(calculationResult) {
     if (calculationResult == null || typeof calculationResult !== 'object') return calculationResult;
@@ -1377,6 +1447,20 @@ class ConstructorAiService {
      * Извлечение комплексных параметров для финансового плана (/firstRun)
      */
     async extractFinancialPlanParams(session, userMessage) {
+        const sessionClient = await knex('constructor_clients').where('id', session.client_id).first();
+        let systemPromptMeta = { content: DEFAULT_FINANCIAL_EXTRACTION_SYSTEM_PROMPT, source: 'default', commandId: null };
+        if (sessionClient && sessionClient.bot_id != null) {
+            systemPromptMeta = await resolveFinancialExtractionSystemPrompt(sessionClient.bot_id);
+        } else {
+            console.warn(
+                '[AI Extraction] constructor_client missing or no bot_id; using default financial extraction system prompt'
+            );
+        }
+        console.log(
+            `[AI Extraction] Financial plan system prompt: ${systemPromptMeta.source}` +
+                (systemPromptMeta.commandId != null ? ` (commandId=${systemPromptMeta.commandId})` : '')
+        );
+
         const history = await knex('constructor_logs')
             .where('session_id', session.id)
             .orderBy('created_at', 'desc')
@@ -1391,43 +1475,7 @@ class ConstructorAiService {
         const prompt = [
             {
                 role: 'system',
-                content: `Ты — финансовый аналитик. Твоя задача: извлечь данные о клиенте и его целях из диалога для расчета финансового плана (на текущий 2026 год).
-
-Возвращай ТОЛЬКО чистый JSON по следующей структуре:
-{
-  "client": {
-    "first_name": null,
-    "last_name": null,
-    "fio": null,
-    "sex": "male" или "female",
-    "birth_date": "YYYY-MM-DD (дата рождения, посчитай учитывая сегодняшний день и возраст клиента)",
-    "avg_monthly_income": число (доход в месяц),
-    "total_liquid_capital": число (текущие накопления)
-  },
-  "goals": [
-    {
-      "goal_type_id": число (1-Пенсия/Госпенсия, 2-Пассивный доход, 3-Сохранить и приумножить/ПДС, 4-OTHER: квартира и др.; для квартиры см. правило 7),
-      "name": "Название цели; для покупки квартиры строго строка «Квартира»",
-      "target_amount": число (желаемая сумма: стоимость цели ИЛИ желаемый доход в месяц для типов 1 и 2; для цели «Квартира» — стоимость квартиры в рублях),
-      "initial_capital": число (первоначальный капитал именно по этой цели; для «Квартира» — сколько уже отложено на квартиру, 0 если нет),
-      "term_months": число (срок в месяцах; для типа 3 и для цели «Квартира» (тип 4, name «Квартира») не заполняй — подставит сервер из client.birth_date и пола),
-      "desired_monthly_income": число (желаемый доход в месяц, дублируй сюда для типов 1 и 2),
-      "monthly_replenishment": число (ежемесячное пополнение: для типа 3 обязательно если есть в диалоге; для «Квартира» не обязательно — сервер может посчитать взнос в расчёте, но укажи если пользователь назвал)
-    }
-  ]
-}
-
-ПРАВИЛА:
-1. first_name, last_name, fio — строка или null (не число). Имя извлекай ТОЛЬКО из явных реплик пользователя; не выдумывай. Если отказ от имени («не скажу», «без имени») — все три поля null.
-2. Если назвали только имя — заполни first_name, last_name и fio оставь null. Если дали ФИО целиком — заполни fio и по возможности разбей на first_name/last_name.
-3. Если какое-то поле не найдено, используй значения по умолчанию: birth_date "1990-01-01", income 100000, capital 0.
-4. Если в тексте "30 лет", высчитай дату рождения от 2026 года.
-5. Если целей нет, массив "goals" пуст — НО см. правило 9 (first-run пенсии): там goals не должен оставаться пустым.
-6. goal_type_id 3 (Сохранить и приумножить, ПДС): поле term_months не вычисляй и не угадывай (null или опусти ключ). Срок сервер выставит сам из client.birth_date и client.sex. Обязательно вытащи monthly_replenishment (руб/мес); target_amount для типа 3 ставь 0, если в диалоге нет отдельной целевой суммы накоплений.
-7. Цель «Квартира»: goal_type_id всегда 4 (OTHER), name строго «Квартира». target_amount — ориентировочная стоимость квартиры. initial_capital — ОБЯЗАТЕЛЬНО укажи числом, сколько уже отложено именно на квартиру/взнос (если пользователь назвал сумму). Не клади эту сумму только в total_liquid_capital без goals[].initial_capital. client.avg_monthly_income — доход. term_months не угадывай (сервер выставит из даты рождения и пола). Пул расчёта — как у пенсии: client.total_liquid_capital и goals[].initial_capital; сервер при необходимости подставит одно из другого, без отдельного массива assets в JSON.
-8. goal_type_id 3 (ПДС): сумму «уже внесено/есть на старте» клади в goals[].initial_capital; при необходимости сервер выставит total_liquid_capital (та же схема, что пенсия + старт по цели).
-9. Сценарий «госпенсия / доплата к пенсии / first-run пенсии»: если пользователь дал доход, желаемую доплату к пенсии (или желаемый пенсионный доход в месяц) и стартовый капитал — ОБЯЗАТЕЛЬНО добавь в "goals" ровно одну цель goal_type_id: 1 (имя «Пенсия» или «Госпенсия»). Поле target_amount = желаемый суммарный месячный доход на пенсии в сегодняшних ценах; если названа только «доплата к госпенсии», оцени суммарный желаемый доход из смысла реплик (госпенсия + доплата) или, если пользователь явно назвал «хочу X ₽ в месяц на пенсии», используй X. initial_capital этой цели = стартовый капитал из диалога; согласуй с client.total_liquid_capital. Не оставляй goals пустым, если эти параметры в диалоге есть.
-`
+                content: systemPromptMeta.content,
             },
             {
                 role: 'user',
@@ -1776,6 +1824,10 @@ class ConstructorAiService {
                     client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
                     goals: firstRunExtraction.goals || []
                 };
+                console.log(
+                    '[ConstructorAI] FirstRun calc payload → calculateFirstRun (site-chat stream):\n',
+                    JSON.stringify(calcData, null, 2)
+                );
                 calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
                     isFirstRun: true,
                     usePool: true,
@@ -1998,7 +2050,10 @@ class ConstructorAiService {
                     goals: firstRunExtraction.goals || []
                 };
 
-                console.log('[Flow] DEBUG: Calling calculationService.calculateFirstRun with:', JSON.stringify(calcData, null, 2));
+                console.log(
+                    '[ConstructorAI] FirstRun calc payload → calculateFirstRun (telegram/max):\n',
+                    JSON.stringify(calcData, null, 2)
+                );
                 calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
                     isFirstRun: true,
                     usePool: true,
