@@ -265,8 +265,50 @@ class PortfolioRepository {
         return query;
     }
 
-    async findByCriteria({ projectId = null, classId, amount, term }) {
-        console.log('[PortfolioRepo] findByCriteria called with:', { projectId, classId, amount, term });
+    _isFiniteNumber(value) {
+        return Number.isFinite(Number(value));
+    }
+
+    _buildCriteriaAttempts({ amount, term }) {
+        const parsedAmount = Number(amount);
+        const hasAmount = amount !== undefined && amount !== null && this._isFiniteNumber(parsedAmount);
+        const hasTerm = term !== undefined && term !== null && this._isFiniteNumber(term);
+
+        const attempts = [];
+        attempts.push({
+            useAmount: hasAmount,
+            useTerm: hasTerm,
+            label: hasAmount ? 'strict_with_amount' : 'strict_no_amount'
+        });
+
+        if (hasAmount) {
+            attempts.push({
+                useAmount: false,
+                useTerm: hasTerm,
+                label: 'fallback_without_amount'
+            });
+        }
+
+        if (hasTerm) {
+            attempts.push({
+                useAmount: false,
+                useTerm: false,
+                label: 'fallback_class_only'
+            });
+        }
+
+        const deduped = [];
+        const seen = new Set();
+        for (const attempt of attempts) {
+            const key = `${attempt.useAmount ? '1' : '0'}:${attempt.useTerm ? '1' : '0'}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            deduped.push(attempt);
+        }
+        return deduped;
+    }
+
+    async _findCandidatesAttempt({ projectId = null, amount, term, useAmount, useTerm, label }) {
         const query = db('portfolios').where({ is_active: true });
 
         if (projectId) {
@@ -275,24 +317,22 @@ class PortfolioRepository {
             });
         }
 
-        if (amount !== undefined) {
-            query.where('amount_from', '<=', amount)
-                .where('amount_to', '>=', amount);
+        if (useAmount) {
+            query.where('amount_from', '<=', Number(amount))
+                .where('amount_to', '>=', Number(amount));
         }
-        if (term !== undefined) {
-            query.where('term_from_months', '<=', term)
-                .where('term_to_months', '>=', term);
+        if (useTerm) {
+            query.where('term_from_months', '<=', Number(term))
+                .where('term_to_months', '>=', Number(term));
         }
-        console.log('[PortfolioRepo] Executing query...');
-        let candidates;
-        try {
-            // Priority: project-specific (not null) first
-            candidates = await query.orderBy('project_id', 'desc');
-            console.log(`[PortfolioRepo] Query finished. Found ${candidates.length} candidates.`);
-        } catch (e) {
-            console.error('[PortfolioRepo] Query failed:', e);
-            throw e;
-        }
+
+        console.log(`[PortfolioRepo] Executing query attempt=${label} useAmount=${useAmount} useTerm=${useTerm}`);
+        const candidates = await query.orderBy('project_id', 'desc');
+        console.log(`[PortfolioRepo] Query attempt=${label} found ${candidates.length} candidates.`);
+        return candidates;
+    }
+
+    async _matchPortfolioByClass(candidates, classId, classLinksTableExists) {
         const targetId = Number(classId);
         const normalizeClassId = (value) => {
             if (value === null || value === undefined) return null;
@@ -303,7 +343,6 @@ class PortfolioRepository {
             }
             return Number(value);
         };
-        const classLinksTableExists = await db.schema.hasTable('portfolio_class_links');
 
         for (const p of candidates) {
             let classes = p.classes;
@@ -350,6 +389,31 @@ class PortfolioRepository {
             }
         }
 
+        return null;
+    }
+
+    async findByCriteria({ projectId = null, classId, amount, term }) {
+        console.log('[PortfolioRepo] findByCriteria called with:', { projectId, classId, amount, term });
+        try {
+            const classLinksTableExists = await db.schema.hasTable('portfolio_class_links');
+            const attempts = this._buildCriteriaAttempts({ amount, term });
+
+            for (const attempt of attempts) {
+                const candidates = await this._findCandidatesAttempt({
+                    projectId,
+                    amount,
+                    term,
+                    useAmount: attempt.useAmount,
+                    useTerm: attempt.useTerm,
+                    label: attempt.label
+                });
+                const matched = await this._matchPortfolioByClass(candidates, classId, classLinksTableExists);
+                if (matched) return matched;
+            }
+        } catch (e) {
+            console.error('[PortfolioRepo] Query failed:', e);
+            throw e;
+        }
         return null;
     }
 }

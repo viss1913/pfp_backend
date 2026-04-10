@@ -276,6 +276,7 @@ class CalculationService {
             'investment_expense_growth_annual',
             'inflation_rate_year',
             'inflation_rate_matrix',
+            'smart_allocation_inv_rent_share',
             'pension_pfr_contribution_rate_part1',
             'pension_fixed_payment',
             'pension_point_cost',
@@ -359,6 +360,9 @@ class CalculationService {
             client: clientData,
             assets: assets,
             settings: settings,
+            smartAllocationInvRentShare: Number.isFinite(Number(settings.smart_allocation_inv_rent_share))
+                ? Number(settings.smart_allocation_inv_rent_share)
+                : 0.60,
             cachedData: {
                 pdsSettings,
                 pdsBrackets,
@@ -422,7 +426,11 @@ class CalculationService {
 
         // 2. Investment + RENT
         if ((hasInv || hasRent) && tempPool > 0) {
-            const ratio = hasOtherGoals ? 0.60 : 1.0;
+            const configuredShare = Number.isFinite(Number(context.smartAllocationInvRentShare))
+                ? Number(context.smartAllocationInvRentShare)
+                : 0.60;
+            const safeShare = Math.max(0, Math.min(configuredShare, 1));
+            const ratio = hasOtherGoals ? safeShare : 1.0;
             const ruleAmount = tempPool * ratio;
 
             let invPart = 0;

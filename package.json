@@ -12,6 +12,7 @@
     "fix-migrations": "node scripts/fix_migrations.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:monthly-schedule-pds": "node scripts/test_monthly_schedule_pds.js",
+    "test:portfolio-fallback": "node scripts/test_portfolio_find_by_criteria_fallback.js",
     "r2:smoke": "node scripts/r2_smoke_test.js",
     "r2:upload-sample-image": "node scripts/r2_upload_sample_image.js",
     "seed:pdf-cover-default": "node scripts/seed_default_report_cover_all_agents.js",
@@ -20,7 +21,8 @@
     "img:png2webp": "node scripts/png_to_webp.js",
     "fetch:report-pdf": "node scripts/fetch_report_pdf.js",
     "preview:summary": "node scripts/serve_summary_preview.mjs",
-    "seed:pdf-summary-stock-assets-r2": "node scripts/seed_pdf_summary_stock_assets_r2.js"
+    "seed:pdf-summary-stock-assets-r2": "node scripts/seed_pdf_summary_stock_assets_r2.js",
+    "import:comon-recommended": "node scripts/import_comon_recommended_strategies.js"
   },
   "keywords": [],
   "author": "",

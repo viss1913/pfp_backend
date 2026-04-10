@@ -22,8 +22,7 @@ class OtherGoalCalculator extends BaseCalculator {
         const initialCapitalForSearchRaw = (goal.smart_initial_capital !== undefined)
             ? Number(goal.smart_initial_capital)
             : Number(goal.initial_capital || 0);
-        const initialCapitalForSearch = Number.isFinite(initialCapitalForSearchRaw) ? initialCapitalForSearchRaw : 0;
-        const useAmountFilter = initialCapitalForSearch > 0;
+        const initialCapitalForSearch = Number.isFinite(initialCapitalForSearchRaw) ? initialCapitalForSearchRaw : undefined;
 
         // Поиск портфеля (класс OTHER). Сначала стандартный путь по id=4,
         // затем fallback по фактическому class id в проекте.
@@ -31,7 +30,7 @@ class OtherGoalCalculator extends BaseCalculator {
         let portfolio = await portfolioRepository.findByCriteria({
             projectId: context.projectId,
             classId: searchClassId,
-            amount: useAmountFilter ? initialCapitalForSearch : undefined,
+            amount: initialCapitalForSearch,
             term: termMonths
         });
 
@@ -43,19 +42,10 @@ class OtherGoalCalculator extends BaseCalculator {
                 portfolio = await portfolioRepository.findByCriteria({
                     projectId: context.projectId,
                     classId: searchClassId,
-                    amount: useAmountFilter ? initialCapitalForSearch : undefined,
+                    amount: initialCapitalForSearch,
                     term: termMonths
                 });
             }
-        }
-
-        // Для целей без стартового капитала берём портфель только по классу+сроку.
-        if (!portfolio && !useAmountFilter) {
-            portfolio = await portfolioRepository.findByCriteria({
-                projectId: context.projectId,
-                classId: searchClassId,
-                term: termMonths
-            });
         }
 
         if (!portfolio) throw new Error('Portfolio for OTHER goals not found');
@@ -167,6 +157,12 @@ class OtherGoalCalculator extends BaseCalculator {
 
         const effectiveInitialCapital = initialCapital;
         const allInflowsForSimulation = inflowData.allInflows.filter(i => i.month > 0);
+        const { iisEligibleInitialCapital, iisEligibleMonthlyShare } = this.getIisContributionParams(
+            goal,
+            initial_instruments,
+            monthly_instruments,
+            effectiveInitialCapital
+        );
 
         // 3. Simulation
         let recommendedReplenishment = 0;
@@ -183,11 +179,15 @@ class OtherGoalCalculator extends BaseCalculator {
                 monthlyYieldRate: yieldMonthly,
                 indexationRate: indexationRate,
                 pdsProductId,
+                iisEligibleInitialCapital,
+                iisEligibleMonthlyShare,
                 avgMonthlyIncome: client.avg_monthly_income,
                 startDate: new Date(),
                 inflows: allInflowsForSimulation,
                 totalTargetAmount: targetAmountFuture, // Just for reference
-                collectMonthlySchedule: true
+                collectMonthlySchedule: true,
+                children: context.client?.tax_children || context.client?.family_profile?.children || [],
+                childrenDeductionEnabled: Boolean(context.client?.enable_children_tax_deduction)
             }, context);
         }
         // REVERSE CALCULATION (Backward)
@@ -211,11 +211,15 @@ class OtherGoalCalculator extends BaseCalculator {
                 monthlyYieldRate: yieldMonthly,
                 indexationRate: indexationRate,
                 pdsProductId,
+                iisEligibleInitialCapital,
+                iisEligibleMonthlyShare,
                 avgMonthlyIncome: client.avg_monthly_income,
                 startDate: new Date(),
                 inflows: allInflowsForSimulation,
                 totalTargetAmount: targetAmountFuture,
-                collectMonthlySchedule: true
+                collectMonthlySchedule: true,
+                children: context.client?.tax_children || context.client?.family_profile?.children || [],
+                childrenDeductionEnabled: Boolean(context.client?.enable_children_tax_deduction)
             }, context);
         }
 
