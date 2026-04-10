@@ -510,6 +510,7 @@ class ConstructorController {
      * сессию — по sessionId/куке (используем как user_id в constructor_clients),
      * ответ стримим как SSE.
      * События: type=session|classifier_command|text|calc_error|pdf_url|done|error.
+     * После текста модели при успешном расчёте может идти ещё один chunk type=text со строкой со ссылкой на PDF (и дублируется type=pdf_url).
      * При провале first-run расчёта: type=calc_error, поля text и error_code=FIRST_RUN_CALC_FAILED (без LLM-«плана»).
      */
     async handleSiteChatStream(req, res) {
@@ -663,6 +664,56 @@ class ConstructorController {
                 res.write(`data: ${JSON.stringify({ error: 'Site chat failed' })}\n\n`);
                 res.end();
             }
+        }
+    }
+
+    /**
+     * GET /api/pfp/constructor/site-chat/report-pdf?t=...
+     * PDF по подписанному JWT из цепочки site-chat (fallback, если нет публичного URL в R2).
+     */
+    async getSiteChatReportPdf(req, res) {
+        const reportPdfService = require('../services/reportPdfService');
+        const { verifySiteChatReportPdfToken } = require('../services/constructorSiteReportPdfTokenService');
+        try {
+            const token = (req.query.t || req.query.token || '').toString().trim();
+            if (!token) {
+                res.status(400).json({ error: 'Missing token (query t)' });
+                return;
+            }
+            const { clientId, projectId } = verifySiteChatReportPdfToken(token);
+            const client = await knex('clients').where({ id: clientId, project_id: projectId }).first();
+            if (!client) {
+                res.status(404).json({ error: 'Client not found' });
+                return;
+            }
+            const agentId =
+                client.agent_id != null && client.agent_id !== '' && Number.isFinite(Number(client.agent_id))
+                    ? Number(client.agent_id)
+                    : undefined;
+            const pdfBuffer = await reportPdfService.generateClientReportPdf({
+                clientId,
+                projectId,
+                includeCover: true,
+                includeSummary: true,
+                goalTypes: null,
+                agentId,
+            });
+            const ts = new Date().toISOString().slice(0, 10);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader(
+                'Content-Disposition',
+                `inline; filename="report-client-${clientId}-${ts}.pdf"`
+            );
+            res.setHeader('Cache-Control', 'private, no-store');
+            res.send(pdfBuffer);
+        } catch (error) {
+            const code = Number(error.statusCode) || 500;
+            if (code === 401 || code === 400 || code === 404 || code === 503) {
+                res.status(code).json({ error: error.message || 'Request failed' });
+                return;
+            }
+            console.error('[Constructor] getSiteChatReportPdf:', error);
+            res.status(500).json({ error: error.message || 'PDF generation failed' });
         }
     }
 }

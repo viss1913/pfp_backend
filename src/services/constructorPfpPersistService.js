@@ -4,6 +4,11 @@ const clientRepository = require('../repositories/clientRepository');
 const reportPdfService = require('./reportPdfService');
 const { uploadPublicFile } = require('../utils/r2Client');
 const { syncCalculationGoalsWithDatabase } = require('./clientGoalSyncService');
+const {
+    signSiteChatReportPdfToken,
+    buildSiteChatReportPdfUrl,
+    getSiteChatReportPdfPublicBase,
+} = require('./constructorSiteReportPdfTokenService');
 
 function buildConstructorPfpSaveBody(extraction, bot, constructorNickname) {
     const extClient = { ...(extraction?.client || {}) };
@@ -137,6 +142,22 @@ async function persistConstructorFirstRunAndUploadPdf({
         });
     } catch (pdfErr) {
         console.error('[ConstructorPfpPersist] generateClientReportPdfPackage failed:', pdfErr.message || pdfErr);
+    }
+
+    if (!pdfUrl) {
+        const token = signSiteChatReportPdfToken({ clientId, projectId: bot.project_id });
+        pdfUrl = buildSiteChatReportPdfUrl(token);
+        if (pdfUrl) {
+            console.warn('[ConstructorPfpPersist] R2 URL missing — using signed report-pdf link for site-chat');
+        } else if (!token) {
+            console.error(
+                '[ConstructorPfpPersist] No PDF URL: R2 failed and JWT_SECRET missing (cannot sign fallback link)'
+            );
+        } else if (!getSiteChatReportPdfPublicBase()) {
+            console.error(
+                '[ConstructorPfpPersist] No PDF URL: R2 failed; set PFP_PUBLIC_API_BASE_URL for signed PDF link (see .env.example)'
+            );
+        }
     }
 
     return { clientId, pdfUrl };

@@ -1811,6 +1811,10 @@ class ConstructorAiService {
         if (streamExtras.trailingSsePayload != null) {
             streamOpts.trailingSsePayload = streamExtras.trailingSsePayload;
         }
+        const suffix = streamExtras.appendToFullText || '';
+        if (suffix) {
+            streamOpts.appendTextBeforeDone = suffix;
+        }
         const fullText = await aiService.streamCompletion(layeredPrompt, null, res, streamOpts);
 
         traceConstructorMeta('step2_generator_llm_response_stream_done', {
@@ -1818,8 +1822,7 @@ class ConstructorAiService {
             fullTextPreview: truncateTraceText(fullText || '', 1200),
         });
 
-        const suffix = streamExtras.appendToFullText || '';
-        return suffix ? `${fullText || ''}${suffix}` : fullText;
+        return fullText || '';
     }
 
     /**

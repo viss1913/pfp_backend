@@ -23,6 +23,7 @@ router.post('/admin/constructor/webhook/max/:botId', constructorController.handl
 
 // Public Constructor Site Chat (SSE, no auth; project resolved by x-project-key via tenantMiddleware)
 router.post('/pfp/constructor/site-chat/stream', tenantMiddleware, constructorController.handleSiteChatStream);
+router.get('/pfp/constructor/site-chat/report-pdf', constructorController.getSiteChatReportPdf.bind(constructorController));
 
 // Helper for combined auth + tenant
 const pfpMiddleware = [authMiddleware, tenantMiddleware];
