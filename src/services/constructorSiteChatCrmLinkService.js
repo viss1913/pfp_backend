@@ -2,6 +2,28 @@ const knex = require('../config/database');
 const clientService = require('./clientService');
 
 /**
+ * У site-бота иногда в БД пустой agent_id (расчёт идёт по project_id, а CRM/persist без agent_id падают).
+ * Подставляем первого агента проекта и сохраняем в constructor_bots.
+ */
+async function backfillConstructorBotAgentId(bot) {
+    if (!bot?.id || !bot.project_id || bot.agent_id) return bot;
+    const agent = await knex('agents').where({ project_id: bot.project_id }).orderBy('id', 'asc').first();
+    if (!agent) {
+        console.error(
+            `[ConstructorCRM] bot ${bot.id}: project_id=${bot.project_id} but no agents row — cannot set agent_id`
+        );
+        return bot;
+    }
+    await knex('constructor_bots')
+        .where({ id: bot.id })
+        .update({ agent_id: agent.id, updated_at: knex.fn.now() });
+    console.warn(
+        `[ConstructorCRM] bot ${bot.id}: had null agent_id — backfilled agent_id=${agent.id} (first agent in project ${bot.project_id})`
+    );
+    return { ...bot, agent_id: agent.id };
+}
+
+/**
  * Создаёт запись в `clients` и проставляет `constructor_clients.pfp_client_id`,
  * чтобы диалог site-chat (`/pfp/constructor/site-chat/stream`) был виден в ЛК агента с первого сообщения,
  * без ожидания first-run расчёта.
@@ -43,4 +65,5 @@ async function ensurePfpClientLinkedForConstructorSiteChat(constructorClientRow,
 
 module.exports = {
     ensurePfpClientLinkedForConstructorSiteChat,
+    backfillConstructorBotAgentId,
 };

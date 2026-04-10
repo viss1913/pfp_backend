@@ -1830,8 +1830,10 @@ class ConstructorAiService {
      * Используется для "чат на сайте" без регистрации.
      */
     async processMessageStream(botId, userId, nickname, userMessage, res) {
-        const bot = await knex('constructor_bots').where('id', botId).first();
+        let bot = await knex('constructor_bots').where('id', botId).first();
         if (!bot) return;
+        const { backfillConstructorBotAgentId } = require('./constructorSiteChatCrmLinkService');
+        bot = await backfillConstructorBotAgentId(bot);
 
         if (userMessage && userMessage.trim().toLowerCase() === '/reset') {
             const clientToDelete = await knex('constructor_clients')
@@ -2022,9 +2024,21 @@ class ConstructorAiService {
                     calculationResponse: calculationResult,
                 });
                 pfpReportPdfUrl = r.pdfUrl;
+                console.log(
+                    `[ConstructorAI] firstRun(stream): persist OK pfp_client_id=${r.clientId} pdfUrl=${pfpReportPdfUrl ? 'set' : 'MISSING (check R2 / PFP_PUBLIC_API_BASE_URL)'}`
+                );
             } catch (persistErr) {
-                console.error('[ConstructorAI] persistConstructorFirstRun (stream) failed:', persistErr.message || persistErr);
+                console.error(
+                    '[ConstructorAI] persistConstructorFirstRun (stream) failed:',
+                    persistErr.message || persistErr
+                );
             }
+        } else if (
+            isFirstRunCalculationCommand(cmdKey) &&
+            firstRunCalculationSucceeded(calculationResult) &&
+            !firstRunExtraction
+        ) {
+            console.error('[ConstructorAI] firstRun(stream): calcOk but firstRunExtraction missing — persist skipped');
         }
 
         const pdfSuffix = pfpReportPdfUrl ? `\n\n📄 Ваш персональный отчёт (PDF): ${pfpReportPdfUrl}` : '';
@@ -2068,8 +2082,10 @@ class ConstructorAiService {
      * Полный цикл обработки сообщения
      */
     async processMessage(botId, userId, nickname, userMessage) {
-        const bot = await knex('constructor_bots').where('id', botId).first();
+        let bot = await knex('constructor_bots').where('id', botId).first();
         if (!bot) return "Бот не найден.";
+        const { backfillConstructorBotAgentId } = require('./constructorSiteChatCrmLinkService');
+        bot = await backfillConstructorBotAgentId(bot);
 
         if (userMessage && userMessage.trim().toLowerCase() === '/reset') {
             console.log(`[Lifecycle] Reset command received from ${nickname} (${userId})`);
@@ -2262,6 +2278,9 @@ class ConstructorAiService {
                     calculationResponse: calculationResult,
                 });
                 pfpReportPdfUrl = r.pdfUrl;
+                console.log(
+                    `[ConstructorAI] firstRun(telegram): persist OK pfp_client_id=${r.clientId} pdfUrl=${pfpReportPdfUrl ? 'set' : 'MISSING'}`
+                );
             } catch (persistErr) {
                 console.error('[ConstructorAI] persistConstructorFirstRun failed:', persistErr.message || persistErr);
             }
