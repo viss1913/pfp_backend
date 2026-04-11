@@ -7,8 +7,13 @@ const authMiddleware = require('../middlewares/authMiddleware');
 
 const tenantMiddleware = require('../middlewares/tenantMiddleware');
 
-// Calculator (Stateless)
-router.post('/calculate', tenantMiddleware, clientController.calculateFirstRun.bind(clientController));
+// Calculator (Stateless): optional Bearer JWT sets project from agent; else x-project-key (see tenantMiddleware)
+router.post(
+    '/calculate',
+    authMiddleware.optionalAuthMiddleware,
+    tenantMiddleware,
+    clientController.calculateFirstRun.bind(clientController)
+);
 
 // Protected Routes
 const pfpMiddleware = [authMiddleware, tenantMiddleware];

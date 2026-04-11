@@ -74,4 +74,35 @@ async function authMiddleware(req, res, next) {
     }
 }
 
+/**
+ * If Authorization: Bearer is present, verifies JWT and sets req.user (same shape as authMiddleware).
+ * If absent, continues without req.user so tenantMiddleware can still resolve project via x-project-key.
+ * Invalid/expired Bearer → 401.
+ */
+async function optionalAuthMiddleware(req, res, next) {
+    try {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            const decoded = authService.verifyToken(token);
+            req.user = {
+                id: decoded.user_id || decoded.id,
+                agentId: decoded.agentId,
+                projectId: decoded.projectId,
+                uuid: decoded.id,
+                email: decoded.email,
+                role: decoded.role,
+                isAdmin: ['admin', 'super_admin'].includes(decoded.role),
+                isSuperAdmin: decoded.role === 'super_admin',
+                clientId: decoded.clientId || null
+            };
+        }
+        return next();
+    } catch (err) {
+        console.error('Optional Auth Middleware Error:', err);
+        return res.status(401).json({ error: 'Invalid authentication' });
+    }
+}
+
+authMiddleware.optionalAuthMiddleware = optionalAuthMiddleware;
 module.exports = authMiddleware;

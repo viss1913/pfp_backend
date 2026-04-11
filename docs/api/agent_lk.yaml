@@ -16,6 +16,11 @@ info:
     Схемы тел запросов: **`docs/api/aiB2c.yaml`** (`AiB2cBrainContextCreate`, `AiB2cStageCreate`, …).
 
     **Конструктор ИИ (бот для клиентов, CJM-команды, brain-contexts):** префикс **`/pfp/constructor`**. Регистрация бота (Telegram / MAX и др.), шаблоны команд сценария (`GET/POST/PUT/DELETE …/commands`), дополнительные контексты (`…/brain-contexts`), клиенты и переписка. Алиасы путей для совместимости: `templates`, `constructor_commands`, `constructor_brain_contexts` — те же обработчики, что и у `commands` / `brain-contexts`. Вебхук MAX: `POST /api/pfp/constructor/webhook/max/{botId}` (без JWT, секрет в заголовке при настройке бота).
+
+    **Расчёт ПФП и налоги (для сценариев агента):**
+    - **`POST /client/calculate`** — stateless-расчёт по массиву целей; в ответе в т.ч. агрегаты налоговых льгот (`summary.tax_benefits_summary`). Контекст проекта: заголовок **`x-project-key`** и/или опционально **`Authorization: Bearer`** (из JWT берётся `projectId`).
+    - **`POST /client/tax-planning/calculate`** — только расширенное налоговое планирование (имущественный вычет, %% ипотеки, соцвычет до 150k, дети); **без** массива `goals`. Требуется JWT агента (как у `first-run`).
+    Полные схемы тел: **`openapi/pfp-api.yaml`** (`CalculationRequest`, `TaxPlanningRequest`). В этой спеке — тег **«Расчёт ПФП и налоги»**.
   version: 1.0.0
 servers:
   - url: /api
@@ -301,6 +306,80 @@ paths:
           description: Нет прав на изменение настройки
         '404':
           description: Настройка не найдена
+
+  # ==================== РАСЧЁТ ПФП И НАЛОГОВОЕ ПЛАНИРОВАНИЕ ====================
+  /client/calculate:
+    post:
+      tags: [ "Расчёт ПФП и налоги" ]
+      summary: Stateless-расчёт финансового плана по целям (без сохранения клиента)
+      description: |
+        Симуляция одной или нескольких целей (пенсия, крупная покупка, НСЖ, инвестиции и т.д.).
+        В ответе — в том числе **`summary.tax_benefits_summary`** (ПДС, ИИС, дети, НСЖ, итоги).
+
+        **Контекст проекта (`project_id`):**
+        - заголовок **`x-project-key`** — публичный ключ проекта (`projects.public_key`);
+        - и/или опционально **`Authorization: Bearer`** — JWT агента; из токена берётся `projectId` (удобно из ЛК без копирования ключа).
+
+        Если проект не определён — ответ **`400`** с текстом вроде **`Project context is missing`**.
+
+        Сохранение клиента и целей в БД — отдельно **`POST /client/first-run`** (JWT обязателен).
+      security: []
+      parameters:
+        - name: x-project-key
+          in: header
+          required: false
+          schema: { type: string }
+          description: Публичный ключ проекта, если контекст не задаётся через JWT
+        - name: Authorization
+          in: header
+          required: false
+          schema: { type: string }
+          description: Опционально `Bearer <token>` агента для подстановки `projectId`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/pfp-api.yaml#/components/schemas/CalculationRequest'
+      responses:
+        '200':
+          description: План и цели (упрощённый ответ калькулятора)
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfp-api.yaml#/components/schemas/CalculationResponse'
+        '400':
+          description: Ошибка валидации Joi или отсутствует контекст проекта
+
+  /client/tax-planning/calculate:
+    post:
+      tags: [ "Расчёт ПФП и налоги" ]
+      summary: Расширенное налоговое планирование (имущество, ипотека, соцвычет, дети)
+      description: |
+        Калькулятор **без массива `goals`**: оценка эффекта вычетов по заявленным базам
+        (имущественный до 2M ₽, проценты по ипотеке до 3M ₽, социальный до 150k ₽)
+        и стандартного вычета на детей (`tax_children`, режим семьи **`tax_family_mode`**: `single` | `both_parents` | `single_parent_double`).
+
+        Пенсия, ИИС, ПДС в симуляции целей и внешний расчёт НСЖ **сюда не входят** — для этого используйте **`POST /client/calculate`** или **`POST /client/first-run`**.
+
+        Схемы полей — **`TaxPlanningRequest`** / **`TaxPlanningResponse`** в `openapi/pfp-api.yaml`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/pfp-api.yaml#/components/schemas/TaxPlanningRequest'
+      responses:
+        '200':
+          description: Принятые базы вычетов, НДФЛ до/после, потенциальный возврат по основному лицу и супругу
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfp-api.yaml#/components/schemas/TaxPlanningResponse'
+        '400':
+          description: Ошибка валидации
 
   # ==================== КЛИЕНТЫ B2C И ИХ ПЛАНЫ ====================
   /pfp/clients:

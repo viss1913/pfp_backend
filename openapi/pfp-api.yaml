@@ -1989,7 +1989,9 @@ paths:
       security: []  # No authentication required
       description: |
         Calculate financial plan for one or more goals.
-        
+
+        **Project context:** `project_id` is resolved by `x-project-key` (public project key) and/or an optional `Authorization: Bearer` JWT (agent token carries `projectId`). If neither yields a project, the API returns `Project context is missing`.
+
         **Special handling for LIFE goals (goal_type_id: 5):**
         - If a goal has `goal_type_id: 5` or `name: "Жизнь"`, the system will call the external NSJ (Life Insurance) API
         - For LIFE goals, client data (birth_date, sex) is recommended for accurate calculations
