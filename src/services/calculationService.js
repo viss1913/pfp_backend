@@ -930,8 +930,8 @@ class CalculationService {
     }
 
     /**
-     * Simplify calculation result by removing yearly_breakdown from goals
-     * and ensuring field order for core properties.
+     * Simplify calculation result: stable field order on goals.
+     * yearly_breakdown оставляем — там по годам cofinancing_for_year, tax_refund_breakdown (раньше вырезали и ломали фронт/отчёты).
      */
     simplify(result) {
         if (!result) return result;
@@ -947,14 +947,8 @@ class CalculationService {
 
         if (calc.goals && Array.isArray(calc.goals)) {
             calc.goals = calc.goals.map(goal => {
-                // Ensure field order and remove yearly_breakdown
                 const { goal_name, goal_type, goal_type_id, goal_id, ...rest } = goal;
 
-                if (rest.details && rest.details.yearly_breakdown) {
-                    delete rest.details.yearly_breakdown;
-                }
-
-                // Reconstruct with guaranteed order
                 return {
                     goal_name: goal_name || goal.name,
                     goal_type,
