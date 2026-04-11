@@ -1,6 +1,14 @@
 const knex = require('../config/database');
 
 class TaxService {
+    static LONG_TERM_SAVINGS_LIMIT = 400000;
+    static CHILDREN_DEDUCTION_DEFAULTS = {
+        incomeLimit: 450000,
+        firstChildMonthly: 1400,
+        secondChildMonthly: 2800,
+        thirdPlusMonthly: 6000,
+        disabledChildMonthly: 12000
+    };
     /**
      * Calculate NDFL (Personal Income Tax) based on progressive scale
      * @param {number} annualIncome - Annual taxable income
@@ -117,7 +125,7 @@ class TaxService {
      * This is the most accurate way for progressive rates (13/15%)
      */
     async calculatePdsRefundDelta(annualIncome, newContribution, totalPreviousContributions = 0, year, cachedTaxBrackets = null) {
-        const baseLimit = 400000;
+        const baseLimit = TaxService.LONG_TERM_SAVINGS_LIMIT;
 
         // Суммарный лимит базы
         const currentTotal = totalPreviousContributions;
@@ -136,6 +144,143 @@ class TaxService {
             refundAmount,
             taxBefore: taxBefore.taxAmount,
             taxAfter: taxAfter.taxAmount
+        };
+    }
+
+    async calculateLongTermSavingsRefund({
+        annualIncome,
+        year,
+        pdsContribution = 0,
+        iisContribution = 0,
+        usedDeductionBase = 0,
+        cachedTaxBrackets = null,
+        projectId = null
+    }) {
+        const baseLimit = TaxService.LONG_TERM_SAVINGS_LIMIT;
+        const alreadyUsed = Math.max(0, Number(usedDeductionBase || 0));
+        const remainingBase = Math.max(0, baseLimit - alreadyUsed);
+
+        const pdsBase = Math.min(Math.max(0, Number(pdsContribution || 0)), remainingBase);
+        const iisBase = Math.min(Math.max(0, Number(iisContribution || 0)), Math.max(0, remainingBase - pdsBase));
+        const totalAddedBase = pdsBase + iisBase;
+
+        if (totalAddedBase <= 0) {
+            return {
+                pdsContributionAdded: 0,
+                iisContributionAdded: 0,
+                totalContributionAdded: 0,
+                pdsRefund: 0,
+                iisRefund: 0,
+                totalRefund: 0
+            };
+        }
+
+        const taxBefore = await this.calculateNdfl(
+            Math.max(0, annualIncome - alreadyUsed),
+            year,
+            cachedTaxBrackets,
+            projectId
+        );
+
+        const taxAfterPds = await this.calculateNdfl(
+            Math.max(0, annualIncome - alreadyUsed - pdsBase),
+            year,
+            cachedTaxBrackets,
+            projectId
+        );
+        const pdsRefund = Math.max(0, Math.round((taxBefore.taxAmount - taxAfterPds.taxAmount) * 100) / 100);
+
+        const taxAfterAll = await this.calculateNdfl(
+            Math.max(0, annualIncome - alreadyUsed - totalAddedBase),
+            year,
+            cachedTaxBrackets,
+            projectId
+        );
+        const iisRefund = Math.max(0, Math.round((taxAfterPds.taxAmount - taxAfterAll.taxAmount) * 100) / 100);
+
+        return {
+            pdsContributionAdded: pdsBase,
+            iisContributionAdded: iisBase,
+            totalContributionAdded: totalAddedBase,
+            pdsRefund,
+            iisRefund,
+            totalRefund: Math.round((pdsRefund + iisRefund) * 100) / 100
+        };
+    }
+
+    calculateChildrenDeductionBase(children = [], annualIncome = 0, options = {}) {
+        if (!Array.isArray(children) || children.length === 0) {
+            return 0;
+        }
+
+        const cfg = {
+            ...TaxService.CHILDREN_DEDUCTION_DEFAULTS,
+            ...options
+        };
+
+        const monthlyIncome = Math.max(0, Number(annualIncome || 0) / 12);
+        const monthsEligibleByIncome = monthlyIncome > 0
+            ? Math.max(0, Math.min(12, Math.floor((cfg.incomeLimit - 1) / monthlyIncome)))
+            : 12;
+
+        const deducibleChildren = children.filter((child) => {
+            if (!child || !child.birth_date) return false;
+            const birthDate = new Date(child.birth_date);
+            if (Number.isNaN(birthDate.getTime())) return false;
+            const now = new Date();
+            let age = now.getFullYear() - birthDate.getFullYear();
+            const monthDiff = now.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) age--;
+            if (age < 18) return true;
+            return Boolean(child.is_full_time_student) && age <= 24;
+        });
+
+        if (deducibleChildren.length === 0 || monthsEligibleByIncome <= 0) return 0;
+
+        const monthlyBase = deducibleChildren.reduce((sum, child, index) => {
+            const ordinal = index + 1;
+            let base = 0;
+            if (ordinal === 1) base += cfg.firstChildMonthly;
+            else if (ordinal === 2) base += cfg.secondChildMonthly;
+            else base += cfg.thirdPlusMonthly;
+            if (child.is_disabled) {
+                base += cfg.disabledChildMonthly;
+            }
+            return sum + base;
+        }, 0);
+
+        return Math.max(0, monthlyBase * monthsEligibleByIncome);
+    }
+
+    async calculateChildrenRefundDelta({
+        annualIncome,
+        year,
+        children = [],
+        cachedTaxBrackets = null,
+        projectId = null,
+        options = {}
+    }) {
+        const deductionBase = this.calculateChildrenDeductionBase(children, annualIncome, options);
+        if (deductionBase <= 0) {
+            return { deductionBase: 0, refundAmount: 0 };
+        }
+
+        const taxBefore = await this.calculateNdfl(
+            Math.max(0, annualIncome),
+            year,
+            cachedTaxBrackets,
+            projectId
+        );
+        const taxAfter = await this.calculateNdfl(
+            Math.max(0, annualIncome - deductionBase),
+            year,
+            cachedTaxBrackets,
+            projectId
+        );
+
+        return {
+            deductionBase: Math.round(deductionBase * 100) / 100,
+            refundAmount: Math.max(0, Math.round((taxBefore.taxAmount - taxAfter.taxAmount) * 100) / 100)
         };
     }
 

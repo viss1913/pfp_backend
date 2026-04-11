@@ -45,6 +45,12 @@ const familyProfileSchema = Joi.alternatives().try(
     familyProfileObjectSchema,
     Joi.array().items(Joi.object().unknown(true))
 ).optional();
+const taxChildSchema = Joi.object({
+    first_name: Joi.string().trim().optional(),
+    birth_date: Joi.string().isoDate().required(),
+    is_full_time_student: Joi.boolean().optional(),
+    is_disabled: Joi.boolean().optional()
+});
 
 // Схема валидации для запроса расчета
 const calculationRequestSchema = Joi.object({
@@ -123,9 +129,26 @@ const calculationRequestSchema = Joi.object({
         }).optional()
             .description('Данные застрахованного лица (если отличается от страхователя)'),
         family_profile: familyProfileSchema
-            .description('Справочный семейный профиль (не влияет на расчеты)')
+            .description('Справочный семейный профиль (не влияет на расчеты)'),
+        enable_children_tax_deduction: Joi.boolean().optional()
+            .description('Включить расчет стандартного вычета на детей в firstRun'),
+        tax_children: Joi.array().items(taxChildSchema).optional()
+            .description('Дети для налогового расчета (если не передано, может использоваться family_profile.children)')
     }).optional()
         .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ и Пенсии)')
+});
+const taxPlanningRequestSchema = Joi.object({
+    client: Joi.object({
+        avg_monthly_income: Joi.number().min(0).required(),
+        spouse_avg_monthly_income: Joi.number().min(0).allow(null).optional(),
+        tax_children: Joi.array().items(taxChildSchema).default([]),
+        tax_family_mode: Joi.string().valid('single', 'both_parents', 'single_parent_double').default('single')
+    }).required(),
+    deductions: Joi.object({
+        property_purchase_amount: Joi.number().min(0).default(0),
+        mortgage_interest_amount: Joi.number().min(0).default(0),
+        social_expenses_amount: Joi.number().min(0).default(0)
+    }).default({})
 });
 
 const clientService = require('../services/clientService');
@@ -133,6 +156,7 @@ const aiB2cService = require('../services/aiB2cService');
 const constructorSiteChatAgentService = require('../services/constructorSiteChatAgentService');
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
+const taxPlanningService = require('../services/taxPlanningService');
 
 class ClientController {
     // --- Existing Calculator ---
@@ -215,6 +239,27 @@ class ClientController {
 
             calculationResponse.client_id = clientId;
             res.json(calculationService.simplify(calculationResponse));
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async calculateTaxPlanning(req, res, next) {
+        try {
+            const validation = taxPlanningRequestSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map(d => ({
+                        field: d.path.join('.'),
+                        message: d.message
+                    }))
+                });
+            }
+            const payload = validation.value;
+            const projectId = req.projectId || req.user?.projectId || null;
+            const result = await taxPlanningService.calculateExtendedTaxPlanning(payload, { projectId });
+            return res.json(result);
         } catch (err) {
             next(err);
         }

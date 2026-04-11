@@ -148,4 +148,8 @@ components:
   schemas:
     ReportResponse:
       type: object
+      description: |
+        JSON отчёта. В блоке расчёта могут присутствовать расширенные налоговые секции:
+        `tax_benefits_summary.pds_benefits`, `tax_benefits_summary.iis_benefits`,
+        `tax_benefits_summary.children_benefits`, `tax_benefits_summary.nsj_benefits`.
       additionalProperties: true

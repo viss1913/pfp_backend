@@ -293,6 +293,14 @@ components:
                 type: object
                 additionalProperties: true
           description: Семейный профиль в формате объекта или массива объектов (справочные данные, не участвуют в расчетах)
+        enable_children_tax_deduction:
+          type: boolean
+          description: Включает расчет стандартного налогового вычета на детей в firstRun
+        tax_children:
+          type: array
+          description: Данные о детях для налогового планирования (если не передано, может использоваться family_profile.children)
+          items:
+            $ref: '#/components/schemas/TaxChild'
     FamilyProfile:
       type: object
       description: Reference family profile metadata, not used in calculations.
@@ -329,6 +337,21 @@ components:
         birth_date:
           type: string
           format: date
+    TaxChild:
+      type: object
+      required: [birth_date]
+      properties:
+        first_name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        is_full_time_student:
+          type: boolean
+          description: Очное обучение для детей 18-24 лет
+        is_disabled:
+          type: boolean
+          description: Ребенок-инвалид
     FamilyContact:
       type: object
       required: [name, relation]
@@ -741,6 +764,16 @@ components:
                   tax_refund_projected:
                     type: number
                     description: Прогноз налогового вычета (за взносы этого года)
+                  tax_refund_breakdown:
+                    type: object
+                    description: Детализация прогнозного налогового вычета по типам
+                    properties:
+                      pds:
+                        type: number
+                      iis:
+                        type: number
+                      children:
+                        type: number
                   roi_immediate:
                     type: integer
                     description: Мгновенная доходность (ROI) в % (Софинансирование + Налоговый вычет / Взносы)
@@ -1009,6 +1042,26 @@ components:
             total_cofinancing:
               type: number
               description: Total PDS cofinancing over all years (RUB)
+        iis_benefits:
+          type: object
+          description: IIS benefits
+          properties:
+            deduction_2026:
+              type: number
+              description: IIS tax deduction for 2026 (RUB)
+            total_deductions:
+              type: number
+              description: Total IIS tax deductions over all years (RUB)
+        children_benefits:
+          type: object
+          description: Standard children tax deductions
+          properties:
+            deduction_2026:
+              type: number
+              description: Children tax deduction for 2026 (RUB)
+            total_deductions:
+              type: number
+              description: Total children tax deductions over all years (RUB)
         nsj_benefits:
           type: object
           description: NSJ (Life Insurance) benefits
@@ -1024,7 +1077,7 @@ components:
               description: Total NSJ tax deductions over all years (RUB)
         totals:
           type: object
-          description: Total benefits (PDS + NSJ)
+          description: Total benefits (PDS + IIS + children + NSJ)
           properties:
             deduction_2026:
               type: number
@@ -1035,6 +1088,38 @@ components:
             total_state_benefits:
               type: number
               description: Total state benefits including cofinancing and deductions (RUB)
+    TaxPlanningRequest:
+      type: object
+      required: [client]
+      properties:
+        client:
+          type: object
+          required: [avg_monthly_income]
+          properties:
+            avg_monthly_income:
+              type: number
+            spouse_avg_monthly_income:
+              type: number
+              nullable: true
+            tax_family_mode:
+              type: string
+              enum: [single, both_parents, single_parent_double]
+            tax_children:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaxChild'
+        deductions:
+          type: object
+          properties:
+            property_purchase_amount:
+              type: number
+            mortgage_interest_amount:
+              type: number
+            social_expenses_amount:
+              type: number
+    TaxPlanningResponse:
+      type: object
+      additionalProperties: true
     Client:
       type: object
       required:
@@ -1958,6 +2043,27 @@ paths:
                           type: string
         '500':
           description: Internal server error
+  /client/tax-planning/calculate:
+    post:
+      summary: Expanded tax planning (property/mortgage/social/family)
+      tags:
+        - Client API
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaxPlanningRequest'
+      responses:
+        '200':
+          description: Tax planning projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaxPlanningResponse'
+        '400':
+          description: Validation error
 
   /ai/assistants:
     get:

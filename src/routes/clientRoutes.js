@@ -14,6 +14,7 @@ router.post('/calculate', tenantMiddleware, clientController.calculateFirstRun.b
 const pfpMiddleware = [authMiddleware, tenantMiddleware];
 
 router.post('/first-run', pfpMiddleware, clientController.firstRun.bind(clientController));
+router.post('/tax-planning/calculate', pfpMiddleware, clientController.calculateTaxPlanning.bind(clientController));
 router.get('/agent-clients', pfpMiddleware, clientController.listByAgent.bind(clientController));
 
 // Client Management (DB)

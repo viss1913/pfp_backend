@@ -57,6 +57,12 @@ class PassiveIncomeCalculator extends BaseCalculator {
         } = await this.calculateWeightedYield(portfolio, goal, productRepository, context.projectId);
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
+        const { iisEligibleInitialCapital, iisEligibleMonthlyShare } = this.getIisContributionParams(
+            goal,
+            initial_instruments,
+            monthly_instruments,
+            initialCapital
+        );
 
         // 5. Симуляция подбора пополнения
         let recommendedReplenishment = 0;
@@ -74,7 +80,11 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: goal.avg_monthly_income || (client && client.avg_monthly_income) || 0,
                 pdsProductId,
-                collectMonthlySchedule: true
+                iisEligibleInitialCapital,
+                iisEligibleMonthlyShare,
+                collectMonthlySchedule: true,
+                children: context.client?.tax_children || context.client?.family_profile?.children || [],
+                childrenDeductionEnabled: Boolean(context.client?.enable_children_tax_deduction)
             }, context);
         } else {
             // Обратный расчет (подбор пополнения)
@@ -97,7 +107,11 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: goal.avg_monthly_income || (client && client.avg_monthly_income) || 0,
                 pdsProductId,
-                collectMonthlySchedule: true
+                iisEligibleInitialCapital,
+                iisEligibleMonthlyShare,
+                collectMonthlySchedule: true,
+                children: context.client?.tax_children || context.client?.family_profile?.children || [],
+                childrenDeductionEnabled: Boolean(context.client?.enable_children_tax_deduction)
             }, context);
         }
 

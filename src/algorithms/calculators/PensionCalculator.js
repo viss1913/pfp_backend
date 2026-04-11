@@ -228,6 +228,12 @@ class PensionCalculator extends BaseCalculator {
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
         const indexationRateDecimal = context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0.1) / 100);
+        const { iisEligibleInitialCapital, iisEligibleMonthlyShare } = this.getIisContributionParams(
+            goal,
+            initial_instruments,
+            monthly_instruments,
+            initialCapital
+        );
         // SIMULATION
         let simResult;
         let recommendedReplenishment = 0;
@@ -247,7 +253,11 @@ class PensionCalculator extends BaseCalculator {
                 totalTargetAmount: desiredPensionMonthlyFuture, // Passed for logging/check, not used in direct flow
                 avgMonthlyIncome: clientWithIncome.avg_monthly_income,
                 pdsProductId: pdsProductId,
-                collectMonthlySchedule: true
+                iisEligibleInitialCapital,
+                iisEligibleMonthlyShare,
+                collectMonthlySchedule: true,
+                children: context.client?.tax_children || context.client?.family_profile?.children || [],
+                childrenDeductionEnabled: Boolean(context.client?.enable_children_tax_deduction)
             }, context);
 
         } else {
@@ -275,7 +285,11 @@ class PensionCalculator extends BaseCalculator {
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: clientWithIncome.avg_monthly_income,
                 pdsProductId: pdsProductId,
-                collectMonthlySchedule: true
+                iisEligibleInitialCapital,
+                iisEligibleMonthlyShare,
+                collectMonthlySchedule: true,
+                children: context.client?.tax_children || context.client?.family_profile?.children || [],
+                childrenDeductionEnabled: Boolean(context.client?.enable_children_tax_deduction)
             }, context);
         }
 

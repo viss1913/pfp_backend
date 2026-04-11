@@ -50,21 +50,27 @@ class BaseCalculator {
         return Number(last.rateAnnual ?? last.rate_annual ?? 0);
     }
 
-    /**
-     * Обработка событий ПДС (Софинансирование и Налоговый вычет)
-     * @param {number} month - текущий месяц (1-12)
-     * @param {number} year - текущий год
-     * @param {number} startYear - год начала
-     * @param {Object} yearlyContributions - взносы по годам
-     * @param {number} avgMonthlyIncome - доход клиента
-     * @param {Object} context - контекст с лимитами
-     */
-    async handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, context) {
+    async handleTaxEvents(
+        month,
+        year,
+        startYear,
+        yearlyContributions,
+        yearlyIisContributions,
+        avgMonthlyIncome,
+        context,
+        options = {}
+    ) {
         let cofin = 0;
         let refund = 0;
+        const refundBreakdown = { pds: 0, iis: 0, children: 0 };
+        const {
+            isPdsEnabled = false,
+            childrenDeductionEnabled = false,
+            children = []
+        } = options;
 
         // 1. Софинансирование (Август)
-        if (month === 8 && year > startYear) {
+        if (isPdsEnabled && month === 8 && year > startYear) {
             const prevYear = year - 1;
             if (prevYear - startYear < 10 && yearlyContributions[prevYear]) {
                 const alreadyUsed = context.usedCofinancingPerYear[prevYear] || 0;
@@ -90,31 +96,50 @@ class BaseCalculator {
         // 2. Налоговый вычет (Апрель)
         if (month === 4 && year > startYear) {
             const prevYear = year - 1;
-            const prevContrib = yearlyContributions[prevYear] || 0;
-            if (prevContrib > 0) {
+            const prevPdsContrib = isPdsEnabled ? (yearlyContributions[prevYear] || 0) : 0;
+            const prevIisContrib = yearlyIisContributions[prevYear] || 0;
+            const hasLtsContrib = prevPdsContrib > 0 || prevIisContrib > 0;
+
+            if (hasLtsContrib) {
                 const alreadyUsedBase = context.usedTaxBasePerYear[prevYear] || 0;
                 const remainingBase = Math.max(0, 400000 - alreadyUsedBase);
 
                 if (remainingBase > 0) {
-                    const dedRes = await TaxService.calculatePdsRefundDelta(
-                        avgMonthlyIncome * 12,
-                        prevContrib,
-                        alreadyUsedBase,
-                        prevYear,
-                        context.cachedData ? context.cachedData.taxBrackets : null, // Pass cached tax brackets
-                        context.projectId
-                    );
-                    const refundAmount = dedRes.refundAmount;
+                    const ltsRes = await TaxService.calculateLongTermSavingsRefund({
+                        annualIncome: avgMonthlyIncome * 12,
+                        year: prevYear,
+                        pdsContribution: prevPdsContrib,
+                        iisContribution: prevIisContrib,
+                        usedDeductionBase: alreadyUsedBase,
+                        cachedTaxBrackets: context.cachedData ? context.cachedData.taxBrackets : null,
+                        projectId: context.projectId
+                    });
 
-                    if (refundAmount > 0) {
-                        refund += refundAmount;
-                        context.usedTaxBasePerYear[prevYear] = alreadyUsedBase + dedRes.contributionAdded;
+                    if (ltsRes.totalRefund > 0) {
+                        refund += ltsRes.totalRefund;
+                        refundBreakdown.pds += ltsRes.pdsRefund;
+                        refundBreakdown.iis += ltsRes.iisRefund;
+                        context.usedTaxBasePerYear[prevYear] = alreadyUsedBase + ltsRes.totalContributionAdded;
                     }
+                }
+            }
+
+            if (childrenDeductionEnabled && Array.isArray(children) && children.length > 0) {
+                const childrenRes = await TaxService.calculateChildrenRefundDelta({
+                    annualIncome: avgMonthlyIncome * 12,
+                    year: prevYear,
+                    children,
+                    cachedTaxBrackets: context.cachedData ? context.cachedData.taxBrackets : null,
+                    projectId: context.projectId
+                });
+                if (childrenRes.refundAmount > 0) {
+                    refund += childrenRes.refundAmount;
+                    refundBreakdown.children += childrenRes.refundAmount;
                 }
             }
         }
 
-        return { cofin, refund };
+        return { cofin, refund, refundBreakdown };
     }
 
     /**
@@ -128,9 +153,13 @@ class BaseCalculator {
             monthlyYieldRate,
             indexationRate,
             pdsProductId,
+            iisEligibleInitialCapital = 0,
+            iisEligibleMonthlyShare = 0,
             avgMonthlyIncome,
             startDate = new Date(),
-            collectMonthlySchedule = false
+            collectMonthlySchedule = false,
+            children = [],
+            childrenDeductionEnabled = false
         } = params;
 
         let currentBalance = initialCapital;
@@ -148,12 +177,16 @@ class BaseCalculator {
         currentDate.setMonth(currentDate.getMonth() + 1);
         const startYear = startDate.getFullYear();
         const yearlyContributions = {};
+        const yearlyIisContributions = {};
         const yearly_breakdown_log = [];
         const pdsEventsLog = {}; // Track {year: {cofin, refund}}
         const monthlySchedule = [];
 
         if (initialCapital > 0) {
             yearlyContributions[startYear] = (yearlyContributions[startYear] || 0) + initialCapital;
+        }
+        if (iisEligibleInitialCapital > 0) {
+            yearlyIisContributions[startYear] = (yearlyIisContributions[startYear] || 0) + iisEligibleInitialCapital;
         }
 
         // Первая строка графика — календарный месяц старта: взнос = первоначальный капитал, без доходности/ПДС в этой строке.
@@ -181,6 +214,10 @@ class BaseCalculator {
             currentBalance += indexedReplenishment;
             totalClientInvestment += indexedReplenishment;
             yearlyContributions[year] = (yearlyContributions[year] || 0) + indexedReplenishment;
+            const iisPart = indexedReplenishment * Math.max(0, Math.min(1, Number(iisEligibleMonthlyShare || 0)));
+            if (iisPart > 0) {
+                yearlyIisContributions[year] = (yearlyIisContributions[year] || 0) + iisPart;
+            }
 
             // 2.1 Inflows (Additional Liquidity)
             if (params.inflows && params.inflows.length > 0) {
@@ -194,15 +231,28 @@ class BaseCalculator {
             let monthCofin = 0;
             let monthRefund = 0;
 
-            // 3. ПДС события
-            if (pdsProductId) {
+            // 3. Налоговые события
+            if (pdsProductId || iisEligibleInitialCapital > 0 || iisEligibleMonthlyShare > 0 || childrenDeductionEnabled) {
                 // Создаем временный контекст для handlePdsEvents
                 const tempContext = {
                     ...context,
                     usedCofinancingPerYear: localUsedCofinancing,
                     usedTaxBasePerYear: localUsedTaxBase
                 };
-                const { cofin, refund } = await this.handlePdsEvents(month, year, startYear, yearlyContributions, avgMonthlyIncome, tempContext);
+                const { cofin, refund, refundBreakdown } = await this.handleTaxEvents(
+                    month,
+                    year,
+                    startYear,
+                    yearlyContributions,
+                    yearlyIisContributions,
+                    avgMonthlyIncome,
+                    tempContext,
+                    {
+                        isPdsEnabled: Boolean(pdsProductId),
+                        childrenDeductionEnabled: Boolean(childrenDeductionEnabled),
+                        children
+                    }
+                );
                 monthCofin = cofin;
                 monthRefund = refund;
                 currentBalance += (cofin + refund);
@@ -211,9 +261,12 @@ class BaseCalculator {
                 totalStateBenefit += (cofin + refund);
 
                 // Log per year
-                if (!pdsEventsLog[year]) pdsEventsLog[year] = { cofin: 0, refund: 0 };
+                if (!pdsEventsLog[year]) pdsEventsLog[year] = { cofin: 0, refund: 0, refundBreakdown: { pds: 0, iis: 0, children: 0 } };
                 pdsEventsLog[year].cofin += cofin;
                 pdsEventsLog[year].refund += refund;
+                pdsEventsLog[year].refundBreakdown.pds += (refundBreakdown?.pds || 0);
+                pdsEventsLog[year].refundBreakdown.iis += (refundBreakdown?.iis || 0);
+                pdsEventsLog[year].refundBreakdown.children += (refundBreakdown?.children || 0);
             }
 
             if (collectMonthlySchedule) {
@@ -238,7 +291,12 @@ class BaseCalculator {
                     // handlePdsEvents returns {cofin, refund} for that specific event.
                     // We should track annual amounts.
                     cofinancing_for_year: (pdsEventsLog[year]?.cofin || 0),
-                    tax_refund_projected: (pdsEventsLog[year]?.refund || 0)
+                    tax_refund_projected: (pdsEventsLog[year]?.refund || 0),
+                    tax_refund_breakdown: {
+                        pds: Math.round((pdsEventsLog[year]?.refundBreakdown?.pds || 0) * 100) / 100,
+                        iis: Math.round((pdsEventsLog[year]?.refundBreakdown?.iis || 0) * 100) / 100,
+                        children: Math.round((pdsEventsLog[year]?.refundBreakdown?.children || 0) * 100) / 100
+                    }
                 });
             }
 
@@ -507,6 +565,34 @@ class BaseCalculator {
             initial_instruments,
             monthly_instruments,
             pdsProductId
+        };
+    }
+
+    getIisContributionParams(goal, initialInstruments = [], monthlyInstruments = [], initialCapital = 0) {
+        const termMonths = Number(goal?.term_months || 0);
+        if (termMonths < 60) {
+            return {
+                iisEligibleInitialCapital: 0,
+                iisEligibleMonthlyShare: 0
+            };
+        }
+
+        const eligibleTypes = new Set(['BOND', 'STOCK']);
+        const initialShare = (initialInstruments || []).reduce((sum, item) => {
+            const type = (item.product_type || '').toUpperCase().trim();
+            if (!eligibleTypes.has(type)) return sum;
+            return sum + (Number(item.share || 0) / 100);
+        }, 0);
+
+        const monthlyShare = (monthlyInstruments || []).reduce((sum, item) => {
+            const type = (item.product_type || '').toUpperCase().trim();
+            if (!eligibleTypes.has(type)) return sum;
+            return sum + (Number(item.share || 0) / 100);
+        }, 0);
+
+        return {
+            iisEligibleInitialCapital: Math.max(0, Number(initialCapital || 0)) * Math.max(0, Math.min(1, initialShare)),
+            iisEligibleMonthlyShare: Math.max(0, Math.min(1, monthlyShare))
         };
     }
 }

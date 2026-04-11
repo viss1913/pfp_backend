@@ -42,6 +42,12 @@ class InvestmentCalculator extends BaseCalculator {
 
         // Resolve initial capital (respects reservation)
         const initialCapital = this.resolveInitialCapital(goal, context);
+        const { iisEligibleInitialCapital, iisEligibleMonthlyShare } = this.getIisContributionParams(
+            goal,
+            initial_instruments,
+            monthly_instruments,
+            initialCapital
+        );
 
         const simResult = await this.runSimulation({
             initialCapital: initialCapital,
@@ -50,9 +56,13 @@ class InvestmentCalculator extends BaseCalculator {
             monthlyYieldRate: portfolioYieldMonthly,
             indexationRate: replenishmentIndexationDecimal,
             pdsProductId,
+            iisEligibleInitialCapital,
+            iisEligibleMonthlyShare,
             avgMonthlyIncome,
             startDate,
-            collectMonthlySchedule: true
+            collectMonthlySchedule: true,
+            children: context.client?.tax_children || context.client?.family_profile?.children || [],
+            childrenDeductionEnabled: Boolean(context.client?.enable_children_tax_deduction)
         }, context);
 
         // ВАЖНО: Обновляем глобальные лимиты ПДС
