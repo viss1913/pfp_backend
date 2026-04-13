@@ -5,6 +5,9 @@ const HomeOwnersService = require('./HomeOwnersService');
 const { generateHomeOwnersPdf } = require('../utils/pdfGenerator');
 const calculationService = require('./calculationService');
 const constructorPfpPersistService = require('./constructorPfpPersistService');
+const clientService = require('./clientService');
+const goalRecalculator = require('../algorithms/recalculators');
+const { syncCalculationGoalsWithDatabase } = require('./clientGoalSyncService');
 const path = require('path');
 const fs = require('fs');
 
@@ -95,6 +98,30 @@ function isFirstRunCalculationCommand(cmdKey) {
     const slug = k.slice(1).replace(/-/g, '_');
     return slug.includes('first_run');
 }
+
+function isCalcRecalculateCommand(cmdKey) {
+    const k = (cmdKey || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!k.startsWith('/')) return false;
+    return k === '/calc' || k === '/recalc' || k === '/recalculate';
+}
+
+const DEFAULT_RECALCULATE_EXTRACTION_SYSTEM_PROMPT = [
+    'Ты извлекаешь JSON для пересчёта существующей цели финансового плана.',
+    'Верни ТОЛЬКО JSON без markdown и комментариев.',
+    'Схема ответа:',
+    '{',
+    '  "target_goal": { "id": 0, "goal_type_id": 0, "name": "" },',
+    '  "goal_patch": { ... },',
+    '  "client_patch": { ... },',
+    '  "needs_clarification": false,',
+    '  "clarification_question": ""',
+    '}',
+    'Правила:',
+    '- если точно понятен id цели, укажи target_goal.id;',
+    '- если id неясен, заполни goal_type_id/name и needs_clarification=true;',
+    '- в goal_patch и client_patch клади только поля, которые пользователь поменял;',
+    '- числа отдавай числами, не строками.',
+].join('\n');
 
 /** Текст без LLM, если first run без успешного расчёта (нельзя выдумывать цифры). */
 const FIRST_RUN_CALC_FAILED_USER_MESSAGE =
@@ -971,6 +998,20 @@ function buildFirstRunAiTrailingPayload(calculationResult, { constructorClient, 
     return payload;
 }
 
+function buildCalcAiTrailingPayload(calculationResult) {
+    const compact = compactCalculationForPresentationPrompt(calculationResult);
+    return {
+        ...compact,
+        goals: stripSummaryDebugForAi(compact.goals),
+        mode: 'recalculate',
+        hints_ru: [
+            'Это результат пересчёта существующего плана.',
+            'Показывай только цифры из JSON, без фраз «сейчас посчитаю».',
+            'Сконцентрируйся на изменившейся цели и её влиянии на план.',
+        ],
+    };
+}
+
 /**
  * Генератор: system + опционально хвост из user-сообщений.
  * Для firstRun с готовым расчётом JSON кладём во второе user-сообщение после реплики пользователя —
@@ -987,6 +1028,7 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
     const calcOk = firstRunCalculationSucceeded(calculationResult);
     const firstRunWithCalc = isFirstRunCalculationCommand(cmdKeyNorm) && calcOk;
     const firstRunStageNoCalc = isFirstRunCalculationCommand(cmdKeyNorm) && !calcOk;
+    const calcRecalculateWithResult = isCalcRecalculateCommand(cmdKeyNorm) && hasCalcPayload;
 
     if (firstRunWithCalc) {
         sections.push(
@@ -1006,6 +1048,15 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
         sections.push(
             'КРИТИЧЕСКИ ВАЖНО: серверный расчёт НЕ выполнен. ЗАПРЕЩЕНО придумывать суммы, проценты, взносы, сроки и «примерный план».\n' +
                 'Не обещай расчёт «сейчас» или «через минуту». Два коротких предложения: извинение + попроси пользователя повторить цифры (доход, возраст/дата рождения, пол, капитал, цель).'
+        );
+    }
+
+    if (calcRecalculateWithResult) {
+        sections.push(
+            'КРИТИЧЕСКИ ВАЖНО ДЛЯ /calc:\n' +
+                'Пересчёт уже выполнен на сервере, ниже в сообщениях есть JSON результата.\n' +
+                'Опиши изменения по цели и краткий вывод без повторного запроса данных.\n' +
+                'ЗАПРЕЩЕНО писать, что расчёт только начинается.'
         );
     }
 
@@ -1047,6 +1098,8 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
             extraction: generatorExtras.firstRunExtraction,
         });
         trailingUserCalculationJson = JSON.stringify(aiPayload, null, 2);
+    } else if (calcRecalculateWithResult) {
+        trailingUserCalculationJson = JSON.stringify(buildCalcAiTrailingPayload(calculationResult), null, 2);
     }
 
     return {
@@ -1172,6 +1225,100 @@ function shouldStayOnStartpfpInsteadOfVozrast(currentCommandKey, nextCommandKey,
     const blob = concatUserTextsForClassifierGate(historyMessages, userMessage);
     const ok = userDialogueHasExplicitAge(blob) && userDialogueHasExplicitGender(blob);
     return !ok;
+}
+
+function pickFirstNonEmpty(...values) {
+    for (const v of values) {
+        if (v == null) continue;
+        const t = String(v).trim();
+        if (t) return t;
+    }
+    return '';
+}
+
+function normalizeRecalculatePatch(extracted) {
+    const payload = extracted && typeof extracted === 'object' ? extracted : {};
+    const targetGoal = payload.target_goal && typeof payload.target_goal === 'object' ? payload.target_goal : {};
+    const goalPatch = payload.goal_patch && typeof payload.goal_patch === 'object' ? payload.goal_patch : {};
+    const clientPatch = payload.client_patch && typeof payload.client_patch === 'object' ? payload.client_patch : {};
+    const needsClarification = Boolean(payload.needs_clarification);
+    const clarificationQuestion = trimText(payload.clarification_question);
+
+    const numericGoalFields = [
+        'goal_type_id',
+        'target_amount',
+        'term_months',
+        'monthly_replenishment',
+        'initial_capital',
+        'desired_monthly_income',
+        'inflation_rate',
+        'priority',
+        'id',
+        'goal_id',
+    ];
+    for (const key of numericGoalFields) {
+        if (goalPatch[key] !== undefined && goalPatch[key] !== null && goalPatch[key] !== '') {
+            const n = Number(goalPatch[key]);
+            if (Number.isFinite(n)) goalPatch[key] = n;
+        }
+    }
+
+    for (const key of ['id', 'goal_type_id']) {
+        if (targetGoal[key] !== undefined && targetGoal[key] !== null && targetGoal[key] !== '') {
+            const n = Number(targetGoal[key]);
+            if (Number.isFinite(n)) targetGoal[key] = n;
+        }
+    }
+    targetGoal.name = trimText(targetGoal.name);
+
+    for (const key of ['avg_monthly_income', 'total_liquid_capital']) {
+        if (clientPatch[key] !== undefined && clientPatch[key] !== null && clientPatch[key] !== '') {
+            const n = Number(clientPatch[key]);
+            if (Number.isFinite(n)) clientPatch[key] = n;
+        }
+    }
+
+    return {
+        target_goal: targetGoal,
+        goal_patch: goalPatch,
+        client_patch: clientPatch,
+        needs_clarification: needsClarification,
+        clarification_question: clarificationQuestion,
+    };
+}
+
+function normalizeDbGoalForRecalculate(goal) {
+    let parsed = { ...(goal || {}) };
+    let fromParams = {};
+    if (typeof parsed.params === 'string') {
+        try {
+            fromParams = JSON.parse(parsed.params);
+        } catch (_) {
+            fromParams = {};
+        }
+    } else if (parsed.params && typeof parsed.params === 'object') {
+        fromParams = parsed.params;
+    }
+    parsed = { ...fromParams, ...parsed };
+    const numericFields = [
+        'goal_type_id',
+        'target_amount',
+        'term_months',
+        'monthly_replenishment',
+        'initial_capital',
+        'desired_monthly_income',
+        'inflation_rate',
+        'priority',
+        'id',
+        'goal_id',
+    ];
+    for (const field of numericFields) {
+        if (parsed[field] !== undefined && parsed[field] !== null && parsed[field] !== '') {
+            const n = Number(parsed[field]);
+            if (Number.isFinite(n)) parsed[field] = n;
+        }
+    }
+    return parsed;
 }
 
 class ConstructorAiService {
@@ -1670,6 +1817,179 @@ class ConstructorAiService {
         }
     }
 
+    async extractRecalculatePatch(session, userMessage, planContext = {}) {
+        const history = await knex('constructor_logs').where('session_id', session.id).orderBy('created_at', 'desc').limit(12);
+        const historyText = history
+            .reverse()
+            .map((log) => `User: ${log.input_text}\nAssistant: ${log.response_generated}`)
+            .join('\n');
+        const goalsForPrompt = Array.isArray(planContext.goals)
+            ? planContext.goals.map((g) => ({
+                  id: g.id,
+                  goal_type_id: g.goal_type_id,
+                  name: g.name,
+                  target_amount: g.target_amount,
+                  desired_monthly_income: g.desired_monthly_income,
+                  term_months: g.term_months,
+                  monthly_replenishment: g.monthly_replenishment,
+                  initial_capital: g.initial_capital,
+                  risk_profile: g.risk_profile,
+              }))
+            : [];
+        const prompt = [
+            { role: 'system', content: DEFAULT_RECALCULATE_EXTRACTION_SYSTEM_PROMPT },
+            {
+                role: 'user',
+                content:
+                    `Текущие цели клиента (обязательно используй их id):\n${JSON.stringify(goalsForPrompt, null, 2)}\n\n` +
+                    `История:\n${historyText}\nUser: ${userMessage}`,
+            },
+        ];
+        try {
+            const raw = await aiService.getCompletion(prompt);
+            const parsed = parseFinancialPlanJsonFromLlmText(raw);
+            return normalizeRecalculatePatch(parsed);
+        } catch (err) {
+            console.error('[AI] Error extracting /calc recalculate patch:', err.message || err);
+            return {
+                target_goal: {},
+                goal_patch: {},
+                client_patch: {},
+                needs_clarification: true,
+                clarification_question: 'Уточните, какую цель пересчитать и какие параметры поменялись.',
+            };
+        }
+    }
+
+    async runCalcRecalculateFlow({ session, bot, client, userMessage }) {
+        if (!client?.pfp_client_id) {
+            return {
+                calculationResult: null,
+                pdfUrl: null,
+                firstRunExtraction: null,
+                calcInstructionMessage:
+                    'Для пересчёта сначала нужен стартовый план. Давайте сначала сделаем /firstRunAIB2C, потом вернёмся к /calc.',
+            };
+        }
+
+        const pfpClientId = Number(client.pfp_client_id);
+        const existingClient = await clientService.getFullClient(pfpClientId, bot.project_id);
+        if (!existingClient || !Array.isArray(existingClient.goals) || existingClient.goals.length === 0) {
+            return {
+                calculationResult: null,
+                pdfUrl: null,
+                firstRunExtraction: null,
+                calcInstructionMessage: 'Не нашёл сохранённый план для пересчёта. Давайте сначала пересоберём first run.',
+            };
+        }
+
+        const existingGoals = existingClient.goals.map(normalizeDbGoalForRecalculate);
+        const patchPayload = await this.extractRecalculatePatch(session, userMessage, { goals: existingGoals });
+
+        if (patchPayload.needs_clarification) {
+            return {
+                calculationResult: null,
+                pdfUrl: null,
+                firstRunExtraction: null,
+                calcInstructionMessage:
+                    patchPayload.clarification_question ||
+                    'Уточните, какую цель пересчитать и что именно меняем (сумма, срок, пополнение и т.д.).',
+            };
+        }
+
+        const goalsMap = new Map();
+        existingGoals.forEach((g) => {
+            if (g.id != null) goalsMap.set(String(g.id), g);
+        });
+
+        const requestedGoalId = pickFirstNonEmpty(
+            patchPayload.target_goal?.id,
+            patchPayload.goal_patch?.id,
+            patchPayload.goal_patch?.goal_id
+        );
+        let targetGoalId = requestedGoalId ? String(requestedGoalId) : null;
+        if (!targetGoalId) {
+            const byTypeAndName = existingGoals.find((g) => {
+                const typeOk =
+                    patchPayload.target_goal?.goal_type_id == null ||
+                    Number(g.goal_type_id) === Number(patchPayload.target_goal.goal_type_id);
+                const nameFilter = trimText(patchPayload.target_goal?.name).toLowerCase();
+                const nameOk = !nameFilter || trimText(g.name).toLowerCase() === nameFilter;
+                return typeOk && nameOk;
+            });
+            if (byTypeAndName?.id != null) targetGoalId = String(byTypeAndName.id);
+        }
+
+        if (!targetGoalId || !goalsMap.has(targetGoalId)) {
+            return {
+                calculationResult: null,
+                pdfUrl: null,
+                firstRunExtraction: null,
+                calcInstructionMessage:
+                    'Не смогла однозначно определить цель для пересчёта. Напишите точнее: какая цель и что меняем.',
+            };
+        }
+
+        const existingGoal = goalsMap.get(targetGoalId);
+        const goalPatch = { ...patchPayload.goal_patch };
+        delete goalPatch.id;
+        delete goalPatch.goal_id;
+        const updatedGoal = goalRecalculator.prepare(existingGoal, goalPatch);
+        goalsMap.set(targetGoalId, updatedGoal);
+
+        const clientPatch = patchPayload.client_patch || {};
+        const clientForCalc = {
+            ...existingClient,
+            ...clientPatch,
+            assets: clientPatch.assets || existingClient.assets || [],
+            total_liquid_capital:
+                clientPatch.total_liquid_capital !== undefined
+                    ? clientPatch.total_liquid_capital
+                    : existingClient.total_liquid_capital,
+            project_id: bot.project_id,
+        };
+        const calcRequest = { client: clientForCalc, goals: Array.from(goalsMap.values()) };
+        const previousCalculation = existingClient.goals_summary || null;
+        const calculationResponse = await calculationService.calculateFirstRun(
+            calcRequest,
+            targetGoalId,
+            previousCalculation,
+            { isFirstRun: false, usePool: false }
+        );
+        const calculation = calculationResponse.calculation || calculationResponse;
+
+        await clientService.updateGoal(pfpClientId, targetGoalId, goalsMap.get(targetGoalId));
+        if (Object.keys(clientPatch).length > 0) {
+            await clientService.updateClient(pfpClientId, clientPatch, bot.project_id);
+        }
+        await syncCalculationGoalsWithDatabase(pfpClientId, calculation);
+        await clientService.updateClient(
+            pfpClientId,
+            {
+                goals_summary: JSON.stringify(calculationResponse),
+            },
+            bot.project_id
+        );
+
+        let pdfUrl = null;
+        try {
+            pdfUrl = await constructorPfpPersistService.uploadConstructorClientReportPdf({
+                clientId: pfpClientId,
+                agentId: bot.agent_id,
+                projectId: bot.project_id,
+            });
+        } catch (e) {
+            console.warn('[ConstructorAI] /calc pdf upload failed:', e.message || e);
+        }
+
+        return {
+            calculationResult: calculationResponse,
+            pdfUrl: pdfUrl || null,
+            firstRunExtraction: null,
+            calcInstructionMessage: null,
+        };
+    }
+
     /**
      * Шаг 2: Генерация ответа (Послойный промпт)
      */
@@ -1959,6 +2279,8 @@ class ConstructorAiService {
         let calculationResult = null;
         let pdfPath = null;
         let firstRunExtraction = null;
+        let calcInstructionMessage = null;
+        let pfpReportPdfUrl = null;
 
         console.log(
             '[ConstructorAI] firstRun(stream): step=after_router ' +
@@ -1967,6 +2289,7 @@ class ConstructorAiService {
                     commandId: nextCommand?.id ?? null,
                     commandRaw: nextCommand?.command ?? null,
                     isFirstRunCmd: isFirstRunCalculationCommand(cmdKey),
+                    isCalcCmd: isCalcRecalculateCommand(cmdKey),
                 })
         );
 
@@ -2054,9 +2377,27 @@ class ConstructorAiService {
             console.log(
                 `[ConstructorAI] firstRun(stream): cmdKey=${cmdKey} calcOk=${calcOkFinal} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
             );
+        } else if (isCalcRecalculateCommand(cmdKey)) {
+            try {
+                const recalc = await this.runCalcRecalculateFlow({
+                    session,
+                    bot,
+                    client,
+                    userMessage,
+                });
+                calculationResult = recalc.calculationResult;
+                calcInstructionMessage = recalc.calcInstructionMessage;
+                if (recalc.pdfUrl) {
+                    writeConstructorSiteChatSseData(res, { type: 'pdf_url', pdf_url: recalc.pdfUrl });
+                    pfpReportPdfUrl = recalc.pdfUrl;
+                }
+            } catch (calcErr) {
+                console.error('[ConstructorAI] /calc(stream) failed:', calcErr.message || calcErr);
+                calcInstructionMessage =
+                    'Не удалось выполнить пересчёт прямо сейчас. Попробуйте ещё раз или уточните параметры цели.';
+            }
         }
 
-        let pfpReportPdfUrl = null;
         const calcOkForPersist =
             isFirstRunCalculationCommand(cmdKey) && firstRunCalculationSucceeded(calculationResult) && !!firstRunExtraction;
 
@@ -2177,18 +2518,28 @@ class ConstructorAiService {
 
         const pdfSuffix = pfpReportPdfUrl ? `\n\n📄 Ваш персональный отчёт (PDF): ${pfpReportPdfUrl}` : '';
         // 2) Стриминг ответа
-        const responseText = await this.generateResponseStream(
-            session,
-            nextCommand || { response: '' },
-            userMessage,
-            calculationResult,
-            res,
-            {
-                trailingSsePayload: pfpReportPdfUrl ? { type: 'pdf_url', pdf_url: pfpReportPdfUrl } : null,
-                appendToFullText: pdfSuffix,
-                firstRunExtraction,
+        let responseText;
+        if (calcInstructionMessage) {
+            responseText = `${calcInstructionMessage}${pdfSuffix}`;
+            if (res && typeof res.write === 'function' && !res.writableEnded) {
+                res.write(`data: ${JSON.stringify({ type: 'text', content: responseText })}\n\n`);
+                res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+                res.end();
             }
-        );
+        } else {
+            responseText = await this.generateResponseStream(
+                session,
+                nextCommand || { response: '' },
+                userMessage,
+                calculationResult,
+                res,
+                {
+                    trailingSsePayload: pfpReportPdfUrl ? { type: 'pdf_url', pdf_url: pfpReportPdfUrl } : null,
+                    appendToFullText: pdfSuffix,
+                    firstRunExtraction,
+                }
+            );
+        }
 
         traceConstructorMeta('stream.turn_complete', {
             sessionId: session.id,
@@ -2287,11 +2638,13 @@ class ConstructorAiService {
         let calculationResult = null;
         let pdfPath = null;
         let firstRunExtraction = null;
+        let calcInstructionMessage = null;
+        let pfpReportPdfUrl = null;
 
         // Нормализация команды для сравнения (убираем регистр и пробелы)
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
         console.log(
-            `[Flow] Command for this turn: "${nextCommand ? nextCommand.command : 'null'}" (cmdKey: ${cmdKey}); will run calculation: ${cmdKey === '/homeownerscalc' || isFirstRunCalculationCommand(cmdKey)}`
+            `[Flow] Command for this turn: "${nextCommand ? nextCommand.command : 'null'}" (cmdKey: ${cmdKey}); will run calculation: ${cmdKey === '/homeownerscalc' || isFirstRunCalculationCommand(cmdKey) || isCalcRecalculateCommand(cmdKey)}`
         );
 
         // Расчёт страхования имущества по всем активным продуктам (команда /homeownerscalc)
@@ -2404,13 +2757,30 @@ class ConstructorAiService {
             console.log(
                 `[ConstructorAI] firstRun(telegram): cmdKey=${cmdKey} calcOk=${firstRunCalculationSucceeded(calculationResult)} goalsInExtraction=${Array.isArray(firstRunExtraction?.goals) ? firstRunExtraction.goals.length : 'n/a'}`
             );
+        } else if (isCalcRecalculateCommand(cmdKey)) {
+            try {
+                const recalc = await this.runCalcRecalculateFlow({
+                    session,
+                    bot,
+                    client,
+                    userMessage,
+                });
+                calculationResult = recalc.calculationResult;
+                calcInstructionMessage = recalc.calcInstructionMessage;
+                if (recalc.pdfUrl) {
+                    pfpReportPdfUrl = recalc.pdfUrl;
+                }
+            } catch (calcErr) {
+                console.error('[ConstructorAI] /calc(telegram) failed:', calcErr.message || calcErr);
+                calcInstructionMessage =
+                    'Не удалось выполнить пересчёт прямо сейчас. Попробуйте ещё раз или уточните параметры цели.';
+            }
         } else {
             console.log(
                 `[Flow] DEBUG: Command ${nextCommand ? nextCommand.command : 'null'} did not match /homeownerscalc or first-run keys (/firstrun, /firstRunAIB2C, …)`
             );
         }
 
-        let pfpReportPdfUrl = null;
         if (
             isFirstRunCalculationCommand(cmdKey) &&
             firstRunCalculationSucceeded(calculationResult) &&
@@ -2433,9 +2803,11 @@ class ConstructorAiService {
         }
 
         // 2. Генерация ответа
-        let responseText = await this.generateResponse(session, nextCommand, userMessage, calculationResult, {
-            firstRunExtraction,
-        });
+        let responseText = calcInstructionMessage
+            ? calcInstructionMessage
+            : await this.generateResponse(session, nextCommand, userMessage, calculationResult, {
+                  firstRunExtraction,
+              });
         if (pfpReportPdfUrl) {
             responseText = `${responseText}\n\n📄 Ваш персональный отчёт (PDF): ${pfpReportPdfUrl}`;
         }

@@ -56,6 +56,22 @@ description: >-
 - Данные в расчёт: **`buildFirstRunCalcClient(constructorRow, extraction, project_id)`** — без протаскивания `id` строки `constructor_clients` как `client.id` PFP.
 - **`calculationService.calculateFirstRun(calcData, …, { isFirstRun: true, usePool: true })`**.
 
+### Переключение в `/calc` (recalculate после firstRunAIB2C)
+
+- `/calc` — это **не новый firstRun**, а пересчёт существующего PFP-клиента.
+- База переключения: у `constructor_clients` должен быть `pfp_client_id` (иначе пересчитывать нечего — просим сначала сделать first run).
+- Для `/calc` из диалога нужен **patch**, а не полный новый план:
+  - `target_goal.id` (или однозначный `goal_type_id` + `name` для резолва в id),
+  - `goal_patch` (изменённые поля цели),
+  - `client_patch` (изменённые поля клиента, если есть),
+  - `needs_clarification` + `clarification_question` при неоднозначности.
+- Пайплайн `/calc`: extract patch → загрузить текущий план по `pfp_client_id` → `goalRecalculator.prepare(existing, patch)` → `calculateFirstRun(..., { isFirstRun: false, usePool: false })` с `previousCalculation=goals_summary` → persist цели и снимка.
+- По каналам:
+  - конструктор/site/MAX/telegram: сервисная ветка в `constructorAiService.js`;
+  - B2C ЛК: `POST /api/my/plan/:goalId/recalculate`;
+  - агентский bulk/single: `POST /api/client/:id/recalculate`.
+- После успешного `/calc` в ответе ИИ даём только цифры из результата пересчёта + ссылку на PDF.
+
 ### Сохранение в PFP + PDF
 
 - **`constructorPfpPersistService.persistConstructorFirstRunAndUploadPdf`** — `createFullClient` / `updateFullClient`, `syncCalculationGoalsWithDatabase`, `goals_summary`, линк `constructor_clients.pfp_client_id`, загрузка PDF в R2.
@@ -74,7 +90,23 @@ description: >-
 - **Макро/внешние данные** — skill **`pfp-external-market-data`**, не относится к конструктору.
 - После смены маршрутов/контрактов — агент **`api-doc-keeper`** и OpenAPI в `docs/api/`, `openapi/`.
 
-## 4) Как отвечать, когда тебя вызывают
+## 4) Параметры пересчёта по целям (`/calc`)
+
+Источник: `docs/RECALCULATE_ALGORITHMS.md` + `src/algorithms/recalculators/index.js`.
+
+- `goal_type_id=1` (PENSION): `target_amount|desired_monthly_income`, `term_months`, `initial_capital`, `ops_capital`, `ipk_current`, `inflation_rate`, `risk_profile`.
+- `goal_type_id=2` (PASSIVE_INCOME): `target_amount|desired_monthly_income`, `term_months`, `initial_capital`, `monthly_replenishment`, `inflation_rate`, `risk_profile`.
+- `goal_type_id=3` (INVESTMENT): `target_amount`, `term_months`, `initial_capital`, `monthly_replenishment`, `risk_profile`, `inflation_rate`.
+- `goal_type_id=4/9` (OTHER): `target_amount`, `term_months`, `initial_capital`, `monthly_replenishment`, `inflation_rate`, `risk_profile`.
+- `goal_type_id=5` (LIFE): `target_amount`, `term_months`, `initial_capital`, `monthly_replenishment`, `inflation_rate`.
+- `goal_type_id=6` (PDS): как пенсионный recalculator (логика pension).
+- `goal_type_id=7` (FIN_RESERVE): `target_amount`, `term_months`, `initial_capital`, `monthly_replenishment`.
+- `goal_type_id=8` (RENT): `target_amount`, `term_months`, `initial_capital`, `monthly_replenishment`, `risk_profile`.
+- `goal_type_id=10` (HOME_OWNERS placeholder): отдельная ветка homeowners.
+
+Детальная матрица и JSON-контракт `/calc`: `docs/ai/calc_recalculation_flow.md`.
+
+## 5) Как отвечать, когда тебя вызывают
 
 1. Уточни: **конструктор** или **B2C ЛК** (или `aiService` обще).
 2. Назови **цепочку**: роутер → генератор → (экстракция) → расчёт → persist → стрим.
@@ -82,6 +114,6 @@ description: >-
 4. Если меняешь промпт — скажи, в каком **слое** (classifier / command.response / brain / system firstRun / extraction JSON schema).
 5. Не предлагай «переписать всё»; минимальный дифф.
 
-## 5) Обновляй этот агент
+## 6) Обновляй этот агент
 
 Если появились новые команды firstRun, новые SSE-поля или отдельный канал ИИ — допиши сюда таблицу или пункт в раздел 2, чтобы следующий вызов не искал по репо вслепую.
