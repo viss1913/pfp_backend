@@ -12,11 +12,13 @@ const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 const { resolveReportRasterRef } = require('../utils/reportRasterSrc');
 const {
     FINAM_PROJECT_ID,
+    FINAM_REPO_ROOT,
     resolveGoalTemplateFile,
     buildRepleneshmentPageHtml,
     applyGoalFactsToTemplate,
     fetchAiB2cAvatarUrl,
     applyFinamAiAvatarHtml,
+    inlineFinamRasterImages,
 } = require('../reports/finam/buildFinamReportHtml');
 
 function escapeHtml(s) {
@@ -137,7 +139,7 @@ class ReportPagesController {
 
             if (isFinamProject) {
                 if (pageType === 'REPLENESHMENT') {
-                    const html = buildRepleneshmentPageHtml(report);
+                    const html = inlineFinamRasterImages(buildRepleneshmentPageHtml(report), FINAM_REPO_ROOT);
                     res.setHeader('Content-Type', 'text/html; charset=utf-8');
                     res.setHeader('Cache-Control', 'private, no-store');
                     res.send(html);
@@ -147,7 +149,7 @@ class ReportPagesController {
                 if (pageType === 'TAX_PLANNING' || pageType === 'PORTFOLIO_FINAL') {
                     const fileName = pageType === 'TAX_PLANNING' ? 'tax-planning-block-finam.html' : 'portfolio-final-page-finam.html';
                     let html = await fs.promises.readFile(path.join(__dirname, `../reports/finam/${fileName}`), 'utf-8');
-                    html = applyFinamAiAvatarHtml(html, finamB2cAvatarUrl);
+                    html = applyFinamAiAvatarHtml(inlineFinamRasterImages(html, FINAM_REPO_ROOT), finamB2cAvatarUrl);
                     res.setHeader('Content-Type', 'text/html; charset=utf-8');
                     res.setHeader('Cache-Control', 'private, no-store');
                     res.send(html);
@@ -236,7 +238,10 @@ class ReportPagesController {
                     return;
                 }
                 const rawHtml = await fs.promises.readFile(path.join(__dirname, `../reports/finam/${fileName}`), 'utf-8');
-                html = applyFinamAiAvatarHtml(applyGoalFactsToTemplate(rawHtml, goalForTemplate), finamB2cAvatarUrl);
+                html = applyFinamAiAvatarHtml(
+                    inlineFinamRasterImages(applyGoalFactsToTemplate(rawHtml, goalForTemplate), FINAM_REPO_ROOT),
+                    finamB2cAvatarUrl
+                );
             } else {
                 html = await buildGoalPageHtmlByTheme({
                     themeKey,
