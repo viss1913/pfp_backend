@@ -8,7 +8,7 @@
   comon-autofollow-finam.html
   inflation-page (buildInflationPageFinamHtml, макро из reportPdfService)
   risk-declaration-preview-1.html … risk-declaration-preview-5.html
-  repleneshment (buildRepleneshmentPageHtml)
+  repleneshment (buildRepleneshmentPageHtml → несколько листов по 24 строки, splitFinamPage4IntoStandalonePages)
 
 Сборка в коде: src/reports/finam/buildFinamReportHtml.js, finamGoalTemplates.js, finamPdfPageAppliers.js
 
@@ -33,7 +33,7 @@ HTML-макеты: одна цель = одна страница (595×842):
 
 HTML-макеты: сводные блоки отчёта (не привязаны к одному goal_type):
   portfolio-page-finam.html             — портфель по целям (ИИ + таблицы инструментов) и краткий итог (пирог, стр. 2)
-  portfolio-final-page-finam.html       — один лист: начальный капитал + портфель пополнений (два donut, две таблицы, ИИ)
+  portfolio-final-page-finam.html       — два листа: стр.1 — два donut + линейные шкалы; стр.2 — таблицы долей + ИИ (splitFinamPage4IntoStandalonePages)
   repleneshment-page-finam.html         — шаблон сводной таблицы помесячных пополнений/вытчетов/софина с агрегацией по целям (LIFE отдельно)
   tax-planning-block-finam.html         — отдельный лист: детализация вычетов (ПДС, ИИС, НСЖ, квартира, ипотека) за год и за период; не дублировать внутри goal-page-pension / passive
   comon-autofollow-finam.html           — отдельный лист после tax-planning: ИИ-вводка + карточки автоследования Comon (клетка)

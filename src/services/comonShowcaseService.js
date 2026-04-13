@@ -18,6 +18,29 @@ function cacheKeyProject(projectId) {
     return String(projectId);
 }
 
+function comonPublicBaseUrl() {
+    return (process.env.COMON_BASE_URL || 'https://www.comon.ru').replace(/\/$/, '');
+}
+
+/**
+ * Публичная страница стратегии на Comon: из полей payload (как в API) или канонически `/strategies/{id}`.
+ * Нужен для PDF/витрины, чтобы кнопка «Перейти к стратегии» не пропадала, если в БД нет `url`.
+ * @param {object} row — элемент каталога (как в Comon data[] / payload в comon_recommended_strategies)
+ * @returns {string}
+ */
+function resolveComonStrategyPageUrl(row) {
+    if (!row || typeof row !== 'object') return '';
+    const idNum = row.id != null ? Number(row.id) : NaN;
+    const base = comonPublicBaseUrl();
+    const pick = (v) => (v != null && String(v).trim() ? String(v).trim() : '');
+    let u = pick(row.url);
+    if (!u) u = pick(row.pageUrl);
+    if (!u) u = pick(row.link);
+    if (u.startsWith('/')) u = `${base}${u}`;
+    if (!u && Number.isFinite(idNum) && idNum > 0) u = `${base}/strategies/${idNum}`;
+    return u;
+}
+
 function normalizeRiskProfile(raw) {
     const u = String(raw || 'BALANCED').toUpperCase();
     if (u === 'CONSERVATIVE' || u === 'BALANCED' || u === 'AGGRESSIVE') return u;
@@ -54,7 +77,7 @@ function toShowcaseItem(row) {
     return {
         id: Number(id),
         name: row.name != null ? String(row.name) : '',
-        url: row.url != null ? String(row.url) : '',
+        url: resolveComonStrategyPageUrl(row),
         min_sum: row.minSum != null ? Number(row.minSum) : null,
         risk_level: row.riskLevel != null ? Number(row.riskLevel) : null,
         profit_365_days_percent: row.profit365Days != null ? Number(row.profit365Days) : null,
@@ -216,7 +239,7 @@ class ComonShowcaseService {
                 items,
                 definitions: {
                     items:
-                        'Карточки стратегий из БД (table comon_recommended_strategies, полный payload из Comon); при пустой таблице — fallback на JSON-файл. Отбор по настройкам проекта и профилю клиента.',
+                        'Карточки стратегий из БД (table comon_recommended_strategies, полный payload из Comon); при пустой таблице — fallback на JSON-файл. Отбор по настройкам проекта и профилю клиента. Поле url — из payload или каноническая ссылка https://…/strategies/{id} по COMON_BASE_URL.',
                 },
             };
         } catch (e) {

@@ -20,6 +20,8 @@ const FINAM_GOAL_CARD_PLACEHOLDER_MAP = {
     'goal-reserve.webp': 'reserve.webp',
     'goal-life.webp': 'lifeinsurance.webp',
     'goal-apartment.webp': 'kvartira.webp',
+    'goal-education.webp': 'obrazovanie_rebyonka.webp',
+    'goal-house.webp': 'zagorodnayanedvizhimost.webp',
     'goal-pension.webp': 'gospensiya.webp',
     'goal-grow.webp': 'sohranit__i_preumnozhit.webp',
     'goal-rent.webp': 'drugoe.webp',
@@ -397,9 +399,14 @@ function buildRepleneshmentRows(report = {}) {
     return [...byMonth.values()].sort((a, b) => new Date(a.date) - new Date(b.date));
 }
 
-function buildRepleneshmentPageHtml(report = {}) {
-    const rows = buildRepleneshmentRows(report);
-    const rowHtml = rows
+/** Строк таблицы на лист A4 (шапка + отступы); иначе Puppeteer режет хвост одной страницы. */
+const FINAM_REPLENISHMENT_ROWS_PER_PAGE = 24;
+
+function buildRepleneshmentTableTbodyHtml(rows) {
+    if (!rows.length) {
+        return `<tr><td colspan="5" style="text-align:center;color:#6b7280;padding:14px">Нет строк расписания в данных отчёта</td></tr>`;
+    }
+    return rows
         .map(
             (row) => `
           <tr>
@@ -411,40 +418,20 @@ function buildRepleneshmentPageHtml(report = {}) {
           </tr>`
         )
         .join('\n');
+}
 
-    return `<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <style>
-    @page { size: 595px 842px; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      width: 595px;
-      height: 842px;
-      padding: 30px 36px 26px;
-      font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
-      font-size: 12px;
-      line-height: 1.45;
-      background-color: #fafbfc;
-      background-image:
-        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
-      background-size: 20px 20px;
-      color: #212121;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+/**
+ * Один HTML-документ с одним или несколькими листами `article.page`; для PDF — через splitFinamPage4IntoStandalonePages.
+ */
+function buildRepleneshmentPageHtml(report = {}) {
+    const rows = buildRepleneshmentRows(report);
+    const chunks = [];
+    for (let i = 0; i < rows.length; i += FINAM_REPLENISHMENT_ROWS_PER_PAGE) {
+        chunks.push(rows.slice(i, i + FINAM_REPLENISHMENT_ROWS_PER_PAGE));
     }
-    h1 { font-size: 18px; line-height: 1.2; margin-bottom: 12px; font-weight: 700; }
-    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.9); }
-    th, td { border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; font-size: 12px; }
-    th { background: #f3f4f6; font-weight: 700; }
-    tbody tr:nth-child(even) { background: rgba(249,250,251,0.8); }
-  </style>
-</head>
-<body>
-  <h1>Сводный график пополнений</h1>
-  <table>
+    if (chunks.length === 0) chunks.push([]);
+
+    const tableHead = `
     <thead>
       <tr>
         <th>Дата</th>
@@ -453,11 +440,98 @@ function buildRepleneshmentPageHtml(report = {}) {
         <th>Софинансирование</th>
         <th>Итоговый капитал</th>
       </tr>
-    </thead>
-    <tbody>
-      ${rowHtml}
-    </tbody>
-  </table>
+    </thead>`;
+
+    const articles = chunks
+        .map((chunk, idx) => {
+            const paging =
+                chunks.length > 1
+                    ? `<p class="rep-paging">Страница ${idx + 1} из ${chunks.length} · сводный график пополнений</p>`
+                    : '';
+            return `<article class="page">
+  <div class="rep-content">
+    <h1>Сводный график пополнений</h1>
+    ${paging}
+    <table>
+      ${tableHead}
+      <tbody>
+${buildRepleneshmentTableTbodyHtml(chunk)}
+      </tbody>
+    </table>
+  </div>
+</article>`;
+        })
+        .join('\n\n');
+
+    return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    article.page {
+      width: 595px;
+      height: 842px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      padding: 30px 36px 26px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #212121;
+      background-color: #fafbfc;
+    }
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .rep-content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+    h1 { font-size: 18px; line-height: 1.2; margin-bottom: 8px; font-weight: 700; flex-shrink: 0; }
+    .rep-paging {
+      font-size: 11px;
+      color: #4b5563;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,0.95);
+      flex: 1;
+      min-height: 0;
+    }
+    th, td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; font-size: 11px; }
+    th { background: #f3f4f6; font-weight: 700; }
+    tbody tr:nth-child(even) { background: rgba(249,250,251,0.85); }
+    @media print {
+      body { margin: 0; padding: 0; }
+      article.page { page-break-after: always; }
+      article.page:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+${articles}
 </body>
 </html>`;
 }
@@ -978,7 +1052,9 @@ async function buildFinamFullPageHtmlList({
 
     let portfolioFinal = await readTemplate('portfolio-final-page-finam.html');
     portfolioFinal = applyFinamPortfolioFinalPage(portfolioFinal, report);
-    pages.push(withInline(portfolioFinal));
+    for (const portfolioPart of splitFinamPage4IntoStandalonePages(portfolioFinal)) {
+        pages.push(withInline(portfolioPart));
+    }
 
     let taxPlanning = await readTemplate('tax-planning-block-finam.html');
     taxPlanning = applyFinamTaxPlanningPage(taxPlanning, report);
@@ -994,7 +1070,10 @@ async function buildFinamFullPageHtmlList({
         pages.push(withInline(await readTemplate(`risk-declaration-preview-${ri}.html`)));
     }
 
-    pages.push(withInline(buildRepleneshmentPageHtml(report)));
+    const replenMerged = buildRepleneshmentPageHtml(report);
+    for (const replenPart of splitFinamPage4IntoStandalonePages(replenMerged)) {
+        pages.push(withInline(replenPart));
+    }
 
     if (!avatarUrl) return pages;
     return pages.map((pageHtml) => applyFinamAiAvatarHtml(pageHtml, avatarUrl));

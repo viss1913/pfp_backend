@@ -364,7 +364,16 @@ class ReportService {
                 : {};
         const obligations = Array.isArray(fp.family_obligations) ? fp.family_obligations : [];
         const totalOb = obligations.reduce((s, o) => s + Number(o?.amount_monthly || 0), 0);
-        const income = Number(client?.avg_monthly_income || 0) || 0;
+        const clientIncome = Number(client?.avg_monthly_income || 0) || 0;
+        const spouseFromProfile = Number(fp?.spouse?.monthly_income);
+        const spouseFromColumn = Number(client?.spouse_avg_monthly_income);
+        let spouseIncome = 0;
+        if (Number.isFinite(spouseFromProfile) && spouseFromProfile > 0) {
+            spouseIncome = spouseFromProfile;
+        } else if (Number.isFinite(spouseFromColumn) && spouseFromColumn > 0) {
+            spouseIncome = spouseFromColumn;
+        }
+        const income = clientIncome + spouseIncome;
         const pfpMonthly = Number(overallPlan?.pdf_metrics?.portfolio?.total_monthly_replenishment || 0) || 0;
         const free = Math.round(income - totalOb - pfpMonthly);
 
@@ -408,6 +417,10 @@ class ReportService {
             },
             cashflow_monthly_rub: {
                 income: Math.round(income * 100) / 100,
+                /** Доход клиента без супруги (для расшифровки строки «Доходы» на стр. 3 PDF). */
+                income_client_only: Math.round(clientIncome * 100) / 100,
+                /** Учтённый доход супруги/супруга: family_profile.spouse.monthly_income или spouse_avg_monthly_income. */
+                income_spouse_included: Math.round(spouseIncome * 100) / 100,
                 obligations_total: Math.round(totalOb * 100) / 100,
                 planned_pfp_contributions: Math.round(pfpMonthly * 100) / 100,
                 discretionary_or_free: free,

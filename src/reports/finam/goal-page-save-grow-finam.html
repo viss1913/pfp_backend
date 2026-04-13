@@ -250,15 +250,17 @@
       justify-content: space-between;
       gap: 0;
       width: 100%;
-      margin-bottom: 9px;
+      margin-bottom: 6px;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
 
     .plan-step {
       flex: 1 1 0;
       min-width: 0;
       text-align: center;
-      padding: 6px 4px 7px;
-      border-radius: 8px;
+      padding: 4px 2px 5px;
+      border-radius: 7px;
       background: linear-gradient(165deg, #ffffff 0%, #f5f7ff 100%);
       border: 1px solid #c7d2fe;
       box-shadow: 0 1px 0 rgba(99, 102, 241, 0.06), 0 2px 8px rgba(79, 70, 229, 0.06);
@@ -275,18 +277,20 @@
     }
 
     .plan-step-label {
-      font-size: 11px;
+      font-size: 8px;
       font-weight: 600;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.03em;
       text-transform: uppercase;
       color: #4338ca;
       line-height: 1.15;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
 
     .plan-step.finish .plan-step-label { color: #047857; }
 
     .plan-step-value {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 800;
       color: #111827;
       line-height: 1.15;
@@ -295,14 +299,15 @@
     .plan-step.finish .plan-step-value { color: #065f46; }
 
     .plan-step.finish .plan-step-value:last-child {
-      font-size: 12px;
-      letter-spacing: -0.03em;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
       line-height: 1.2;
     }
 
     .plan-arrow {
       flex-shrink: 0;
-      width: 12px;
+      width: 11px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -311,8 +316,8 @@
     }
 
     .plan-arrow svg {
-      width: 12px;
-      height: 20px;
+      width: 11px;
+      height: 18px;
       display: block;
       overflow: visible;
     }
@@ -323,11 +328,18 @@
       left: 50%;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
       pointer-events: none;
+    }
+
+    .plan-step-value--meta {
+      font-size: 9px;
+      font-weight: 600;
+      color: #4b5563;
+      line-height: 1.15;
     }
 
     .pie-row {
@@ -786,7 +798,7 @@
       <div class="plan-step">
         <div class="plan-step-label">Срок</div>
         <div class="plan-step-value">29 лет</div>
-        <div class="plan-step-value" style="font-size: 12px;font-weight:600;color:#4b5563;">348 мес.</div>
+        <div class="plan-step-value plan-step-value--meta">348 мес.</div>
       </div>
       <div class="plan-arrow" aria-hidden="true">
         <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
@@ -797,7 +809,7 @@
       <div class="plan-step">
         <div class="plan-step-label">Доходность<br>портфеля</div>
         <div class="plan-step-value">14%</div>
-        <div class="plan-step-value" style="font-size: 12px;font-weight:600;color:#4b5563;">годовых</div>
+        <div class="plan-step-value plan-step-value--meta">годовых</div>
       </div>
       <div class="plan-arrow" aria-hidden="true">
         <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">

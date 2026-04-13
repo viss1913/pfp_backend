@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Достойная пенсия — Финансовый план</title>
   <!--
-    Финам PDF: цель PENSION. Холст 595×842; две страницы при превью (как page-4).
+    Финам PDF: цель PENSION. Холст 595×842; стр.1 — контекст и капитал к пенсии; стр.2 — план накопления, инструмент, состав капитала, льготы, график.
     Плейсхолдеры для бэка (пример чисел из расчёта пенсии):
     retirement_year, state_pension_monthly_today, state_pension_monthly_future,
     inflation_rate, pension_gap_future, target_amount_initial, target_amount_future,
@@ -279,14 +279,27 @@
       font-size: 11px; font-weight: 600; color: #047857; margin-top: 2px;
     }
 
-    /* План накопления: шаги + стрелки (не таблица — визуальный поток) */
+    .pension-next-page-hint {
+      font-size: 10px;
+      font-weight: 500;
+      color: #64748b;
+      text-align: center;
+      margin: 6px 0 4px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      border: 1px dashed #cbd5e1;
+      background: rgba(255, 255, 255, 0.65);
+      line-height: 1.35;
+    }
+
+    /* План накопления: шаги + стрелки (единый компактный стиль со всеми целями Финам) */
     .plan-flow {
       display: flex;
       align-items: stretch;
       justify-content: space-between;
       gap: 0;
       width: 100%;
-      margin-bottom: 5px;
+      margin-bottom: 6px;
       word-break: normal;
       overflow-wrap: break-word;
     }
@@ -295,15 +308,15 @@
       flex: 1 1 0;
       min-width: 0;
       text-align: center;
-      padding: 5px 3px 6px;
-      border-radius: 8px;
+      padding: 4px 2px 5px;
+      border-radius: 7px;
       background: linear-gradient(165deg, #ffffff 0%, #f5f7ff 100%);
       border: 1px solid #c7d2fe;
       box-shadow: 0 1px 0 rgba(99, 102, 241, 0.06), 0 2px 8px rgba(79, 70, 229, 0.06);
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 3px;
+      gap: 2px;
     }
 
     .plan-step.finish {
@@ -313,12 +326,12 @@
     }
 
     .plan-step-label {
-      font-size: 9px;
+      font-size: 8px;
       font-weight: 600;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.03em;
       text-transform: uppercase;
       color: #4338ca;
-      line-height: 1.2;
+      line-height: 1.15;
       word-break: normal;
       overflow-wrap: break-word;
     }
@@ -326,23 +339,24 @@
     .plan-step.finish .plan-step-label { color: #047857; }
 
     .plan-step-value {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       color: #111827;
-      line-height: 1.2;
+      line-height: 1.15;
     }
 
     .plan-step.finish .plan-step-value { color: #065f46; }
 
     .plan-step.finish .plan-step-value:last-child {
-      font-size: 11px;
-      letter-spacing: -0.03em;
-      line-height: 1.25;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
     }
 
     .plan-arrow {
       flex-shrink: 0;
-      width: 14px;
+      width: 11px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -351,8 +365,8 @@
     }
 
     .plan-arrow svg {
-      width: 14px;
-      height: 22px;
+      width: 11px;
+      height: 18px;
       display: block;
       overflow: visible;
     }
@@ -363,11 +377,18 @@
       left: 50%;
       top: 50%;
       transform: translate(-50%, -50%);
-      width: 22px;
-      height: 22px;
+      width: 18px;
+      height: 18px;
       border-radius: 50%;
       background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
       pointer-events: none;
+    }
+
+    .plan-step-value--meta {
+      font-size: 9px;
+      font-weight: 600;
+      color: #4b5563;
+      line-height: 1.15;
     }
 
     .instrument {
@@ -638,7 +659,7 @@
 
     .legend-text { font-size: 10px; font-weight: 400; color: #555555; }
 
-    .chart-svg { display: block; width: 100%; flex: 1; min-height: 108px; }
+    .chart-svg { display: block; width: 100%; flex: 1; min-height: 96px; }
 
     .page-tail {
       flex-shrink: 0;
@@ -661,6 +682,22 @@
     }
 
     .page-tail .page-num { margin-top: 0; }
+
+    /* Вторая страница пенсии: план + инструмент + графики — чуть плотнее, чтобы не обрезалось. */
+    .page-pension-cont .section-label:first-of-type { margin-top: 0; }
+    .page-pension-cont .plan-flow { margin-bottom: 4px; }
+    .page-pension-cont .instrument { margin-bottom: 3px; padding: 5px; }
+    .page-pension-cont .fin-bar-chart-block { margin-bottom: 3px; padding: 5px 6px 6px; }
+    .page-pension-cont .fin-bar-chart-hint { margin-bottom: 3px; font-size: 9px; }
+    .page-pension-cont .tax-row { margin-bottom: 4px; gap: 4px; }
+    .page-pension-cont .tax-card { padding: 6px 8px; }
+    .page-pension-cont .tax-card-hint { font-size: 9px; }
+    .page-pension-cont .avatar-section { margin-bottom: 5px; }
+    .page-pension-cont .speech p { font-size: 10px; line-height: 1.4; }
+    .page-pension-cont .chart-card { margin-bottom: 3px; padding: 5px; }
+    .page-pension-cont .chart-svg { min-height: 82px; }
+    .page-pension-cont .chart-header { margin-bottom: 2px; }
+    .page-pension-cont .avatar-section-sm { margin-top: 0; }
 
     @media print {
       body { margin: 0; padding: 0; gap: 0; }
@@ -766,6 +803,39 @@
       </div>
     </div>
 
+    <p class="pension-next-page-hint">План накопления, инструмент, структура капитала, льготы и график — на странице 2 (ничего не убрано из расчёта).</p>
+
+    <div class="page-tail">
+      <div class="page-num">Страница 1 из 2 · Достойная пенсия</div>
+      <footer class="footer">
+        <div class="footer-left">
+          Персональный финансовый план · Конфиденциально<br>
+          Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+        </div>
+        <div class="footer-right">
+          Информация не является индивидуальной<br>
+          инвестиционной рекомендацией
+        </div>
+      </footer>
+    </div>
+
+  </div>
+</article>
+
+<!-- ========== СТРАНИЦА 2 ========== -->
+<article class="page page-pension-cont">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Достойная пенсия — продолжение</div>
+    </header>
+
+    <div class="divider"></div>
+
     <div class="section-label">План накопления</div>
     <div class="plan-flow" role="group" aria-label="Цепочка накопления к пенсии">
       <div class="plan-step">
@@ -791,7 +861,7 @@
       <div class="plan-step">
         <div class="plan-step-label">Срок</div>
         <div class="plan-step-value">29 лет</div>
-        <div class="plan-step-value" style="font-size: 10px;font-weight:600;color:#4b5563;">348 мес.</div>
+        <div class="plan-step-value plan-step-value--meta">348 мес.</div>
       </div>
       <div class="plan-arrow" aria-hidden="true">
         <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
@@ -802,7 +872,7 @@
       <div class="plan-step">
         <div class="plan-step-label">Доходность<br>портфеля</div>
         <div class="plan-step-value">14%</div>
-        <div class="plan-step-value" style="font-size: 10px;font-weight:600;color:#4b5563;">годовых</div>
+        <div class="plan-step-value plan-step-value--meta">годовых</div>
       </div>
       <div class="plan-arrow" aria-hidden="true">
         <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
@@ -815,37 +885,6 @@
         <div class="plan-step-value">47 598 447 ₽</div>
       </div>
     </div>
-
-    <div class="page-tail">
-      <div class="page-num">Страница 1 из 2 · Достойная пенсия</div>
-      <footer class="footer">
-        <div class="footer-left">
-          Персональный финансовый план · Конфиденциально<br>
-          Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
-        </div>
-        <div class="footer-right">
-          Информация не является индивидуальной<br>
-          инвестиционной рекомендацией
-        </div>
-      </footer>
-    </div>
-
-  </div>
-</article>
-
-<!-- ========== СТРАНИЦА 2 ========== -->
-<article class="page">
-  <div class="content">
-
-    <header class="header">
-      <div class="logo-mark">
-        <div class="logo-dot"></div>
-        <span class="logo-text">Финансовый план</span>
-      </div>
-      <div class="doc-label">Достойная пенсия — продолжение</div>
-    </header>
-
-    <div class="divider"></div>
 
     <div class="instrument">
       <div class="instrument-left">
@@ -940,7 +979,7 @@
 
     <div class="fin-bar-chart-block fin-bar-chart-block--two">
       <div class="fin-bar-chart-title">Софинансирование</div>
-      <div class="fin-bar-chart-hint">Тот же визуальный стиль, что и состав капитала на первой странице. Высота второго столбца — «всего» за план; первый — взносы софинансирования за выбранный год.</div>
+      <div class="fin-bar-chart-hint">Тот же стиль, что и диаграмма «Состав капитала» выше. Второй столбец — «всего» за план; первый — софинансирование за выбранный год.</div>
       <div class="fin-bar-chart-area" role="img" aria-label="Софинансирование за год и всего">
         <div class="fin-bar-track fin-bar-track--narrow">
           <div class="fin-bar fin-bar--cofin-year" style="height: 18px;">

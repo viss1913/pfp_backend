@@ -110,9 +110,9 @@ function goalCardImagePlaceholder(goal) {
         'goal-page-pension-finam.html': 'goal-pension.webp',
         'goal-page-passive-income-finam.html': 'goal-pension.webp',
         'goal-page-save-grow-finam.html': 'goal-grow.webp',
-        'goal-page-education-finam.html': 'goal-apartment.webp',
+        'goal-page-education-finam.html': 'goal-education.webp',
         'goal-page-apartment-finam.html': 'goal-apartment.webp',
-        'goal-page-house-finam.html': 'goal-apartment.webp',
+        'goal-page-house-finam.html': 'goal-house.webp',
         'goal-page-business-finam.html': 'goal-grow.webp',
         'goal-page-capital-finam.html': 'goal-grow.webp',
         'goal-page-travel-finam.html': 'goal-rent.webp',
@@ -162,7 +162,7 @@ function buildGoalSectionHtml(goal, opts = {}) {
     const commentParts = [];
     if (facts.initial > 0) commentParts.push(`Старт ${formatMoneyValue(facts.initial)}`);
     if (facts.monthly > 0) commentParts.push(`взнос ${formatMoneyValueShort(facts.monthly, '/мес')}`);
-    if (facts.totalCapital > 0) commentParts.push(`целевой капитал ${formatMoneyValue(facts.totalCapital)}`);
+    if (facts.totalCapital > 0) commentParts.push(`капитал к сроку ${formatMoneyValue(facts.totalCapital)}`);
     const commentText = commentParts.length > 0 ? commentParts.join(', ') : 'Параметры цели из расчёта финплана.';
     const commentInner = escapeHtml(commentText);
 
@@ -248,9 +248,10 @@ function buildSummaryPiesHtml(goals) {
     <div class="section-tag">Итого по всем целям</div>
     <div class="summary"><p style="font-size:8px;color:#555;">Нет целей в отчёте.</p></div>`;
     }
-    const capitals = goals.map((g) => Math.max(0, computeGoalFacts(g).totalCapital));
+    /** Первый пирог: доли первоначального капитала по целям (как в карточке «Начальный»). */
+    const initials = goals.map((g) => Math.max(0, computeGoalFacts(g).initial));
     const monthlies = goals.map((g) => Math.max(0, computeGoalFacts(g).monthly));
-    const sumC = capitals.reduce((a, b) => a + b, 0);
+    const sumI = initials.reduce((a, b) => a + b, 0);
     const sumM = monthlies.reduce((a, b) => a + b, 0);
 
     const labels = goals.map((g) => escapeHtml((finamTemplateLabel(g) || g?.goal_name || 'Цель').slice(0, 28)));
@@ -267,16 +268,16 @@ function buildSummaryPiesHtml(goals) {
         return parts.length ? parts.join(', ') : '#e5e7eb 0% 100%';
     }
 
-    const centerCap =
-        sumC >= 1_000_000
-            ? `${(sumC / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млн`
-            : `${Math.round(sumC).toLocaleString('ru-RU')}`;
+    const centerInitial =
+        sumI >= 1_000_000
+            ? `${(sumI / 1_000_000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} млн`
+            : `${Math.round(sumI).toLocaleString('ru-RU')}`;
     const centerMonthly = `${Math.round(sumM).toLocaleString('ru-RU')}`;
 
-    const legendCap = goals
+    const legendInitial = goals
         .map((g, i) => {
             const pct =
-                sumC > 0 ? Math.round((capitals[i] / sumC) * 1000) / 10 : Math.round(1000 / goals.length) / 10;
+                sumI > 0 ? Math.round((initials[i] / sumI) * 1000) / 10 : Math.round(1000 / goals.length) / 10;
             return `<div class="legend-item"><div class="legend-dot" style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></div><span class="legend-name">${labels[i]}</span><span class="legend-pct">${pct}%</span></div>`;
         })
         .join('');
@@ -293,21 +294,21 @@ function buildSummaryPiesHtml(goals) {
     <div class="section-tag">Итого по всем целям</div>
     <div class="summary">
       <div class="pie-card">
-        <div class="pie-title">Распределение целевого капитала</div>
-        <div class="pie-wrapper">
-          <div class="pie-circle" style="background: conic-gradient(${conicFromShares(capitals, sumC)});">
+        <div class="pie-title">Распределение первоначального капитала</div>
+        <div class="pie-wrapper pie-wrapper--wide">
+          <div class="pie-circle pie-circle--large" style="background: conic-gradient(${conicFromShares(initials, sumI)});">
             <div class="pie-total">
-              <div class="pie-total-value">${escapeHtml(centerCap)}</div>
+              <div class="pie-total-value">${escapeHtml(centerInitial)}</div>
               <div class="pie-total-label">₽</div>
             </div>
           </div>
-          <div class="pie-legend">${legendCap}</div>
+          <div class="pie-legend">${legendInitial}</div>
         </div>
       </div>
       <div class="pie-card">
-        <div class="pie-title">Распределение пополнений</div>
-        <div class="pie-wrapper">
-          <div class="pie-circle" style="background: conic-gradient(${conicFromShares(monthlies, sumM)});">
+        <div class="pie-title">Пополнение капитала по целям</div>
+        <div class="pie-wrapper pie-wrapper--wide">
+          <div class="pie-circle pie-circle--large" style="background: conic-gradient(${conicFromShares(monthlies, sumM)});">
             <div class="pie-total">
               <div class="pie-total-value">${escapeHtml(centerMonthly)}</div>
               <div class="pie-total-label">₽/мес</div>
@@ -564,13 +565,21 @@ function formatCompactRub(value) {
     return `${n.toLocaleString('ru-RU')} ₽`;
 }
 
+/** Подпись внутри узкого сегмента шкалы лезет друг на друга — у мелких долей только цвет, цифры в легенде и таблице. */
+const HBAR_LABEL_MIN_PCT = 7;
+
 function buildHbarSegsInline(segments) {
     return segments
         .map((seg, i) => {
             const grow = Math.max(0.01, seg.pct);
             const [c1, c2] = DONUT_PALETTE[i % DONUT_PALETTE.length];
             const light = i % 3 === 2 ? ' hbar-seg--light' : '';
-            return `<span class="hbar-seg${light}" style="flex-grow:${grow};background:linear-gradient(180deg,${c1} 0%,${c2} 100%)">${escapeHtml(String(Math.round(seg.pct * 10) / 10))}%</span>`;
+            const pctRounded = Math.round(seg.pct * 10) / 10;
+            const pctStr = `${pctRounded}%`;
+            const showLabel = seg.pct >= HBAR_LABEL_MIN_PCT;
+            const noLabel = showLabel ? '' : ' hbar-seg--nolabel';
+            const label = showLabel ? escapeHtml(pctStr) : '';
+            return `<span class="hbar-seg${light}${noLabel}" style="flex-grow:${grow};background:linear-gradient(180deg,${c1} 0%,${c2} 100%)" title="${escapeHtml(pctStr)}">${label}</span>`;
         })
         .join('');
 }

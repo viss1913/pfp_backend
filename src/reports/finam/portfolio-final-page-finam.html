@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Итоговый портфель — Финансовый план</title>
   <!--
-    Финам PDF: один лист — консолидированный итоговый портфель (обоснование по типам целей — в portfolio-page-finam или отдельно на бэке).
-    Два среза: начальный капитал и портфель пополнений — у каждого donut + шкала + легенда + таблица (₽ и ₽/мес) + комментарии ИИ.
+    Финам PDF: два листа — консолидированный итоговый портфель (обоснование по типам целей — в portfolio-page-finam или отдельно на бэке).
+    Лист 1: два среза (начальный капитал + пополнения) — donut + линейная шкала + легенда. Лист 2: таблицы долей + ИИ (без overflow на одном A4).
     Типографика как fin-reserve: speech ~8.5px, второстепенный текст не ниже ~5.5px.
     Поля бэка (пример): initial_breakdown[], contribution_breakdown[], contribution_monthly_total, intro_ai_text, closing_ai_text.
   -->
@@ -269,7 +269,7 @@
     .hbar {
       display: flex;
       height: 19px;
-      gap: 3px;
+      gap: 1px;
       border-radius: 6px;
       overflow: hidden;
       border: 1px solid #e5e7eb;
@@ -280,11 +280,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
       color: #ffffff;
       text-shadow: 0 1px 2px rgba(0,0,0,0.25);
       min-width: 0;
+    }
+
+    /* Узкие сегменты: подпись только в легенде/таблице (HBAR_LABEL_MIN_PCT в finamPdfPageAppliers.js) */
+    .hbar-seg--nolabel {
+      font-size: 0;
+      line-height: 0;
+      color: transparent;
+      text-shadow: none;
     }
 
     .hbar-seg--light {
@@ -378,15 +386,15 @@
       color: #065f46;
     }
 
-    .block-note {
+    .portfolio-contd {
       font-size: 11px;
-      color: #6b7280;
-      line-height: 1.4;
-      padding: 5px 8px;
-      border-radius: 6px;
-      background: #f3f4f6;
-      border: 1px dashed #d1d5db;
-      margin-bottom: 5px;
+      color: #4b5563;
+      line-height: 1.45;
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      background: #f9fafb;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
     }
 
     .spacer { flex: 1; min-height: 4px; }
@@ -414,7 +422,7 @@
 </head>
 <body>
 
-<!-- ========== Итоговый портфель · один лист ========== -->
+<!-- ========== Итоговый портфель · стр. 1 (круги и шкалы) ========== -->
 <article class="page">
   <div class="content">
 
@@ -431,7 +439,7 @@
     <div class="avatar-section">
       <div class="avatar"><span class="avatar-text">ИИ</span></div>
       <div class="speech">
-        <p>Два среза по всем целям: <em>уже вложенный капитал</em> и <em>как распределены ежемесячные пополнения</em> по классам активов. Доли могут совпадать или отличаться — в проде подставляем факт из расчёта; круги и шкалы совпадают с таблицами ниже.</p>
+        <p>Два среза по всем целям: <em>уже вложенный капитал</em> и <em>как распределены ежемесячные пополнения</em> по классам активов. Доли могут совпадать или отличаться — в проде подставляем факт из расчёта; те же цифры дублируем в таблицах <em>на следующей странице</em>. На узких сегментах шкалы проценты смотрите в легенде справа.</p>
       </div>
     </div>
 
@@ -555,6 +563,39 @@
       <!-- /@finam-portfolio-contrib -->
     </div>
 
+    <div class="spacer"></div>
+
+    <div class="page-num">Страница 1 из 2 · Итоговый портфель</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+<!-- ========== Итоговый портфель · стр. 2 (таблицы) ========== -->
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Итоговый портфель · доли</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <p class="portfolio-contd">Таблицы — те же доли и суммы, что на предыдущей странице (круги и линейные шкалы). Удобно сверять классы активов и взносы в рублях.</p>
+
     <!-- @finam-portfolio-table-initial -->
     <p class="pct-table-caption">Начальный капитал</p>
     <table class="pct-table" aria-label="Доли начального капитала по классам активов">
@@ -630,8 +671,6 @@
     </table>
     <!-- /@finam-portfolio-table-contrib -->
 
-    <p class="block-note">Бэк: <code>initial_asset_breakdown</code> + <code>contribution_asset_breakdown</code> (₽/мес). Donut пополнений — 3 сегмента, пути/SVG и <code>.hbar--c*</code> с таблицей синхронно.</p>
-
     <div class="avatar-section-sm avatar-section-sm--tight">
       <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
       <div class="speech-sm">
@@ -641,7 +680,7 @@
 
     <div class="spacer"></div>
 
-    <div class="page-num">Страница 1 из 1 · Итоговый портфель</div>
+    <div class="page-num">Страница 2 из 2 · Итоговый портфель</div>
     <footer class="footer">
       <div class="footer-left">
         Персональный финансовый план · Конфиденциально<br>

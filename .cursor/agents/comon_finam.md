@@ -21,7 +21,7 @@ description: Интеграция Comon/Финам — витрина страт
 | Ошибки Comon → 502 для API | [`src/utils/comonUpstreamResponse.js`](src/utils/comonUpstreamResponse.js) |
 | Витрина в отчёте (фильтры, кэш, дисклеймер) | [`src/services/comonShowcaseService.js`](src/services/comonShowcaseService.js) |
 | Ручная база рекомендованных стратегий (JSON fallback) | [`data/comonRecommendedStrategies.json`](data/comonRecommendedStrategies.json) |
-| Рекомендованные стратегии в БД (полный JSON в `payload`) | таблица `comon_recommended_strategies`, [`comonRecommendedStrategyRepository.js`](src/repositories/comonRecommendedStrategyRepository.js), импорт: `npm run import:comon-recommended` |
+| Рекомендованные стратегии в БД (полный JSON в `payload`) | таблица `comon_recommended_strategies`, [`comonRecommendedStrategyRepository.js`](src/repositories/comonRecommendedStrategyRepository.js), импорт: `npm run import:comon-recommended`. В витрине [`comonShowcaseService`](src/services/comonShowcaseService.js): `items[].url` из payload (`url` / `pageUrl` / `link`, относительные пути дополняются базой) или канонически `{COMON_BASE_URL}/strategies/{id}`, чтобы ссылка всегда вела на эту стратегию. |
 | Настройки витрины из проекта | [`src/utils/projectComonShowcaseSettings.js`](src/utils/projectComonShowcaseSettings.js) |
 | Включение в JSON отчёта | [`src/services/reportService.js`](src/services/reportService.js) — поле `comon_showcase`, `pdf_summary_layout` с тем же снимком |
 | PDF сводная | [`src/services/reportPdfService.js`](src/services/reportPdfService.js) прокидывает `comon_showcase` в payload; [`src/reports/summary/buildSummaryOverviewHtml.js`](src/reports/summary/buildSummaryOverviewHtml.js) — `buildComonShowcaseSectionHtml` |

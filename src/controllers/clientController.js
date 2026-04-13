@@ -104,7 +104,7 @@ const calculationRequestSchema = Joi.object({
         avg_monthly_income: Joi.number().min(0).optional()
             .description('Среднемесячный доход до НДФЛ (₽/мес). Используется для оценки ИПК при расчете пенсии и для расчета софинансирования ПДС'),
         spouse_avg_monthly_income: Joi.number().min(0).allow(null).optional()
-            .description('Среднемесячный доход супруги/супруга до НДФЛ (₽/мес). Пока сохраняется как справочное поле и не участвует в расчетах'),
+            .description('Среднемесячный доход супруги/супруга до НДФЛ (₽/мес). Учитывается в отчёте в строке «Доходы» (семейный денежный поток), если не задан family_profile.spouse.monthly_income'),
         ipk_current: Joi.number().min(0).allow(null).optional()
             .description('Текущий ИПК (индивидуальный пенсионный коэффициент) клиента. Если не указан, будет оценен на основе дохода'),
         total_liquid_capital: Joi.number().min(0).optional().default(0)
@@ -129,7 +129,7 @@ const calculationRequestSchema = Joi.object({
         }).optional()
             .description('Данные застрахованного лица (если отличается от страхователя)'),
         family_profile: familyProfileSchema
-            .description('Справочный семейный профиль (не влияет на расчеты)'),
+            .description('Семейный профиль (дети, обязательства, супруг). Доход супруги/супруга: spouse.monthly_income — в т.ч. строка «Доходы» в PDF отчёта (семейный поток); на калькуляторы целей по умолчанию не влияет'),
         enable_children_tax_deduction: Joi.boolean().optional()
             .description('Включить расчет стандартного вычета на детей в firstRun'),
         tax_children: Joi.array().items(taxChildSchema).optional()

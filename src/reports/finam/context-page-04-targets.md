@@ -630,9 +630,9 @@
     <div class="summary">
 
       <div class="pie-card">
-        <div class="pie-title">Распределение целевого капитала</div>
-        <div class="pie-wrapper">
-          <div class="pie-circle" style="background: conic-gradient(
+        <div class="pie-title">Распределение первоначального капитала</div>
+        <div class="pie-wrapper pie-wrapper--wide">
+          <div class="pie-circle pie-circle--large" style="background: conic-gradient(
             #10b981 0% 1%, #ec4899 1% 8.6%, #6366f1 8.6% 28%,
             #f59e0b 28% 107.8%, #818cf8 107.8% 117.8%, #f472b6 117.8% 100%
           );">
@@ -653,9 +653,9 @@
       </div>
 
       <div class="pie-card">
-        <div class="pie-title">Распределение пополнений</div>
-        <div class="pie-wrapper">
-          <div class="pie-circle" style="background: conic-gradient(
+        <div class="pie-title">Пополнение капитала по целям</div>
+        <div class="pie-wrapper pie-wrapper--wide">
+          <div class="pie-circle pie-circle--large" style="background: conic-gradient(
             #6366f1 0% 23.8%, #f59e0b 23.8% 71.1%,
             #818cf8 71.1% 95.7%, #f472b6 95.7% 100%
           );">
