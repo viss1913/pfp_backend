@@ -382,9 +382,16 @@ class AiB2cController {
                 return res.status(400).json({ error: 'projectId is required' });
             }
 
-            const { display_name, tagline, dynamic_context_text } = req.body;
-            if (display_name === undefined && tagline === undefined && dynamic_context_text === undefined) {
-                return res.status(400).json({ error: 'Nothing to update. Pass at least one of display_name, tagline, dynamic_context_text' });
+            const { display_name, tagline, dynamic_context_text, openrouter_model } = req.body;
+            if (
+                display_name === undefined &&
+                tagline === undefined &&
+                dynamic_context_text === undefined &&
+                openrouter_model === undefined
+            ) {
+                return res.status(400).json({
+                    error: 'Nothing to update. Pass at least one of display_name, tagline, dynamic_context_text, openrouter_model',
+                });
             }
 
             const existing = await knex('ai_b2c_settings')
@@ -397,7 +404,8 @@ class AiB2cController {
                     display_name: display_name || 'AI-ассистент',
                     avatar_url: null, // аватар выставляется только через upload
                     tagline: tagline || null,
-                    dynamic_context_text: dynamic_context_text || null
+                    dynamic_context_text: dynamic_context_text || null,
+                    openrouter_model: openrouter_model != null && String(openrouter_model).trim() ? String(openrouter_model).trim() : null,
                 });
 
                 const created = await knex('ai_b2c_settings').where({ id }).first();
@@ -410,6 +418,12 @@ class AiB2cController {
                     ...(display_name !== undefined && { display_name }),
                     ...(tagline !== undefined && { tagline }),
                     ...(dynamic_context_text !== undefined && { dynamic_context_text }),
+                    ...(openrouter_model !== undefined && {
+                        openrouter_model:
+                            openrouter_model != null && String(openrouter_model).trim()
+                                ? String(openrouter_model).trim()
+                                : null,
+                    }),
                     updated_at: knex.fn.now()
                 });
 

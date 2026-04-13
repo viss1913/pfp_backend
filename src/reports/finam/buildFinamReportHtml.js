@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const db = require('../../config/database');
+const aiService = require('../../services/aiService');
 
 const FINAM_PROJECT_ID = 14;
 const TEMPLATE_DIR = __dirname;
@@ -531,6 +532,414 @@ async function fetchAiB2cAvatarUrl(projectId) {
     }
 }
 
+const FINAM_FAMILY_CONTEXT_FILE = path.join(TEMPLATE_DIR, 'context-page-03-family.md');
+
+const PAGE3_SPEECH1_FALLBACK =
+    '<p>Вот ваша финансовая фотография на сегодня. Доход <em>150 000 ₽</em>, но обязательства съедают почти всё — свободным остаётся всего <em>8 000 ₽</em> в месяц. Именно отсюда мы начнём строить план.</p>';
+
+const PAGE3_SPEECH2_FALLBACK =
+    '<p>Выделяю три ключевых момента. Во-первых, <em>ипотека съедает 27% дохода</em> — это в рамках нормы, но рефинансирование может освободить ещё 5–8 тысяч. Во-вторых, <em>категория «Прочее» — 32 000 ₽ без расшифровки</em>: здесь почти наверняка скрыты импульсивные траты. В-третьих, <em>подушка безопасности — всего 200 000 ₽</em>, при обязательствах 142 000 ₽ в месяц этого хватит меньше чем на полтора месяца. На следующей странице покажу, как это исправить.</p>';
+
+function readFinamFamilyContextMarkdown() {
+    try {
+        if (!fs.existsSync(FINAM_FAMILY_CONTEXT_FILE)) return '';
+        return fs.readFileSync(FINAM_FAMILY_CONTEXT_FILE, 'utf-8');
+    } catch (e) {
+        console.warn('[buildFinamReportHtml] context-page-03-family.md:', e?.message || e);
+        return '';
+    }
+}
+
+/** Значение ключа `KEY=` из markdown до следующего `\nKEY2=` или конца файла. */
+function parseFinamMarkdownContextKey(mdRaw, keyBase) {
+    if (!mdRaw || typeof mdRaw !== 'string' || !keyBase) return '';
+    const key = `${keyBase}=`;
+    const idx = mdRaw.indexOf(key);
+    if (idx < 0) return '';
+    let rest = mdRaw.slice(idx + key.length);
+    const nextKeyMatch = rest.match(/\n[A-Za-z0-9_]+\s*=/);
+    if (nextKeyMatch && nextKeyMatch.index != null) {
+        rest = rest.slice(0, nextKeyMatch.index);
+    }
+    return rest.trim().replace(/\r\n/g, '\n');
+}
+
+function buildFinamFamilyPageAiPayload(report) {
+    const rich = report?.family_page_ai_context;
+    if (rich && typeof rich === 'object' && Object.keys(rich).length > 0) {
+        return rich;
+    }
+    const ci = report?.client_info || {};
+    const cs = report?.current_situation || {};
+    return {
+        _note: 'family_page_ai_context отсутствует — только базовые поля отчёта.',
+        client: {
+            first_name: ci.first_name,
+            age: ci.age,
+            income_rub_per_month: ci.avg_monthly_income,
+            income_display: ci.income_display,
+        },
+        wealth: {
+            net_worth: cs.net_worth,
+            assets_total: cs.assets_total,
+            liabilities_total: cs.liabilities_total,
+            assets_breakdown: Array.isArray(cs.assets_breakdown) ? cs.assets_breakdown.slice(0, 20) : [],
+        },
+        goals: (report?.goals_detailed || []).map((g) => ({
+            goal_type: g.goal_type,
+            name: g.goal_title_raw || g.goal_name,
+            monthly_replenishment: g.summary?.monthly_replenishment,
+        })),
+        plan_waterfall: report?.overall_plan?.chart_waterfall || null,
+    };
+}
+
+function finamAiPlainTextToLeadParagraphHtml(text) {
+    const inner = escapeHtml(text.trim())
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join('<br />\n        ');
+    return `<p>${inner}</p>`;
+}
+
+async function fetchOpenRouterModelForFinamReport(projectId) {
+    const fromEnv =
+        process.env.OPENROUTER_MODEL_FINAM_PAGE3 ||
+        process.env.OPENROUTER_MODEL_FINAM_INTRO ||
+        process.env.OPENROUTER_MODEL_SUMMARY ||
+        process.env.OPENROUTER_MODEL ||
+        null;
+    if (projectId == null || projectId === '') return fromEnv;
+    try {
+        const row = await db('ai_b2c_settings').where({ project_id: Number(projectId) }).first();
+        const dbModel = row?.openrouter_model != null ? String(row.openrouter_model).trim() : '';
+        return dbModel || fromEnv;
+    } catch (err) {
+        console.warn('[buildFinamReportHtml] ai_b2c_settings.openrouter_model:', err?.message || err);
+        return fromEnv;
+    }
+}
+
+const FINAM_MARITAL_LABEL = {
+    single: 'Не в браке',
+    married: 'В браке',
+    divorced: 'В разводе',
+    widowed: 'Вдовец / вдова',
+    civil_union: 'Гражданский брак',
+};
+
+const FINAM_EMPLOYMENT_LABEL = {
+    EMPLOYED: 'Наёмный сотрудник',
+    SELF_EMPLOYED: 'Самозанятый',
+    UNEMPLOYED: 'Безработный',
+    RETIRED: 'Пенсионер',
+    OTHER: 'Другое',
+    employed: 'Наёмный сотрудник',
+    self_employed: 'Самозанятый',
+    unemployed: 'Безработный',
+    retired: 'Пенсионер',
+    other: 'Другое',
+};
+
+const FINAM_OBLIGATION_TYPE_LABEL = {
+    mortgage: 'Ипотека',
+    loans: 'Кредиты',
+    rent: 'Аренда',
+    alimony: 'Алименты',
+    education: 'Образование',
+    elder_support: 'Родители',
+    other: 'Прочее',
+};
+
+function labelFinamMaritalStatus(value) {
+    if (value == null || value === '') return '—';
+    const k = String(value).toLowerCase().trim();
+    return FINAM_MARITAL_LABEL[k] || escapeHtml(String(value));
+}
+
+function labelFinamEmploymentType(value) {
+    if (value == null || value === '') return '—';
+    const raw = String(value).trim();
+    const u = raw.toUpperCase().replace(/-/g, '_');
+    const mapped = FINAM_EMPLOYMENT_LABEL[raw] || FINAM_EMPLOYMENT_LABEL[u] || FINAM_EMPLOYMENT_LABEL[raw.toLowerCase()];
+    return mapped || escapeHtml(raw);
+}
+
+/** Склонение «N лет» для целого возраста (рус.). */
+function ruYearsPhrase(age) {
+    if (age == null || age === '') return '—';
+    const a = Math.floor(Number(age));
+    if (!Number.isFinite(a) || a < 0) return '—';
+    const m100 = a % 100;
+    const m10 = a % 10;
+    if (m100 >= 11 && m100 <= 14) return `${a} лет`;
+    if (m10 === 1) return `${a} год`;
+    if (m10 >= 2 && m10 <= 4) return `${a} года`;
+    return `${a} лет`;
+}
+
+function labelFinamObligationType(type) {
+    const k = String(type || 'other').toLowerCase();
+    return FINAM_OBLIGATION_TYPE_LABEL[k] || escapeHtml(String(type || 'Прочее'));
+}
+
+/**
+ * Страница 3: карточки «Семья / Активы», обязательства и баланс — из report.family_page_ai_context (тот же JSON, что для ИИ).
+ */
+function applyFinamPage3FamilyFactsFromReport(html, report) {
+    if (!html || typeof html !== 'string') return html;
+    const ctx = buildFinamFamilyPageAiPayload(report);
+    if (!ctx || typeof ctx !== 'object') return html;
+
+    const marital = labelFinamMaritalStatus(ctx.client?.marital_status);
+    const employment = labelFinamEmploymentType(ctx.client?.employment_type);
+    const clientAge = escapeHtml(ruYearsPhrase(ctx.client?.age));
+
+    const children = Array.isArray(ctx.family?.children) ? ctx.family.children : [];
+    let childrenBlockHtml = '';
+    if (children.length > 0) {
+        const rows = children
+            .map((ch) => {
+                const nm = escapeHtml(ch.first_name || 'Ребёнок');
+                const ag = escapeHtml(ruYearsPhrase(ch.age_years));
+                return `        <div class="child-row">
+            <div class="child-dot"></div>
+            <span class="child-name">${nm}</span>
+            <span class="child-age">${ag}</span>
+          </div>`;
+            })
+            .join('\n');
+        childrenBlockHtml = `        <div class="children-block">
+          <div class="children-block-title">Дети</div>
+${rows}
+        </div>`;
+    }
+
+    const assetsBreakdown = Array.isArray(ctx.wealth?.assets_breakdown) ? ctx.wealth.assets_breakdown : [];
+    const positiveAssets = assetsBreakdown.filter((a) => toNum(a?.value) > 0);
+    let assetRowsHtml;
+    if (positiveAssets.length > 0) {
+        assetRowsHtml = positiveAssets
+            .map(
+                (a) => `        <div class="info-row">
+          <span class="info-label">${escapeHtml(a.name || 'Актив')}</span>
+          <span class="info-value">${formatMoneyValue(toNum(a.value))}</span>
+        </div>`
+            )
+            .join('\n');
+    } else {
+        assetRowsHtml = `        <div class="info-row">
+          <span class="info-label">Итого по счетам</span>
+          <span class="info-value">${formatMoneyValue(toNum(ctx.wealth?.assets_total))}</span>
+        </div>`;
+    }
+
+    const assetsTotal = toNum(ctx.wealth?.assets_total);
+    const liabilitiesTotal = toNum(ctx.wealth?.liabilities_total);
+
+    const familyCardHtml = `      <div class="info-card">
+        <div class="info-card-title">Семья</div>
+        <div class="info-row">
+          <span class="info-label">Семейное положение</span>
+          <span class="info-value">${marital}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Занятость</span>
+          <span class="info-value">${employment}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Возраст</span>
+          <span class="info-value">${clientAge}</span>
+        </div>
+${childrenBlockHtml ? `${childrenBlockHtml}\n` : ''}      </div>`;
+
+    const assetsCardHtml = `      <div class="info-card">
+        <div class="info-card-title">Активы</div>
+${assetRowsHtml}
+        <div class="info-divider"></div>
+        <div class="info-row">
+          <span class="info-label">Итого активы</span>
+          <span class="info-value">${formatMoneyValue(assetsTotal)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Долги</span>
+          <span class="info-value">${formatMoneyValue(liabilitiesTotal)}</span>
+        </div>
+      </div>`;
+
+    const twoColsHtml = `    <div class="two-cols">
+${familyCardHtml}
+${assetsCardHtml}
+    </div>`;
+
+    const obligationsRaw = Array.isArray(ctx.family?.family_obligations) ? ctx.family.family_obligations : [];
+    const obligations = obligationsRaw.filter((o) => toNum(o?.amount_monthly) > 0);
+    const amounts = obligations.map((o) => toNum(o.amount_monthly));
+    const maxOb = amounts.length ? Math.max(...amounts) : 1;
+    const obTotal = toNum(ctx.cashflow_monthly_rub?.obligations_total);
+    const obTotalFormatted = `${Math.round(obTotal).toLocaleString('ru-RU')} ₽/мес`;
+
+    let obligationsRowsHtml;
+    if (obligations.length === 0) {
+        obligationsRowsHtml = `      <div class="obligation-row">
+        <span class="obligation-label">—</span>
+        <div class="obligation-bar-bg"><div class="obligation-bar" style="width: 0%;"></div></div>
+        <span class="obligation-value">${formatMoneyValue(0)}</span>
+      </div>`;
+    } else {
+        obligationsRowsHtml = obligations
+            .map((o) => {
+                const amt = toNum(o.amount_monthly);
+                const pct = Math.min(100, Math.round((amt / maxOb) * 1000) / 10);
+                return `      <div class="obligation-row">
+        <span class="obligation-label">${labelFinamObligationType(o.type)}</span>
+        <div class="obligation-bar-bg"><div class="obligation-bar" style="width: ${pct}%;"></div></div>
+        <span class="obligation-value">${formatMoneyValue(amt)}</span>
+      </div>`;
+            })
+            .join('\n');
+    }
+
+    const obligationsBlockHtml = `    <div class="obligations">
+      <div class="obligations-header">
+        <div class="section-tag" style="margin-bottom: 0;">Ежемесячные обязательства</div>
+        <div class="obligations-total">Итого: ${obTotalFormatted}</div>
+      </div>
+${obligationsRowsHtml}
+    </div>`;
+
+    const incomeDisplay = toNum(ctx.cashflow_monthly_rub?.income);
+    const incomeBase = Math.max(incomeDisplay, 1);
+    const pfp = toNum(ctx.cashflow_monthly_rub?.planned_pfp_contributions);
+    const freeRaw = toNum(ctx.cashflow_monthly_rub?.discretionary_or_free);
+    const obForBalance = toNum(ctx.cashflow_monthly_rub?.obligations_total);
+
+    const wOb = Math.min(100, Math.round((obForBalance / incomeBase) * 1000) / 10);
+    const wPfp = Math.min(100, Math.round((pfp / incomeBase) * 1000) / 10);
+    const wFree = Math.min(100, Math.max(0, Math.round((freeRaw / incomeBase) * 1000) / 10));
+
+    const freeStyle = freeRaw < 0 ? ' style="color: #dc2626;"' : ' style="color: #6366f1;"';
+
+    const balanceBoxHtml = `    <div class="balance-box">
+      <div class="balance-title">Баланс доходов и расходов</div>
+      <div class="balance-row">
+        <span class="balance-label">Доходы</span>
+        <div class="balance-bar-bg"><div class="balance-bar green" style="width: 100%;"></div></div>
+        <span class="balance-val">${formatMoneyValue(incomeDisplay)}</span>
+      </div>
+      <div class="balance-row">
+        <span class="balance-label">Обязательства</span>
+        <div class="balance-bar-bg"><div class="balance-bar red" style="width: ${wOb}%;"></div></div>
+        <span class="balance-val">${formatMoneyValue(obForBalance)}</span>
+      </div>
+      <div class="balance-row">
+        <span class="balance-label">Пополнение ПФП</span>
+        <div class="balance-bar-bg"><div class="balance-bar amber" style="width: ${wPfp}%;"></div></div>
+        <span class="balance-val">${formatMoneyValue(pfp)}</span>
+      </div>
+      <div class="balance-separator"></div>
+      <div class="balance-row">
+        <span class="balance-label" style="font-weight: 700; color: #000000;">Свободно</span>
+        <div class="balance-bar-bg"><div class="balance-bar indigo" style="width: ${wFree}%;"></div></div>
+        <span class="balance-val"${freeStyle}>${formatMoneyValue(freeRaw)}</span>
+      </div>
+    </div>`;
+
+    let out = html;
+    const reSection = /<div class="section-tag">Семья и активы<\/div>\s*<div class="two-cols">[\s\S]*<\/div>\s*\n\s*<!-- Обязательства -->/;
+    if (reSection.test(out)) {
+        out = out.replace(
+            reSection,
+            `<div class="section-tag">Семья и активы</div>\n${twoColsHtml}\n    <!-- Обязательства -->`
+        );
+    }
+
+    const reObl = /<div class="obligations">[\s\S]*<\/div>\s*\n\s*<!-- Баланс/;
+    if (reObl.test(out)) {
+        out = out.replace(reObl, `${obligationsBlockHtml}\n\n    <!-- Баланс`);
+    }
+
+    const reBal = /<div class="balance-box">[\s\S]*<\/div>\s*\n\s*<!-- ИИ: вывод -->/;
+    if (reBal.test(out)) {
+        out = out.replace(reBal, `${balanceBoxHtml}\n\n    <!-- ИИ: вывод -->`);
+    }
+
+    return out;
+}
+
+/**
+ * Страница 3 «Текущее состояние»: два блока .speech через OpenRouter + context-page-03-family.md (AI_page_1=, AI_page_1_2=).
+ * В запрос всегда включается JSON из report.family_page_ai_context (или запасной срез из отчёта).
+ */
+async function applyFinamPage3FamilyAi(html, report, projectId) {
+    if (!html || typeof html !== 'string' || !html.includes('data-finam-ai-page3')) {
+        return html;
+    }
+
+    const md = readFinamFamilyContextMarkdown();
+    const ctx1 = parseFinamMarkdownContextKey(md, 'AI_page_1');
+    const ctx2 = parseFinamMarkdownContextKey(md, 'AI_page_1_2');
+    const payload = buildFinamFamilyPageAiPayload(report);
+    const payloadJson = JSON.stringify(payload, null, 2);
+
+    const systemCore = [
+        'Ты помогаешь заполнять PDF-отчёт «Финансовый план» (Финам), страница «Текущее состояние».',
+        'Ответь только связным текстом (без заголовков, без Markdown # ** _). Можно кавычки «». Обращение на «вы».',
+        'Опирайся строго на поле JSON с данными клиента; не придумывай суммы и факты, которых нет в JSON.',
+        'Только русский язык.',
+    ].join('\n');
+
+    async function runSpeech(contextExtra, userTask, fallbackPhtml) {
+        if (!contextExtra) return fallbackPhtml;
+        try {
+            if (!aiService.apiKey) {
+                console.warn('[buildFinamReportHtml] Page3 family AI skipped: no API key');
+                return fallbackPhtml;
+            }
+            const model =
+                (await fetchOpenRouterModelForFinamReport(projectId)) ||
+                process.env.OPENROUTER_MODEL ||
+                'google/gemma-3-27b-it';
+            const systemPrompt = [systemCore, contextExtra].filter(Boolean).join('\n\n');
+            const userPrompt = `${userTask}\n\nДанные клиента и плана (JSON — обязательно используй в ответе):\n${payloadJson}`;
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt },
+            ];
+            const raw = await aiService.getCompletion(messages, model);
+            if (!raw || !String(raw).trim()) return fallbackPhtml;
+            return finamAiPlainTextToLeadParagraphHtml(raw);
+        } catch (err) {
+            console.warn('[buildFinamReportHtml] Page3 family AI failed:', err?.message || err);
+            return fallbackPhtml;
+        }
+    }
+
+    const speech1Inner = await runSpeech(
+        ctx1,
+        'Напиши текст для первого блока речи ИИ (вводная «финансовая фотография» на сегодня).',
+        PAGE3_SPEECH1_FALLBACK
+    );
+    const speech2Inner = await runSpeech(
+        ctx2,
+        'Напиши текст для второго блока речи ИИ (краткие выводы по структуре обязательств и плану пополнений целей).',
+        PAGE3_SPEECH2_FALLBACK
+    );
+
+    let out = html;
+    const re1 = /<div class="speech"[^>]*data-finam-ai-page3="1"[^>]*>\s*<p>[\s\S]*?<\/p>\s*<\/div>/i;
+    const re2 = /<div class="speech"[^>]*data-finam-ai-page3="2"[^>]*>\s*<p>[\s\S]*?<\/p>\s*<\/div>/i;
+    if (re1.test(out)) {
+        out = out.replace(re1, `<div class="speech" data-finam-ai-page3="1">\n        ${speech1Inner}\n      </div>`);
+    }
+    if (re2.test(out)) {
+        out = out.replace(re2, `<div class="speech" data-finam-ai-page3="2">\n        ${speech2Inner}\n      </div>`);
+    }
+    return out;
+}
+
 /**
  * Подставляет аватар B2C-ассистента (R2 / ai_b2c_settings) вместо плейсхолдеров «ИИ» в финам-шаблонах.
  */
@@ -597,7 +1006,10 @@ async function buildFinamFullPageHtmlList({ report, includeSummary = true, goalT
     const pages = [];
     if (includeSummary) {
         pages.push(withInline(await readTemplate('page-2-finam.html')));
-        pages.push(withInline(await readTemplate('page-3-family-finam.html')));
+        let page3 = await readTemplate('page-3-family-finam.html');
+        page3 = applyFinamPage3FamilyFactsFromReport(page3, report);
+        page3 = await applyFinamPage3FamilyAi(page3, report, projectId);
+        pages.push(withInline(page3));
         pages.push(withInline(await readTemplate('page-4-targets-finam.html')));
     }
 
@@ -629,4 +1041,7 @@ module.exports = {
     fetchAiB2cAvatarUrl,
     applyFinamAiAvatarHtml,
     inlineFinamRasterImages,
+    applyFinamPage3FamilyAi,
+    applyFinamPage3FamilyFactsFromReport,
+    buildFinamFamilyPageAiPayload,
 };

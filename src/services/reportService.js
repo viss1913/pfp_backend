@@ -273,6 +273,13 @@ class ReportService {
             pdf_metrics: this._buildGoalPdfMetrics(goal),
         }));
 
+        const familyPageAiContext = this._buildFamilyPageAiContext(
+            client,
+            currentStats,
+            overallPlan,
+            goalsWithPdfMetrics
+        );
+
         let comon_showcase = null;
         if (projectId) {
             comon_showcase = await comonShowcaseService.buildForClient(client, projectId, currentStats);
@@ -303,11 +310,84 @@ class ReportService {
             current_situation: currentStats,
             overall_plan: overallPlan,
             goals_detailed: goalsWithPdfMetrics,
+            /** Данные для ИИ (страница 3 Финам: семья, обязательства, денежный поток, цели). */
+            family_page_ai_context: familyPageAiContext,
             goal_type_parameter_catalog: this._buildGoalTypeParameterCatalog(goalsReport),
             ai_executive_summary: aiSummary,
             /** Сводный PDF: целиком блок для фронта (продолжение целей + пироги), без фиксированной A4-обрезки */
             pdf_summary_layout: buildSummaryPdfLayoutModel(pdfSummaryPayloadWithShowcase),
             ...(comon_showcase != null ? { comon_showcase } : {}),
+        };
+    }
+
+    /**
+     * Сжатый JSON для промпта ИИ на странице «Текущее состояние» (семья / обязательства / план).
+     */
+    _buildFamilyPageAiContext(client, currentStats, overallPlan, goalsWithPdfMetrics) {
+        const fp =
+            client?.family_profile && typeof client.family_profile === 'object' && !Array.isArray(client.family_profile)
+                ? client.family_profile
+                : {};
+        const obligations = Array.isArray(fp.family_obligations) ? fp.family_obligations : [];
+        const totalOb = obligations.reduce((s, o) => s + Number(o?.amount_monthly || 0), 0);
+        const income = Number(client?.avg_monthly_income || 0) || 0;
+        const pfpMonthly = Number(overallPlan?.pdf_metrics?.portfolio?.total_monthly_replenishment || 0) || 0;
+        const free = Math.round(income - totalOb - pfpMonthly);
+
+        let children = Array.isArray(fp.children)
+            ? fp.children.map((c) => ({
+                  first_name: c.first_name,
+                  birth_date: c.birth_date,
+                  age_years: c.birth_date ? this.calculateAge(c.birth_date) : null,
+              }))
+            : [];
+        if (children.length === 0 && Array.isArray(client?.tax_children) && client.tax_children.length > 0) {
+            children = client.tax_children.map((c) => ({
+                first_name: c.first_name || 'Ребёнок',
+                birth_date: c.birth_date,
+                age_years: c.birth_date ? this.calculateAge(c.birth_date) : null,
+            }));
+        }
+
+        const goalsShort = (goalsWithPdfMetrics || []).map((g) => ({
+            goal_type: g.goal_type,
+            goal_type_id: g.goal_type_id,
+            name: g.goal_title_raw || g.goal_name,
+            monthly_replenishment: g.summary?.monthly_replenishment,
+            initial_capital: g.summary?.initial_capital ?? g.smart_initial_capital,
+        }));
+
+        return {
+            client: {
+                first_name: client?.first_name,
+                age: this.calculateAge(client?.birth_date),
+                marital_status: client?.marital_status || fp.marital_status || null,
+                employment_type: client?.employment_type || null,
+            },
+            family: {
+                children,
+                spouse: fp.spouse || null,
+                family_obligations: obligations.map((o) => ({
+                    type: o.type,
+                    amount_monthly: Math.round(Number(o.amount_monthly || 0) * 100) / 100,
+                })),
+            },
+            cashflow_monthly_rub: {
+                income: Math.round(income * 100) / 100,
+                obligations_total: Math.round(totalOb * 100) / 100,
+                planned_pfp_contributions: Math.round(pfpMonthly * 100) / 100,
+                discretionary_or_free: free,
+            },
+            wealth: {
+                net_worth: currentStats?.net_worth,
+                assets_total: currentStats?.assets_total,
+                liabilities_total: currentStats?.liabilities_total,
+                assets_breakdown: Array.isArray(currentStats?.assets_breakdown)
+                    ? currentStats.assets_breakdown.slice(0, 24)
+                    : [],
+            },
+            goals: goalsShort,
+            plan_waterfall: overallPlan?.chart_waterfall || null,
         };
     }
 
