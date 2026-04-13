@@ -1,0 +1,518 @@
+const fs = require('fs');
+const path = require('path');
+const db = require('../../config/database');
+
+const FINAM_PROJECT_ID = 14;
+const TEMPLATE_DIR = __dirname;
+
+function escapeHtml(value) {
+    if (value == null) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function toNum(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function pad2(value) {
+    return String(value).padStart(2, '0');
+}
+
+function toMonthStartIso(dateLike) {
+    const d = dateLike ? new Date(dateLike) : new Date();
+    if (Number.isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-01`;
+}
+
+function addMonths(isoDate, monthsToAdd) {
+    const d = new Date(`${isoDate}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return null;
+    d.setMonth(d.getMonth() + monthsToAdd);
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-01`;
+}
+
+function formatMoney(value) {
+    const n = toNum(value);
+    return `${n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} руб.`;
+}
+
+function normalizeText(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/ё/g, 'е')
+        .replace(/[^a-zа-я0-9]+/gi, ' ')
+        .trim();
+}
+
+function includesAny(haystack, needles) {
+    return needles.some((needle) => haystack.includes(needle));
+}
+
+function resolveOtherGoalTemplateFile(goalName) {
+    const name = normalizeText(goalName);
+    if (!name) return 'goal-page-education-finam.html';
+    if (includesAny(name, ['квартир', 'ипотек', 'первоначальн'])) return 'goal-page-apartment-finam.html';
+    if (includesAny(name, ['дом', 'загород'])) return 'goal-page-house-finam.html';
+    if (includesAny(name, ['бизнес', 'свой бизнес'])) return 'goal-page-business-finam.html';
+    if (includesAny(name, ['управление капиталом', 'капитал'])) return 'goal-page-capital-finam.html';
+    if (includesAny(name, ['путешеств', 'поездк', 'переезд'])) return 'goal-page-travel-finam.html';
+    if (includesAny(name, ['автомоб', 'машин', 'авто'])) return 'goal-page-car-finam.html';
+    if (includesAny(name, ['образован', 'ребенк'])) return 'goal-page-education-finam.html';
+    return 'goal-page-education-finam.html';
+}
+
+function resolveInvestmentTemplateFile(goalName) {
+    const name = normalizeText(goalName);
+    if (includesAny(name, ['управление капиталом', 'капитал'])) return 'goal-page-capital-finam.html';
+    return 'goal-page-save-grow-finam.html';
+}
+
+function resolveGoalTemplateFile(goal) {
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    if (goalType === 'FIN_RESERVE') return 'goal-page-fin-reserve-finam.html';
+    if (goalType === 'LIFE') return 'goal-page-life-finam.html';
+    if (goalType === 'PENSION') return 'goal-page-pension-finam.html';
+    if (goalType === 'PASSIVE_INCOME') return 'goal-page-passive-income-finam.html';
+    if (goalType === 'INVESTMENT') return resolveInvestmentTemplateFile(goal?.goal_name);
+    if (goalType === 'OTHER') return resolveOtherGoalTemplateFile(goal?.goal_name);
+    return null;
+}
+
+async function readTemplate(fileName) {
+    const abs = path.join(TEMPLATE_DIR, fileName);
+    return fs.promises.readFile(abs, 'utf-8');
+}
+
+function formatMoneyValue(value) {
+    return `${Math.round(toNum(value)).toLocaleString('ru-RU')} ₽`;
+}
+
+function formatRubValue(value) {
+    return `${Math.round(toNum(value)).toLocaleString('ru-RU')} руб.`;
+}
+
+function computeGoalFacts(goal) {
+    const summary = goal?.summary || {};
+    const details = goal?.details || {};
+    const schedule = Array.isArray(details?.monthly_schedule) ? details.monthly_schedule : [];
+    const initial = toNum(summary.initial_capital ?? details.initial_capital);
+    const monthly = toNum(
+        summary.monthly_replenishment ??
+            details.monthly_replenishment ??
+            (String(goal?.goal_type || '').toUpperCase() === 'LIFE' ? toNum(details.annual_premium) / 12 : 0)
+    );
+    const months = Math.max(0, Math.round(toNum(summary.target_months ?? summary.term_months ?? details.term_months)));
+    const totalCapital = toNum(
+        summary.projected_capital_at_end ??
+            summary.projected_capital_at_retirement ??
+            summary.total_capital_at_end ??
+            summary.target_amount_future ??
+            summary.expected_cash_value ??
+            summary.target_amount_initial
+    );
+    const totalTax = toNum(summary.total_tax_benefit ?? details.total_tax_deductions ?? details.total_tax_refund);
+    const totalCofin = toNum(summary.total_cofinancing ?? details.total_cofinancing ?? details.total_cofinancing_nominal);
+
+    const firstDate = schedule.find((row) => row?.date)?.date;
+    const fallbackYear = firstDate ? new Date(firstDate).getFullYear() : new Date().getFullYear();
+    const yearTax = schedule.find((row) => toNum(row?.tax_deduction) > 0)?.date
+        ? new Date(schedule.find((row) => toNum(row?.tax_deduction) > 0)?.date).getFullYear()
+        : fallbackYear;
+    const yearCofin = schedule.find((row) => toNum(row?.cofinancing) > 0)?.date
+        ? new Date(schedule.find((row) => toNum(row?.cofinancing) > 0)?.date).getFullYear()
+        : fallbackYear + 1;
+
+    const taxYearAmount = schedule.reduce((sum, row) => {
+        if (!row?.date) return sum;
+        return new Date(row.date).getFullYear() === yearTax ? sum + toNum(row.tax_deduction) : sum;
+    }, 0);
+    const cofinYearAmount = schedule.reduce((sum, row) => {
+        if (!row?.date) return sum;
+        return new Date(row.date).getFullYear() === yearCofin ? sum + toNum(row.cofinancing) : sum;
+    }, 0);
+
+    const own = Math.max(initial + monthly * months, 0);
+    const extra = Math.max(totalCapital - own, 0);
+    const targetValue = Math.max(totalCapital, own + extra);
+
+    return {
+        initial,
+        monthly,
+        months,
+        totalCapital: targetValue,
+        own,
+        extra,
+        totalTax,
+        totalCofin,
+        yearTax,
+        yearCofin,
+        taxYearAmount,
+        cofinYearAmount,
+    };
+}
+
+function replaceNthMatch(text, regex, replacement, n) {
+    let idx = 0;
+    return text.replace(regex, (...args) => {
+        idx += 1;
+        if (idx === n) return typeof replacement === 'function' ? replacement(...args) : replacement;
+        return args[0];
+    });
+}
+
+function replaceFirstN(text, regex, replacements) {
+    let out = text;
+    replacements.forEach((rep, i) => {
+        out = replaceNthMatch(out, regex, rep, i + 1);
+    });
+    return out;
+}
+
+function removeElementById(html, id) {
+    const marker = `id="${id}"`;
+    const idIdx = html.indexOf(marker);
+    if (idIdx < 0) return html;
+    const openIdx = html.lastIndexOf('<div', idIdx);
+    if (openIdx < 0) return html;
+    let i = openIdx;
+    let depth = 0;
+    while (i < html.length) {
+        const nextOpen = html.indexOf('<div', i);
+        const nextClose = html.indexOf('</div>', i);
+        if (nextClose < 0) return html;
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+            depth += 1;
+            i = nextOpen + 4;
+            continue;
+        }
+        depth -= 1;
+        i = nextClose + 6;
+        if (depth <= 0) {
+            return html.slice(0, openIdx) + html.slice(i);
+        }
+    }
+    return html;
+}
+
+function applyGoalFactsToTemplate(html, goal) {
+    const facts = computeGoalFacts(goal);
+    let out = html;
+
+    out = out.replace(/(Налоговый вычет за )\d{4}( год)/g, `$1${facts.yearTax}$2`);
+    out = out.replace(/(Софинансирование за )\d{4}( год)/g, `$1${facts.yearCofin}$2`);
+
+    out = replaceFirstN(
+        out,
+        /<div class="tax-card-value">[^<]*<\/div>/g,
+        [
+            `<div class="tax-card-value">${formatMoneyValue(facts.taxYearAmount)}</div>`,
+            `<div class="tax-card-value">${formatMoneyValue(facts.totalTax)}</div>`,
+            `<div class="tax-card-value">${formatMoneyValue(facts.cofinYearAmount)}</div>`,
+            `<div class="tax-card-value">${formatMoneyValue(facts.totalCofin)}</div>`,
+        ]
+    );
+
+    out = replaceFirstN(
+        out,
+        /<span class="fin-bar-val">[^<]*<\/span>/g,
+        [
+            `<span class="fin-bar-val">${formatRubValue(facts.own)}</span>`,
+            `<span class="fin-bar-val">${formatRubValue(facts.extra)}</span>`,
+            `<span class="fin-bar-val">${formatRubValue(facts.totalCapital)}</span>`,
+            `<span class="fin-bar-val">${formatRubValue(facts.cofinYearAmount)}</span>`,
+            `<span class="fin-bar-val">${formatRubValue(facts.totalCofin)}</span>`,
+        ]
+    );
+
+    out = out.replace(/<div class="capital-exact">[^<]*<\/div>/, `<div class="capital-exact">${formatMoneyValue(facts.totalCapital)}</div>`);
+    out = out.replace(
+        /<div class="capital-big">[^<]*<span>[^<]*<\/span><\/div>/,
+        `<div class="capital-big">${(facts.totalCapital / 1_000_000).toLocaleString('ru-RU', {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        })}<span> млн ₽</span></div>`
+    );
+
+    const shouldShowBenefits = facts.taxYearAmount > 0 || facts.totalTax > 0 || facts.cofinYearAmount > 0 || facts.totalCofin > 0;
+    if (!shouldShowBenefits) {
+        const ids = [
+            'savegrow-benefits-dynamic',
+            'capital-goal-benefits-dynamic',
+            'education-benefits-dynamic',
+            'apartment-benefits-dynamic',
+            'house-benefits-dynamic',
+            'business-goal-benefits-dynamic',
+            'travel-goal-benefits-dynamic',
+            'car-goal-benefits-dynamic',
+            'passive-benefits-dynamic',
+        ];
+        ids.forEach((id) => {
+            out = removeElementById(out, id);
+        });
+    }
+    return out;
+}
+
+function upsertRow(byMonth, isoDate) {
+    if (!isoDate) return null;
+    if (!byMonth.has(isoDate)) {
+        byMonth.set(isoDate, {
+            date: isoDate,
+            replenishment: 0,
+            tax_deduction: 0,
+            cofinancing: 0,
+            total_capital: 0,
+            schedule_row_kind: '',
+        });
+    }
+    return byMonth.get(isoDate);
+}
+
+function getGoalInitialFromSchedule(goal) {
+    const rows = Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
+    const initial = rows.find((row) => String(row?.schedule_row_kind || '').toUpperCase() === 'INITIAL_LUMP');
+    if (initial) return toNum(initial.replenishment);
+    return toNum(goal?.summary?.initial_capital);
+}
+
+function buildRepleneshmentRows(report = {}) {
+    const goals = Array.isArray(report?.goals_detailed) ? report.goals_detailed : [];
+    const byMonth = new Map();
+    const currentMonth = toMonthStartIso(new Date());
+
+    const initialRow = upsertRow(byMonth, currentMonth);
+    if (initialRow) initialRow.schedule_row_kind = 'INITIAL_LUMP';
+
+    for (const goal of goals) {
+        const goalType = String(goal?.goal_type || '').toUpperCase();
+        if (goalType === 'RENT' || goalType === 'LIFE') continue;
+
+        const schedule = Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
+        for (const srcRow of schedule) {
+            const isoDate = toMonthStartIso(srcRow?.date);
+            if (!isoDate) continue;
+            const row = upsertRow(byMonth, isoDate);
+            row.replenishment += toNum(srcRow?.replenishment);
+            row.tax_deduction += toNum(srcRow?.tax_deduction);
+            row.cofinancing += toNum(srcRow?.cofinancing);
+            row.total_capital += toNum(srcRow?.total_capital);
+        }
+
+        if (initialRow) initialRow.replenishment += getGoalInitialFromSchedule(goal);
+    }
+
+    for (const goal of goals) {
+        const goalType = String(goal?.goal_type || '').toUpperCase();
+        if (goalType !== 'LIFE') continue;
+
+        const annualPremium = toNum(goal?.details?.annual_premium ?? goal?.summary?.initial_capital);
+        const monthlyPremium = annualPremium / 12;
+        const lifeTaxDeduction = toNum(goal?.summary?.tax_deduction_2026 ?? goal?.details?.tax_deduction_2026);
+        const termMonths = Math.max(0, Math.round(toNum(goal?.summary?.term_months ?? goal?.summary?.target_months)));
+        const lifeFinalCapital = toNum(
+            goal?.summary?.projected_capital_at_end ??
+                goal?.summary?.expected_cash_value ??
+                goal?.summary?.target_amount_future
+        );
+        const lifeStart = currentMonth;
+
+        if (initialRow) initialRow.replenishment += annualPremium;
+
+        for (let i = 1; i <= termMonths; i += 1) {
+            const isoDate = addMonths(lifeStart, i);
+            if (!isoDate) continue;
+            const row = upsertRow(byMonth, isoDate);
+            row.replenishment += monthlyPremium;
+
+            const monthNumber = Number(isoDate.slice(5, 7));
+            if (monthNumber === 4 && lifeTaxDeduction > 0) {
+                row.tax_deduction += lifeTaxDeduction;
+            }
+
+            if (i === termMonths) {
+                row.total_capital += lifeFinalCapital;
+            }
+        }
+    }
+
+    return [...byMonth.values()].sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
+function buildRepleneshmentPageHtml(report = {}) {
+    const rows = buildRepleneshmentRows(report);
+    const rowHtml = rows
+        .map(
+            (row) => `
+          <tr>
+            <td>${escapeHtml(row.date)}</td>
+            <td>${escapeHtml(formatMoney(row.replenishment))}</td>
+            <td>${escapeHtml(formatMoney(row.tax_deduction))}</td>
+            <td>${escapeHtml(formatMoney(row.cofinancing))}</td>
+            <td>${escapeHtml(formatMoney(row.total_capital))}</td>
+          </tr>`
+        )
+        .join('\n');
+
+    return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { size: 595px 842px; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 595px;
+      height: 842px;
+      padding: 30px 36px 26px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #fafbfc;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      color: #111827;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    h1 { font-size: 16px; line-height: 1.2; margin-bottom: 10px; }
+    .hint { font-size: 10px; color: #4b5563; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.9); }
+    th, td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; font-size: 10px; }
+    th { background: #f3f4f6; font-weight: 700; }
+    tbody tr:nth-child(even) { background: rgba(249,250,251,0.8); }
+  </style>
+</head>
+<body>
+  <h1>Сводный график пополнений</h1>
+  <div class="hint">Первая строка — текущий месяц (INITIAL_LUMP), далее агрегированный monthly_schedule (LIFE отдельно).</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Пополнение</th>
+        <th>Налоговый вычет</th>
+        <th>Софинансирование</th>
+        <th>Итоговый капитал</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowHtml}
+    </tbody>
+  </table>
+</body>
+</html>`;
+}
+
+async function fetchAiB2cAvatarUrl(projectId) {
+    if (projectId == null || projectId === '') return null;
+    try {
+        const row = await db('ai_b2c_settings').where({ project_id: Number(projectId) }).first();
+        const url = row?.avatar_url;
+        return typeof url === 'string' && url.trim() ? url.trim() : null;
+    } catch (err) {
+        console.warn('[buildFinamReportHtml] ai_b2c_settings.avatar_url:', err?.message || err);
+        return null;
+    }
+}
+
+/**
+ * Подставляет аватар B2C-ассистента (R2 / ai_b2c_settings) вместо плейсхолдеров «ИИ» в финам-шаблонах.
+ */
+function applyFinamAiAvatarHtml(html, avatarUrl) {
+    if (!avatarUrl || typeof html !== 'string') return html;
+    const safe = escapeHtml(avatarUrl);
+    const imgTag = `<img src="${safe}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:50%;"/>`;
+
+    let out = html;
+    if (!out.includes('data-finam-report-ai-avatar')) {
+        const styleBlock = `<style data-finam-report-ai-avatar="1">
+.goal-ai-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.avatar > img, .avatar-sm > img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
+.ai-avatar { position: relative; }
+.ai-avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; z-index: 2; }
+.ai-avatar:has(> img)::after { display: none !important; }
+</style>`;
+        out = out.replace(/<head(\s[^>]*)?>/i, (m) => `${m}${styleBlock}`);
+    }
+
+    out = out.replace(
+        /<div class="avatar">\s*<span class="avatar-text">[\s\S]*?<\/span>\s*<\/div>/gi,
+        `<div class="avatar">${imgTag}</div>`
+    );
+
+    out = out.replace(
+        /<div class="avatar-sm[^"]*">\s*<span class="avatar-sm-text">[\s\S]*?<\/span>\s*<\/div>/gi,
+        (m) => {
+            const cls = m.match(/^<div class="([^"]*)"/i);
+            const c = cls ? cls[1] : 'avatar-sm';
+            return `<div class="${c}">${imgTag}</div>`;
+        }
+    );
+
+    out = out.replace(/<div class="goal-ai-avatar">\s*<svg[\s\S]*?<\/svg>\s*<\/div>/gi, `<div class="goal-ai-avatar">${imgTag}</div>`);
+
+    out = out.replace(/<div class="ai-avatar"([^>]*)>\s*<\/div>/gi, `<div class="ai-avatar"$1>${imgTag}</div>`);
+
+    return out;
+}
+
+function filterGoalsByTypes(goals, goalTypesRaw) {
+    const list = Array.isArray(goals) ? goals : [];
+    if (!goalTypesRaw) return list;
+    const valid = new Set(['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'OTHER', 'PASSIVE_INCOME']);
+    const requested = new Set(
+        String(goalTypesRaw)
+            .split(',')
+            .map((x) => x.trim().toUpperCase())
+            .filter((x) => valid.has(x))
+    );
+    if (!requested.size) return list;
+    return list.filter((goal) => requested.has(String(goal?.goal_type || '').toUpperCase()));
+}
+
+async function buildFinamFullPageHtmlList({ report, includeSummary = true, goalTypes = null, finamAiAvatarUrl = null, projectId = null }) {
+    let avatarUrl = finamAiAvatarUrl;
+    if (!avatarUrl && projectId != null) {
+        avatarUrl = await fetchAiB2cAvatarUrl(projectId);
+    }
+
+    const pages = [];
+    if (includeSummary) {
+        pages.push(await readTemplate('page-2-finam.html'));
+        pages.push(await readTemplate('page-3-family-finam.html'));
+        pages.push(await readTemplate('page-4-targets-finam.html'));
+    }
+
+    const goals = filterGoalsByTypes(report?.goals_detailed || [], goalTypes);
+    for (const goal of goals) {
+        const template = resolveGoalTemplateFile(goal);
+        if (!template) continue;
+        const raw = await readTemplate(template);
+        pages.push(applyGoalFactsToTemplate(raw, goal));
+    }
+
+    pages.push(buildRepleneshmentPageHtml(report));
+    pages.push(await readTemplate('tax-planning-block-finam.html'));
+    pages.push(await readTemplate('comon-autofollow-finam.html'));
+    pages.push(await readTemplate('portfolio-final-page-finam.html'));
+
+    if (!avatarUrl) return pages;
+    return pages.map((pageHtml) => applyFinamAiAvatarHtml(pageHtml, avatarUrl));
+}
+
+module.exports = {
+    FINAM_PROJECT_ID,
+    resolveOtherGoalTemplateFile,
+    resolveGoalTemplateFile,
+    buildRepleneshmentPageHtml,
+    buildFinamFullPageHtmlList,
+    applyGoalFactsToTemplate,
+    fetchAiB2cAvatarUrl,
+    applyFinamAiAvatarHtml,
+};

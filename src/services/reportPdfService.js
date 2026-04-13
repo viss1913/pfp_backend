@@ -4,13 +4,18 @@ const puppeteer = require('puppeteer');
 
 const reportService = require('./reportService');
 const pdfSettingsService = require('./pdfSettingsService');
+const macroService = require('./macroService');
 const { buildReportCoverHtml } = require('../reports/cover/buildCoverHtml');
 const { buildComonAutofollowPageHtml } = require('../reports/summary/buildSummaryOverviewHtml');
+const { buildInflationPageFinamHtml } = require('../reports/finam/buildInflationPageFinamHtml');
+const {
+    FINAM_PROJECT_ID,
+    buildFinamFullPageHtmlList,
+} = require('../reports/finam/buildFinamReportHtml');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('../reports/themes/reportRenderers');
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 
 const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'OTHER'];
-const FINAM_PROJECT_ID = 14;
 
 function normalizeGoalTypes(goalTypesRaw) {
     if (!goalTypesRaw) return null;
@@ -103,6 +108,38 @@ function estimateScheduleChunks(goal) {
     return 1 + Math.ceil((scheduleRows - firstPageRows) / nextPageRows);
 }
 
+function toIsoDateOnly(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+}
+
+async function loadMacroHistorySafe(slug, from, to) {
+    try {
+        const rows = await macroService.getHistory(slug, from, to);
+        return Array.isArray(rows) ? rows : [];
+    } catch (err) {
+        console.warn(`[reportPdfService] macro history "${slug}" unavailable:`, err?.message || err);
+        return [];
+    }
+}
+
+async function buildFinamInflationPageHtml() {
+    const to = toIsoDateOnly(new Date());
+    const fromDate = new Date();
+    fromDate.setFullYear(fromDate.getFullYear() - 1);
+    const from = toIsoDateOnly(fromDate);
+
+    return await buildInflationPageFinamHtml({
+        inflationSeries: await loadMacroHistorySafe('cbr_inflation_annual', from, to),
+        keyRateSeries: await loadMacroHistorySafe('cbr_key_rate', from, to),
+        ofz2Series: await loadMacroHistorySafe('moex_ofz_gcurve_2y', from, to),
+        ofz5Series: await loadMacroHistorySafe('moex_ofz_gcurve_5y', from, to),
+        ofz10Series: await loadMacroHistorySafe('moex_ofz_gcurve_10y', from, to),
+        corpIndexSeries: await loadMacroHistorySafe('moex_rucbicp', from, to),
+    });
+}
+
 function buildRostechPensionOnlyToc({ hasCover, goal }) {
     let page = hasCover ? 2 : 1;
     const schedulePageCount = estimateScheduleChunks(goal);
@@ -191,6 +228,7 @@ class ReportPdfService {
     }) {
         const report = await reportService.getClientReportData(clientId, projectId);
         const themeKey = resolveReportThemeKey(projectId);
+        const isFinamProject = themeKey !== 'rostech' && Number(projectId) === FINAM_PROJECT_ID;
 
         let pdfSettings;
         if (brandingAgentId !== undefined) {
@@ -240,7 +278,7 @@ class ReportPdfService {
             reportGoalTypes.size === 1 &&
             reportGoalTypes.has('OTHER');
 
-        if (includeSummary && !isRostechPensionOnly && !isRostechInvestmentOnly && !isRostechOtherOnly) {
+        if (includeSummary && !isFinamProject && !isRostechPensionOnly && !isRostechInvestmentOnly && !isRostechOtherOnly) {
             const net = report.current_situation?.net_worth;
             const capitalStr =
                 net != null && Number.isFinite(Number(net))
@@ -273,8 +311,7 @@ class ReportPdfService {
             );
         }
 
-        const shouldIncludeComonAutofollowPage =
-            themeKey !== 'rostech' && Number(projectId) === FINAM_PROJECT_ID;
+        const shouldIncludeComonAutofollowPage = isFinamProject;
         const comonAutofollowPageHtml = shouldIncludeComonAutofollowPage
             ? await buildComonAutofollowPageHtml({
                 reportPayload: {
@@ -288,35 +325,46 @@ class ReportPdfService {
             })
             : null;
 
-        for (const goalType of targetGoalTypes) {
-            const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
-            if (!goal) continue;
-            const pageHtmls = await buildGoalPagesHtmlByTheme({
-                themeKey,
-                goalType,
-                goal,
-                clientName,
-                options: {
-                    inlineLocalAssets: true,
-                    accentColor: pdfSettings?.summary_chart_color || undefined,
-                    textColor: pdfSettings?.summary_text_color || '#0f172a',
-                    logoSrc: pdfSettings?.summary_logo_url || undefined,
-                    backgroundSrc: pdfSettings?.summary_background_url || '',
-                    lineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#5b6cff',
-                    backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
-                    backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
-                    overallPlan: report?.overall_plan || null,
-                    comonShowcase: report?.comon_showcase || null,
-                    clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
-                    reportGoalsOrdered: report?.goals_detailed || [],
-                },
+        if (isFinamProject) {
+            const finamPages = await buildFinamFullPageHtmlList({
+                report,
+                includeSummary,
+                goalTypes,
+                projectId,
             });
-            if (Array.isArray(pageHtmls) && pageHtmls.length > 0) {
-                pageHtmlList.push(...pageHtmls.filter((x) => typeof x === 'string' && x.trim()));
+            pageHtmlList.push(...finamPages);
+            pageHtmlList.push(await buildFinamInflationPageHtml());
+        } else {
+            for (const goalType of targetGoalTypes) {
+                const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
+                if (!goal) continue;
+                const pageHtmls = await buildGoalPagesHtmlByTheme({
+                    themeKey,
+                    goalType,
+                    goal,
+                    clientName,
+                    options: {
+                        inlineLocalAssets: true,
+                        accentColor: pdfSettings?.summary_chart_color || undefined,
+                        textColor: pdfSettings?.summary_text_color || '#0f172a',
+                        logoSrc: pdfSettings?.summary_logo_url || undefined,
+                        backgroundSrc: pdfSettings?.summary_background_url || '',
+                        lineColor: pdfSettings?.summary_line_color || pdfSettings?.summary_chart_color || '#5b6cff',
+                        backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
+                        backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
+                        overallPlan: report?.overall_plan || null,
+                        comonShowcase: report?.comon_showcase || null,
+                        clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
+                        reportGoalsOrdered: report?.goals_detailed || [],
+                    },
+                });
+                if (Array.isArray(pageHtmls) && pageHtmls.length > 0) {
+                    pageHtmlList.push(...pageHtmls.filter((x) => typeof x === 'string' && x.trim()));
+                }
             }
         }
 
-        if (comonAutofollowPageHtml) {
+        if (!isFinamProject && comonAutofollowPageHtml) {
             // Place Comon page before inflation page when present; otherwise right after summary.
             const inflationIdx = pageHtmlList.findIndex((html) => /инфляц/i.test(String(html)));
             if (inflationIdx >= 0) {

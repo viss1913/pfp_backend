@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Введение — Финансовый план</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Фон «тетрадь в клетку»: шаг 20px ≈ школьная клетка на экране/PDF */
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      background-position: 0 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: #6366f1;
+    }
+
+    .logo-text {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #000000;
+      padding: 3px 10px;
+      border: 1px solid #000000;
+      border-radius: 4px;
+    }
+
+    .divider {
+      height: 1px;
+      background: #000000;
+      margin-bottom: 12px;
+    }
+
+    .hero {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 12px;
+      align-items: flex-start;
+    }
+
+    .hero-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .hero-image {
+      width: 130px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      height: 130px;
+      background: #e8e8e8;
+      border: 1px solid #cccccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-image-placeholder {
+      font-size: 8px;
+      color: #999999;
+      text-align: center;
+      line-height: 1.4;
+      padding: 10px;
+    }
+
+    .section-tag {
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #6366f1;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-tag::before {
+      content: '';
+      width: 12px;
+      height: 2px;
+      background: #6366f1;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.18;
+      letter-spacing: -0.5px;
+      color: #000000;
+      margin-bottom: 6px;
+    }
+
+    h1 span {
+      color: #777777;
+    }
+
+    .lead {
+      font-size: 9.5px;
+      font-weight: 400;
+      line-height: 1.55;
+      color: #222222;
+    }
+
+    .lead em {
+      font-style: normal;
+      color: #000000;
+      font-weight: 700;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .metric {
+      text-align: center;
+      padding: 10px 6px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #000000;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+
+    .metric-value span {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6366f1;
+    }
+
+    .metric-desc {
+      font-size: 8px;
+      font-weight: 400;
+      color: #333333;
+      line-height: 1.35;
+    }
+
+    .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .col-card {
+      padding: 10px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+      position: relative;
+    }
+
+    .col-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 12px;
+      right: 12px;
+      height: 2px;
+      background: #6366f1;
+    }
+
+    .col-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 5px;
+      background: #e0e7ff;
+      border: 1px solid #a5b4fc;
+    }
+
+    .col-icon svg {
+      width: 11px;
+      height: 11px;
+      stroke: #4f46e5;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .col-title {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 2px;
+    }
+
+    .col-text {
+      font-size: 8px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #222222;
+    }
+
+    .insight {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+      margin-bottom: 8px;
+    }
+
+    .insight-left {
+      flex: 1;
+      padding: 10px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .insight-left h3 {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 4px;
+      line-height: 1.35;
+    }
+
+    .insight-left h3 span {
+      color: #777777;
+    }
+
+    .insight-left p {
+      font-size: 8px;
+      font-weight: 400;
+      line-height: 1.55;
+      color: #222222;
+    }
+
+    .insight-right {
+      width: 172px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .insight-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 8px;
+      border-radius: 5px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .insight-item-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .insight-item-label {
+      font-size: 8px;
+      font-weight: 600;
+      color: #000000;
+    }
+
+    .insight-item-desc {
+      font-size: 7px;
+      font-weight: 400;
+      color: #555555;
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    .checklist {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 14px;
+      margin-bottom: auto;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .checklist-header {
+      grid-column: 1 / -1;
+      margin-bottom: 1px;
+    }
+
+    .checklist-header h3 {
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #000000;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .check-icon {
+      width: 15px;
+      height: 15px;
+      border-radius: 3px;
+      background: #e0e7ff;
+      border: 1px solid #a5b4fc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .check-icon svg {
+      width: 8px;
+      height: 8px;
+      stroke: #4f46e5;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .check-text {
+      font-size: 8px;
+      font-weight: 500;
+      color: #111111;
+      line-height: 1.3;
+    }
+
+    .partners-section {
+      margin-top: 8px;
+    }
+
+    .partners-label {
+      font-size: 7.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #555555;
+      margin-bottom: 5px;
+    }
+
+    .partners-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .partner {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 7px;
+      border-radius: 5px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .partner-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      background: #e0e7ff;
+      border: 1px solid #a5b4fc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .partner-icon svg {
+      width: 8px;
+      height: 8px;
+      stroke: #4f46e5;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .partner-name {
+      font-size: 7px;
+      font-weight: 600;
+      color: #111111;
+      line-height: 1.25;
+    }
+
+    .partner-desc {
+      font-size: 5.5px;
+      font-weight: 400;
+      color: #555555;
+      line-height: 1.25;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 6px;
+      padding-top: 5px;
+      border-top: 1px solid #cccccc;
+    }
+
+    .footer-left {
+      font-size: 5.5px;
+      font-weight: 400;
+      color: #555555;
+      line-height: 1.5;
+    }
+
+    .footer-right {
+      font-size: 5.5px;
+      font-weight: 400;
+      color: #555555;
+      text-align: right;
+    }
+
+    @media print {
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      article.page {
+        margin: 0;
+      }
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Введение</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="hero">
+      <div class="hero-text">
+        <div class="section-tag">Почему это важно</div>
+        <h1>Жизнь без финансовых сюрпризов <span>начинается с плана</span></h1>
+        <p class="lead">
+          Финансовое планирование важно не потому, что «надо считать», а потому, что без него жизнь превращается в череду сюрпризов — и почти никогда приятных. У большинства людей нет проблемы <em>«мало зарабатывать»</em> — есть проблема <em>«не понимать, куда всё девается»</em>. Без честной картины решения принимаются на эмоциях: кредиты, импульсивные покупки, инвестиции без стратегии.
+        </p>
+      </div>
+      <div class="hero-image">
+        <div class="hero-image-placeholder">./assets/<br>hero-image.webp<br><br>500 × 600</div>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-value">67<span>%</span></div>
+        <div class="metric-desc">россиян не ведут бюджет и не знают, куда уходят деньги</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">×2</div>
+        <div class="metric-desc">быстрее достижение цели с планом по сравнению с «как-нибудь»</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">30<span>%</span></div>
+        <div class="metric-desc">в среднем можно высвободить без потери качества жизни</div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div class="col-card">
+        <div class="col-icon">
+          <svg viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div class="col-title">Карта от А к B</div>
+        <div class="col-text">Желания превращаются в маршрут: суммы, сроки, инструменты.</div>
+      </div>
+      <div class="col-card">
+        <div class="col-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="col-title">Контроль вместо хаоса</div>
+        <div class="col-text">Заранее знаете, что и когда уйдёт. Без долгов и паники.</div>
+      </div>
+      <div class="col-card">
+        <div class="col-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+        </div>
+        <div class="col-title">Свобода выбора</div>
+        <div class="col-text">Менять работу, переезжать — зная, что система держит.</div>
+      </div>
+    </div>
+
+    <div class="insight">
+      <div class="insight-left">
+        <div class="section-tag" style="margin-bottom: 3px;">Зачем консультант</div>
+        <h3>Не про экономию — <span>про умное распределение</span></h3>
+        <p>Самостоятельно учесть цели, доходы, расходы, риски и налоги сложно — а ещё не попасть на «модные» решения. Консультант превращает хаос в план, который можно выполнять годами.</p>
+      </div>
+      <div class="insight-right">
+        <div class="insight-item">
+          <div class="insight-item-dot" style="background: #10b981;"></div>
+          <span class="insight-item-label">Инфляция</span>
+          <span class="insight-item-desc">учтена в прогнозах</span>
+        </div>
+        <div class="insight-item">
+          <div class="insight-item-dot" style="background: #6366f1;"></div>
+          <span class="insight-item-label">Подушка безопасности</span>
+          <span class="insight-item-desc">6–12 месяцев</span>
+        </div>
+        <div class="insight-item">
+          <div class="insight-item-dot" style="background: #6366f1;"></div>
+          <span class="insight-item-label">Потеря работы</span>
+          <span class="insight-item-desc">запас предусмотрен</span>
+        </div>
+        <div class="insight-item">
+          <div class="insight-item-dot" style="background: #6366f1;"></div>
+          <span class="insight-item-label">Налоги</span>
+          <span class="insight-item-desc">оптимизация</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="checklist">
+      <div class="checklist-header">
+        <h3>Что вы получите в результате</h3>
+      </div>
+      <div class="check-item">
+        <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="check-text">Анализ текущего финансового положения</span>
+      </div>
+      <div class="check-item">
+        <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="check-text">Структурированный бюджет и аудит расходов</span>
+      </div>
+      <div class="check-item">
+        <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="check-text">План накоплений под каждую цель</span>
+      </div>
+      <div class="check-item">
+        <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="check-text">Подбор инвестиционных инструментов</span>
+      </div>
+      <div class="check-item">
+        <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="check-text">Защита от рисков: страховка и подушка</span>
+      </div>
+      <div class="check-item">
+        <div class="check-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="check-text">Дорожная карта с конкретными сроками</span>
+      </div>
+    </div>
+
+    <div class="partners-section">
+      <div class="partners-label">Проект реализован совместно с партнёрами</div>
+      <div class="partners-row">
+        <div class="partner">
+          <div class="partner-icon">
+            <svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg>
+          </div>
+          <div>
+            <div class="partner-name">BankFuture</div>
+            <div class="partner-desc">Банковские решения</div>
+          </div>
+        </div>
+        <div class="partner">
+          <div class="partner-icon">
+            <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 4-6"/></svg>
+          </div>
+          <div>
+            <div class="partner-name">АО «Финам»</div>
+            <div class="partner-desc">Инвестиционный брокер</div>
+          </div>
+        </div>
+        <div class="partner">
+          <div class="partner-icon">
+            <svg viewBox="0 0 24 24"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-0.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9h1"/><path d="M16 11h0"/></svg>
+          </div>
+          <div>
+            <div class="partner-name">НПФ «Ренессанс<br>Накопление»</div>
+            <div class="partner-desc">Пенсионный фонд</div>
+          </div>
+        </div>
+        <div class="partner">
+          <div class="partner-icon">
+            <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </div>
+          <div>
+            <div class="partner-name">СК «Ренессанс<br>Жизнь»</div>
+            <div class="partner-desc">Страхование жизни</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

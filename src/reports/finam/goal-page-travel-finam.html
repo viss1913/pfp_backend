@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Путешествие — Финансовый план</title>
+  <!--
+    Финам PDF: OTHER, сценарий «Путешествие» (goal_name / тип на бэке). Две страницы.
+    Номинал без отдельного блока инфляции в макете.
+    Стр.1: целевая сумма, горизонт, план, пироги; стр.2: состав капитала;
+      #travel-goal-benefits-dynamic — вычеты/софин при ненулевых полях; график schedule[].
+    Плейсхолдеры: target_capital_end, initial_capital, monthly_replenishment, horizon_months, yield, split, bars, schedule.
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+    }
+
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+
+    /* Путешествие — типографика как у остальных goal-страниц Финам. */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #0891b2; }
+    .logo-text {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+
+    .doc-label {
+      font-size: 9px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 4px 11px;
+      border: 1px solid #000000; border-radius: 4px;
+      max-width: 260px;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 10px; }
+
+    .avatar-section {
+      display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px;
+    }
+
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .avatar-text { font-size: 10px; font-weight: 700; color: #ffffff; }
+
+    .speech {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 7px 11px; position: relative;
+    }
+
+    .speech::before {
+      content: ''; position: absolute; left: -6px; top: 11px;
+      width: 9px; height: 9px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech p { font-size: 9.5px; font-weight: 400; color: #222222; line-height: 1.5; }
+    .speech em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .travel-hero {
+      display: flex; gap: 9px; align-items: stretch; margin-bottom: 9px;
+    }
+
+    .travel-hero-main {
+      flex: 1; min-width: 0;
+      padding: 8px 10px; border-radius: 6px;
+      background: #ecfeff; border: 1px solid #a5f3fc;
+    }
+
+    .travel-tag {
+      font-size: 7px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #0e7490;
+      display: inline-block; padding: 2px 6px; border-radius: 3px;
+      background: #cffafe; border: 1px solid #22d3ee;
+      margin-bottom: 4px;
+    }
+
+    .travel-hero-title {
+      font-size: 11.5px; font-weight: 700; color: #164e63; line-height: 1.2;
+      margin-bottom: 3px;
+    }
+
+    .travel-hero-sub {
+      font-size: 7.5px; font-weight: 400; color: #4b5563; line-height: 1.45;
+    }
+
+    .travel-hero-image {
+      width: 96px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
+      background: #cffafe; border: 1px solid #22d3ee;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 74px;
+    }
+
+    .travel-hero-image img {
+      width: 100%; height: 100%; object-fit: cover;
+      display: block;
+    }
+
+    .capital-highlight--travel {
+      background: #ecfeff;
+      border-color: #67e8f9;
+    }
+
+    .capital-highlight--travel .capital-highlight-title { color: #155e75; }
+
+    .capital-highlight--travel .capital-highlight-desc { color: #0e7490; }
+
+    .capital-highlight--travel .capital-big { color: #0891b2; }
+
+    .capital-highlight--travel .capital-big span { color: #06b6d4; }
+
+    .capital-highlight--travel .capital-exact { color: #0e7490; }
+
+    .section-label {
+      font-size: 7.5px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #0891b2;
+      margin: 7px 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-label::before {
+      content: ''; width: 14px; height: 2px; background: #0891b2; border-radius: 1px;
+    }
+
+    .metrics-2 {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 9px;
+    }
+
+    .metric {
+      text-align: center; padding: 8px 6px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc;
+    }
+
+    .metric-value {
+      font-size: 13px; font-weight: 700; color: #000000; line-height: 1;
+      margin-bottom: 3px;
+    }
+
+    .metric-value span { font-size: 8px; font-weight: 600; color: #0891b2; }
+
+    .metric-desc {
+      font-size: 7px; font-weight: 400; color: #555555; line-height: 1.3;
+    }
+
+    .capital-highlight {
+      display: flex; gap: 8px; padding: 8px 10px; border-radius: 6px;
+      background: #ecfdf5; border: 1px solid #6ee7b7; margin-bottom: 9px;
+    }
+
+    .capital-highlight-main { flex: 1; min-width: 0; }
+
+    .capital-highlight-title {
+      font-size: 8px; font-weight: 600; color: #065f46; margin-bottom: 3px;
+    }
+
+    .capital-highlight-desc {
+      font-size: 7.5px; font-weight: 400; color: #047857; line-height: 1.4;
+    }
+
+    .capital-highlight-desc em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .capital-highlight-num {
+      text-align: right; flex-shrink: 0; align-self: center;
+    }
+
+    .capital-big {
+      font-size: 15px; font-weight: 800; color: #059669; line-height: 1;
+    }
+
+    .capital-big span { font-size: 9px; font-weight: 600; color: #10b981; }
+
+    .capital-exact {
+      font-size: 7px; font-weight: 600; color: #047857; margin-top: 3px;
+    }
+
+    .plan-flow {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 0;
+      width: 100%;
+      margin-bottom: 9px;
+    }
+
+    .plan-step {
+      flex: 1 1 0;
+      min-width: 0;
+      text-align: center;
+      padding: 6px 4px 7px;
+      border-radius: 8px;
+      background: linear-gradient(165deg, #ffffff 0%, #f5f7ff 100%);
+      border: 1px solid #c7d2fe;
+      box-shadow: 0 1px 0 rgba(99, 102, 241, 0.06), 0 2px 8px rgba(79, 70, 229, 0.06);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .plan-step.finish {
+      background: linear-gradient(165deg, #ecfdf5 0%, #d1fae5 100%);
+      border-color: #6ee7b7;
+      box-shadow: 0 1px 0 rgba(16, 185, 129, 0.12), 0 2px 8px rgba(5, 150, 105, 0.08);
+    }
+
+    .plan-step-label {
+      font-size: 6px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #4338ca;
+      line-height: 1.15;
+    }
+
+    .plan-step.finish .plan-step-label { color: #047857; }
+
+    .plan-step-value {
+      font-size: 7.5px;
+      font-weight: 800;
+      color: #111827;
+      line-height: 1.15;
+    }
+
+    .plan-step.finish .plan-step-value { color: #065f46; }
+
+    .plan-step.finish .plan-step-value:last-child {
+      font-size: 6.5px;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+
+    .plan-arrow {
+      flex-shrink: 0;
+      width: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      position: relative;
+    }
+
+    .plan-arrow svg {
+      width: 12px;
+      height: 20px;
+      display: block;
+      overflow: visible;
+    }
+
+    .plan-arrow::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .pie-row {
+      display: flex; gap: 10px; align-items: stretch; margin-bottom: 6px;
+    }
+
+    .pie-card {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 8px 10px;
+      border-radius: 10px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .pie-card-title {
+      font-size: 8px;
+      font-weight: 700;
+      color: #111827;
+      text-align: center;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+
+    .pie-svg-wrap {
+      width: 94px;
+      height: 94px;
+      margin-bottom: 6px;
+    }
+
+    .pie-svg-wrap svg { width: 100%; height: 100%; display: block; }
+
+    .pie-legend {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .pie-legend-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      font-size: 6.5px;
+      line-height: 1.4;
+      color: #374151;
+    }
+
+    .pie-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 1px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.9);
+    }
+
+    .pie-dot--dep { background: #c084fc; }
+    .pie-dot--bond { background: #2563eb; }
+    .pie-dot--stock { background: #7c3aed; }
+
+    .pie-legend-name { font-weight: 600; color: #111827; }
+    .pie-legend-meta { font-weight: 400; color: #6b7280; }
+
+    /* Столбики + линейный график (стр.2) */
+    .fin-bar-chart-block {
+      margin-bottom: 9px;
+      padding: 8px 10px 9px;
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .fin-bar-chart-title {
+      font-size: 8.5px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 5px;
+      line-height: 1.3;
+    }
+
+    .fin-bar-chart-hint {
+      font-size: 7px;
+      font-weight: 400;
+      color: #6b7280;
+      margin-bottom: 6px;
+      line-height: 1.45;
+    }
+
+    .fin-bar-chart-area {
+      position: relative;
+      height: 86px;
+      padding: 7px 12px 0;
+      border-radius: 4px;
+      background-color: #ffffff;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 15px,
+        rgba(147, 197, 253, 0.45) 15px,
+        rgba(147, 197, 253, 0.45) 15.5px
+      );
+      border: 1px solid #e5e7eb;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 12px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .fin-bar-track {
+      flex: 1;
+      height: 72px;
+      max-width: 112px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .fin-bar {
+      width: 100%;
+      min-height: 16px;
+      border-radius: 5px 5px 0 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 0 3px 5px;
+      box-sizing: border-box;
+    }
+
+    .fin-bar--own { background: #8b8b8b; }
+    .fin-bar--extra { background: #1a1a1a; }
+    .fin-bar--total { background: #4a1942; }
+
+    .fin-bar-val {
+      font-size: 6.5px;
+      font-weight: 700;
+      color: #ffffff;
+      text-align: center;
+      line-height: 1.25;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    }
+
+    .fin-bar-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 14px;
+      margin-top: 7px;
+      padding-top: 7px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .fin-bar-legend-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      max-width: 168px;
+    }
+
+    .fin-bar-swatch {
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .fin-bar-swatch--own { background: #8b8b8b; }
+    .fin-bar-swatch--extra { background: #1a1a1a; }
+    .fin-bar-swatch--total { background: #4a1942; }
+
+    .fin-bar-legend-text {
+      font-size: 6.5px;
+      font-weight: 400;
+      color: #374151;
+      line-height: 1.35;
+    }
+
+    /* Блок вычетов + софин (стр.2), в проде целиком не рендерить при отсутствии эффектов */
+    .tax-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 9px;
+    }
+
+    .tax-card {
+      border-radius: 8px;
+      padding: 9px 11px;
+      text-align: center;
+      border: 1px solid #cccccc;
+    }
+
+    .tax-card.year {
+      background: linear-gradient(180deg, #ecfeff 0%, #cffafe 100%);
+      border-color: #fcd34d;
+    }
+
+    .tax-card.total {
+      background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+      border-color: #a5b4fc;
+    }
+
+    .tax-card-label {
+      font-size: 7px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 5px;
+    }
+
+    .tax-card.year .tax-card-label { color: #155e75; }
+
+    .tax-card.total .tax-card-label { color: #3730a3; }
+
+    .tax-card-value {
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .tax-card.year .tax-card-value { color: #b45309; }
+
+    .tax-card.total .tax-card-value { color: #4338ca; }
+
+    .tax-card-hint {
+      font-size: 6.5px;
+      font-weight: 400;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+
+    /* Подзаголовок внутри блока льгот (между вычетами и софином) */
+    .passive-benefits-subtitle {
+      margin-top: 11px;
+      margin-bottom: 5px;
+    }
+
+    .passive-extras-note {
+      font-size: 7px;
+      color: #4b5563;
+      line-height: 1.45;
+      padding: 7px 10px;
+      border-radius: 6px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 9px;
+    }
+
+    .passive-extras-note strong { font-weight: 700; color: #111827; }
+
+    .chart-card {
+      padding: 8px 8px 6px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 7px;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .chart-title {
+      font-size: 8.5px; font-weight: 600; color: #000000;
+    }
+
+    .chart-legend {
+      display: flex; gap: 8px;
+    }
+
+    .chart-legend-item {
+      display: flex; align-items: center; gap: 3px;
+    }
+
+    .legend-line {
+      width: 12px; height: 2px; border-radius: 1px; flex-shrink: 0;
+      background: #0891b2;
+    }
+
+    .legend-text { font-size: 6.5px; font-weight: 400; color: #555555; }
+
+    .chart-svg { display: block; width: 100%; height: auto; min-height: 142px; }
+
+    .avatar-section-sm {
+      display: flex; gap: 8px; align-items: flex-start; margin-top: 2px;
+    }
+
+    .avatar-sm {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    .avatar-sm-text { font-size: 8px; font-weight: 700; color: #ffffff; }
+
+    .speech-sm {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 5px 9px; position: relative;
+    }
+
+    .speech-sm::before {
+      content: ''; position: absolute; left: -5px; top: 9px;
+      width: 8px; height: 8px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech-sm p { font-size: 8.5px; font-weight: 400; color: #222222; line-height: 1.4; }
+    .speech-sm em { font-style: normal; font-weight: 700; color: #000000; }
+
+    /* Стр.1: не растягиваем пустоту до футера — контент и пироги заполняют низ */
+    article.page:first-of-type .spacer {
+      flex: 0 0 8px;
+      min-height: 0;
+    }
+
+    article.page:not(:first-of-type) .spacer {
+      flex: 1;
+      min-height: 4px;
+    }
+
+    .page-num {
+      font-size: 7px; font-weight: 600; color: #000000;
+      margin-bottom: 3px; text-align: right;
+    }
+
+    .footer {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-top: auto; padding-top: 6px; border-top: 1px solid #cccccc;
+    }
+
+    .footer-left { font-size: 6.5px; font-weight: 400; color: #555555; line-height: 1.45; }
+    .footer-right { font-size: 6.5px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
+
+    /* Стр.2: график без flex-grow — иначе серая карточка тянется и ИИ визуально лезет на блок */
+    article.page:nth-of-type(2) .chart-card {
+      flex: 0 0 auto;
+      margin-bottom: 12px;
+    }
+
+    article.page:nth-of-type(2) .chart-svg {
+      min-height: 136px;
+    }
+
+    article.page:nth-of-type(2) .avatar-section-sm {
+      margin-top: 14px;
+      clear: both;
+    }
+
+    @media print {
+      body { margin: 0; padding: 0; gap: 0; }
+      article.page { page-break-after: always; }
+      article.page:last-child { page-break-after: auto; }
+    }
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<!-- ========== СТРАНИЦА 1 ========== -->
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Путешествие</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="avatar-section">
+      <div class="avatar"><span class="avatar-text">ИИ</span></div>
+      <div class="speech">
+        <p>Цель <em>«Путешествие»</em>: накапливаем на поездку к заданной дате — стартовая сумма, ежемесячные взносы и доходность портфеля. Суммы в отчёте — <em>номинал</em>; льготы и софинансирование — только если заданы в цели.</p>
+      </div>
+    </div>
+
+    <div class="travel-hero">
+      <div class="travel-hero-main">
+        <div class="travel-tag">Поездка</div>
+        <div class="travel-hero-title">Путешествие</div>
+        <div class="travel-hero-sub">
+          План накопления на отпуск или крупную поездку: стартовая сумма, регулярные взносы, ожидаемая доходность и структура портфеля. Ниже — целевая сумма к дате и цепочка (демо для вёрстки).
+        </div>
+      </div>
+      <div class="travel-hero-image">
+        <img src="../../../assets/reports/goal-cards/puteshestvie.webp" alt=""
+             onerror="this.replaceWith(Object.assign(document.createElement('span'),{style:'font-size:6px;color:#164e63;padding:6px;text-align:center;line-height:1.35',innerHTML:'Картинка<br>цели'}))">
+      </div>
+    </div>
+
+    <div class="section-label">Цель и горизонт</div>
+    <div class="metrics-2">
+      <div class="metric">
+        <div class="metric-value">1,2<span> млн ₽</span></div>
+        <div class="metric-desc">Целевая сумма к дате<br>окончания цели (номинал, без инфляции)</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">4<span> года</span></div>
+        <div class="metric-desc">Срок накопления<br>48 мес. · дата окончания подставляется с бэка</div>
+      </div>
+    </div>
+
+    <div class="capital-highlight capital-highlight--travel">
+      <div class="capital-highlight-main">
+        <div class="capital-highlight-title">Сумма к дате поездки</div>
+        <div class="capital-highlight-desc">
+          Стартуем с <em>150 000 ₽</em>, далее ежемесячное пополнение и ожидаемая доходность портфеля <em>10% годовых</em> (модель). Суммы в отчёте — <em>номинал без инфляции</em>. Итог совпадает с последним шагом цепочки ниже.
+        </div>
+      </div>
+      <div class="capital-highlight-num">
+        <div class="capital-big">1,2<span> млн ₽</span></div>
+        <div class="capital-exact">1 200 000 ₽</div>
+      </div>
+    </div>
+
+    <div class="section-label">План накопления</div>
+    <div class="plan-flow" role="group" aria-label="Цепочка накопления">
+      <div class="plan-step">
+        <div class="plan-step-label">Начальный<br>капитал</div>
+        <div class="plan-step-value">150 000 ₽</div>
+      </div>
+      <div class="plan-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="0" y1="12" x2="11" y2="12" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 6 L19 12 L11 18" fill="none" stroke="#0891b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="plan-step">
+        <div class="plan-step-label">Пополнение<br>в месяц</div>
+        <div class="plan-step-value">18 000 ₽</div>
+      </div>
+      <div class="plan-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="0" y1="12" x2="11" y2="12" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 6 L19 12 L11 18" fill="none" stroke="#0891b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="plan-step">
+        <div class="plan-step-label">Срок</div>
+        <div class="plan-step-value">4 года</div>
+        <div class="plan-step-value" style="font-size:6.5px;font-weight:600;color:#4b5563;">48 мес.</div>
+      </div>
+      <div class="plan-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="0" y1="12" x2="11" y2="12" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 6 L19 12 L11 18" fill="none" stroke="#0891b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="plan-step">
+        <div class="plan-step-label">Доходность<br>портфеля</div>
+        <div class="plan-step-value">10%</div>
+        <div class="plan-step-value" style="font-size:6.5px;font-weight:600;color:#4b5563;">годовых</div>
+      </div>
+      <div class="plan-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="0" y1="12" x2="11" y2="12" stroke="#67e8f9" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 6 L19 12 L11 18" fill="none" stroke="#0891b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="plan-step finish">
+        <div class="plan-step-label">Капитал<br>к концу срока</div>
+        <div class="plan-step-value">1 200 000 ₽</div>
+      </div>
+    </div>
+
+    <div class="section-label">Структура портфеля</div>
+    <div class="pie-row">
+      <div class="pie-card">
+        <div class="pie-card-title">Портфель начального капитала</div>
+        <div class="pie-svg-wrap">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <filter id="pie-sh-trv1a" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.16"/>
+              </filter>
+            </defs>
+            <g filter="url(#pie-sh-trv1a)">
+              <path d="M 50 50 L 50.00 12.00 A 38 38 0 0 1 86.14 61.74 Z" fill="#bae6fd"/>
+              <path d="M 50 50 L 86.14 61.74 A 38 38 0 0 1 13.86 61.74 Z" fill="#22d3ee"/>
+              <path d="M 50 50 L 13.86 61.74 A 38 38 0 0 1 50.00 12.00 Z" fill="#0891b2"/>
+            </g>
+          </svg>
+        </div>
+        <div class="pie-legend">
+          <div class="pie-legend-row">
+            <span class="pie-dot pie-dot--dep" aria-hidden="true"></span>
+            <span><span class="pie-legend-name">Банковский депозит</span> — <span class="pie-legend-meta">30% · 45 000 ₽ · 14%</span></span>
+          </div>
+          <div class="pie-legend-row">
+            <span class="pie-dot pie-dot--bond" aria-hidden="true"></span>
+            <span><span class="pie-legend-name">Облигации РФ компаний</span> — <span class="pie-legend-meta">40% · 60 000 ₽ · 10%</span></span>
+          </div>
+          <div class="pie-legend-row">
+            <span class="pie-dot pie-dot--stock" aria-hidden="true"></span>
+            <span><span class="pie-legend-name">Акции РФ компаний</span> — <span class="pie-legend-meta">30% · 45 000 ₽ · 11%</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="pie-card">
+        <div class="pie-card-title">Портфель пополнений</div>
+        <div class="pie-svg-wrap">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <filter id="pie-sh-trv1b" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.16"/>
+              </filter>
+            </defs>
+            <g filter="url(#pie-sh-trv1b)">
+              <path d="M 50 50 L 50.00 12.00 A 38 38 0 0 1 86.14 61.74 Z" fill="#bae6fd"/>
+              <path d="M 50 50 L 86.14 61.74 A 38 38 0 0 1 13.86 61.74 Z" fill="#22d3ee"/>
+              <path d="M 50 50 L 13.86 61.74 A 38 38 0 0 1 50.00 12.00 Z" fill="#0891b2"/>
+            </g>
+          </svg>
+        </div>
+        <div class="pie-legend">
+          <div class="pie-legend-row">
+            <span class="pie-dot pie-dot--dep" aria-hidden="true"></span>
+            <span><span class="pie-legend-name">Банковский депозит</span> — <span class="pie-legend-meta">30% · 5 400 ₽/мес · 14%</span></span>
+          </div>
+          <div class="pie-legend-row">
+            <span class="pie-dot pie-dot--bond" aria-hidden="true"></span>
+            <span><span class="pie-legend-name">Облигации РФ компаний</span> — <span class="pie-legend-meta">40% · 7 200 ₽/мес · 10%</span></span>
+          </div>
+          <div class="pie-legend-row">
+            <span class="pie-dot pie-dot--stock" aria-hidden="true"></span>
+            <span><span class="pie-legend-name">Акции РФ компаний</span> — <span class="pie-legend-meta">30% · 5 400 ₽/мес · 11%</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer" aria-hidden="true"></div>
+
+    <div class="page-num">Страница 1 из 2 · Путешествие</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+<!-- ========== СТРАНИЦА 2 ========== -->
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Путешествие — продолжение</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Состав капитала</div>
+    <div class="fin-bar-chart-block">
+      <div class="fin-bar-chart-title">Структура накопленного капитала</div>
+      <div class="fin-bar-chart-hint">На дату последней точки графика (подстановка). Сумма двух первых столбцов = «Итого капитал». Софинансирование и налоговые вычеты — только если заданы в цели (ИИС, НПФ и т. п.).</div>
+      <div class="fin-bar-chart-area" role="img" aria-label="Состав капитала">
+        <div class="fin-bar-track">
+          <div class="fin-bar fin-bar--own" style="height: 52px;">
+            <span class="fin-bar-val">980 000 руб.</span>
+          </div>
+        </div>
+        <div class="fin-bar-track">
+          <div class="fin-bar fin-bar--extra" style="height: 16px;">
+            <span class="fin-bar-val">220 000 руб.</span>
+          </div>
+        </div>
+        <div class="fin-bar-track">
+          <div class="fin-bar fin-bar--total" style="height: 56px;">
+            <span class="fin-bar-val">1 200 000 руб.</span>
+          </div>
+        </div>
+      </div>
+      <div class="fin-bar-legend">
+        <div class="fin-bar-legend-item">
+          <span class="fin-bar-swatch fin-bar-swatch--own" aria-hidden="true"></span>
+          <span class="fin-bar-legend-text">Собственные средства</span>
+        </div>
+        <div class="fin-bar-legend-item">
+          <span class="fin-bar-swatch fin-bar-swatch--extra" aria-hidden="true"></span>
+          <span class="fin-bar-legend-text">Процентный доход, софинансирование, налоговые вычеты</span>
+        </div>
+        <div class="fin-bar-legend-item">
+          <span class="fin-bar-swatch fin-bar-swatch--total" aria-hidden="true"></span>
+          <span class="fin-bar-legend-text">Итого капитал</span>
+        </div>
+      </div>
+    </div>
+
+    <!--
+      ПРОД: не включать этот блок в HTML, если нет вычетов/софина по цели
+      (см. комментарий в <head>). Демо ниже — как в макете.
+    -->
+    <div id="travel-goal-benefits-dynamic" class="passive-benefits-block">
+      <div class="section-label">Софинансирование и вычеты</div>
+
+      <div class="tax-row">
+        <div class="tax-card year">
+          <div class="tax-card-label">Налоговый вычет за 2026 год</div>
+          <div class="tax-card-value">0 ₽</div>
+          <div class="tax-card-hint">Сумма по строкам графика с датами в выбранном году (поле tax_deduction).</div>
+        </div>
+        <div class="tax-card total">
+          <div class="tax-card-label">Налоговые вычеты за весь период</div>
+          <div class="tax-card-value">675 745 ₽</div>
+          <div class="tax-card-hint">Итог по модели (total_tax_benefit), с учётом лимитов и сценария взносов.</div>
+        </div>
+      </div>
+
+      <div class="section-label passive-benefits-subtitle">Софинансирование</div>
+      <div class="tax-row">
+        <div class="tax-card year">
+          <div class="tax-card-label">Софинансирование за 2027 год</div>
+          <div class="tax-card-value">36 000 ₽</div>
+          <div class="tax-card-hint">Сумма по строкам графика в выбранном календарном году (поле cofinancing).</div>
+        </div>
+        <div class="tax-card total">
+          <div class="tax-card-label">Всего софинансирование за период плана</div>
+          <div class="tax-card-value">224 034 ₽</div>
+          <div class="tax-card-hint">Итог по модели (total_cofinancing) за весь горизонт плана.</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="passive-extras-note">
+      <strong>Без льгот в цели:</strong> блок «Софинансирование и вычеты» не выводим; в среднем столбце «состава капитала» остаётся в основном инвестиционный доход. Годы и суммы подставляет бэк.
+    </p>
+
+    <div class="section-label">График капитала</div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Накопление: апр. 2026 → апр. 2030 (номинал, без инфляции · демо для вёрстки)</div>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <div class="legend-line"></div>
+            <span class="legend-text">Капитал по графику</span>
+          </div>
+        </div>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 500 152" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="pg-travel" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0891b2" stop-opacity="0.2"/>
+            <stop offset="100%" stop-color="#0891b2" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        <line x1="40" y1="118" x2="480" y2="118" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="40" y1="96" x2="480" y2="96" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="40" y1="74" x2="480" y2="74" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="40" y1="52" x2="480" y2="52" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="40" y1="30" x2="480" y2="30" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <text x="36" y="121" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">0</text>
+        <text x="36" y="99" font-size="6.5" fill="#999999" text-anchor="end" font-family="sans-serif">0,5М</text>
+        <text x="36" y="77" font-size="6.5" fill="#999999" text-anchor="end" font-family="sans-serif">1М</text>
+        <text x="36" y="55" font-size="6.5" fill="#999999" text-anchor="end" font-family="sans-serif">1,5М</text>
+        <text x="36" y="33" font-size="6.5" fill="#999999" text-anchor="end" font-family="sans-serif">2М</text>
+        <text x="40" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2026</text>
+        <text x="128" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2027</text>
+        <text x="216" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2028</text>
+        <text x="304" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2029</text>
+        <text x="392" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2029</text>
+        <text x="480" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2030</text>
+        <path d="M40,111.4 L128,100 L216,90 L304,77 L392,70 L480,65.2 L480,118 L40,118 Z" fill="url(#pg-travel)"/>
+        <polyline
+          points="40,111.4 128,100 216,90 304,77 392,70 480,65.2"
+          fill="none" stroke="#0891b2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="40" cy="111.4" r="2.5" fill="#0891b2"/>
+        <circle cx="480" cy="65.2" r="2.5" fill="#0891b2"/>
+        <rect x="352" y="6" width="122" height="14" rx="3" fill="#cffafe" stroke="#22d3ee" stroke-width="0.5"/>
+        <text x="413" y="16" font-size="7.5" fill="#164e63" text-anchor="middle" font-family="sans-serif" font-weight="700">≈ 1,2 млн ₽</text>
+        <text x="40" y="148" font-size="6.5" fill="#64748b" font-family="sans-serif">Старт: 01.04.2026 — 150 000 ₽ · далее ежемесячные взносы и доходность по модели (подстановка с бэка)</text>
+      </svg>
+    </div>
+
+    <div class="avatar-section-sm">
+      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
+      <div class="speech-sm">
+        <p>На графике — <em>упрощённый скелет</em>. В отчёте подставим точки из помесячного массива — линия совпадёт с расчётом.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="page-num">Страница 2 из 2 · Путешествие</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

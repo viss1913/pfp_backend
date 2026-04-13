@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Достойная пенсия — Финансовый план</title>
+  <!--
+    Финам PDF: цель PENSION. Холст 595×842; две страницы при превью (как page-4).
+    Плейсхолдеры для бэка (пример чисел из расчёта пенсии):
+    retirement_year, state_pension_monthly_today, state_pension_monthly_future,
+    inflation_rate, pension_gap_future, target_amount_initial, target_amount_future,
+    payout_yield_percent, required_capital_at_retirement,
+    initial_capital, monthly_replenishment, target_months / years_to_retirement,
+    accumulation_yield_percent, projected_capital_at_retirement,
+    instrument_name, cofinancing_total_2026?, tax_deduction_2026, total_cofinancing, total_tax_benefit,
+    schedule для SVG графика (много точек).
+    Колонки стр.1: capital_own, capital_yield_cofin_tax, capital_total (total = own + rest).
+    Колонки стр.2: cofinancing_year_2027, total_cofinancing (масштаб по «всего»).
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+    }
+
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 9px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 3px 10px;
+      border: 1px solid #000000; border-radius: 4px;
+      max-width: 240px;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 8px; }
+
+    .avatar-section {
+      display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px;
+    }
+
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .avatar-text { font-size: 10px; font-weight: 700; color: #ffffff; }
+
+    .speech {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 6px 10px; position: relative;
+    }
+
+    .speech::before {
+      content: ''; position: absolute; left: -6px; top: 11px;
+      width: 9px; height: 9px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech p { font-size: 8px; font-weight: 400; color: #222222; line-height: 1.45; }
+    .speech em { font-style: normal; font-weight: 700; color: #000000; }
+
+    /* Герой: карточка + картинка цели */
+    .pension-hero {
+      display: flex; gap: 8px; align-items: stretch; margin-bottom: 6px;
+    }
+
+    .pension-hero-main {
+      flex: 1; min-width: 0;
+      padding: 6px 8px; border-radius: 6px;
+      background: #eff6ff; border: 1px solid #93c5fd;
+    }
+
+    .pension-hero-top {
+      display: flex; align-items: center; gap: 5px; margin-bottom: 3px;
+    }
+
+    .pension-tag {
+      font-size: 6px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #1d4ed8;
+      padding: 1px 5px; border-radius: 3px;
+      background: #dbeafe; border: 1px solid #60a5fa;
+    }
+
+    .pension-hero-title {
+      font-size: 10px; font-weight: 700; color: #1e3a8a; line-height: 1.2;
+      margin-bottom: 2px;
+    }
+
+    .pension-hero-sub {
+      font-size: 6.5px; font-weight: 400; color: #4b5563; line-height: 1.35;
+    }
+
+    .pension-hero-image {
+      width: 92px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
+      background: #dbeafe; border: 1px solid #93c5fd;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 68px;
+    }
+
+    .pension-hero-image img {
+      width: 100%; height: 100%; object-fit: cover;
+      display: block;
+    }
+
+    .pension-hero-image .ph {
+      font-size: 6px; color: #1d4ed8; text-align: center; line-height: 1.35;
+      padding: 6px;
+    }
+
+    .section-label {
+      font-size: 6.5px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #6366f1;
+      margin: 4px 0 4px;
+      display: flex; align-items: center; gap: 5px;
+    }
+
+    .section-label::before {
+      content: ''; width: 12px; height: 2px; background: #6366f1; border-radius: 1px;
+    }
+
+    .block-card {
+      padding: 6px 8px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 5px;
+    }
+
+    .block-title {
+      font-size: 8px; font-weight: 700; color: #000000; margin-bottom: 4px;
+    }
+
+    .kv-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      gap: 8px; margin-bottom: 3px;
+    }
+
+    .kv-row:last-child { margin-bottom: 0; }
+
+    .kv-key {
+      font-size: 7px; font-weight: 400; color: #555555; flex: 1; min-width: 0;
+      line-height: 1.35;
+    }
+
+    .kv-val {
+      font-size: 7.5px; font-weight: 700; color: #000000; text-align: right;
+      white-space: nowrap;
+    }
+
+    .appendix-note {
+      margin-top: 4px; padding-top: 4px; border-top: 1px dashed #cccccc;
+      font-size: 6px; font-weight: 400; color: #6b7280; line-height: 1.4;
+    }
+
+    .appendix-note a {
+      color: #4f46e5; text-decoration: underline;
+    }
+
+    .metrics-2 {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 5px;
+    }
+
+    .metric {
+      text-align: center; padding: 6px 4px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc;
+    }
+
+    .metric-value {
+      font-size: 11px; font-weight: 700; color: #000000; line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .metric-value span { font-size: 7px; font-weight: 600; color: #6366f1; }
+
+    .metric-desc {
+      font-size: 6px; font-weight: 400; color: #555555; line-height: 1.25;
+    }
+
+    .metrics-3 {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 5px;
+    }
+
+    .capital-highlight {
+      display: flex; gap: 6px; padding: 6px 8px; border-radius: 6px;
+      background: #ecfdf5; border: 1px solid #6ee7b7; margin-bottom: 5px;
+    }
+
+    .capital-highlight-main { flex: 1; min-width: 0; }
+
+    .capital-highlight-title {
+      font-size: 7px; font-weight: 600; color: #065f46; margin-bottom: 2px;
+    }
+
+    .capital-highlight-desc {
+      font-size: 6.5px; font-weight: 400; color: #047857; line-height: 1.35;
+    }
+
+    .capital-highlight-desc em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .capital-highlight-num {
+      text-align: right; flex-shrink: 0; align-self: center;
+    }
+
+    .capital-big {
+      font-size: 14px; font-weight: 800; color: #059669; line-height: 1;
+    }
+
+    .capital-big span { font-size: 8px; font-weight: 600; color: #10b981; }
+
+    .capital-exact {
+      font-size: 6px; font-weight: 600; color: #047857; margin-top: 2px;
+    }
+
+    /* План накопления: шаги + стрелки (не таблица — визуальный поток) */
+    .plan-flow {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 0;
+      width: 100%;
+      margin-bottom: 5px;
+    }
+
+    .plan-step {
+      flex: 1 1 0;
+      min-width: 0;
+      text-align: center;
+      padding: 5px 3px 6px;
+      border-radius: 8px;
+      background: linear-gradient(165deg, #ffffff 0%, #f5f7ff 100%);
+      border: 1px solid #c7d2fe;
+      box-shadow: 0 1px 0 rgba(99, 102, 241, 0.06), 0 2px 8px rgba(79, 70, 229, 0.06);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    .plan-step.finish {
+      background: linear-gradient(165deg, #ecfdf5 0%, #d1fae5 100%);
+      border-color: #6ee7b7;
+      box-shadow: 0 1px 0 rgba(16, 185, 129, 0.12), 0 2px 8px rgba(5, 150, 105, 0.08);
+    }
+
+    .plan-step-label {
+      font-size: 5px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #4338ca;
+      line-height: 1.2;
+    }
+
+    .plan-step.finish .plan-step-label { color: #047857; }
+
+    .plan-step-value {
+      font-size: 6.5px;
+      font-weight: 800;
+      color: #111827;
+      line-height: 1.2;
+    }
+
+    .plan-step.finish .plan-step-value { color: #065f46; }
+
+    .plan-step.finish .plan-step-value:last-child {
+      font-size: 5.8px;
+      letter-spacing: -0.03em;
+      line-height: 1.25;
+    }
+
+    .plan-arrow {
+      flex-shrink: 0;
+      width: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+      position: relative;
+    }
+
+    .plan-arrow svg {
+      width: 14px;
+      height: 22px;
+      display: block;
+      overflow: visible;
+    }
+
+    .plan-arrow::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .instrument {
+      display: flex; gap: 6px; padding: 6px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 4px;
+    }
+
+    .instrument-left { flex: 1; min-width: 0; }
+
+    .instrument-label {
+      font-size: 6px; font-weight: 500; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #6366f1; margin-bottom: 2px;
+    }
+
+    .instrument-name {
+      font-size: 8px; font-weight: 600; color: #000000; margin-bottom: 2px;
+    }
+
+    .instrument-row {
+      display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1px;
+    }
+
+    .instrument-key { font-size: 6.5px; font-weight: 400; color: #555555; }
+    .instrument-val { font-size: 6.5px; font-weight: 600; color: #000000; }
+
+    .instrument-right {
+      width: 72px; flex-shrink: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 4px;
+      border-radius: 6px; background: #eef2ff; border: 1px solid #c7d2fe;
+    }
+
+    .instrument-yield-big {
+      font-size: 15px; font-weight: 700; color: #6366f1; line-height: 1;
+    }
+
+    .instrument-yield-sign { font-size: 8px; font-weight: 600; color: #6366f1; }
+    .instrument-yield-label { font-size: 5.5px; font-weight: 400; color: #555555; margin-top: 1px; }
+
+    .avatar-section-sm {
+      display: flex; gap: 8px; align-items: flex-start; margin-top: 2px;
+    }
+
+    .avatar-sm {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    .avatar-sm-text { font-size: 8px; font-weight: 700; color: #ffffff; }
+
+    .speech-sm {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 5px 9px; position: relative;
+    }
+
+    .speech-sm::before {
+      content: ''; position: absolute; left: -5px; top: 9px;
+      width: 8px; height: 8px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech-sm p { font-size: 7.5px; font-weight: 400; color: #222222; line-height: 1.4; }
+    .speech-sm em { font-style: normal; font-weight: 700; color: #000000; }
+
+    /* Колонковые диаграммы (стиль как в макете Финам: сетка, скругление сверху, подпись внизу столбца) */
+    .fin-bar-chart-block {
+      margin-bottom: 5px;
+      padding: 6px 8px 7px;
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .fin-bar-chart-title {
+      font-size: 7px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    .fin-bar-chart-hint {
+      font-size: 5.5px;
+      font-weight: 400;
+      color: #6b7280;
+      margin-bottom: 5px;
+      line-height: 1.35;
+    }
+
+    .fin-bar-chart-area {
+      position: relative;
+      height: 78px;
+      padding: 6px 10px 0;
+      border-radius: 4px;
+      background-color: #ffffff;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 15px,
+        rgba(147, 197, 253, 0.45) 15px,
+        rgba(147, 197, 253, 0.45) 15.5px
+      );
+      border: 1px solid #e5e7eb;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 12px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .fin-bar-track {
+      flex: 1;
+      height: 66px;
+      max-width: 108px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .fin-bar-track--narrow { max-width: 140px; }
+
+    .fin-bar {
+      width: 100%;
+      min-height: 16px;
+      border-radius: 5px 5px 0 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 0 3px 5px;
+      box-sizing: border-box;
+    }
+
+    .fin-bar--own { background: #8b8b8b; }
+    .fin-bar--extra { background: #1a1a1a; }
+    .fin-bar--total { background: #4a1942; }
+
+    .fin-bar--cofin-year { background: #525252; }
+    .fin-bar--cofin-all { background: #2e1065; }
+
+    .fin-bar-val {
+      font-size: 5.5px;
+      font-weight: 700;
+      color: #ffffff;
+      text-align: center;
+      line-height: 1.25;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    }
+
+    .fin-bar-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 14px;
+      margin-top: 7px;
+      padding-top: 6px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .fin-bar-chart-block--two .fin-bar-legend {
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .fin-bar-legend-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      max-width: 148px;
+    }
+
+    .fin-bar-swatch {
+      width: 8px;
+      height: 8px;
+      border-radius: 1px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .fin-bar-swatch--own { background: #8b8b8b; }
+    .fin-bar-swatch--extra { background: #1a1a1a; }
+    .fin-bar-swatch--total { background: #4a1942; }
+    .fin-bar-swatch--cofin-year { background: #525252; }
+    .fin-bar-swatch--cofin-all { background: #2e1065; }
+
+    .fin-bar-legend-text {
+      font-size: 5.5px;
+      font-weight: 400;
+      color: #374151;
+      line-height: 1.35;
+    }
+
+    /* Стр. 2 */
+    .tax-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;
+    }
+
+    .tax-card {
+      border-radius: 8px; padding: 8px 10px; text-align: center;
+      border: 1px solid #cccccc;
+    }
+
+    .tax-card.year {
+      background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+      border-color: #fcd34d;
+    }
+
+    .tax-card.total {
+      background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+      border-color: #a5b4fc;
+    }
+
+    .tax-card-label {
+      font-size: 6px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #6b7280; margin-bottom: 4px;
+    }
+
+    .tax-card.year .tax-card-label { color: #92400e; }
+
+    .tax-card.total .tax-card-label { color: #3730a3; }
+
+    .tax-card-value {
+      font-size: 16px; font-weight: 800; line-height: 1; margin-bottom: 3px;
+    }
+
+    .tax-card.year .tax-card-value { color: #b45309; }
+
+    .tax-card.total .tax-card-value { color: #4338ca; }
+
+    .tax-card-hint {
+      font-size: 5.5px; font-weight: 400; color: #6b7280; line-height: 1.35;
+    }
+
+    .chart-card {
+      padding: 6px 6px 4px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 5px;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .chart-title {
+      font-size: 7.5px; font-weight: 600; color: #000000;
+    }
+
+    .chart-legend {
+      display: flex; gap: 8px;
+    }
+
+    .chart-legend-item {
+      display: flex; align-items: center; gap: 3px;
+    }
+
+    .legend-line {
+      width: 12px; height: 2px; border-radius: 1px; flex-shrink: 0;
+      background: #6366f1;
+    }
+
+    .legend-text { font-size: 5.5px; font-weight: 400; color: #555555; }
+
+    .chart-svg { display: block; width: 100%; flex: 1; min-height: 140px; }
+
+    .spacer { flex: 1; min-height: 4px; }
+
+    .footer {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-top: auto; padding-top: 4px; border-top: 1px solid #cccccc;
+    }
+
+    .footer-left { font-size: 5.5px; font-weight: 400; color: #555555; line-height: 1.45; }
+    .footer-right { font-size: 5.5px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
+
+    .page-num {
+      font-size: 6px; font-weight: 600; color: #000000;
+      margin-bottom: 2px; text-align: right;
+    }
+
+    @media print {
+      body { margin: 0; padding: 0; gap: 0; }
+      article.page { page-break-after: always; }
+      article.page:last-child { page-break-after: auto; }
+    }
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<!-- ========== СТРАНИЦА 1 ========== -->
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Достойная пенсия</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="avatar-section">
+      <div class="avatar"><span class="avatar-text">ИИ</span></div>
+      <div class="speech">
+        <p>Разбираем цель <em>«Достойная пенсия»</em>: сначала смотрим прогноз госпенсии, затем — какой пассивный доход нужен сверху и какой капитал к выходу на пенсию.</p>
+      </div>
+    </div>
+
+    <div class="pension-hero">
+      <div class="pension-hero-main">
+        <div class="pension-hero-top">
+          <div class="pension-tag">Пенсия</div>
+        </div>
+        <div class="pension-hero-title">Достойная пенсия</div>
+        <div class="pension-hero-sub">
+          Целевой ежемесячный доход в деньгах сегодняшнего покупательского уровня и на момент выхода на пенсию; накопление на ИИС/НПФ и долгосрочный портфель.
+        </div>
+      </div>
+      <div class="pension-hero-image">
+        <!-- В проде: URL картинки цели с бэка -->
+        <img src="../../../assets/reports/goal-cards/gospensiya.webp" alt=""
+             onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',innerHTML:'Картинка<br>цели'}))">
+      </div>
+    </div>
+
+    <div class="section-label">Госпенсия</div>
+    <div class="block-card">
+      <div class="block-title">Прогноз страховой пенсии</div>
+      <div class="kv-row">
+        <span class="kv-key">Год выхода на пенсию</span>
+        <span class="kv-val">2055</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Прогноз в «сегодняшних» рублях (в месяц)</span>
+        <span class="kv-val">71 974 ₽</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Прогноз с учётом инфляции к году выхода (в месяц)</span>
+        <span class="kv-val">349 488 ₽</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-key">Инфляция в модели</span>
+        <span class="kv-val">5,6% годовых</span>
+      </div>
+      <p class="appendix-note">
+        Подробная методика расчёта госпенсии и допущения — <a href="#appendix-pension-method">в приложении к отчёту</a> (раздел будет добавлен).
+      </p>
+    </div>
+
+    <div class="avatar-section-sm">
+      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
+      <div class="speech-sm">
+        <p>Госпенсии не хватает до желаемого уровня: нехватка дохода к выходу на пенсию — <em>475 984 ₽/мес</em> в деньгах того времени. Эту часть закрываем отдельной целью «пассивный доход» через накопленный капитал.</p>
+      </div>
+    </div>
+
+    <div class="section-label">Пассивный доход к пенсии</div>
+    <div class="metrics-2">
+      <div class="metric">
+        <div class="metric-value">170 000<span> ₽/мес</span></div>
+        <div class="metric-desc">Необходимый пассивный доход<br>(в сегодняшних рублях)</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">825 472<span> ₽/мес</span></div>
+        <div class="metric-desc">Пассивный доход с учётом инфляции<br>к году выхода на пенсию</div>
+      </div>
+    </div>
+
+    <div class="capital-highlight">
+      <div class="capital-highlight-main">
+        <div class="capital-highlight-title">Капитал к выходу на пенсию</div>
+        <div class="capital-highlight-desc">
+          Ориентир: доходность базы для выплат (вклады, облигации) <em>12% в год</em>. Тогда для нужного ежемесячного пассивного дохода требуется капитал ниже — его и накапливаем в портфеле с доходностью <em>14% годовых</em> и ежемесячным пополнением.
+        </div>
+      </div>
+      <div class="capital-highlight-num">
+        <div class="capital-big">47,6<span> млн ₽</span></div>
+        <div class="capital-exact">47 598 447 ₽</div>
+      </div>
+    </div>
+
+    <div class="section-label">План накопления</div>
+    <div class="plan-flow" role="group" aria-label="Цепочка накопления к пенсии">
+      <div class="plan-step">
+        <div class="plan-step-label">Начальный<br>капитал</div>
+        <div class="plan-step-value">112 000 ₽</div>
+      </div>
+      <div class="plan-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="0" y1="12" x2="11" y2="12" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 6 L19 12 L11 18" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="plan-step">
+        <div class="plan-step-label">Пополнение<br>в месяц</div>
+        <div class="plan-step-value">5 175,64 ₽</div>
+      </div>
+      <div class="plan-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="0" y1="12" x2="11" y2="12" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 6 L19 12 L11 18" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="plan-step">
+        <div class="plan-step-label">Срок</div>
+        <div class="plan-step-value">29 лет</div>
+        <div class="plan-step-value" style="font-size:5.5px;font-weight:600;color:#4b5563;">348 мес.</div>
+      </div>
+      <div class="plan-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="0" y1="12" x2="11" y2="12" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 6 L19 12 L11 18" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="plan-step">
+        <div class="plan-step-label">Доходность<br>портфеля</div>
+        <div class="plan-step-value">14%</div>
+        <div class="plan-step-value" style="font-size:5.5px;font-weight:600;color:#4b5563;">годовых</div>
+      </div>
+      <div class="plan-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 24" xmlns="http://www.w3.org/2000/svg">
+          <line x1="0" y1="12" x2="11" y2="12" stroke="#818cf8" stroke-width="2" stroke-linecap="round"/>
+          <path d="M11 6 L19 12 L11 18" fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="plan-step finish">
+        <div class="plan-step-label">Капитал<br>к пенсии</div>
+        <div class="plan-step-value">47 598 447 ₽</div>
+      </div>
+    </div>
+
+    <div class="instrument">
+      <div class="instrument-left">
+        <div class="instrument-label">Основной инструмент накопления</div>
+        <div class="instrument-name">ПДС НПФ Ренессанс</div>
+        <div class="instrument-row">
+          <span class="instrument-key">Тип</span>
+          <span class="instrument-val">PDS / НПФ</span>
+        </div>
+        <div class="instrument-row">
+          <span class="instrument-key">Доля в цели</span>
+          <span class="instrument-val">100%</span>
+        </div>
+        <div class="instrument-row">
+          <span class="instrument-key">Начальная сумма</span>
+          <span class="instrument-val">112 000 ₽</span>
+        </div>
+        <div class="instrument-row">
+          <span class="instrument-key">Ежемесячное пополнение</span>
+          <span class="instrument-val">5 175,64 ₽</span>
+        </div>
+      </div>
+      <div class="instrument-right">
+        <div class="instrument-yield-big">14%</div>
+        <div class="instrument-yield-sign">годовых</div>
+        <div class="instrument-yield-label">накопление</div>
+      </div>
+    </div>
+
+    <!--
+      Демо как в референсе: own + (проценты+софин+вычеты) = итого.
+      Бэк: из помесячного графика на дату — взносы клиента vs прирост за счёт доходности/софин/вычетов vs total_capital.
+    -->
+    <div class="section-label">Состав капитала</div>
+    <div class="fin-bar-chart-block">
+      <div class="fin-bar-chart-title">Структура накопленного капитала</div>
+      <div class="fin-bar-chart-hint">На дату последней точки графика (подстановка). Сумма двух первых столбцов = «Итого капитал».</div>
+      <div class="fin-bar-chart-area" role="img" aria-label="Диаграмма состава капитала">
+        <div class="fin-bar-track">
+          <div class="fin-bar fin-bar--own" style="height: 62px;">
+            <span class="fin-bar-val">717 006 руб.</span>
+          </div>
+        </div>
+        <div class="fin-bar-track">
+          <div class="fin-bar fin-bar--extra" style="height: 18px;">
+            <span class="fin-bar-val">43 892 руб.</span>
+          </div>
+        </div>
+        <div class="fin-bar-track">
+          <div class="fin-bar fin-bar--total" style="height: 66px;">
+            <span class="fin-bar-val">760 898 руб.</span>
+          </div>
+        </div>
+      </div>
+      <div class="fin-bar-legend">
+        <div class="fin-bar-legend-item">
+          <span class="fin-bar-swatch fin-bar-swatch--own" aria-hidden="true"></span>
+          <span class="fin-bar-legend-text">Собственные средства</span>
+        </div>
+        <div class="fin-bar-legend-item">
+          <span class="fin-bar-swatch fin-bar-swatch--extra" aria-hidden="true"></span>
+          <span class="fin-bar-legend-text">Процентный доход, софинансирование, налоговые вычеты</span>
+        </div>
+        <div class="fin-bar-legend-item">
+          <span class="fin-bar-swatch fin-bar-swatch--total" aria-hidden="true"></span>
+          <span class="fin-bar-legend-text">Итого капитал</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="page-num">Страница 1 из 2 · Достойная пенсия</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+<!-- ========== СТРАНИЦА 2 ========== -->
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Достойная пенсия — продолжение</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="avatar-section">
+      <div class="avatar"><span class="avatar-text">ИИ</span></div>
+      <div class="speech">
+        <p>НПФ и ИИС дают <em>софинансирование</em> и <em>налоговые вычеты</em> — это ускоряет рост капитала. Ниже — оценка за календарный год и за весь горизонт плана; точные суммы подтягиваются из помесячного графика.</p>
+      </div>
+    </div>
+
+    <div class="section-label">Софинансирование и вычеты</div>
+
+    <div class="tax-row">
+      <div class="tax-card year">
+        <div class="tax-card-label">Налоговый вычет за 2026 год</div>
+        <div class="tax-card-value">0 ₽</div>
+        <div class="tax-card-hint">Сумма по строкам графика с датами в 2026 году (поле tax_deduction). В примере графика — 0 ₽.</div>
+      </div>
+      <div class="tax-card total">
+        <div class="tax-card-label">Налоговые вычеты за весь период</div>
+        <div class="tax-card-value">675 745 ₽</div>
+        <div class="tax-card-hint">Итог по модели (total_tax_benefit), с учётом лимитов и сценария взносов.</div>
+      </div>
+    </div>
+
+    <div class="fin-bar-chart-block fin-bar-chart-block--two">
+      <div class="fin-bar-chart-title">Софинансирование</div>
+      <div class="fin-bar-chart-hint">Тот же визуальный стиль, что и состав капитала на первой странице. Высота второго столбца — «всего» за план; первый — взносы софинансирования за выбранный год.</div>
+      <div class="fin-bar-chart-area" role="img" aria-label="Софинансирование за год и всего">
+        <div class="fin-bar-track fin-bar-track--narrow">
+          <div class="fin-bar fin-bar--cofin-year" style="height: 18px;">
+            <span class="fin-bar-val">36 000 руб.</span>
+          </div>
+        </div>
+        <div class="fin-bar-track fin-bar-track--narrow">
+          <div class="fin-bar fin-bar--cofin-all" style="height: 66px;">
+            <span class="fin-bar-val">224 034 руб.</span>
+          </div>
+        </div>
+      </div>
+      <div class="fin-bar-legend">
+        <div class="fin-bar-legend-item">
+          <span class="fin-bar-swatch fin-bar-swatch--cofin-year" aria-hidden="true"></span>
+          <span class="fin-bar-legend-text">Софинансирование за 2027 год</span>
+        </div>
+        <div class="fin-bar-legend-item">
+          <span class="fin-bar-swatch fin-bar-swatch--cofin-all" aria-hidden="true"></span>
+          <span class="fin-bar-legend-text">Всего софинансирование за период плана</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">График капитала</div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Накопление: апр. 2026 → 2055 (упрощённо, для вёрстки)</div>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <div class="legend-line"></div>
+            <span class="legend-text">Капитал по графику</span>
+          </div>
+        </div>
+      </div>
+
+      <!--
+        Демо-кривая: несколько опорных точек. В проде — построение по schedule[].total_capital.
+        Ось Y в млн ₽ для читаемости длинного горизонта.
+      -->
+      <svg class="chart-svg" viewBox="0 0 500 168" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.18"/>
+            <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Grid Y: 0, 10, 20, 30, 40, 50 млн -->
+        <line x1="40" y1="128" x2="480" y2="128" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="40" y1="104" x2="480" y2="104" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="40" y1="80" x2="480" y2="80" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="40" y1="56" x2="480" y2="56" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="40" y1="32" x2="480" y2="32" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+
+        <text x="36" y="131" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">0</text>
+        <text x="36" y="107" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">10М</text>
+        <text x="36" y="83" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">20М</text>
+        <text x="36" y="59" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">30М</text>
+        <text x="36" y="35" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">40М</text>
+
+        <text x="40" y="142" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2026</text>
+        <text x="128" y="142" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2032</text>
+        <text x="216" y="142" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2038</text>
+        <text x="304" y="142" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2044</text>
+        <text x="392" y="142" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2050</text>
+        <text x="480" y="142" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2055</text>
+
+        <!-- Примерная кривая: 0.112 → ~47.6 млн, логоподобная по Y -->
+        <path d="M40,126.8 L128,118 L216,98 L304,72 L392,48 L480,28 L480,128 L40,128 Z" fill="url(#pg)"/>
+        <polyline
+          points="40,126.8 128,118 216,98 304,72 392,48 480,28"
+          fill="none" stroke="#6366f1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <circle cx="40" cy="126.8" r="2.5" fill="#6366f1"/>
+        <circle cx="480" cy="28" r="2.5" fill="#6366f1"/>
+
+        <rect x="362" y="8" width="112" height="14" rx="3" fill="#eef2ff" stroke="#c7d2fe" stroke-width="0.5"/>
+        <text x="418" y="18" font-size="6.5" fill="#4338ca" text-anchor="middle" font-family="sans-serif" font-weight="700">≈ 47,6 млн ₽</text>
+
+        <!-- Врезка: первые месяцы из schedule (демо) -->
+        <text x="40" y="158" font-size="5.5" fill="#64748b" font-family="sans-serif">Старт графика: 01.04.2026 — 112 000 ₽ · 11.05.2026 — 118 405 ₽ (пополнение + доходность)</text>
+      </svg>
+    </div>
+
+    <div class="avatar-section-sm">
+      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
+      <div class="speech-sm">
+        <p>На графике — <em>упрощённый скелет</em> для вёрстки. В отчёте подставим все точки из помесячного массива: так линия будет совпадать с расчётом один в один.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="page-num">Страница 2 из 2 · Достойная пенсия</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

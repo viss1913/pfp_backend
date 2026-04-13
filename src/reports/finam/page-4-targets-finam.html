@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Цели — Финансовый план</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
+    }
+
+    /* Фон «тетрадь в клетку»: шаг 20px (как page-2 / page-3) */
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      background-position: 0 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    article.page + article.page { margin-top: 0; }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+
+    .logo-dot {
+      width: 8px; height: 8px; border-radius: 2px; background: #6366f1;
+    }
+
+    .logo-text {
+      font-size: 9px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 3px 10px;
+      border: 1px solid #000000; border-radius: 4px;
+    }
+
+    .page-num {
+      font-size: 8px; font-weight: 500; color: #999999;
+      letter-spacing: 0.08em;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 10px; }
+
+    /* === ИИ ВВОДНАЯ === */
+    .avatar-section {
+      display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px;
+    }
+
+    .avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .avatar-text { font-size: 11px; font-weight: 700; color: #ffffff; }
+
+    .speech {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 7px 11px; position: relative;
+    }
+
+    .speech::before {
+      content: ''; position: absolute; left: -6px; top: 12px;
+      width: 9px; height: 9px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech p { font-size: 8.5px; font-weight: 400; color: #222222; line-height: 1.5; }
+    .speech em { font-style: normal; font-weight: 700; color: #000000; }
+
+    /* === ЦЕЛЬ === */
+    .goal-section { margin-bottom: 0; }
+
+    .goal-card {
+      display: flex; gap: 8px; padding: 8px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 5px;
+    }
+
+    .goal-text { flex: 1; min-width: 0; }
+
+    .goal-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 2px;
+    }
+
+    .goal-ai-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .goal-ai-avatar svg {
+      width: 10px;
+      height: 10px;
+      fill: #ffffff;
+    }
+
+    .goal-type-tag {
+      font-size: 6px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #6366f1;
+      display: inline-block; padding: 1px 5px; border-radius: 3px;
+      background: #eef2ff; border: 1px solid #c7d2fe;
+    }
+
+    .goal-type-tag.protection {
+      background: #d1fae5; border-color: #6ee7b7; color: #059669;
+    }
+
+    .goal-type-tag.passive {
+      background: #fef3c7; border-color: #fcd34d; color: #b45309;
+    }
+
+    .goal-type-tag.growth {
+      background: #e0e7ff; border-color: #a5b4fc; color: #4338ca;
+    }
+
+    .goal-type-tag.rent {
+      background: #fce7f3; border-color: #f9a8d4; color: #be185d;
+    }
+
+    .goal-title {
+      font-size: 9.5px; font-weight: 600; color: #000000;
+      line-height: 1.2; margin-bottom: 1px;
+    }
+
+    .goal-subtitle {
+      font-size: 7px; font-weight: 400; color: #555555; line-height: 1.35;
+      margin-bottom: 2px;
+    }
+
+    .goal-comment {
+      font-size: 7px; font-weight: 400; color: #333333; line-height: 1.4;
+    }
+
+    .goal-comment em {
+      font-style: normal; font-weight: 700; color: #000000;
+    }
+
+    .goal-image {
+      width: 110px; height: 62px; border-radius: 4px; flex-shrink: 0;
+      background: #e8e8e8; border: 1px solid #cccccc;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+
+    .goal-image-placeholder {
+      font-size: 6px; color: #999999; text-align: center;
+      line-height: 1.3; padding: 4px;
+    }
+
+    /* === ЗАЩИТА === */
+    .goal-data-protection {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 4px;
+    }
+
+    .protection-icon {
+      width: 20px; height: 20px; border-radius: 5px;
+      background: #d1fae5; border: 1px solid #6ee7b7;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    .protection-icon svg {
+      width: 10px; height: 10px; stroke: #059669; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .protection-label { font-size: 8px; font-weight: 400; color: #555555; }
+    .protection-value {
+      font-size: 11px; font-weight: 700; color: #000000; margin-left: auto;
+    }
+
+    /* === ФОРМУЛА === */
+    .goal-formula {
+      display: flex; align-items: flex-start; gap: 3px; margin-bottom: 4px;
+    }
+
+    .formula-block {
+      flex: 1; text-align: center; padding: 5px 2px; border-radius: 4px;
+      background: #f3f3f3; border: 1px solid #cccccc; min-width: 0;
+    }
+
+    .formula-block.accent { background: #eef2ff; border-color: #a5b4fc; }
+
+    .formula-value {
+      font-size: 7.5px; font-weight: 700; color: #000000; line-height: 1.15;
+      word-break: break-all;
+    }
+
+    .formula-block.accent .formula-value { color: #6366f1; }
+
+    .formula-label {
+      font-size: 5.5px; font-weight: 400; color: #777777;
+      margin-top: 1px; line-height: 1.2;
+    }
+
+    .formula-arrow {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 600; color: #999999;
+      padding-top: 7px; flex-shrink: 0; width: 12px;
+    }
+
+    .formula-plus {
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 600; color: #999999;
+      padding-top: 7px; flex-shrink: 0; width: 12px;
+    }
+
+    .goal-arrow {
+      display: flex; align-items: center; justify-content: center; padding: 3px 0;
+    }
+
+    .goal-arrow svg {
+      width: 12px; height: 12px; stroke: #bbbbbb; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .page-break-indicator {
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 6px 0; margin-top: auto;
+    }
+
+    .page-break-indicator span {
+      font-size: 7px; font-weight: 500; color: #999999;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+
+    .page-break-indicator svg {
+      width: 10px; height: 10px; stroke: #bbbbbb; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .section-tag {
+      font-size: 8px; font-weight: 600; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #6366f1; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 5px;
+    }
+
+    .section-tag::before {
+      content: ''; width: 12px; height: 2px; background: #6366f1;
+    }
+
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .pie-card {
+      padding: 7px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc;
+    }
+
+    .pie-title {
+      font-size: 7px; font-weight: 600; color: #000000;
+      text-align: center; margin-bottom: 5px; line-height: 1.3;
+    }
+
+    .pie-wrapper { display: flex; align-items: flex-start; gap: 6px; }
+
+    .pie-circle {
+      width: 72px; height: 72px; border-radius: 50%;
+      flex-shrink: 0; position: relative;
+    }
+
+    .pie-total {
+      position: absolute; inset: 0; display: flex; align-items: center;
+      justify-content: center; flex-direction: column;
+    }
+
+    .pie-total-value {
+      font-size: 6.5px; font-weight: 700; color: #000000; line-height: 1;
+    }
+
+    .pie-total-label { font-size: 5px; font-weight: 400; color: #777777; }
+
+    .pie-legend { flex: 1; }
+
+    .legend-item {
+      display: flex; align-items: center; gap: 3px; margin-bottom: 2px;
+    }
+
+    .legend-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+    .legend-name {
+      font-size: 6px; font-weight: 400; color: #333333; flex: 1; line-height: 1.2;
+    }
+
+    .legend-pct { font-size: 6px; font-weight: 600; color: #000000; }
+
+    .color-reserve { background: #10b981; }
+    .color-life { background: #ec4899; }
+    .color-apartment { background: #6366f1; }
+    .color-pension { background: #f59e0b; }
+    .color-grow { background: #818cf8; }
+    .color-rent { background: #f472b6; }
+
+    .spacer { flex: 1; }
+
+    .footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 5px; padding-top: 4px; border-top: 1px solid #cccccc;
+    }
+
+    .footer-left { font-size: 5.5px; font-weight: 400; color: #555555; line-height: 1.5; }
+    .footer-right { font-size: 5.5px; font-weight: 400; color: #555555; text-align: right; }
+
+    @media print {
+      body { gap: 0; }
+      article.page { box-shadow: none; page-break-after: always; }
+      article.page:last-child { page-break-after: avoid; }
+    }
+
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="page-num">стр. 1 из 2</span>
+        <div class="doc-label">Цели</div>
+      </div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="avatar-section">
+      <div class="avatar"><span class="avatar-text">ИИ</span></div>
+      <div class="speech">
+        <p>У вас <em>6 финансовых целей</em>. Для каждой — мой анализ и расчёт. Начнём с фундамента.</p>
+      </div>
+    </div>
+
+    <!-- ===== 1. ФИНАНСОВЫЙ РЕЗЕРВ ===== -->
+    <div class="goal-section">
+      <div class="goal-card">
+        <div class="goal-text">
+          <div class="goal-header">
+            <div class="goal-ai-avatar">
+              <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+            </div>
+            <div class="goal-type-tag protection">Защита</div>
+          </div>
+          <div class="goal-title">Финансовый резерв</div>
+          <div class="goal-subtitle">Подушка безопасности на 6 месяцев обязательств</div>
+          <div class="goal-comment">При расходах 142 000 ₽/мес минимум 6 месяцев — это <em>852 000 ₽</em>. Сейчас 600 000 ₽, нужно доделать.</div>
+        </div>
+        <div class="goal-image">
+          <div class="goal-image-placeholder">./assets/<br>goal-reserve.webp</div>
+        </div>
+      </div>
+      <div class="goal-data-protection">
+        <div class="protection-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <span class="protection-label">Целевой капитал</span>
+        <span class="protection-value">600 000 ₽</span>
+      </div>
+    </div>
+
+    <div class="goal-arrow"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+
+    <!-- ===== 2. ЗАЩИТА ЖИЗНИ ===== -->
+    <div class="goal-section">
+      <div class="goal-card">
+        <div class="goal-text">
+          <div class="goal-header">
+            <div class="goal-ai-avatar">
+              <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+            </div>
+            <div class="goal-type-tag protection">Защита</div>
+          </div>
+          <div class="goal-title">Защита жизни</div>
+          <div class="goal-subtitle">Страховое покрытие для семьи</div>
+          <div class="goal-comment">При ипотеке и детях рекомендую не менее <em>5 000 000 ₽</em> покрытия.</div>
+        </div>
+        <div class="goal-image">
+          <div class="goal-image-placeholder">./assets/<br>goal-life.webp</div>
+        </div>
+      </div>
+      <div class="goal-data-protection">
+        <div class="protection-icon">
+          <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </div>
+        <span class="protection-label">Лимит по жизни</span>
+        <span class="protection-value">5 000 000 ₽</span>
+      </div>
+    </div>
+
+    <div class="goal-arrow"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+
+    <!-- ===== 3. КВАРТИРА ===== -->
+    <div class="goal-section">
+      <div class="goal-card">
+        <div class="goal-text">
+          <div class="goal-header">
+            <div class="goal-ai-avatar">
+              <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+            </div>
+            <div class="goal-type-tag">Накопление</div>
+          </div>
+          <div class="goal-title">Покупка квартиры</div>
+          <div class="goal-subtitle">Трёхкомнатная, новый район, 2032 год</div>
+          <div class="goal-comment">8 млн с учётом инфляции через 7 лет = <em>11,2 млн</em>. Начальный капитал 200 000 ₽ уже есть.</div>
+        </div>
+        <div class="goal-image">
+          <div class="goal-image-placeholder">./assets/<br>goal-apartment.webp</div>
+        </div>
+      </div>
+      <div class="goal-formula">
+        <div class="formula-block">
+          <div class="formula-value">200 000 ₽</div>
+          <div class="formula-label">Первоначал.</div>
+        </div>
+        <div class="formula-arrow">→</div>
+        <div class="formula-block">
+          <div class="formula-value">8 000 000 ₽</div>
+          <div class="formula-label">Стоимость</div>
+        </div>
+        <div class="formula-arrow">→</div>
+        <div class="formula-block">
+          <div class="formula-value">11 200 000 ₽</div>
+          <div class="formula-label">С инфляцией</div>
+        </div>
+        <div class="formula-arrow">=</div>
+        <div class="formula-block accent">
+          <div class="formula-value">24 400 ₽</div>
+          <div class="formula-label">Пополнение</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="goal-arrow"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+
+    <!-- ===== 4. ПЕНСИЯ ===== -->
+    <div class="goal-section">
+      <div class="goal-card">
+        <div class="goal-text">
+          <div class="goal-header">
+            <div class="goal-ai-avatar">
+              <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+            </div>
+            <div class="goal-type-tag passive">Пассивный доход</div>
+          </div>
+          <div class="goal-title">Достойная пенсия</div>
+          <div class="goal-subtitle">Желаемый доход 100 000 ₽/мес, начало выплат 2051 год</div>
+          <div class="goal-comment">100 000 ₽ сегодня — это <em>230 000 ₽</em> через 26 лет. Нужен капитал ~46 млн.</div>
+        </div>
+        <div class="goal-image">
+          <div class="goal-image-placeholder">./assets/<br>goal-pension.webp</div>
+        </div>
+      </div>
+      <div class="goal-formula">
+        <div class="formula-block" style="flex:0.55;">
+          <div class="formula-value">2051</div>
+          <div class="formula-label">Год цели</div>
+        </div>
+        <div class="formula-arrow">→</div>
+        <div class="formula-block">
+          <div class="formula-value">100 000 ₽</div>
+          <div class="formula-label">Желаемый доход</div>
+        </div>
+        <div class="formula-arrow">→</div>
+        <div class="formula-block">
+          <div class="formula-value">230 000 ₽</div>
+          <div class="formula-label">С инфляцией</div>
+        </div>
+        <div class="formula-arrow">→</div>
+        <div class="formula-block">
+          <div class="formula-value">46 млн ₽</div>
+          <div class="formula-label">Капитал</div>
+        </div>
+        <div class="formula-arrow">=</div>
+        <div class="formula-block accent">
+          <div class="formula-value">38 000 ₽</div>
+          <div class="formula-label">Пополнение</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-break-indicator">
+      <span>Продолжение на следующей странице</span>
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+    </div>
+
+  </div>
+</article>
+
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="page-num">стр. 2 из 2</span>
+        <div class="doc-label">Цели</div>
+      </div>
+    </header>
+
+    <div class="divider"></div>
+
+    <!-- ===== 5. СОХРАНИТЬ И ПРИУМНОЖИТЬ ===== -->
+    <div class="goal-section">
+      <div class="goal-card">
+        <div class="goal-text">
+          <div class="goal-header">
+            <div class="goal-ai-avatar">
+              <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+            </div>
+            <div class="goal-type-tag growth">Рост капитала</div>
+          </div>
+          <div class="goal-title">Сохранить и приумножить</div>
+          <div class="goal-subtitle">Долгосрочное накопление с инвестиционным доходом, 2035 год</div>
+          <div class="goal-comment">15 000 ₽/мес на 10 лет при 8% дадут <em>5,8 млн ₽</em> вместо 1,8 млн без инвестиций.</div>
+        </div>
+        <div class="goal-image">
+          <div class="goal-image-placeholder">./assets/<br>goal-grow.webp</div>
+        </div>
+      </div>
+      <div class="goal-formula">
+        <div class="formula-block" style="flex:0.55;">
+          <div class="formula-value">2035</div>
+          <div class="formula-label">Год цели</div>
+        </div>
+        <div class="formula-arrow">→</div>
+        <div class="formula-block">
+          <div class="formula-value">200 000 ₽</div>
+          <div class="formula-label">Начальный</div>
+        </div>
+        <div class="formula-plus">+</div>
+        <div class="formula-block">
+          <div class="formula-value">15 000 ₽/мес</div>
+          <div class="formula-label">Пополнение</div>
+        </div>
+        <div class="formula-arrow">→</div>
+        <div class="formula-block accent">
+          <div class="formula-value">5 800 000 ₽</div>
+          <div class="formula-label">Итоговый</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="goal-arrow"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+
+    <!-- ===== 6. РЕНТА ===== -->
+    <div class="goal-section">
+      <div class="goal-card">
+        <div class="goal-text">
+          <div class="goal-header">
+            <div class="goal-ai-avatar">
+              <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+            </div>
+            <div class="goal-type-tag rent">Рента</div>
+          </div>
+          <div class="goal-title">Инвестиционная рента</div>
+          <div class="goal-subtitle">Пассивный доход от аренды коммерческой недвижимости</div>
+          <div class="goal-comment">Капитал 5 млн под 6% годовых даёт <em>25 000 ₽/мес</em> пассивного дохода.</div>
+        </div>
+        <div class="goal-image">
+          <div class="goal-image-placeholder">./assets/<br>goal-rent.webp</div>
+        </div>
+      </div>
+      <div class="goal-formula">
+        <div class="formula-block">
+          <div class="formula-value">5 000 000 ₽</div>
+          <div class="formula-label">Капитал</div>
+        </div>
+        <div class="formula-arrow">→</div>
+        <div class="formula-block accent">
+          <div class="formula-value">25 000 ₽/мес</div>
+          <div class="formula-label">Рента</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-tag">Итого по всем целям</div>
+    <div class="summary">
+
+      <div class="pie-card">
+        <div class="pie-title">Распределение целевого капитала</div>
+        <div class="pie-wrapper">
+          <div class="pie-circle" style="background: conic-gradient(
+            #10b981 0% 1%, #ec4899 1% 8.6%, #6366f1 8.6% 28%,
+            #f59e0b 28% 107.8%, #818cf8 107.8% 117.8%, #f472b6 117.8% 100%
+          );">
+            <div class="pie-total">
+              <div class="pie-total-value">57.8 млн</div>
+              <div class="pie-total-label">₽</div>
+            </div>
+          </div>
+          <div class="pie-legend">
+            <div class="legend-item"><div class="legend-dot color-reserve"></div><span class="legend-name">Резерв</span><span class="legend-pct">1%</span></div>
+            <div class="legend-item"><div class="legend-dot color-life"></div><span class="legend-name">Жизнь</span><span class="legend-pct">8%</span></div>
+            <div class="legend-item"><div class="legend-dot color-apartment"></div><span class="legend-name">Квартира</span><span class="legend-pct">19%</span></div>
+            <div class="legend-item"><div class="legend-dot color-pension"></div><span class="legend-name">Пенсия</span><span class="legend-pct">80%</span></div>
+            <div class="legend-item"><div class="legend-dot color-grow"></div><span class="legend-name">Рост</span><span class="legend-pct">10%</span></div>
+            <div class="legend-item"><div class="legend-dot color-rent"></div><span class="legend-name">Рента</span><span class="legend-pct">9%</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pie-card">
+        <div class="pie-title">Распределение пополнений</div>
+        <div class="pie-wrapper">
+          <div class="pie-circle" style="background: conic-gradient(
+            #6366f1 0% 23.8%, #f59e0b 23.8% 71.1%,
+            #818cf8 71.1% 95.7%, #f472b6 95.7% 100%
+          );">
+            <div class="pie-total">
+              <div class="pie-total-value">102 400</div>
+              <div class="pie-total-label">₽/мес</div>
+            </div>
+          </div>
+          <div class="pie-legend">
+            <div class="legend-item"><div class="legend-dot color-apartment"></div><span class="legend-name">Квартира</span><span class="legend-pct">24%</span></div>
+            <div class="legend-item"><div class="legend-dot color-pension"></div><span class="legend-name">Пенсия</span><span class="legend-pct">47%</span></div>
+            <div class="legend-item"><div class="legend-dot color-grow"></div><span class="legend-name">Рост</span><span class="legend-pct">25%</span></div>
+            <div class="legend-item"><div class="legend-dot color-rent"></div><span class="legend-name">Рента</span><span class="legend-pct">4%</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="spacer"></div>
+
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

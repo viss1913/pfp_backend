@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Защита жизни — Финансовый план</title>
+  <!--
+    Финам PDF: одна цель = одна страница. PFP: goal_type LIFE, goal_type_id 5.
+    Данные (пример): goal_name, details.risks[], program_name, annual_premium,
+    initial_instruments / monthly_instruments (NSZH), total_tax_deductions, tax_deduction_2026.
+    Холст 595×842; в проде — escape, динамический список risks.
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 9px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 3px 10px;
+      border: 1px solid #000000; border-radius: 4px;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 8px; }
+
+    .avatar-section {
+      display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px;
+    }
+
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .avatar-text { font-size: 10px; font-weight: 700; color: #ffffff; }
+
+    .speech {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 6px 10px; position: relative;
+    }
+
+    .speech::before {
+      content: ''; position: absolute; left: -6px; top: 11px;
+      width: 9px; height: 9px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech p { font-size: 8px; font-weight: 400; color: #222222; line-height: 1.45; }
+    .speech em { font-style: normal; font-weight: 700; color: #000000; }
+
+    /* Герой: текст + картинка цели */
+    .life-hero {
+      display: flex; gap: 10px; align-items: stretch; margin-bottom: 8px;
+    }
+
+    .life-hero-main {
+      flex: 1; min-width: 0;
+      padding: 7px 9px; border-radius: 6px;
+      background: #fdf2f8; border: 1px solid #f9a8d4;
+    }
+
+    .life-hero-top {
+      display: flex; align-items: center; gap: 5px; margin-bottom: 4px;
+    }
+
+    .life-tag {
+      font-size: 6px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #9d174d;
+      padding: 1px 5px; border-radius: 3px;
+      background: #fce7f3; border: 1px solid #f472b6;
+    }
+
+    .life-hero-title {
+      font-size: 10px; font-weight: 700; color: #831843; line-height: 1.2;
+      margin-bottom: 2px;
+    }
+
+    .life-hero-sub {
+      font-size: 6.5px; font-weight: 400; color: #6b7280; line-height: 1.35;
+      margin-bottom: 4px;
+    }
+
+    .life-hero-program {
+      font-size: 7px; font-weight: 600; color: #111827;
+    }
+
+    .life-hero-program span { color: #be185d; }
+
+    .life-hero-image {
+      width: 100px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
+      background: #fce7f3; border: 1px solid #f9a8d4;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 72px;
+    }
+
+    .life-hero-image .ph {
+      font-size: 6.5px; color: #9d174d; text-align: center; line-height: 1.35;
+      padding: 6px;
+    }
+
+    /* Три риска — «щит» покрытия */
+    .life-risks-head {
+      font-size: 7px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #6366f1;
+      margin-bottom: 5px;
+      display: flex; align-items: center; gap: 5px;
+    }
+
+    .life-risks-head::before {
+      content: ''; width: 12px; height: 2px; background: #6366f1; border-radius: 1px;
+    }
+
+    .life-risks {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 5px;
+      margin-bottom: 7px;
+    }
+
+    .life-risk {
+      padding: 6px 5px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      border: 1px solid #e5e7eb;
+      text-align: center;
+    }
+
+    .life-risk-icon {
+      width: 22px; height: 22px; margin: 0 auto 3px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      border: 1px solid #c7d2fe;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .life-risk-icon svg { width: 11px; height: 11px; stroke: #4f46e5; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .life-risk-name {
+      font-size: 5.5px; font-weight: 500; color: #374151; line-height: 1.25;
+      margin-bottom: 3px; min-height: 14px;
+    }
+
+    .life-risk-limit {
+      font-size: 9px; font-weight: 700; color: #111827; line-height: 1;
+    }
+
+    .life-risk-limit small { font-size: 6px; font-weight: 600; color: #6366f1; }
+
+    .life-risk-bar-bg {
+      height: 3px; background: #e5e7eb; border-radius: 2px; margin-top: 4px; overflow: hidden;
+    }
+
+    .life-risk-bar {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+    }
+
+    /* Премии */
+    .life-premium-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 7px;
+    }
+
+    .life-premium-card {
+      padding: 7px 8px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc;
+      text-align: center;
+    }
+
+    .life-premium-label {
+      font-size: 6px; font-weight: 500; color: #6b7280; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 2px;
+    }
+
+    .life-premium-val {
+      font-size: 12px; font-weight: 700; color: #111827; line-height: 1;
+    }
+
+    .life-premium-val span { font-size: 7px; font-weight: 600; color: #6366f1; }
+
+    /* Продукт НСЖ */
+    .life-product {
+      display: flex; gap: 7px; padding: 7px 8px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 7px;
+    }
+
+    .life-product-left { flex: 1; min-width: 0; }
+
+    .life-product-label {
+      font-size: 6.5px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: #6366f1; margin-bottom: 2px;
+    }
+
+    .life-product-name { font-size: 8.5px; font-weight: 700; color: #000; margin-bottom: 4px; }
+
+    .life-product-row {
+      display: flex; justify-content: space-between; margin-bottom: 2px;
+      font-size: 6.5px;
+    }
+
+    .life-product-row span:first-child { color: #6b7280; }
+    .life-product-row span:last-child { font-weight: 600; color: #111; }
+
+    .life-product-right {
+      width: 72px; flex-shrink: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 5px; border-radius: 6px;
+      background: #eef2ff; border: 1px solid #c7d2fe;
+    }
+
+    .life-yield-big { font-size: 16px; font-weight: 800; color: #4f46e5; line-height: 1; }
+    .life-yield-sub { font-size: 6px; color: #6b7280; margin-top: 1px; }
+
+    /* Налоги */
+    .life-tax {
+      display: flex; gap: 8px; padding: 7px 9px; border-radius: 6px;
+      background: #ecfdf5; border: 1px solid #6ee7b7; margin-bottom: 6px;
+    }
+
+    .life-tax-icon {
+      width: 26px; height: 26px; border-radius: 6px;
+      background: #d1fae5; border: 1px solid #34d399;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    .life-tax-icon svg { width: 13px; height: 13px; stroke: #047857; fill: none; stroke-width: 2; }
+
+    .life-tax-body { flex: 1; min-width: 0; }
+
+    .life-tax-title { font-size: 7.5px; font-weight: 700; color: #065f46; margin-bottom: 2px; }
+
+    .life-tax-desc {
+      font-size: 6.5px; color: #047857; line-height: 1.35;
+    }
+
+    .life-tax-desc em { font-style: normal; font-weight: 700; color: #111827; }
+
+    .life-tax-side { text-align: right; flex-shrink: 0; }
+
+    .life-tax-big { font-size: 13px; font-weight: 800; color: #059669; line-height: 1; }
+    .life-tax-small { font-size: 6px; color: #065f46; margin-top: 2px; }
+
+    .avatar-section-sm {
+      display: flex; gap: 8px; align-items: flex-start; margin-bottom: 4px;
+    }
+
+    .avatar-sm {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    .avatar-sm-text { font-size: 9px; font-weight: 700; color: #ffffff; }
+
+    .speech-sm {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 5px 9px; position: relative;
+    }
+
+    .speech-sm::before {
+      content: ''; position: absolute; left: -5px; top: 9px;
+      width: 8px; height: 8px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech-sm p { font-size: 7.5px; font-weight: 400; color: #222222; line-height: 1.4; }
+    .speech-sm em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .spacer { flex: 1; min-height: 0; }
+
+    .footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 4px; padding-top: 4px; border-top: 1px solid #cccccc;
+    }
+
+    .footer-left { font-size: 5.5px; font-weight: 400; color: #555555; line-height: 1.45; }
+    .footer-right { font-size: 5.5px; font-weight: 400; color: #555555; text-align: right; }
+
+    @media print { body { margin: 0; padding: 0; } article.page { margin: 0; } }
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Защита жизни</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="avatar-section">
+      <div class="avatar"><span class="avatar-text">ИИ</span></div>
+      <div class="speech">
+        <p>Цель <em>«Защита жизни»</em> — про спокойствие семьи: при срыве дохода или здоровья у вас уже прописаны <em>лимиты выплат</em> по рискам и понятный график взносов в НСЖ.</p>
+      </div>
+    </div>
+
+    <div class="life-hero">
+      <div class="life-hero-main">
+        <div class="life-hero-top">
+          <div class="life-tag">LIFE · НСЖ</div>
+        </div>
+        <div class="life-hero-title">Защита жизни</div>
+        <div class="life-hero-sub">Программа накопительного страхования с защитой от ключевых рисков</div>
+        <div class="life-hero-program">Продукт: <span>НСЖ «Династия»</span></div>
+      </div>
+      <div class="life-hero-image">
+        <div class="ph">./assets/<br>goal-life.webp<br><br>LIFE</div>
+      </div>
+    </div>
+
+    <div class="life-risks-head">Покрытие по рискам</div>
+    <div class="life-risks">
+      <div class="life-risk">
+        <div class="life-risk-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="life-risk-name">Уход из жизни (любая причина)</div>
+        <div class="life-risk-limit">3 <small>млн ₽</small></div>
+        <div class="life-risk-bar-bg"><div class="life-risk-bar" style="width: 20%;"></div></div>
+      </div>
+      <div class="life-risk">
+        <div class="life-risk-icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        </div>
+        <div class="life-risk-name">Инвалидность I–II группы</div>
+        <div class="life-risk-limit">3 <small>млн ₽</small></div>
+        <div class="life-risk-bar-bg"><div class="life-risk-bar" style="width: 20%;"></div></div>
+      </div>
+      <div class="life-risk">
+        <div class="life-risk-icon">
+          <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </div>
+        <div class="life-risk-name">Критические заболевания</div>
+        <div class="life-risk-limit">15 <small>млн ₽</small></div>
+        <div class="life-risk-bar-bg"><div class="life-risk-bar" style="width: 100%;"></div></div>
+      </div>
+    </div>
+
+    <div class="life-premium-row">
+      <div class="life-premium-card">
+        <div class="life-premium-label">Взнос в год</div>
+        <div class="life-premium-val">200 000<span> ₽</span></div>
+      </div>
+      <div class="life-premium-card">
+        <div class="life-premium-label">Взнос в месяц</div>
+        <div class="life-premium-val">16 666,67<span> ₽</span></div>
+      </div>
+    </div>
+
+    <div class="life-product">
+      <div class="life-product-left">
+        <div class="life-product-label">Инструмент в портфеле цели</div>
+        <div class="life-product-name">НСЖ «Династия»</div>
+        <div class="life-product-row"><span>Тип продукта</span><span>НСЖ (NSZH)</span></div>
+        <div class="life-product-row"><span>Доля в цели</span><span>100%</span></div>
+        <div class="life-product-row"><span>Начальная сумма</span><span>200 000 ₽</span></div>
+        <div class="life-product-row"><span>Ежемесячное пополнение</span><span>16 666,67 ₽</span></div>
+        <div class="life-product-row"><span>Периодичность</span><span>Ежемесячно</span></div>
+      </div>
+      <div class="life-product-right">
+        <div class="life-yield-big">5%</div>
+        <div class="life-yield-sub">доходность</div>
+      </div>
+    </div>
+
+    <div class="life-tax">
+      <div class="life-tax-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <div class="life-tax-body">
+        <div class="life-tax-title">Налоговые вычеты по НСЖ</div>
+        <div class="life-tax-desc">По модели плана: суммарный вычет <em>301 500 ₽</em>; в том числе оценка на <em>2026 год — 20 100 ₽</em> (не налоговая консультация).</div>
+      </div>
+      <div class="life-tax-side">
+        <div class="life-tax-big">301 500 ₽</div>
+        <div class="life-tax-small">всего вычет</div>
+        <div class="life-tax-small" style="margin-top:4px;font-weight:600;color:#059669;">+20 100 ₽ в 2026</div>
+      </div>
+    </div>
+
+    <div class="avatar-section-sm">
+      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
+      <div class="speech-sm">
+        <p>Три столбца — ваши <em>лимиты ответственности</em> страховщика по сценариям. Самый высокий — критические заболевания: <em>15 млн ₽</em>. Взносы и вычеты можно менять при пересчёте плана.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

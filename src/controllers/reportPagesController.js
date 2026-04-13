@@ -10,6 +10,14 @@ const { buildReportSummaryOverviewHtml } = require('../reports/summary/buildSumm
 const { buildGoalPageHtmlByTheme } = require('../reports/themes/reportRenderers');
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 const { resolveReportRasterRef } = require('../utils/reportRasterSrc');
+const {
+    FINAM_PROJECT_ID,
+    resolveGoalTemplateFile,
+    buildRepleneshmentPageHtml,
+    applyGoalFactsToTemplate,
+    fetchAiB2cAvatarUrl,
+    applyFinamAiAvatarHtml,
+} = require('../reports/finam/buildFinamReportHtml');
 
 function escapeHtml(s) {
     if (s == null) return '';
@@ -47,11 +55,16 @@ function normalizePageType(pageType) {
     if (s === 'summary' || s === 'portfolio' || s === 'portfolio-overview' || s === 'planoverview') return 'SUMMARY';
     if (s === 'fin_reserve' || s === 'finreserve' || s === 'fin-reserve' || s === 'financial-reserve') return 'FIN_RESERVE';
     if (s === 'life' || s === 'life-protection' || s === 'life-protect') return 'LIFE';
+    if (s === 'pension') return 'PENSION';
+    if (s === 'passive_income' || s === 'passive-income' || s === 'passiveincome') return 'PASSIVE_INCOME';
     if (s === 'investment' || s === 'grow-wealth' || s === 'save-and-grow') return 'INVESTMENT';
     if (s === 'other' || s === 'apartment' || s === 'house') return 'OTHER';
+    if (s === 'repleneshment' || s === 'replenishment') return 'REPLENESHMENT';
+    if (s === 'tax' || s === 'tax-planning') return 'TAX_PLANNING';
+    if (s === 'portfolio-final' || s === 'portfolio_final') return 'PORTFOLIO_FINAL';
 
     const upper = String(pageType).trim().toUpperCase();
-    if (['FIN_RESERVE', 'LIFE', 'INVESTMENT', 'OTHER'].includes(upper)) return upper;
+    if (['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'INVESTMENT', 'OTHER'].includes(upper)) return upper;
     return '';
 }
 
@@ -114,6 +127,33 @@ class ReportPagesController {
             await ensureClientReportAccess({ user: req.user, clientId, projectId });
             const report = await reportService.getClientReportData(clientId, projectId);
             const clientName = report?.client_info?.first_name || report?.client_info?.full_name || '—';
+            const themeKey = resolveReportThemeKey(projectId);
+            const isFinamProject = themeKey !== 'rostech' && Number(projectId) === FINAM_PROJECT_ID;
+
+            let finamB2cAvatarUrl = null;
+            if (isFinamProject && projectId != null) {
+                finamB2cAvatarUrl = await fetchAiB2cAvatarUrl(projectId);
+            }
+
+            if (isFinamProject) {
+                if (pageType === 'REPLENESHMENT') {
+                    const html = buildRepleneshmentPageHtml(report);
+                    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                    res.setHeader('Cache-Control', 'private, no-store');
+                    res.send(html);
+                    return;
+                }
+
+                if (pageType === 'TAX_PLANNING' || pageType === 'PORTFOLIO_FINAL') {
+                    const fileName = pageType === 'TAX_PLANNING' ? 'tax-planning-block-finam.html' : 'portfolio-final-page-finam.html';
+                    let html = await fs.promises.readFile(path.join(__dirname, `../reports/finam/${fileName}`), 'utf-8');
+                    html = applyFinamAiAvatarHtml(html, finamB2cAvatarUrl);
+                    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                    res.setHeader('Cache-Control', 'private, no-store');
+                    res.send(html);
+                    return;
+                }
+            }
 
             const pdfSettings = await pdfSettingsService.getByAgentId(agentId, projectId);
 
@@ -183,27 +223,42 @@ class ReportPagesController {
                 return;
             }
 
-            const themeKey = resolveReportThemeKey(projectId);
-            const html = await buildGoalPageHtmlByTheme({
-                themeKey,
-                goalType: pageType,
-                goal,
-                clientName,
-                options: {
-                    inlineLocalAssets,
-                    accentColor,
-                    textColor,
-                    logoSrc: logoSrc || undefined,
-                    backgroundSrc: backgroundSrc || '',
-                    aiAvatarSrc: aiAvatarSrc || undefined,
-                    lineColor,
-                    backgroundOverlayOpacity,
-                    backgroundDarknessPercent,
-                    clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
-                    overallPlan: report?.overall_plan || null,
-                    reportGoalsOrdered: report?.goals_detailed || [],
-                },
-            });
+            let html;
+            if (isFinamProject) {
+                const goalFromQueryId = req.query.goalId ? Number(req.query.goalId) : null;
+                const goalForTemplate =
+                    (Number.isFinite(goalFromQueryId) &&
+                        (report.goals_detailed || []).find((g) => Number(g?.goal_id) === goalFromQueryId)) ||
+                    goal;
+                const fileName = resolveGoalTemplateFile(goalForTemplate);
+                if (!fileName) {
+                    res.status(404).json({ error: `No Finam template for pageType ${pageType}` });
+                    return;
+                }
+                const rawHtml = await fs.promises.readFile(path.join(__dirname, `../reports/finam/${fileName}`), 'utf-8');
+                html = applyFinamAiAvatarHtml(applyGoalFactsToTemplate(rawHtml, goalForTemplate), finamB2cAvatarUrl);
+            } else {
+                html = await buildGoalPageHtmlByTheme({
+                    themeKey,
+                    goalType: pageType,
+                    goal,
+                    clientName,
+                    options: {
+                        inlineLocalAssets,
+                        accentColor,
+                        textColor,
+                        logoSrc: logoSrc || undefined,
+                        backgroundSrc: backgroundSrc || '',
+                        aiAvatarSrc: aiAvatarSrc || undefined,
+                        lineColor,
+                        backgroundOverlayOpacity,
+                        backgroundDarknessPercent,
+                        clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
+                        overallPlan: report?.overall_plan || null,
+                        reportGoalsOrdered: report?.goals_detailed || [],
+                    },
+                });
+            }
 
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'private, no-store');

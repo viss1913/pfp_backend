@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Финансовый резерв — Финансовый план</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Клетка как на страницах 2–4: шаг 20px, чуть «школьная» сине-серая линия */
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 9px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 3px 10px;
+      border: 1px solid #000000; border-radius: 4px;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 10px; }
+
+    .avatar-section {
+      display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
+    }
+
+    .avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .avatar-text { font-size: 11px; font-weight: 700; color: #ffffff; }
+
+    .speech {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 7px 11px; position: relative;
+    }
+
+    .speech::before {
+      content: ''; position: absolute; left: -6px; top: 12px;
+      width: 9px; height: 9px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech p { font-size: 8.5px; font-weight: 400; color: #222222; line-height: 1.5; }
+    .speech em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .goal-card {
+      padding: 8px 10px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 8px;
+    }
+
+    .goal-header {
+      display: flex; align-items: center; gap: 5px; margin-bottom: 2px;
+    }
+
+    .goal-ai-avatar {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    .goal-ai-avatar svg { width: 10px; height: 10px; fill: #ffffff; }
+
+    .goal-type-tag {
+      font-size: 6px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #059669;
+      display: inline-block; padding: 1px 5px; border-radius: 3px;
+      background: #d1fae5; border: 1px solid #6ee7b7;
+    }
+
+    .goal-title {
+      font-size: 10px; font-weight: 600; color: #000000;
+      line-height: 1.2; margin-bottom: 1px;
+    }
+
+    .goal-subtitle {
+      font-size: 7px; font-weight: 400; color: #555555; line-height: 1.35;
+      margin-bottom: 2px;
+    }
+
+    .goal-comment {
+      font-size: 7px; font-weight: 400; color: #333333; line-height: 1.4;
+    }
+
+    .goal-comment em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .metrics {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px; margin-bottom: 8px;
+    }
+
+    .metric {
+      text-align: center; padding: 8px 4px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc;
+    }
+
+    .metric-value {
+      font-size: 13px; font-weight: 700; color: #000000; line-height: 1;
+      margin-bottom: 2px;
+    }
+
+    .metric-value span { font-size: 8px; font-weight: 600; color: #6366f1; }
+    .metric-value.green span { color: #10b981; }
+    .metric-value.amber span { color: #f59e0b; }
+
+    .metric-desc {
+      font-size: 6.5px; font-weight: 400; color: #555555; line-height: 1.3;
+    }
+
+    .instrument {
+      display: flex; gap: 8px; padding: 8px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 8px;
+    }
+
+    .instrument-left { flex: 1; }
+
+    .instrument-label {
+      font-size: 7px; font-weight: 500; letter-spacing: 0.1em;
+      text-transform: uppercase; color: #6366f1; margin-bottom: 3px;
+    }
+
+    .instrument-name {
+      font-size: 9px; font-weight: 600; color: #000000; margin-bottom: 3px;
+    }
+
+    .instrument-row {
+      display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;
+    }
+
+    .instrument-key { font-size: 7.5px; font-weight: 400; color: #555555; }
+    .instrument-val { font-size: 7.5px; font-weight: 600; color: #000000; }
+
+    .instrument-bar-wrap { width: 100%; margin-top: 4px; }
+
+    .instrument-bar-labels {
+      display: flex; justify-content: space-between; margin-bottom: 2px;
+    }
+
+    .instrument-bar-labels span { font-size: 6px; font-weight: 500; color: #777777; }
+
+    .instrument-bar-bg {
+      height: 10px; background: #e0e0e0; border-radius: 3px; overflow: hidden;
+    }
+
+    .instrument-bar {
+      height: 100%; background: linear-gradient(90deg, #6366f1, #818cf8);
+      border-radius: 2px; width: 87%;
+    }
+
+    .instrument-right {
+      width: 90px; flex-shrink: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 6px;
+      border-radius: 6px; background: #eef2ff; border: 1px solid #c7d2fe;
+    }
+
+    .instrument-yield-big {
+      font-size: 18px; font-weight: 700; color: #6366f1; line-height: 1;
+    }
+
+    .instrument-yield-sign { font-size: 10px; font-weight: 600; color: #6366f1; }
+    .instrument-yield-label { font-size: 6px; font-weight: 400; color: #555555; margin-top: 1px; }
+
+    .inflation-box {
+      display: flex; gap: 8px; padding: 8px; border-radius: 6px;
+      background: #fffbeb; border: 1px solid #fde68a; margin-bottom: 8px;
+    }
+
+    .inflation-icon {
+      width: 28px; height: 28px; border-radius: 6px;
+      background: #fef3c7; border: 1px solid #fcd34d;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    .inflation-icon svg {
+      width: 14px; height: 14px; stroke: #b45309; fill: none;
+      stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .inflation-text { flex: 1; }
+
+    .inflation-title {
+      font-size: 8px; font-weight: 600; color: #92400e; margin-bottom: 2px;
+    }
+
+    .inflation-desc {
+      font-size: 7px; font-weight: 400; color: #78350f; line-height: 1.4;
+    }
+
+    .inflation-desc em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .inflation-num { text-align: center; flex-shrink: 0; }
+    .inflation-pct { font-size: 16px; font-weight: 700; color: #b45309; line-height: 1; }
+    .inflation-pct-label { font-size: 6px; font-weight: 400; color: #78350f; }
+
+    .chart-card {
+      padding: 8px 8px 6px; border-radius: 6px;
+      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 8px;
+    }
+
+    .chart-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .chart-title {
+      font-size: 8px; font-weight: 600; color: #000000;
+    }
+
+    .chart-legend {
+      display: flex; gap: 10px;
+    }
+
+    .chart-legend-item {
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    .legend-line {
+      width: 14px; height: 2px; border-radius: 1px; flex-shrink: 0;
+      background: #6366f1;
+    }
+
+    .legend-text { font-size: 6px; font-weight: 400; color: #555555; }
+
+    .chart-svg { display: block; width: 100%; }
+
+    .avatar-section-sm {
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+
+    .avatar-sm {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    .avatar-sm-text { font-size: 9px; font-weight: 700; color: #ffffff; }
+
+    .speech-sm {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 6px 10px; position: relative;
+    }
+
+    .speech-sm::before {
+      content: ''; position: absolute; left: -5px; top: 10px;
+      width: 8px; height: 8px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech-sm p { font-size: 8px; font-weight: 400; color: #222222; line-height: 1.45; }
+    .speech-sm em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .spacer { flex: 1; }
+
+    .footer {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 5px; padding-top: 4px; border-top: 1px solid #cccccc;
+    }
+
+    .footer-left { font-size: 5.5px; font-weight: 400; color: #555555; line-height: 1.5; }
+    .footer-right { font-size: 5.5px; font-weight: 400; color: #555555; text-align: right; }
+
+    @media print { body { margin: 0; padding: 0; } article.page { margin: 0; } }
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Финансовый резерв</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="avatar-section">
+      <div class="avatar"><span class="avatar-text">ИИ</span></div>
+      <div class="speech">
+        <p>Разбираем вашу первую цель — <em>финансовый резерв</em>. Начальный капитал уже на месте. Вот как он будет расти с пополнением и процентами.</p>
+      </div>
+    </div>
+
+    <div class="goal-card">
+      <div class="goal-header">
+        <div class="goal-ai-avatar">
+          <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l7.53 13H4.47L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+        </div>
+        <div class="goal-type-tag">Защита</div>
+      </div>
+      <div class="goal-title">Финансовый резерв</div>
+      <div class="goal-subtitle">Подушка безопасности, срок формирования — 12 месяцев</div>
+      <div class="goal-comment">Начальный капитал <em>400 000 ₽</em> уже на месте. Пополнение 5 000 ₽/мес на вкладе с доходностью 13% доведёт капитал до <em>517 185 ₽</em> за 12 месяцев.</div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-value green">400 000<span> ₽</span></div>
+        <div class="metric-desc">Начальный капитал</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">5 000<span> ₽/мес</span></div>
+        <div class="metric-desc">Пополнение</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value amber">517 185<span> ₽</span></div>
+        <div class="metric-desc">Итог через 12 мес</div>
+      </div>
+    </div>
+
+    <div class="instrument">
+      <div class="instrument-left">
+        <div class="instrument-label">Инструмент</div>
+        <div class="instrument-name">Банковский накопительный счёт</div>
+        <div class="instrument-row">
+          <span class="instrument-key">Тип</span>
+          <span class="instrument-val">Вклад</span>
+        </div>
+        <div class="instrument-row">
+          <span class="instrument-key">Доля</span>
+          <span class="instrument-val">100%</span>
+        </div>
+        <div class="instrument-row">
+          <span class="instrument-key">Начальная сумма</span>
+          <span class="instrument-val">400 000 ₽</span>
+        </div>
+        <div class="instrument-row">
+          <span class="instrument-key">Ежемесячное пополнение</span>
+          <span class="instrument-val">5 000 ₽</span>
+        </div>
+        <div class="instrument-bar-wrap">
+          <div class="instrument-bar-labels">
+            <span>Начальный капитал</span>
+            <span>Пополнение за 12 мес</span>
+          </div>
+          <div class="instrument-bar-bg">
+            <div class="instrument-bar" style="width: 87%;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="instrument-right">
+        <div class="instrument-yield-big">13%</div>
+        <div class="instrument-yield-sign">годовых</div>
+        <div class="instrument-yield-label">доходность</div>
+      </div>
+    </div>
+
+    <div class="inflation-box">
+      <div class="inflation-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+      </div>
+      <div class="inflation-text">
+        <div class="inflation-title">Почему 517 000 ₽ при начале в 400 000 ₽</div>
+        <div class="inflation-desc">Пополнение 5 000 ₽/мес плюс доходность 13% на вкладе компенсируют инфляцию <em>10% годовых</em> и приносят дополнительный доход сверху.</div>
+      </div>
+      <div class="inflation-num">
+        <div class="inflation-pct">10%</div>
+        <div class="inflation-pct-label">инфляция</div>
+      </div>
+    </div>
+
+    <!-- График -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="chart-title">Рост капитала: апрель 2026 → апрель 2027</div>
+        <div class="chart-legend">
+          <div class="chart-legend-item">
+            <div class="legend-line"></div>
+            <span class="legend-text">Фактические данные</span>
+          </div>
+        </div>
+      </div>
+
+      <svg class="chart-svg" viewBox="0 0 500 150" xmlns="http://www.w3.org/2000/svg">
+        <!--
+          Y: 400к=110, 525к=20, step 25к → 0.72 px/тыс ₽
+          X: 12 точек, 36→486, шаг ~40.9
+        -->
+
+        <!-- Y grid: 400, 425, 450, 475, 500, 525 -->
+        <line x1="36" y1="110" x2="486" y2="110" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="36" y1="92" x2="486" y2="92" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="36" y1="74" x2="486" y2="74" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="36" y1="56" x2="486" y2="56" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="36" y1="38" x2="486" y2="38" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+        <line x1="36" y1="20" x2="486" y2="20" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+
+        <text x="32" y="113" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">400к</text>
+        <text x="32" y="95" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">425к</text>
+        <text x="32" y="77" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">450к</text>
+        <text x="32" y="59" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">475к</text>
+        <text x="32" y="41" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">500к</text>
+        <text x="32" y="23" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">525к</text>
+
+        <!-- X labels -->
+        <text x="36" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Апр'26</text>
+        <text x="77" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Май'26</text>
+        <text x="118" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Июн'26</text>
+        <text x="159" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Июл'26</text>
+        <text x="200" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Авг'26</text>
+        <text x="240" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Сен'26</text>
+        <text x="281" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Окт'26</text>
+        <text x="322" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Ноя'26</text>
+        <text x="363" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Дек'26</text>
+        <text x="404" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Янв'27</text>
+        <text x="445" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Фев'27</text>
+        <text x="486" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">Апр'27</text>
+
+        <!-- Area fill -->
+        <defs>
+          <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#6366f1" stop-opacity="0.01"/>
+          </linearGradient>
+        </defs>
+        <path d="M36,103.5 L77,96.8 L118,90.1 L159,83.3 L200,76.4 L240,69.4 L281,62.4 L322,55.2 L363,48 L404,40.6 L445,33.2 L486,25.6 L486,110 L36,110 Z" fill="url(#ag)"/>
+
+        <!-- Main line -->
+        <polyline
+          points="36,103.5 77,96.8 118,90.1 159,83.3 200,76.4 240,69.4 281,62.4 322,55.2 363,48 404,40.6 445,33.2 486,25.6"
+          fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Data points -->
+        <circle cx="36" cy="103.5" r="2.5" fill="#6366f1"/>
+        <circle cx="77" cy="96.8" r="2.5" fill="#6366f1"/>
+        <circle cx="118" cy="90.1" r="2.5" fill="#6366f1"/>
+        <circle cx="159" cy="83.3" r="2.5" fill="#6366f1"/>
+        <circle cx="200" cy="76.4" r="2.5" fill="#6366f1"/>
+        <circle cx="240" cy="69.4" r="2.5" fill="#6366f1"/>
+        <circle cx="281" cy="62.4" r="2.5" fill="#6366f1"/>
+        <circle cx="322" cy="55.2" r="2.5" fill="#6366f1"/>
+        <circle cx="363" cy="48" r="2.5" fill="#6366f1"/>
+        <circle cx="404" cy="40.6" r="2.5" fill="#6366f1"/>
+        <circle cx="445" cy="33.2" r="2.5" fill="#6366f1"/>
+        <circle cx="486" cy="25.6" r="2.5" fill="#6366f1"/>
+
+        <!-- Value labels -->
+        <text x="36" y="97" font-size="5.5" fill="#333" text-anchor="middle" font-family="sans-serif" font-weight="600">409к</text>
+        <text x="200" y="70" font-size="5.5" fill="#333" text-anchor="middle" font-family="sans-serif" font-weight="600">437к</text>
+        <text x="363" y="42" font-size="5.5" fill="#333" text-anchor="middle" font-family="sans-serif" font-weight="600">486к</text>
+
+        <!-- Final label -->
+        <rect x="448" y="6" width="76" height="15" rx="3" fill="#eef2ff" stroke="#c7d2fe" stroke-width="0.5"/>
+        <text x="486" y="16" font-size="7" fill="#6366f1" text-anchor="middle" font-family="sans-serif" font-weight="700">517 185 ₽</text>
+      </svg>
+    </div>
+
+    <div class="avatar-section-sm">
+      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
+      <div class="speech-sm">
+        <p>12 точек на графике — <em>все фактические данные</em> от апреля 2026 до апреля 2027. Сплошная линия показывает рост от 400 до 517 тысяч. Без пополнения было бы 460 000 ₽.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

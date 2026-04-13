@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Итоговый портфель — Финансовый план</title>
+  <!--
+    Финам PDF: один лист — консолидированный итоговый портфель (обоснование по типам целей — в portfolio-page-finam или отдельно на бэке).
+    Два среза: начальный капитал и портфель пополнений — у каждого donut + шкала + легенда + таблица (₽ и ₽/мес) + комментарии ИИ.
+    Типографика как fin-reserve: speech ~8.5px, второстепенный текст не ниже ~5.5px.
+    Поля бэка (пример): initial_breakdown[], contribution_breakdown[], contribution_monthly_total, intro_ai_text, closing_ai_text.
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+    }
+
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 9px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 3px 10px;
+      border: 1px solid #000000; border-radius: 4px;
+      max-width: 300px;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 8px; }
+
+    .avatar-section {
+      display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px;
+    }
+
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .avatar-text { font-size: 10px; font-weight: 700; color: #ffffff; }
+
+    .speech {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 6px 10px; position: relative;
+    }
+
+    .speech::before {
+      content: ''; position: absolute; left: -6px; top: 11px;
+      width: 9px; height: 9px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech p { font-size: 8.5px; font-weight: 400; color: #222222; line-height: 1.5; }
+    .speech em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .section-label {
+      font-size: 6.5px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #6366f1;
+      margin: 3px 0 3px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-label::before {
+      content: ''; width: 12px; height: 2px; background: #6366f1; border-radius: 1px;
+    }
+
+    .avatar-section-sm {
+      display: flex; gap: 8px; align-items: flex-start;
+    }
+
+    .avatar-sm {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
+    .avatar-sm-text { font-size: 8px; font-weight: 700; color: #ffffff; }
+
+    .speech-sm {
+      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
+      border-radius: 8px; padding: 5px 9px; position: relative;
+    }
+
+    .speech-sm::before {
+      content: ''; position: absolute; left: -5px; top: 9px;
+      width: 8px; height: 8px; background: #f3f3f3;
+      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech-sm p { font-size: 7.5px; font-weight: 400; color: #222222; line-height: 1.45; }
+    .speech-sm em { font-style: normal; font-weight: 700; color: #000000; }
+
+    .avatar-section-sm--tight { margin-bottom: 4px; }
+
+    .chart-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 7px 9px 8px;
+      margin-bottom: 6px;
+    }
+
+    .chart-card--contrib {
+      margin-bottom: 5px;
+    }
+
+    .chart-card-title {
+      font-size: 6.5px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #374151;
+      margin-bottom: 5px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .total-layout {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .donut-wrap {
+      position: relative;
+      width: 138px;
+      height: 138px;
+      flex-shrink: 0;
+    }
+
+    .donut-wrap--sm {
+      width: 118px;
+      height: 118px;
+    }
+
+    .donut-wrap--sm .donut-center-sum { font-size: 9px; }
+    .donut-wrap--sm .donut-center-pct { font-size: 7px; }
+    .donut-wrap--sm .donut-center-sub { font-size: 5px; }
+
+    .donut-wrap svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));
+    }
+
+    .donut-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      width: 76px;
+      pointer-events: none;
+    }
+
+    .donut-wrap--sm .donut-center { width: 68px; }
+
+    .donut-center-sum {
+      display: block;
+      font-size: 11px;
+      font-weight: 800;
+      color: #111827;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+
+    .donut-center-pct {
+      display: block;
+      font-size: 8px;
+      font-weight: 800;
+      color: #6366f1;
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+
+    .donut-center-sub {
+      display: block;
+      font-size: 5.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-top: 3px;
+      line-height: 1.25;
+    }
+
+    .hbar-caption {
+      font-size: 6px;
+      font-weight: 600;
+      color: #6b7280;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .hbar {
+      display: flex;
+      height: 19px;
+      gap: 3px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+    }
+
+    .hbar-seg {
+      flex: 1 1 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 6.5px;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+      min-width: 0;
+    }
+
+    .hbar-seg--light {
+      color: #1f2937;
+      text-shadow: none;
+    }
+
+    .hbar--1 { flex-grow: 35; background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
+    .hbar--2 { flex-grow: 30; background: linear-gradient(180deg, #8b5cf6 0%, #6d28d9 100%); }
+    .hbar--3 { flex-grow: 25; background: linear-gradient(180deg, #d8b4fe 0%, #a855f7 100%); }
+    .hbar--4 { flex-grow: 10; background: linear-gradient(180deg, #10b981 0%, #047857 100%); }
+
+    /* портфель пополнений — демо 30 / 40 / 30 (депозит / облигации / акции) */
+    .hbar--c30a { flex-grow: 30; background: linear-gradient(180deg, #e9d5ff 0%, #c084fc 100%); }
+    .hbar--c40b { flex-grow: 40; background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%); }
+    .hbar--c30c { flex-grow: 30; background: linear-gradient(180deg, #a78bfa 0%, #6d28d9 100%); }
+
+    .total-dot--dep { background: #c084fc; }
+
+    .total-legend {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-top: 2px;
+    }
+
+    .total-legend-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 6.5px;
+      line-height: 1.35;
+      color: #374151;
+    }
+
+    .total-dot {
+      width: 8px; height: 8px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .total-dot--1 { background: #2563eb; }
+    .total-dot--2 { background: #7c3aed; }
+    .total-dot--3 { background: #c084fc; }
+    .total-dot--4 { background: #059669; }
+
+    .total-name { font-weight: 600; color: #111827; }
+    .total-pct { font-weight: 800; color: #111827; }
+    .total-meta { font-weight: 400; color: #6b7280; }
+
+    .pct-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 6.5px;
+      margin-bottom: 5px;
+    }
+
+    .pct-table-caption {
+      font-size: 6px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #4b5563;
+      margin: 0 0 3px 1px;
+    }
+
+    .pct-table th,
+    .pct-table td {
+      border: 1px solid #d1d5db;
+      padding: 4px 6px;
+      text-align: left;
+    }
+
+    .pct-table th {
+      background: #eef2ff;
+      font-weight: 600;
+      color: #3730a3;
+    }
+
+    .pct-table td { background: #fafafa; color: #111827; }
+
+    .pct-table td.num { text-align: right; white-space: nowrap; font-weight: 600; }
+    .pct-table td.pct { text-align: center; font-weight: 700; color: #1e3a8a; }
+
+    .pct-table tr.total-row td {
+      background: #f0fdf4;
+      font-weight: 700;
+      color: #065f46;
+    }
+
+    .block-note {
+      font-size: 6px;
+      color: #6b7280;
+      line-height: 1.4;
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: #f3f4f6;
+      border: 1px dashed #d1d5db;
+      margin-bottom: 5px;
+    }
+
+    .spacer { flex: 1; min-height: 4px; }
+
+    .page-num {
+      font-size: 6px; font-weight: 600; color: #000000;
+      margin-bottom: 2px; text-align: right;
+    }
+
+    .footer {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-top: auto; padding-top: 4px; border-top: 1px solid #cccccc;
+    }
+
+    .footer-left { font-size: 5.5px; font-weight: 400; color: #555555; line-height: 1.45; }
+    .footer-right { font-size: 5.5px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
+
+    @media print {
+      body { margin: 0; padding: 0; gap: 0; }
+      article.page { page-break-after: always; }
+      article.page:last-child { page-break-after: auto; }
+    }
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<!-- ========== Итоговый портфель · один лист ========== -->
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Итоговый портфель · доли</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="avatar-section">
+      <div class="avatar"><span class="avatar-text">ИИ</span></div>
+      <div class="speech">
+        <p>Два среза по всем целям: <em>уже вложенный капитал</em> и <em>как распределены ежемесячные пополнения</em> по классам активов. Доли могут совпадать или отличаться — в проде подставляем факт из расчёта; круги и шкалы совпадают с таблицами ниже.</p>
+      </div>
+    </div>
+
+    <div class="section-label">Консолидированный портфель</div>
+
+    <div class="chart-card">
+      <div class="chart-card-title">Начальный капитал · классы активов</div>
+
+      <div class="total-layout">
+        <div class="donut-wrap">
+          <!-- Donut R_out=42 R_in=24, те же углы что пирог 35/30/25/10%; белый обвод для щелей -->
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="pff-g1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#1e40af"/>
+              </linearGradient>
+              <linearGradient id="pff-g2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#a78bfa"/><stop offset="100%" stop-color="#5b21b6"/>
+              </linearGradient>
+              <linearGradient id="pff-g3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#e9d5ff"/><stop offset="100%" stop-color="#9333ea"/>
+              </linearGradient>
+              <linearGradient id="pff-g4" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#047857"/>
+              </linearGradient>
+            </defs>
+            <g paint-order="stroke fill">
+              <path d="M 50 8 A 42 42 0 0 1 83.98 74.69 L 69.42 64.11 A 24 24 0 0 0 50 26 Z" fill="url(#pff-g1)" stroke="#ffffff" stroke-width="1.35"/>
+              <path d="M 83.98 74.69 A 42 42 0 0 1 16.02 74.69 L 30.58 64.11 A 24 24 0 0 0 69.42 64.11 Z" fill="url(#pff-g2)" stroke="#ffffff" stroke-width="1.35"/>
+              <path d="M 16.02 74.69 A 42 42 0 0 1 25.31 16.02 L 35.89 30.58 A 24 24 0 0 0 30.58 64.11 Z" fill="url(#pff-g3)" stroke="#ffffff" stroke-width="1.35"/>
+              <path d="M 25.31 16.02 A 42 42 0 0 1 50 8 L 50 26 A 24 24 0 0 0 35.89 30.58 Z" fill="url(#pff-g4)" stroke="#ffffff" stroke-width="1.35"/>
+            </g>
+          </svg>
+          <div class="donut-center">
+            <span class="donut-center-sum">1,51 млн ₽</span>
+            <span class="donut-center-pct">100%</span>
+            <span class="donut-center-sub">уже в портфеле</span>
+          </div>
+        </div>
+        <div class="total-legend">
+          <div class="total-legend-row">
+            <span class="total-dot total-dot--1" aria-hidden="true"></span>
+            <span><span class="total-name">Облигации</span> — <span class="total-pct">35%</span> <span class="total-meta">· 529 200 ₽</span></span>
+          </div>
+          <div class="total-legend-row">
+            <span class="total-dot total-dot--2" aria-hidden="true"></span>
+            <span><span class="total-name">Акции</span> — <span class="total-pct">30%</span> <span class="total-meta">· 453 600 ₽</span></span>
+          </div>
+          <div class="total-legend-row">
+            <span class="total-dot total-dot--3" aria-hidden="true"></span>
+            <span><span class="total-name">Депозиты и вклады</span> — <span class="total-pct">25%</span> <span class="total-meta">· 378 000 ₽</span></span>
+          </div>
+          <div class="total-legend-row">
+            <span class="total-dot total-dot--4" aria-hidden="true"></span>
+            <span><span class="total-name">НПФ / долгосрок</span> — <span class="total-pct">10%</span> <span class="total-meta">· 151 200 ₽</span></span>
+          </div>
+        </div>
+      </div>
+
+      <p class="hbar-caption">Линейная шкала долей (та же разбивка, что и круг)</p>
+      <div class="hbar" aria-hidden="true">
+        <span class="hbar-seg hbar--1">35%</span>
+        <span class="hbar-seg hbar--2">30%</span>
+        <span class="hbar-seg hbar--3 hbar-seg--light">25%</span>
+        <span class="hbar-seg hbar--4">10%</span>
+      </div>
+    </div>
+
+    <div class="chart-card chart-card--contrib">
+      <div class="chart-card-title">Портфель пополнений · распределение взносов</div>
+      <div class="total-layout">
+        <div class="donut-wrap donut-wrap--sm">
+          <!-- Donut 30/40/30: депозит / облигации / акции (демо как на пассивном доходе) -->
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="pff-cg1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#f5e6ff"/><stop offset="100%" stop-color="#a855f7"/>
+              </linearGradient>
+              <linearGradient id="pff-cg2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#1e40af"/>
+              </linearGradient>
+              <linearGradient id="pff-cg3" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#5b21b6"/>
+              </linearGradient>
+            </defs>
+            <g paint-order="stroke fill">
+              <path d="M 50 8 A 42 42 0 0 1 89.94 62.98 L 72.82 57.42 A 24 24 0 0 0 50 26 Z" fill="url(#pff-cg1)" stroke="#ffffff" stroke-width="1.35"/>
+              <path d="M 89.94 62.98 A 42 42 0 0 1 10.06 62.98 L 27.22 57.42 A 24 24 0 0 0 72.82 57.42 Z" fill="url(#pff-cg2)" stroke="#ffffff" stroke-width="1.35"/>
+              <path d="M 10.06 62.98 A 42 42 0 0 1 50 8 L 50 26 A 24 24 0 0 0 27.22 57.42 Z" fill="url(#pff-cg3)" stroke="#ffffff" stroke-width="1.35"/>
+            </g>
+          </svg>
+          <div class="donut-center">
+            <span class="donut-center-sum">50 тыс. ₽</span>
+            <span class="donut-center-pct">100%</span>
+            <span class="donut-center-sub">в месяц</span>
+          </div>
+        </div>
+        <div class="total-legend">
+          <div class="total-legend-row">
+            <span class="total-dot total-dot--dep" aria-hidden="true"></span>
+            <span><span class="total-name">Депозит / ликвидность</span> — <span class="total-pct">30%</span> <span class="total-meta">· 15 000 ₽/мес</span></span>
+          </div>
+          <div class="total-legend-row">
+            <span class="total-dot total-dot--1" aria-hidden="true"></span>
+            <span><span class="total-name">Облигации</span> — <span class="total-pct">40%</span> <span class="total-meta">· 20 000 ₽/мес</span></span>
+          </div>
+          <div class="total-legend-row">
+            <span class="total-dot total-dot--2" aria-hidden="true"></span>
+            <span><span class="total-name">Акции</span> — <span class="total-pct">30%</span> <span class="total-meta">· 15 000 ₽/мес</span></span>
+          </div>
+        </div>
+      </div>
+      <p class="hbar-caption">Доли пополнений (круг = шкала)</p>
+      <div class="hbar" aria-hidden="true">
+        <span class="hbar-seg hbar--c30a hbar-seg--light">30%</span>
+        <span class="hbar-seg hbar--c40b">40%</span>
+        <span class="hbar-seg hbar--c30c">30%</span>
+      </div>
+    </div>
+
+    <p class="pct-table-caption">Начальный капитал</p>
+    <table class="pct-table" aria-label="Доли начального капитала по классам активов">
+      <thead>
+        <tr>
+          <th>Класс актива</th>
+          <th class="pct">Доля, %</th>
+          <th class="num">Сумма, ₽</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Облигации</td>
+          <td class="pct">35%</td>
+          <td class="num">529 200</td>
+        </tr>
+        <tr>
+          <td>Акции</td>
+          <td class="pct">30%</td>
+          <td class="num">453 600</td>
+        </tr>
+        <tr>
+          <td>Депозиты и вклады</td>
+          <td class="pct">25%</td>
+          <td class="num">378 000</td>
+        </tr>
+        <tr>
+          <td>НПФ / долгосрочные накопления</td>
+          <td class="pct">10%</td>
+          <td class="num">151 200</td>
+        </tr>
+        <tr class="total-row">
+          <td>Итого</td>
+          <td class="pct">100%</td>
+          <td class="num">1 512 000</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="pct-table-caption">Портфель пополнений</p>
+    <table class="pct-table" aria-label="Доли пополнений по инструментам">
+      <thead>
+        <tr>
+          <th>Инструмент</th>
+          <th class="pct">Доля, %</th>
+          <th class="num">Сумма, ₽/мес</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Депозит / ликвидность</td>
+          <td class="pct">30%</td>
+          <td class="num">15 000</td>
+        </tr>
+        <tr>
+          <td>Облигации</td>
+          <td class="pct">40%</td>
+          <td class="num">20 000</td>
+        </tr>
+        <tr>
+          <td>Акции</td>
+          <td class="pct">30%</td>
+          <td class="num">15 000</td>
+        </tr>
+        <tr class="total-row">
+          <td>Итого взнос</td>
+          <td class="pct">100%</td>
+          <td class="num">50 000</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="block-note">Бэк: <code>initial_asset_breakdown</code> + <code>contribution_asset_breakdown</code> (₽/мес). Donut пополнений — 3 сегмента, пути/SVG и <code>.hbar--c*</code> с таблицей синхронно.</p>
+
+    <div class="avatar-section-sm avatar-section-sm--tight">
+      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
+      <div class="speech-sm">
+        <p>Если доля акций или облигаций в итоге кажется непривычной — сравните с портфелями <em>по отдельным целям</em> в отчёте: консолидация «перемешивает» горизонты. При пересмотре плана имеет смысл смотреть и разрез по целям, и этот суммарный срез.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="page-num">Страница 1 из 1 · Итоговый портфель</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

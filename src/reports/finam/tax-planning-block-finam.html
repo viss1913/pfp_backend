@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Налоговое планирование — шаблон Финам</title>
+  <!--
+    Отдельный фрагмент отчёта: разбивка вычетов по типам (не встраивать в goal-page-pension / passive — там остаются компактные карточки).
+    Один лист A4; при сборке PDF — вставка целиком или копия разметки в билдер.
+    Поля бэка (пример): tax_report_year; за год и за период:
+    tax_deduction_pds, tax_deduction_iis, tax_deduction_nszh,
+    tax_deduction_property_purchase, tax_deduction_mortgage_interest;
+    итоги по колонкам = сумма строк (сверка с total_tax_benefit по сценарию).
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 9px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 3px 10px;
+      border: 1px solid #000000; border-radius: 4px;
+      max-width: 320px;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 10px; }
+
+    .section-label {
+      font-size: 6.5px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #6366f1;
+      margin: 0 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-label::before {
+      content: ''; width: 12px; height: 2px; background: #6366f1; border-radius: 1px;
+    }
+
+    .tax-plan-card {
+      border-radius: 8px;
+      padding: 10px 12px 8px;
+      margin-bottom: 8px;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+    }
+
+    .tax-plan-title {
+      font-size: 9px;
+      font-weight: 800;
+      text-align: center;
+      color: #5b21b6;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .tax-plan-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .tax-plan-col-head {
+      font-size: 6px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #4b5563;
+      margin-bottom: 5px;
+    }
+
+    .tax-breakdown {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 6.5px;
+      color: #111827;
+    }
+
+    .tax-breakdown td {
+      padding: 3px 0;
+      vertical-align: top;
+      line-height: 1.4;
+    }
+
+    .tax-breakdown td:last-child {
+      text-align: right;
+      white-space: nowrap;
+      font-weight: 600;
+      padding-left: 6px;
+    }
+
+    .tax-breakdown tr.tax-breakdown-sub td {
+      font-size: 5.5px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #6b7280;
+      padding-top: 7px;
+      padding-bottom: 3px;
+      border-top: 1px dashed #d1d5db;
+    }
+
+    .tax-breakdown tr.tax-breakdown-total td {
+      font-weight: 800;
+      padding-top: 5px;
+      border-top: 1px solid #c4b5fd;
+      color: #5b21b6;
+    }
+
+    .tax-plan-foot {
+      font-size: 5.5px;
+      color: #6b7280;
+      line-height: 1.45;
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed #d1d5db;
+    }
+
+    .block-note {
+      font-size: 6px;
+      color: #6b7280;
+      line-height: 1.45;
+      padding: 6px 9px;
+      border-radius: 6px;
+      background: #ffffff;
+      border: 1px dashed #d1d5db;
+      margin-bottom: 6px;
+    }
+
+    .spacer { flex: 1; min-height: 8px; }
+
+    .page-num {
+      font-size: 6px; font-weight: 600; color: #000000;
+      margin-bottom: 2px; text-align: right;
+    }
+
+    .footer {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-top: auto; padding-top: 4px; border-top: 1px solid #cccccc;
+    }
+
+    .footer-left { font-size: 5.5px; font-weight: 400; color: #555555; line-height: 1.45; }
+    .footer-right { font-size: 5.5px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
+
+    @media print {
+      body { margin: 0; padding: 0; }
+    }
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Налоговое планирование · шаблон</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Вычеты по типам</div>
+
+    <div class="tax-plan-card">
+      <div class="tax-plan-title">Налоговое планирование</div>
+      <div class="tax-plan-grid">
+        <div class="tax-plan-col">
+          <div class="tax-plan-col-head">За 2026 год</div>
+          <table class="tax-breakdown" aria-label="Вычеты за 2026 год">
+            <tbody>
+              <tr>
+                <td>Вычет за ПДС</td>
+                <td>5 000 ₽</td>
+              </tr>
+              <tr>
+                <td>Вычет за ИИС</td>
+                <td>7 289,46 ₽</td>
+              </tr>
+              <tr>
+                <td>Вычет за НСЖ</td>
+                <td>6 000 ₽</td>
+              </tr>
+              <tr class="tax-breakdown-sub">
+                <td colspan="2">Дополнительные вычеты</td>
+              </tr>
+              <tr>
+                <td>Покупка квартиры</td>
+                <td>0 ₽</td>
+              </tr>
+              <tr>
+                <td>Проценты по ипотеке</td>
+                <td>0 ₽</td>
+              </tr>
+              <tr class="tax-breakdown-total">
+                <td>Итого вычетов за год</td>
+                <td>18 289,46 ₽</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tax-plan-col">
+          <div class="tax-plan-col-head">За весь период</div>
+          <table class="tax-breakdown" aria-label="Вычеты за весь период плана">
+            <tbody>
+              <tr>
+                <td>Вычет за ПДС</td>
+                <td>80 000 ₽</td>
+              </tr>
+              <tr>
+                <td>Вычет за ИИС</td>
+                <td>70 037 ₽</td>
+              </tr>
+              <tr>
+                <td>Вычет за НСЖ</td>
+                <td>43 300 ₽</td>
+              </tr>
+              <tr class="tax-breakdown-sub">
+                <td colspan="2">Дополнительные вычеты</td>
+              </tr>
+              <tr>
+                <td>Покупка квартиры</td>
+                <td>0 ₽</td>
+              </tr>
+              <tr>
+                <td>Проценты по ипотеке</td>
+                <td>0 ₽</td>
+              </tr>
+              <tr class="tax-breakdown-total">
+                <td>Итого вычетов</td>
+                <td>193 337 ₽</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="tax-plan-foot">Подпись «За YYYY год» — из отчётного периода. Строки с нулём можно не рендерить; итого в колонке должно совпадать с суммой показанных строк.</p>
+    </div>
+
+    <p class="block-note">Не подменяет блок на страницах целей <code>goal-page-pension-finam</code> и <code>goal-page-passive-income-finam</code>: там по-прежнему две компактные карточки (вычет за год / за период). Этот файл — для отдельного листа или вставки в PDF при необходимости детализации.</p>
+
+    <div class="spacer"></div>
+
+    <div class="page-num">Страница 1 из 1 · Налоговое планирование</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

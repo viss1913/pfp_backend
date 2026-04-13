@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Автоследование Comon — шаблон Финам</title>
+  <!--
+    Страница отчета Финам: автоследование Comon (после tax-planning-block-finam).
+    Поля бэка (пример): report_payload.comon_showcase.items[]:
+      name, short_description, min_sum, risk_label, profit_365_days_percent, follower_count, url.
+    Рекомендация: показывать до 6 карточек на листе; если данных нет — выводить note-блок.
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      display: flex;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #0f172a;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #000000;
+      padding: 3px 10px;
+      border: 1px solid #000000;
+      border-radius: 4px;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 10px; }
+
+    .section-label {
+      font-size: 6.5px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #6366f1;
+      margin: 0 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-label::before {
+      content: '';
+      width: 12px;
+      height: 2px;
+      background: #6366f1;
+      border-radius: 1px;
+    }
+
+    .ai-intro {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 10px;
+      align-items: start;
+      border-radius: 10px;
+      border: 1px solid #c7d2fe;
+      background: linear-gradient(180deg, #ffffff 0%, #f5f7ff 100%);
+      padding: 10px;
+      margin-bottom: 9px;
+    }
+
+    .ai-avatar {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ffffff 0%, #c7d2fe 38%, #6366f1 100%);
+      border: 2px solid #a5b4fc;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ai-avatar::after {
+      content: '';
+      position: absolute;
+      inset: 12px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.45);
+    }
+
+    .speech {
+      font-size: 8.5px;
+      color: #0f172a;
+      line-height: 1.45;
+    }
+
+    .speech b { font-weight: 700; }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .strategy-card {
+      border-radius: 9px;
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      padding: 8px 9px 7px;
+      min-height: 102px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+    }
+
+    .strategy-title {
+      font-size: 8px;
+      line-height: 1.35;
+      font-weight: 700;
+      color: #1e1b4b;
+    }
+
+    .strategy-desc {
+      font-size: 6px;
+      line-height: 1.4;
+      color: #334155;
+      min-height: 24px;
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: auto;
+    }
+
+    .chip {
+      font-size: 5.5px;
+      line-height: 1.2;
+      padding: 2px 5px;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #334155;
+      white-space: nowrap;
+    }
+
+    .chip--yield {
+      border-color: #c4b5fd;
+      background: #f5f3ff;
+      color: #5b21b6;
+      font-weight: 700;
+    }
+
+    .link-line {
+      margin-top: 2px;
+      font-size: 5.5px;
+      color: #475569;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .disclaimer {
+      margin-top: 8px;
+      font-size: 5.5px;
+      line-height: 1.45;
+      color: #6b7280;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      padding: 6px 8px;
+    }
+
+    .spacer { flex: 1; min-height: 8px; }
+
+    .page-num {
+      font-size: 6px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 2px;
+      text-align: right;
+    }
+
+    .footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 4px;
+      border-top: 1px solid #cccccc;
+    }
+
+    .footer-left,
+    .footer-right {
+      font-size: 5.5px;
+      font-weight: 400;
+      color: #555555;
+      line-height: 1.45;
+    }
+
+    .footer-right { text-align: right; }
+
+    @media print {
+      body { margin: 0; padding: 0; }
+    }
+
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Автоследование · COMON</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Подборка автостратегий</div>
+
+    <section class="ai-intro">
+      <div class="ai-avatar" aria-hidden="true"></div>
+      <p class="speech">
+        <b>Я отобрал стратегии автоследования</b> с разным профилем риска и порогом входа.
+        Вы можете подключиться к стратегии на платформе Comon: сделки повторяются автоматически,
+        при этом средства остаются на вашем брокерском счете. Важно держать горизонт и помнить,
+        что прошлые результаты не гарантируют доход в будущем.
+      </p>
+    </section>
+
+    <section class="cards-grid" aria-label="Карточки стратегий автоследования">
+      <article class="strategy-card">
+        <h3 class="strategy-title">Balanced Trend · умеренная</h3>
+        <p class="strategy-desc">Широкая диверсификация по ликвидным бумагам, ребалансировка по тренду раз в неделю.</p>
+        <div class="chip-row">
+          <span class="chip">Мин. вход: 150 000 ₽</span>
+          <span class="chip chip--yield">+18.4% / 12 мес</span>
+        </div>
+        <p class="link-line">comon.ru/strategies/balanced-trend</p>
+      </article>
+
+      <article class="strategy-card">
+        <h3 class="strategy-title">Dividend Flow · консервативная</h3>
+        <p class="strategy-desc">Фокус на дивидендные истории и облигации, умеренные просадки, акцент на стабильности.</p>
+        <div class="chip-row">
+          <span class="chip">Мин. вход: 100 000 ₽</span>
+          <span class="chip chip--yield">+13.1% / 12 мес</span>
+        </div>
+        <p class="link-line">comon.ru/strategies/dividend-flow</p>
+      </article>
+
+      <article class="strategy-card">
+        <h3 class="strategy-title">Tech Momentum · агрессивная</h3>
+        <p class="strategy-desc">Отбор лидеров роста и короткие тактические входы, высокая волатильность и риск просадки.</p>
+        <div class="chip-row">
+          <span class="chip">Мин. вход: 250 000 ₽</span>
+          <span class="chip chip--yield">+26.7% / 12 мес</span>
+        </div>
+        <p class="link-line">comon.ru/strategies/tech-momentum</p>
+      </article>
+
+      <article class="strategy-card">
+        <h3 class="strategy-title">Blue Chips Plus · умеренная</h3>
+        <p class="strategy-desc">Портфель крупных российских эмитентов с частичным хеджем на турбулентных фазах рынка.</p>
+        <div class="chip-row">
+          <span class="chip">Мин. вход: 200 000 ₽</span>
+          <span class="chip chip--yield">+16.9% / 12 мес</span>
+        </div>
+        <p class="link-line">comon.ru/strategies/bluechips-plus</p>
+      </article>
+
+      <article class="strategy-card">
+        <h3 class="strategy-title">Global Mix RUB · сбалансированная</h3>
+        <p class="strategy-desc">Смешанный подход: акции, фонды и облигации в рублевом контуре с контролем доли риска.</p>
+        <div class="chip-row">
+          <span class="chip">Мин. вход: 120 000 ₽</span>
+          <span class="chip chip--yield">+15.2% / 12 мес</span>
+        </div>
+        <p class="link-line">comon.ru/strategies/global-mix-rub</p>
+      </article>
+
+      <article class="strategy-card">
+        <h3 class="strategy-title">Short Swing Pro · агрессивная</h3>
+        <p class="strategy-desc">Краткосрочные сделки по импульсным сетапам. Подходит инвестору с высокой терпимостью к риску.</p>
+        <div class="chip-row">
+          <span class="chip">Мин. вход: 300 000 ₽</span>
+          <span class="chip chip--yield">+31.0% / 12 мес</span>
+        </div>
+        <p class="link-line">comon.ru/strategies/short-swing-pro</p>
+      </article>
+    </section>
+
+    <p class="disclaimer">
+      Автоследование не является индивидуальной инвестиционной рекомендацией. До подключения стратегии
+      проверьте риск-профиль, минимальную сумму, комиссии и ограничения брокера.
+      Историческая доходность не гарантирует результат в будущем.
+    </p>
+
+    <div class="spacer"></div>
+
+    <div class="page-num">Страница 1 из 1 · Автоследование Comon</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

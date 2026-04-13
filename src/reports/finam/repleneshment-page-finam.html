@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>График пополнений — Финансовый план</title>
+  <!--
+    Шаблон сводной таблицы пополнений/льгот для Финам.
+    Правила агрегации:
+    1) Первая строка = текущий месяц (1-е число), schedule_row_kind = INITIAL_LUMP.
+       В replenishment кладем суммарный первоначальный капитал:
+       - по всем целям, кроме RENT и LIFE: initial_capital (или первая INITIAL_LUMP-строка monthly_schedule),
+       - по LIFE: details.annual_premium (как первичное пополнение).
+    2) Далее помесячно суммируем monthly_schedule всех целей, кроме RENT и LIFE.
+    3) Для LIFE добавляем отдельный синтетический поток:
+       - ежемесячное replenishment = annual_premium / 12,
+       - total_capital = 0, кроме последнего месяца срока (term_months) — там total_capital = projected_capital_at_end (или expected_cash_value),
+       - tax_deduction по LIFE добавляем в апреле следующего года и далее каждый апрель.
+  -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #fafbfc;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      padding: 24px;
+      color: #111827;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 980px;
+      margin: 0 auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .head {
+      padding: 14px 18px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f8fafc;
+    }
+    .head h1 {
+      font-size: 16px;
+      line-height: 1.2;
+      font-weight: 700;
+      color: #111827;
+    }
+    .head p {
+      margin-top: 6px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #4b5563;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    thead th {
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: #111827;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 10px 12px;
+    }
+    tbody td {
+      font-size: 13px;
+      line-height: 1.35;
+      color: #111827;
+      border-bottom: 1px solid #f1f5f9;
+      padding: 8px 12px;
+      vertical-align: top;
+    }
+    tbody tr:nth-child(odd) { background: #fcfcfd; }
+    .num { white-space: nowrap; }
+    .muted { color: #6b7280; font-size: 12px; }
+    .debug {
+      padding: 12px 18px;
+      border-top: 1px solid #e5e7eb;
+      background: #f8fafc;
+      font-size: 12px;
+      color: #4b5563;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <h1>Сводный график пополнений</h1>
+      <p>Первая строка — текущий месяц с первоначальным капиталом, затем помесячная агрегация по правилам.</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 16%;">Дата</th>
+          <th style="width: 22%;">Пополнение</th>
+          <th style="width: 20%;">Налоговый вычет</th>
+          <th style="width: 20%;">Софинансирование</th>
+          <th style="width: 22%;">Итоговый капитал</th>
+        </tr>
+      </thead>
+      <tbody id="rows-root"></tbody>
+    </table>
+    <div class="debug" id="debug-root"></div>
+  </div>
+
+  <script>
+    function toNum(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function toMonthStartIso(dateLike) {
+      const d = dateLike ? new Date(dateLike) : new Date();
+      if (Number.isNaN(d.getTime())) return null;
+      return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-01`;
+    }
+
+    function addMonths(isoDate, monthsToAdd) {
+      const d = new Date(`${isoDate}T00:00:00`);
+      if (Number.isNaN(d.getTime())) return null;
+      d.setMonth(d.getMonth() + monthsToAdd);
+      return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-01`;
+    }
+
+    function formatMoney(value) {
+      const n = toNum(value);
+      return `${n.toLocaleString("ru-RU", { maximumFractionDigits: 2 })} руб.`;
+    }
+
+    function upsertRow(bucket, isoDate) {
+      if (!isoDate) return null;
+      if (!bucket.has(isoDate)) {
+        bucket.set(isoDate, {
+          date: isoDate,
+          replenishment: 0,
+          tax_deduction: 0,
+          cofinancing: 0,
+          total_capital: 0,
+          schedule_row_kind: ""
+        });
+      }
+      return bucket.get(isoDate);
+    }
+
+    function getGoalInitialFromSchedule(goal) {
+      const rows = Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
+      const initial = rows.find((row) => String(row?.schedule_row_kind || "").toUpperCase() === "INITIAL_LUMP");
+      if (initial) return toNum(initial.replenishment);
+      return toNum(goal?.summary?.initial_capital);
+    }
+
+    function buildReplenishmentRows(reportPayload) {
+      const goals = Array.isArray(reportPayload?.goals_detailed) ? reportPayload.goals_detailed : [];
+      const byMonth = new Map();
+      const currentMonth = toMonthStartIso(new Date());
+
+      // 1) Первая строка: INITIAL_LUMP текущего месяца.
+      const initialRow = upsertRow(byMonth, currentMonth);
+      if (initialRow) {
+        initialRow.schedule_row_kind = "INITIAL_LUMP";
+      }
+
+      // 2) Базовая агрегация monthly_schedule всех, кроме RENT/LIFE.
+      for (const goal of goals) {
+        const goalType = String(goal?.goal_type || "").toUpperCase();
+        if (goalType === "RENT" || goalType === "LIFE") continue;
+
+        const schedule = Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
+        for (const srcRow of schedule) {
+          const isoDate = toMonthStartIso(srcRow?.date);
+          if (!isoDate) continue;
+          const row = upsertRow(byMonth, isoDate);
+          row.replenishment += toNum(srcRow.replenishment);
+          row.tax_deduction += toNum(srcRow.tax_deduction);
+          row.cofinancing += toNum(srcRow.cofinancing);
+          row.total_capital += toNum(srcRow.total_capital);
+        }
+
+        if (initialRow) {
+          initialRow.replenishment += getGoalInitialFromSchedule(goal);
+        }
+      }
+
+      // 3) Особая логика LIFE.
+      for (const goal of goals) {
+        const goalType = String(goal?.goal_type || "").toUpperCase();
+        if (goalType !== "LIFE") continue;
+
+        const annualPremium = toNum(goal?.details?.annual_premium ?? goal?.summary?.initial_capital);
+        const monthlyPremium = annualPremium / 12;
+        const lifeTaxDeduction = toNum(goal?.summary?.tax_deduction_2026 ?? goal?.details?.tax_deduction_2026);
+        const termMonths = Math.max(0, Math.round(toNum(goal?.summary?.term_months ?? goal?.summary?.target_months)));
+        const lifeFinalCapital = toNum(
+          goal?.summary?.projected_capital_at_end ??
+          goal?.summary?.expected_cash_value ??
+          goal?.summary?.target_amount_future
+        );
+        const lifeStart = currentMonth;
+
+        if (initialRow) {
+          initialRow.replenishment += annualPremium;
+        }
+
+        for (let i = 1; i <= termMonths; i++) {
+          const isoDate = addMonths(lifeStart, i);
+          if (!isoDate) continue;
+          const row = upsertRow(byMonth, isoDate);
+          row.replenishment += monthlyPremium;
+
+          const monthNumber = Number(isoDate.slice(5, 7));
+          if (monthNumber === 4 && lifeTaxDeduction > 0) {
+            row.tax_deduction += lifeTaxDeduction;
+          }
+
+          if (i === termMonths) {
+            row.total_capital += lifeFinalCapital;
+          }
+        }
+      }
+
+      return [...byMonth.values()].sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+
+    function renderRows(rows) {
+      const tbody = document.getElementById("rows-root");
+      if (!tbody) return;
+      tbody.innerHTML = rows
+        .map((row) => {
+          return `
+            <tr>
+              <td class="num">${row.date}</td>
+              <td class="num">${formatMoney(row.replenishment)}</td>
+              <td class="num">${formatMoney(row.tax_deduction)}</td>
+              <td class="num">${formatMoney(row.cofinancing)}</td>
+              <td class="num">${formatMoney(row.total_capital)}</td>
+            </tr>
+          `;
+        })
+        .join("");
+    }
+
+    // DEMO: замени reportPayload на реальные данные отчета.
+    const reportPayload = {
+      goals_detailed: [
+        {
+          goal_name: "Достойная пенсия",
+          goal_type: "PENSION",
+          summary: { initial_capital: 222265.49 },
+          details: {
+            monthly_schedule: [
+              {
+                date: "2026-05-11",
+                replenishment: 701.3,
+                tax_deduction: 0,
+                cofinancing: 0,
+                total_capital: 106120,
+                schedule_row_kind: ""
+              }
+            ]
+          }
+        },
+        {
+          goal_name: "Защита Жизни",
+          goal_type: "LIFE",
+          summary: {
+            term_months: 12,
+            tax_deduction_2026: 5200,
+            projected_capital_at_end: 90000
+          },
+          details: {
+            annual_premium: 12000
+          }
+        }
+      ]
+    };
+
+    const rows = buildReplenishmentRows(reportPayload);
+    renderRows(rows);
+
+    const debug = document.getElementById("debug-root");
+    if (debug) {
+      const firstTwo = rows.slice(0, 2);
+      debug.textContent =
+        "Пример первых строк:\n" +
+        firstTwo.map((row) => JSON.stringify(row, null, 2)).join("\n\n");
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Текущее состояние — Финансовый план</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+
+    /*
+    ============================================================
+    ДИНАМИЧЕСКАЯ ВЫСОТА БЛОКОВ
+    ============================================================
+    Корневой article.page — ФИКСИРОВАННЫЙ 595×842 (требование бэка:
+    один экран = одна PDF-страница, без скролла внутри листа).
+
+    Внутренние блоки НЕ фиксированы по высоте — они растягиваются
+    по контенту (flex-flow: column, без height на внутренних блоках).
+    Это значит:
+    - Если детей 6 — блок «Семья» станет выше, обязательства
+      сдвинутся вниз, spacer сожмётся.
+    - Если обязательств 8 вместо 5 — то же самое, spacer съест разницу.
+    - Если текст speech длиннее — bubble растянется.
+
+    КРИТИЧЕСКОЕ ПРАВИЛО: суммарная высота всего контента не должна
+    превышать 842px. При рендере бэкенд должен контролировать это
+    (обрезать длинные тексты, скрывать нулевые обязательства и т.д.).
+
+    Если нужна АДАПТИВНАЯ высота листа (несколько страниц) —
+    убрать height: 842px и overflow: hidden с article.page,
+    но тогда ломается принцип «один экран = одна страница».
+    ============================================================
+    */
+
+    /* Фон «тетрадь в клетку»: шаг 20px (как page-2 / page-4) */
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      background-position: 0 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .logo-mark {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: #6366f1;
+    }
+
+    .logo-text {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #000000;
+    }
+
+    .doc-label {
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #000000;
+      padding: 3px 10px;
+      border: 1px solid #000000;
+      border-radius: 4px;
+    }
+
+    .divider {
+      height: 1px;
+      background: #000000;
+      margin-bottom: 12px;
+    }
+
+    .avatar-section {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f9a8d4, #c084fc);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .avatar-text {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .speech {
+      flex: 1;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+      border-radius: 10px;
+      padding: 10px 14px;
+      position: relative;
+    }
+
+    .speech::before {
+      content: '';
+      position: absolute;
+      left: -7px;
+      top: 16px;
+      width: 11px;
+      height: 11px;
+      background: #f3f3f3;
+      border-left: 1px solid #cccccc;
+      border-bottom: 1px solid #cccccc;
+      transform: rotate(45deg);
+    }
+
+    .speech p {
+      font-size: 10px;
+      font-weight: 400;
+      color: #222222;
+      line-height: 1.55;
+    }
+
+    .speech em {
+      font-style: normal;
+      font-weight: 700;
+      color: #000000;
+    }
+
+    .section-tag {
+      font-size: 8.5px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #6366f1;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-tag::before {
+      content: '';
+      width: 12px;
+      height: 2px;
+      background: #6366f1;
+    }
+
+    .two-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .info-card {
+      padding: 10px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+    }
+
+    .info-card-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 6px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 3px;
+    }
+
+    .info-label {
+      font-size: 9px;
+      font-weight: 400;
+      color: #555555;
+    }
+
+    .info-value {
+      font-size: 9px;
+      font-weight: 600;
+      color: #000000;
+    }
+
+    .info-divider {
+      height: 1px;
+      background: #cccccc;
+      margin: 4px 0;
+    }
+
+    .children-block {
+      margin-top: 4px;
+    }
+
+    .children-block-title {
+      font-size: 7.5px;
+      font-weight: 500;
+      color: #555555;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .child-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .child-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #6366f1;
+      flex-shrink: 0;
+    }
+
+    .child-name {
+      font-size: 9px;
+      font-weight: 600;
+      color: #000000;
+      flex: 1;
+    }
+
+    .child-age {
+      font-size: 8px;
+      font-weight: 400;
+      color: #555555;
+    }
+
+    .obligations { margin-bottom: 10px; }
+
+    .obligations-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .obligations-total {
+      font-size: 9px;
+      font-weight: 600;
+      color: #000000;
+    }
+
+    .obligation-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .obligation-label {
+      width: 90px;
+      font-size: 8.5px;
+      font-weight: 500;
+      color: #000000;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .obligation-bar-bg {
+      flex: 1;
+      height: 16px;
+      background: #eaeaea;
+      border: 1px solid #dddddd;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .obligation-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #818cf8);
+      border-radius: 2px;
+    }
+
+    .obligation-value {
+      width: 64px;
+      font-size: 8.5px;
+      font-weight: 600;
+      color: #000000;
+      flex-shrink: 0;
+    }
+
+    .balance-box {
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+      margin-bottom: 10px;
+    }
+
+    .balance-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 8px;
+    }
+
+    .balance-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+    }
+
+    .balance-label {
+      width: 90px;
+      font-size: 8.5px;
+      font-weight: 500;
+      color: #333333;
+      flex-shrink: 0;
+    }
+
+    .balance-bar-bg {
+      flex: 1;
+      height: 16px;
+      background: #eaeaea;
+      border: 1px solid #dddddd;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .balance-bar {
+      height: 100%;
+      border-radius: 2px;
+    }
+
+    .balance-bar.green { background: #10b981; }
+    .balance-bar.red { background: #ef4444; }
+    .balance-bar.indigo { background: #6366f1; }
+    .balance-bar.amber { background: #f59e0b; }
+
+    .balance-val {
+      width: 64px;
+      font-size: 8.5px;
+      font-weight: 600;
+      color: #000000;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .balance-separator {
+      height: 1px;
+      background: #cccccc;
+      margin: 3px 0 5px 98px;
+    }
+
+    .spacer { flex: 1; }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 6px;
+      padding-top: 5px;
+      border-top: 1px solid #cccccc;
+    }
+
+    .footer-left {
+      font-size: 6px;
+      font-weight: 400;
+      color: #555555;
+      line-height: 1.5;
+    }
+
+    .footer-right {
+      font-size: 6px;
+      font-weight: 400;
+      color: #555555;
+      text-align: right;
+    }
+
+    @media print {
+      body { margin: 0; padding: 0; }
+      article.page { margin: 0; }
+    }
+
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+  <!--
+    ПОДСТАНОВКА ДАННЫХ (ориентир для бэка; точные ключи — при интеграции из getClientReportData):
+    • Верхний speech — короткий текст ИИ (отдельное поле страницы или фрагмент executive summary).
+    • Карточка «Семья»: семейное положение, занятость, возраст клиента; дети — массив повторов .child-row
+      (0 детей — не рендерить .children-block).
+    • Карточка «Активы»: список строк «подпись → сумма» + итого активы + долги (структура как в отчёте).
+    • Обязательства: массив { label, amount_monthly }; итого в шапке; ширина бара = amount / max(amount) * 100%.
+      Позиции с 0 ₽ можно не выводить (см. комментарий у блока).
+    • Баланс: доходы; обязательства; пополнение ПФП (0 — width 0%); свободно = доход − обязательства − ПФП;
+      ширины полос баланса считать от дохода как 100% (как сейчас в макете).
+    • Нижний speech — второй абзац ИИ (отдельное поле).
+    Экранирование HTML в текстах с бэка — обязательно (escape).
+  -->
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Текущее состояние</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <!-- ИИ: вводная -->
+    <div class="avatar-section">
+      <div class="avatar">
+        <span class="avatar-text">ИИ</span>
+      </div>
+      <div class="speech">
+        <p>Вот ваша финансовая фотография на сегодня. Доход <em>150 000 ₽</em>, но обязательства съедают почти всё — свободным остаётся всего <em>8 000 ₽</em> в месяц. Именно отсюда мы начнём строить план.</p>
+      </div>
+    </div>
+
+    <!-- Семья и активы -->
+    <div class="section-tag">Семья и активы</div>
+    <div class="two-cols">
+      <div class="info-card">
+        <div class="info-card-title">Семья</div>
+        <div class="info-row">
+          <span class="info-label">Семейное положение</span>
+          <span class="info-value">В браке</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Занятость</span>
+          <span class="info-value">Наемный сотрудник</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Возраст</span>
+          <span class="info-value">35 лет</span>
+        </div>
+        <!-- ДЕТИ: повторять .child-row для каждого. 0 детей — удалить .children-block -->
+        <div class="children-block">
+          <div class="children-block-title">Дети</div>
+          <div class="child-row">
+            <div class="child-dot"></div>
+            <span class="child-name">Алина</span>
+            <span class="child-age">5 лет</span>
+          </div>
+          <div class="child-row">
+            <div class="child-dot"></div>
+            <span class="child-name">Марк</span>
+            <span class="child-age">3 года</span>
+          </div>
+          <div class="child-row">
+            <div class="child-dot"></div>
+            <span class="child-name">Ева</span>
+            <span class="child-age">1 год</span>
+          </div>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">Активы</div>
+        <div class="info-row">
+          <span class="info-label">Квартира</span>
+          <span class="info-value">1 000 000 ₽</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Ликвидные средства</span>
+          <span class="info-value">200 000 ₽</span>
+        </div>
+        <div class="info-divider"></div>
+        <div class="info-row">
+          <span class="info-label">Итого активы</span>
+          <span class="info-value">1 200 000 ₽</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Долги</span>
+          <span class="info-value">0 ₽</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Обязательства -->
+    <div class="obligations">
+      <div class="obligations-header">
+        <div class="section-tag" style="margin-bottom: 0;">Ежемесячные обязательства</div>
+        <div class="obligations-total">Итого: 142 000 ₽/мес</div>
+      </div>
+      <!-- Строки обязательств: повторять по количеству из family_obligations.
+           Пропускать если amount_monthly = 0 (кроме вывода «Нет» если все нули).
+           Ширина бара = (amount / max_amount) * 100%. -->
+      <div class="obligation-row">
+        <span class="obligation-label">Ипотека</span>
+        <div class="obligation-bar-bg"><div class="obligation-bar" style="width: 100%;"></div></div>
+        <span class="obligation-value">40 000 ₽</span>
+      </div>
+      <div class="obligation-row">
+        <span class="obligation-label">Прочее</span>
+        <div class="obligation-bar-bg"><div class="obligation-bar" style="width: 80%;"></div></div>
+        <span class="obligation-value">32 000 ₽</span>
+      </div>
+      <div class="obligation-row">
+        <span class="obligation-label">Образование</span>
+        <div class="obligation-bar-bg"><div class="obligation-bar" style="width: 75%;"></div></div>
+        <span class="obligation-value">30 000 ₽</span>
+      </div>
+      <div class="obligation-row">
+        <span class="obligation-label">Кредиты</span>
+        <div class="obligation-bar-bg"><div class="obligation-bar" style="width: 50%;"></div></div>
+        <span class="obligation-value">20 000 ₽</span>
+      </div>
+      <div class="obligation-row">
+        <span class="obligation-label">Родители</span>
+        <div class="obligation-bar-bg"><div class="obligation-bar" style="width: 50%;"></div></div>
+        <span class="obligation-value">20 000 ₽</span>
+      </div>
+    </div>
+
+    <!-- Баланс: 4 строки -->
+    <div class="balance-box">
+      <div class="balance-title">Баланс доходов и расходов</div>
+      <div class="balance-row">
+        <span class="balance-label">Доходы</span>
+        <div class="balance-bar-bg"><div class="balance-bar green" style="width: 100%;"></div></div>
+        <span class="balance-val">150 000 ₽</span>
+      </div>
+      <div class="balance-row">
+        <span class="balance-label">Обязательства</span>
+        <div class="balance-bar-bg"><div class="balance-bar red" style="width: 94.7%;"></div></div>
+        <span class="balance-val">142 000 ₽</span>
+      </div>
+      <div class="balance-row">
+        <!-- ПФП: если 0 — bar width: 0%, показать «0 ₽» -->
+        <span class="balance-label">Пополнение ПФП</span>
+        <div class="balance-bar-bg"><div class="balance-bar amber" style="width: 0%;"></div></div>
+        <span class="balance-val">0 ₽</span>
+      </div>
+      <div class="balance-separator"></div>
+      <div class="balance-row">
+        <!-- Свободно = доход − обязательства − ПФП -->
+        <span class="balance-label" style="font-weight: 700; color: #000000;">Свободно</span>
+        <div class="balance-bar-bg"><div class="balance-bar indigo" style="width: 5.3%;"></div></div>
+        <span class="balance-val" style="color: #6366f1;">8 000 ₽</span>
+      </div>
+    </div>
+
+    <!-- ИИ: вывод -->
+    <div class="avatar-section">
+      <div class="avatar">
+        <span class="avatar-text">ИИ</span>
+      </div>
+      <div class="speech">
+        <p>Выделяю три ключевых момента. Во-первых, <em>ипотека съедает 27% дохода</em> — это в рамках нормы, но рефинансирование может освободить ещё 5–8 тысяч. Во-вторых, <em>категория «Прочее» — 32 000 ₽ без расшифровки</em>: здесь почти наверняка скрыты импульсивные траты. В-третьих, <em>подушка безопасности — всего 200 000 ₽</em>, при обязательствах 142 000 ₽ в месяц этого хватит меньше чем на полтора месяца. На следующей странице покажу, как это исправить.</p>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

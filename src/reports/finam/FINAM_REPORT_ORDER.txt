@@ -1,0 +1,41 @@
+Отчёт Финам — рабочая папка.
+
+HTML-макеты (актуальная вёрстка от дизайна):
+  page-2-finam.html           — страница 2, введение
+  page-3-family-finam.html   — страница 3, семья / текущее состояние
+  page-4-targets-finam.html   — страница 4, цели
+
+HTML-макеты: одна цель = одна страница (595×842):
+  goal-page-fin-reserve-finam.html      — FIN_RESERVE, финансовая подушка
+  goal-page-life-finam.html             — LIFE, защита жизни
+  goal-page-pension-finam.html          — PENSION, пенсия
+  goal-page-passive-income-finam.html   — PASSIVE_INCOME, пассивный доход
+  goal-page-save-grow-finam.html        — INVESTMENT / «Сохранить и приумножить»
+  goal-page-education-finam.html        — OTHER, сценарий «Образование»
+  goal-page-apartment-finam.html        — OTHER, сценарий «Квартира»
+  goal-page-house-finam.html            — OTHER, сценарий «Дом» / загородная недвижимость
+  goal-page-business-finam.html         — OTHER, сценарий «Свой бизнес»
+  goal-page-capital-finam.html          — OTHER / INVESTMENT, «Управление капиталом» / «Капитал»
+  goal-page-travel-finam.html           — OTHER, сценарий «Путешествие»
+  goal-page-car-finam.html              — OTHER, сценарий «Автомобиль» (картинка drugoe.webp — заглушка до отдельного ассета)
+
+HTML-макеты: сводные блоки отчёта (не привязаны к одному goal_type):
+  portfolio-page-finam.html             — портфель по целям (ИИ + таблицы инструментов) и краткий итог (пирог, стр. 2)
+  portfolio-final-page-finam.html       — один лист: начальный капитал + портфель пополнений (два donut, две таблицы, ИИ)
+  repleneshment-page-finam.html         — шаблон сводной таблицы помесячных пополнений/вытчетов/софина с агрегацией по целям (LIFE отдельно)
+  tax-planning-block-finam.html         — отдельный лист: детализация вычетов (ПДС, ИИС, НСЖ, квартира, ипотека) за год и за период; не дублировать внутри goal-page-pension / passive
+  comon-autofollow-finam.html           — отдельный лист после tax-planning: ИИ-вводка + карточки автоследования Comon (клетка)
+
+Контексты для генерации текстов (промпты, роли, поля данных):
+  context-page-01-cover.md
+  context-page-02-intro.md
+  context-page-03-family.md
+  context-page-04-targets.md
+  context-page-05-comon-autofollow.md
+  context-goals-by-type.md
+
+Архив только старых пустых шаблонов (не трогать как эталон вёрстки):
+  ../finam_old/cover-designer-input.html
+  ../finam_old/summary-designer-input.html
+  ../finam_old/comon-autofollow-designer-input.html
+  ../finam_old/goals-designer-input.html
