@@ -6,6 +6,7 @@ const { resolveGoalTemplateFile, resolveOtherGoalTemplateFile } = require('./fin
 const {
     orderFinamGoalsForPdf,
     applyFinamPage4TargetsFromReport,
+    splitFinamPage4IntoStandalonePages,
     applyFinamPortfolioFinalPage,
     applyFinamTaxPlanningPage,
 } = require('./finamPdfPageAppliers');
@@ -236,9 +237,21 @@ function removeElementById(html, id) {
     return html;
 }
 
+function applyPensionHeroPlaceholders(html, goal) {
+    if (!html.includes('{{PENSION_INCOME_PRESENT}}') && !html.includes('{{PENSION_INCOME_FUTURE}}')) return html;
+    const s = goal?.summary || {};
+    const present = toNum(s.target_amount_initial ?? s.projected_pension_monthly_present);
+    const future = toNum(s.target_amount_future ?? s.projected_pension_monthly_future);
+    return html
+        .replace(/\{\{PENSION_INCOME_PRESENT\}\}/g, formatMoneyValue(present))
+        .replace(/\{\{PENSION_INCOME_FUTURE\}\}/g, formatMoneyValue(future));
+}
+
 function applyGoalFactsToTemplate(html, goal) {
     const facts = computeGoalFacts(goal);
     let out = html;
+
+    out = applyPensionHeroPlaceholders(out, goal);
 
     out = out.replace(/(Налоговый вычет за )\d{4}( год)/g, `$1${facts.yearTax}$2`);
     out = out.replace(/(Софинансирование за )\d{4}( год)/g, `$1${facts.yearCofin}$2`);
@@ -950,7 +963,9 @@ async function buildFinamFullPageHtmlList({
         const rawGoalsForPage4 = filterGoalsByTypes(report?.goals_detailed || [], goalTypes);
         const orderedForPage4 = orderFinamGoalsForPdf(rawGoalsForPage4);
         page4 = applyFinamPage4TargetsFromReport(page4, orderedForPage4);
-        pages.push(withInline(page4));
+        for (const page4Part of splitFinamPage4IntoStandalonePages(page4)) {
+            pages.push(withInline(page4Part));
+        }
     }
 
     const goals = orderFinamGoalsForPdf(filterGoalsByTypes(report?.goals_detailed || [], goalTypes));

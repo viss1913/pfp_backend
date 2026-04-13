@@ -99,12 +99,63 @@ function cookieHeader() {
     return c && String(c).trim() ? { Cookie: String(c).trim() } : {};
 }
 
+/** @type {boolean} */
+let loggedComonProxyOnce = false;
+
+/**
+ * HTTP(S) CONNECT-прокси только для Comon (не глобальный HTTP_PROXY).
+ * Формат: http://user:pass@host:3128 или http://host:3128
+ * @returns {import('axios').AxiosProxyConfig | undefined}
+ */
+function comonProxyFromEnv() {
+    const raw = process.env.COMON_PROXY_URL;
+    if (raw == null || !String(raw).trim()) return undefined;
+    let u;
+    try {
+        u = new URL(String(raw).trim());
+    } catch {
+        console.warn('[comonService] COMON_PROXY_URL is invalid, ignored');
+        return undefined;
+    }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+        console.warn('[comonService] COMON_PROXY_URL must start with http:// or https://');
+        return undefined;
+    }
+    const protocol = u.protocol.replace(':', '');
+    const host = u.hostname;
+    if (!host) {
+        console.warn('[comonService] COMON_PROXY_URL has no host, ignored');
+        return undefined;
+    }
+    const port = u.port ? Number(u.port) : u.protocol === 'https:' ? 443 : 80;
+    if (!Number.isFinite(port) || port <= 0) {
+        console.warn('[comonService] COMON_PROXY_URL has invalid port, ignored');
+        return undefined;
+    }
+    /** @type {import('axios').AxiosProxyConfig} */
+    const proxy = { protocol, host, port };
+    if (u.username !== '' || u.password !== '') {
+        proxy.auth = {
+            username: decodeURIComponent(u.username || ''),
+            password: decodeURIComponent(u.password || ''),
+        };
+    }
+    return proxy;
+}
+
 function client() {
+    const proxy = comonProxyFromEnv();
+    if (proxy && !loggedComonProxyOnce) {
+        loggedComonProxyOnce = true;
+        console.info('[comonService] Comon HTTP client uses COMON_PROXY_URL (host=%s port=%s)', proxy.host, proxy.port);
+    }
+
     return axios.create({
         baseURL: baseUrl(),
         timeout: Number(process.env.COMON_HTTP_TIMEOUT_MS) || 20000,
         maxRedirects: 5,
         validateStatus: () => true,
+        ...(proxy ? { proxy } : {}),
         headers: {
             'User-Agent': DEFAULT_UA,
             Accept: 'application/json, text/html;q=0.9, */*;q=0.8',

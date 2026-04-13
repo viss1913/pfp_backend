@@ -44,7 +44,8 @@
       flex-direction: column;
       padding: 30px 36px 26px;
       overflow-wrap: break-word;
-      word-break: break-word;
+      /* break-word по буквам ломает русский в узких flex-колонках (ПОПОЛНЕНИЕ → ПОПОЛНЕНИ Е) */
+      word-break: normal;
       flex-shrink: 0;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -154,6 +155,10 @@
 
     .pension-hero-sub {
       font-size: 12px; font-weight: 400; color: #4b5563; line-height: 1.35;
+    }
+
+    .pension-hero-sub strong {
+      font-weight: 700; color: #1e3a8a;
     }
 
     .pension-hero-image {
@@ -282,6 +287,8 @@
       gap: 0;
       width: 100%;
       margin-bottom: 5px;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
 
     .plan-step {
@@ -306,18 +313,20 @@
     }
 
     .plan-step-label {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 600;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.02em;
       text-transform: uppercase;
       color: #4338ca;
       line-height: 1.2;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
 
     .plan-step.finish .plan-step-label { color: #047857; }
 
     .plan-step-value {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
       color: #111827;
       line-height: 1.2;
@@ -629,13 +638,18 @@
 
     .legend-text { font-size: 10px; font-weight: 400; color: #555555; }
 
-    .chart-svg { display: block; width: 100%; flex: 1; min-height: 140px; }
+    .chart-svg { display: block; width: 100%; flex: 1; min-height: 108px; }
 
-    .spacer { flex: 1; min-height: 4px; }
+    .page-tail {
+      flex-shrink: 0;
+      margin-top: auto;
+      padding-top: 4px;
+      border-top: 1px solid #cccccc;
+    }
 
     .footer {
       display: flex; align-items: flex-end; justify-content: space-between;
-      margin-top: auto; padding-top: 4px; border-top: 1px solid #cccccc;
+      margin-top: 4px; padding-top: 0;
     }
 
     .footer-left { font-size: 10px; font-weight: 400; color: #555555; line-height: 1.45; }
@@ -645,6 +659,8 @@
       font-size: 11px; font-weight: 600; color: #000000;
       margin-bottom: 2px; text-align: right;
     }
+
+    .page-tail .page-num { margin-top: 0; }
 
     @media print {
       body { margin: 0; padding: 0; gap: 0; }
@@ -684,7 +700,7 @@
         </div>
         <div class="pension-hero-title">Достойная пенсия</div>
         <div class="pension-hero-sub">
-          Целевой ежемесячный доход в деньгах сегодняшнего покупательского уровня и на момент выхода на пенсию; накопление на ИИС/НПФ и долгосрочный портфель.
+          Ваша цель «Достойная пенсия» — <strong>{{PENSION_INCOME_PRESENT}}</strong> в месяц в деньгах сегодняшней покупательной способности; с учётом инфляции к моменту выхода на пенсию это около <strong>{{PENSION_INCOME_FUTURE}}</strong> в месяц. Дальше по странице — прогноз госпенсии, нехватка до цели и план накоплений.
         </div>
       </div>
       <div class="pension-hero-image">
@@ -800,6 +816,37 @@
       </div>
     </div>
 
+    <div class="page-tail">
+      <div class="page-num">Страница 1 из 2 · Достойная пенсия</div>
+      <footer class="footer">
+        <div class="footer-left">
+          Персональный финансовый план · Конфиденциально<br>
+          Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+        </div>
+        <div class="footer-right">
+          Информация не является индивидуальной<br>
+          инвестиционной рекомендацией
+        </div>
+      </footer>
+    </div>
+
+  </div>
+</article>
+
+<!-- ========== СТРАНИЦА 2 ========== -->
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Достойная пенсия — продолжение</div>
+    </header>
+
+    <div class="divider"></div>
+
     <div class="instrument">
       <div class="instrument-left">
         <div class="instrument-label">Основной инструмент накопления</div>
@@ -868,37 +915,6 @@
         </div>
       </div>
     </div>
-
-    <div class="spacer"></div>
-
-    <div class="page-num">Страница 1 из 2 · Достойная пенсия</div>
-    <footer class="footer">
-      <div class="footer-left">
-        Персональный финансовый план · Конфиденциально<br>
-        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
-      </div>
-      <div class="footer-right">
-        Информация не является индивидуальной<br>
-        инвестиционной рекомендацией
-      </div>
-    </footer>
-
-  </div>
-</article>
-
-<!-- ========== СТРАНИЦА 2 ========== -->
-<article class="page">
-  <div class="content">
-
-    <header class="header">
-      <div class="logo-mark">
-        <div class="logo-dot"></div>
-        <span class="logo-text">Финансовый план</span>
-      </div>
-      <div class="doc-label">Достойная пенсия — продолжение</div>
-    </header>
-
-    <div class="divider"></div>
 
     <div class="avatar-section">
       <div class="avatar"><span class="avatar-text">ИИ</span></div>
@@ -1017,19 +1033,19 @@
       </div>
     </div>
 
-    <div class="spacer"></div>
-
-    <div class="page-num">Страница 2 из 2 · Достойная пенсия</div>
-    <footer class="footer">
-      <div class="footer-left">
-        Персональный финансовый план · Конфиденциально<br>
-        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
-      </div>
-      <div class="footer-right">
-        Информация не является индивидуальной<br>
-        инвестиционной рекомендацией
-      </div>
-    </footer>
+    <div class="page-tail">
+      <div class="page-num">Страница 2 из 2 · Достойная пенсия</div>
+      <footer class="footer">
+        <div class="footer-left">
+          Персональный финансовый план · Конфиденциально<br>
+          Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+        </div>
+        <div class="footer-right">
+          Информация не является индивидуальной<br>
+          инвестиционной рекомендацией
+        </div>
+      </footer>
+    </div>
 
   </div>
 </article>

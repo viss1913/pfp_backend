@@ -357,77 +357,125 @@ function goalsCountLabelRu(n) {
     return 'финансовых целей';
 }
 
-function buildFinamPage4BodyInner(goals) {
-    const n = goals.length;
-    const introText = `У вас <em>${n}</em> ${goalsCountLabelRu(n)}. Ниже — краткий обзор по данным расчёта.`;
+/** Первая страница блока «Цели»: вводный speech + карточки (пироги занимают много места на последнем листе). */
+const FINAM_PAGE4_GOALS_PAGE1 = 3;
+/** Промежуточные листы только с целями (без вводного блока). */
+const FINAM_PAGE4_GOALS_MIDDLE = 3;
+/** Сколько целей максимум оставить на последнем листе вместе с «Итого по всем целям» (два пирога + легенды). */
+const FINAM_PAGE4_GOALS_LAST_WITH_SUMMARY = 2;
 
-    const MAX_PAGE1 = 4;
-    const chunk1 = goals.slice(0, Math.min(MAX_PAGE1, n));
-    const chunk2 = n > MAX_PAGE1 ? goals.slice(MAX_PAGE1) : [];
-    const totalPages = chunk2.length > 0 ? 2 : 1;
+/**
+ * Разбивает цели на несколько «листов» A4: первый — с ИИ-вводом, последний — с пирогами, между — только цели.
+ */
+function splitFinamPage4GoalChunks(goals) {
+    const list = Array.isArray(goals) ? goals : [];
+    const n = list.length;
+    if (n === 0) {
+        return [{ intro: true, pies: true, goals: [] }];
+    }
 
-    let page1Sections = `
+    const takeFirst = Math.min(FINAM_PAGE4_GOALS_PAGE1, n);
+    if (takeFirst === n) {
+        return [{ intro: true, pies: true, goals: list.slice() }];
+    }
+
+    const chunks = [{ intro: true, pies: false, goals: list.slice(0, takeFirst) }];
+    let i = takeFirst;
+
+    while (i < n) {
+        const left = n - i;
+        if (left <= FINAM_PAGE4_GOALS_LAST_WITH_SUMMARY) {
+            chunks.push({ intro: false, pies: true, goals: list.slice(i) });
+            break;
+        }
+        const take = Math.min(FINAM_PAGE4_GOALS_MIDDLE, left - FINAM_PAGE4_GOALS_LAST_WITH_SUMMARY);
+        if (take < 1) {
+            chunks.push({ intro: false, pies: true, goals: list.slice(i) });
+            break;
+        }
+        chunks.push({ intro: false, pies: false, goals: list.slice(i, i + take) });
+        i += take;
+    }
+
+    return chunks;
+}
+
+function buildFinamPage4IntroHtml(allGoals) {
+    const n = allGoals.length;
+    const introText =
+        n === 0
+            ? 'Цели в отчёте пока не заданы.'
+            : `У вас <em>${n}</em> ${goalsCountLabelRu(n)}. Ниже — краткий обзор по данным расчёта.`;
+    return `
     <div class="avatar-section">
       <div class="avatar"><span class="avatar-text">ИИ</span></div>
       <div class="speech">
         <p>${introText}</p>
       </div>
     </div>`;
+}
 
-    chunk1.forEach((g, idx) => {
-        const lastOnPage1 = idx === chunk1.length - 1;
-        const showArrow = !(lastOnPage1 && chunk2.length === 0);
-        page1Sections += buildGoalSectionHtml(g, { showArrowAfter: showArrow || chunk2.length > 0 });
-    });
+function buildFinamPage4BodyInner(goals) {
+    const list = Array.isArray(goals) ? goals : [];
+    const chunks = splitFinamPage4GoalChunks(list);
+    const totalPages = chunks.length;
+    const n = list.length;
 
-    if (chunk2.length > 0) {
-        page1Sections += `
-    <div class="page-break-indicator">
-      <span>Продолжение на следующей странице</span>
-      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-    </div>`;
-    }
+    let globalGoalIndex = 0;
+    const articles = chunks.map((chunk, pageIdx) => {
+        const pageNum = pageIdx + 1;
+        let body = '';
 
-    if (chunk2.length === 0) {
-        page1Sections += buildSummaryPiesHtml(goals);
+        if (chunk.intro) {
+            body += buildFinamPage4IntroHtml(list);
+        }
+
+        chunk.goals.forEach((g, j) => {
+            const isLastOverall = globalGoalIndex >= n - 1;
+            const isLastInChunk = j === chunk.goals.length - 1;
+            const piesFollow = Boolean(chunk.pies && isLastInChunk);
+            const showArrowAfter = !isLastOverall && !piesFollow;
+            body += buildGoalSectionHtml(g, { showArrowAfter });
+            globalGoalIndex += 1;
+        });
+
+        if (chunk.pies) {
+            body += buildSummaryPiesHtml(list);
+        }
+
+        const footer = pageIdx === totalPages - 1 ? page4Footer() : '';
+
         return `<article class="page">
   <div class="content">
-${page4Header(1, 1)}
-${page1Sections}
-${page4Footer()}
+${page4Header(pageNum, totalPages)}
+${body}
+${footer}
   </div>
 </article>`;
-    }
-
-    const article1 = `<article class="page">
-  <div class="content">
-${page4Header(1, totalPages)}
-${page1Sections}
-  </div>
-</article>`;
-
-    let page2Sections = '';
-    chunk2.forEach((g, idx) => {
-        const isLast = idx === chunk2.length - 1;
-        page2Sections += buildGoalSectionHtml(g, { showArrowAfter: !isLast });
     });
-    page2Sections += buildSummaryPiesHtml(goals);
 
-    const article2 = `<article class="page">
-  <div class="content">
-${page4Header(2, totalPages)}
-${page2Sections}
-${page4Footer()}
-  </div>
-</article>`;
-
-    return `${article1}\n\n${article2}`;
+    return articles.join('\n\n');
 }
 
 function applyFinamPage4TargetsFromReport(html, orderedGoals) {
     if (!html || typeof html !== 'string') return html;
     const inner = buildFinamPage4BodyInner(orderedGoals);
-    return html.replace(/<body>[\s\S]*<\/body>/i, `<body>\n${inner}\n</body>`);
+    return html.replace(/<body([^>]*)>[\s\S]*<\/body>/i, (_, attrs) => `<body${attrs || ''}>\n${inner}\n</body>`);
+}
+
+/**
+ * PDF: один iframe = один лист. Если в &lt;body&gt; несколько &lt;article class="page"&gt;,
+ * режем на отдельные полные HTML-документа (общий head/styles на каждый).
+ */
+function splitFinamPage4IntoStandalonePages(fullHtml) {
+    if (!fullHtml || typeof fullHtml !== 'string') return [fullHtml];
+    const match = fullHtml.match(/^([\s\S]*<body[^>]*>)([\s\S]*)(<\/body>[\s\S]*)$/i);
+    if (!match) return [fullHtml];
+    const [, preBody, bodyInner, postBody] = match;
+    const articleRe = /<article[^>]*class="[^"]*\bpage\b[^"]*"[^>]*>[\s\S]*?<\/article>/gi;
+    const articles = bodyInner.match(articleRe);
+    if (!Array.isArray(articles) || articles.length <= 1) return [fullHtml];
+    return articles.map((article) => `${preBody}\n${article.trim()}\n${postBody}`);
 }
 
 function sharesToRubles(items, totalRub) {
@@ -776,6 +824,7 @@ function applyFinamTaxPlanningPage(html, report) {
 module.exports = {
     orderFinamGoalsForPdf,
     applyFinamPage4TargetsFromReport,
+    splitFinamPage4IntoStandalonePages,
     applyFinamPortfolioFinalPage,
     applyFinamTaxPlanningPage,
 };

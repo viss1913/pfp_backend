@@ -211,6 +211,8 @@
       border-radius: 6px;
       background: #f3f3f3;
       border: 1px solid #cccccc;
+      word-break: normal;
+      overflow-wrap: normal;
     }
 
     .info-card-title {
@@ -220,23 +222,29 @@
       margin-bottom: 6px;
     }
 
+    /* Две колонки: подпись | значение — одна правая граница у всех строк (не space-between). */
     .info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 3px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 9.8rem;
+      column-gap: 8px;
+      align-items: start;
+      margin-bottom: 4px;
     }
 
     .info-label {
       font-size: 11px;
       font-weight: 400;
       color: #555555;
+      min-width: 0;
+      line-height: 1.35;
     }
 
     .info-value {
       font-size: 11px;
       font-weight: 600;
       color: #000000;
+      text-align: right;
+      line-height: 1.35;
     }
 
     .info-divider {
@@ -259,10 +267,11 @@
     }
 
     .child-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 10px minmax(0, 1fr) 9.8rem;
+      column-gap: 6px;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 2px;
+      margin-bottom: 3px;
     }
 
     .child-dot {
@@ -271,19 +280,21 @@
       border-radius: 50%;
       background: #6366f1;
       flex-shrink: 0;
+      justify-self: center;
     }
 
     .child-name {
       font-size: 11px;
       font-weight: 600;
       color: #000000;
-      flex: 1;
+      min-width: 0;
     }
 
     .child-age {
       font-size: 11px;
-      font-weight: 400;
+      font-weight: 500;
       color: #555555;
+      text-align: right;
     }
 
     .obligations { margin-bottom: 10px; }
@@ -445,6 +456,7 @@
     • Карточка «Семья»: семейное положение, занятость, возраст клиента; дети — массив повторов .child-row
       (0 детей — не рендерить .children-block).
     • Карточка «Активы»: список строк «подпись → сумма» + итого активы + долги (структура как в отчёте).
+      Источники: client_assets; плюс family_profile.real_estate[].estimated_value как «Недвижимость», если нет актива типа REAL_ESTATE.
     • Обязательства: массив { label, amount_monthly }; итого в шапке; ширина бара = amount / max(amount) * 100%.
       Позиции с 0 ₽ можно не выводить (см. комментарий у блока).
     • Баланс: доходы; обязательства; пополнение ПФП (0 — width 0%); свободно = доход − обязательства − ПФП;

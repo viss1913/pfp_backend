@@ -995,7 +995,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
             bgSrc,
             rostechAvatar59Src,
             cardImg,
-            footerText: 'НПФ Ростех • Госпенсия',
+            footerText: 'Ренессанс Накопления • Финам • Ренессанс Жизнь',
         }),
     ];
 }
@@ -1009,6 +1009,11 @@ function buildRostechStandardTailHtmlPages({
     cardImg,
     footerText = 'НПФ Ростех • Госпенсия',
 }) {
+    const riskNotebookBgHtml = `
+      <div style="position:absolute;inset:0;border-radius:12px;overflow:hidden;z-index:0;">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(248,241,247,0.55) 0%,rgba(244,248,255,0.55) 100%);"></div>
+        <div style="position:absolute;inset:0;background-image:linear-gradient(to right, rgba(114,34,87,0.09) 1px, transparent 1px),linear-gradient(to bottom, rgba(114,34,87,0.09) 1px, transparent 1px);background-size:22px 22px;"></div>
+      </div>`;
     return [
         // 59:657
         buildShell({
@@ -1108,7 +1113,7 @@ function buildRostechStandardTailHtmlPages({
         // 59:1303
         buildShell({
             footerText,
-            title: 'Декларация о рисках программы долгосрочных сбережений (ПДС)',
+            title: 'Декларация о рисках финансового планирования',
             subtitle: '',
             logoSrc: logoFromSettings,
             bgSrc,
@@ -1116,25 +1121,26 @@ function buildRostechStandardTailHtmlPages({
             pagePaddingTop: 0,
             bodyHtml: `
               <div style="position:relative;width:535px;height:770px;">
-                <div style="position:absolute;top:30px;left:0;width:368px;font-size:18px;line-height:20px;color:#212121;">
-                  Декларация о рисках программы долгосрочных сбережений (ПДС)
+                ${riskNotebookBgHtml}
+                <div style="position:absolute;top:30px;left:0;width:520px;font-size:18px;line-height:20px;color:#212121;">
+                  Декларация о рисках финансового планирования
                 </div>
-                <div style="position:absolute;top:100px;left:0;background:#722257;color:#fff;padding:12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;">
+                <div style="position:absolute;top:100px;left:0;background:#722257;color:#fff;padding:12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;z-index:1;">
                   1. Инфляционный риск
                 </div>
-                <div style="position:absolute;top:143px;left:0;width:535px;border:1px solid #722257;border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;">
+                <div style="position:absolute;top:143px;left:0;width:535px;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;z-index:1;">
                   <p style="font-size:14px;margin-bottom:12px;">Суть риска:</p>
-                  <p style="margin-bottom:12px;">В финансовом плане учтен прогноз по инфляции, однако фактическая инфляция может оказаться выше или ниже запланированной. Это создает следующие риски:</p>
+                  <p style="margin-bottom:12px;">План объединяет решения в контурах НПФ «Ренессанс Накопления», инвестиционной платформы «Финам» и страховых продуктов «СК Ренессанс Жизнь». Во всех контурах используется прогноз инфляции, но фактическая динамика цен может отличаться от сценария. Это создает следующие риски:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
-                    <li>Если инфляция выше ожидаемой: снижение реальной доходности инвестиций, уменьшение покупательной способности сбережений, рост расходов сверх запланированного бюджета.</li>
-                    <li>Если инфляция ниже ожидаемой: возможное избыточное накопление ликвидности в одной цели и недофинансирование других целей.</li>
+                    <li>Если инфляция выше ожидаемой: реальная доходность снижается, покупательная способность капитала падает, расходная часть целей растет быстрее плана.</li>
+                    <li>Если инфляция ниже ожидаемой: возможно перераспределение капитала не в оптимальные цели и избыточная ликвидность в консервативной части портфеля.</li>
                   </ul>
                   <p style="font-size:14px;margin-bottom:12px;">Меры снижения риска:</p>
-                  <p style="margin-bottom:12px;">Регулярный пересмотр финансового плана (раз в полгода) с корректировкой:</p>
+                  <p style="margin-bottom:12px;">Регулярный пересмотр плана (не реже 1 раза в 6 месяцев) с корректировкой:</p>
                   <ul style="padding-left:24px;margin:0;">
                     <li>Прогноза инфляции с учетом актуальных данных.</li>
-                    <li>Стоимости цели.</li>
-                    <li>Индексации пополнения.</li>
+                    <li>Стоимости каждой цели и сроков достижения.</li>
+                    <li>Индексации пополнений и структуры портфеля.</li>
                   </ul>
                 </div>
               </div>
@@ -1151,17 +1157,17 @@ function buildRostechStandardTailHtmlPages({
             pagePaddingTop: 0,
             bodyHtml: `
               <div style="position:relative;width:535px;height:770px;">
-                <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;">
+                ${riskNotebookBgHtml}
+                <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;z-index:1;">
                   2. Риск банкротства НПФ
                 </div>
-                <div style="position:absolute;top:73px;left:0;width:535px;border:1px solid #722257;border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;">
+                <div style="position:absolute;top:73px;left:0;width:535px;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;z-index:1;">
                   <p style="font-size:14px;margin-bottom:12px;">Суть риска:</p>
-                  <p style="margin-bottom:12px;">НПФ — это организация, управляющая пенсионными накоплениями и выплатами клиентов. Теоретически существует риск его банкротства, что может привести к:</p>
+                  <p style="margin-bottom:12px;">Для пенсионной части плана используется НПФ «Ренессанс Накопления». Теоретически риск финансовой нестабильности фонда может привести к:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
                     <li>Заморозке или задержке выплат пенсионных накоплений.</li>
-                    <li>Потере капитала.</li>
-                    <li>Частичной потере инвестиционного дохода (если фонд работал с высокорисковыми активами).</li>
-                    <li>Необходимости перевода пенсионных прав в другой фонд (если ЦБ отзывает лицензию).</li>
+                    <li>Переоформлению пенсионных прав в другой фонд при регуляторных процедурах.</li>
+                    <li>Частичной потере инвестиционного дохода при неблагоприятном рынке.</li>
                   </ul>
                   <p style="font-size:14px;margin-bottom:12px;">Факторы, снижающие вероятность риска:</p>
                   <p style="margin-bottom:12px;">1. Жесткий государственный контроль:</p>
@@ -1172,8 +1178,8 @@ function buildRostechStandardTailHtmlPages({
                   </ul>
                   <p style="margin-bottom:12px;">2. Система гарантирования пенсионных накоплений:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
-                    <li>Агентство по страхованию вкладов (АСВ) гарантирует возврат до 2,8 млн руб. в случае отзыва лицензии у НПФ.</li>
-                    <li>Если накопления превышают эту сумму, остаток может быть восстановлен в другом фонде.</li>
+                    <li>Действует механизм гарантирования пенсионных накоплений в рамках действующего законодательства.</li>
+                    <li>При изменении статуса фонда пенсионные права переводятся в установленном порядке.</li>
                   </ul>
                   <p style="margin-bottom:12px;">3. Ограничения на рискованные инвестиции:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
@@ -1182,9 +1188,9 @@ function buildRostechStandardTailHtmlPages({
                   </ul>
                   <p style="font-size:14px;margin-bottom:12px;">Меры снижения риска:</p>
                   <ul style="padding-left:24px;margin:0;">
-                    <li>Выбор НПФ с высоким рейтингом надежности (по данным ЦБ, рейтинговых агентств).</li>
-                    <li>Контроль за изменениями в регулировании (новые законы, требования ЦБ).</li>
-                    <li>Открытие нескольких счетов ПДС в разных фондах.</li>
+                    <li>Выбор фонда с устойчивыми показателями и прозрачной отчетностью.</li>
+                    <li>Контроль изменений в регулировании и инвестиционной декларации НПФ.</li>
+                    <li>Диверсификация накоплений между разными инструментами плана (НПФ, брокерский контур, страховые решения).</li>
                   </ul>
                 </div>
               </div>
@@ -1201,10 +1207,11 @@ function buildRostechStandardTailHtmlPages({
             pagePaddingTop: 0,
             bodyHtml: `
               <div style="position:relative;width:535px;height:770px;">
-                <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:10px 12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;">
+                ${riskNotebookBgHtml}
+                <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:10px 12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;z-index:1;">
                   3. Риск дефолта государства<br/>по облигациям федерального займа (ОФЗ)
                 </div>
-                <div style="position:absolute;top:88px;left:0;width:535px;border:1px solid #722257;border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.1;color:#212121;">
+                <div style="position:absolute;top:88px;left:0;width:535px;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.1;color:#212121;z-index:1;">
                   <p style="font-size:14px;margin-bottom:12px;">Суть риска:</p>
                   <p style="margin-bottom:12px;">Дефолт по ОФЗ — это отказ Министерства финансов РФ исполнять обязательства по выплате купонного дохода или погашению номинала облигаций.</p>
                   <p style="font-size:14px;margin-bottom:12px;">Факторы, влияющие на вероятность дефолта:</p>
@@ -1212,8 +1219,8 @@ function buildRostechStandardTailHtmlPages({
                   <ul style="padding-left:24px;margin-bottom:12px;"><li>Отношение госдолга к ВВП России (~20% в 2024 г.) существенно ниже критических уровней (для сравнения: США — ~120%, Япония — ~260%).</li></ul>
                   <p style="margin-bottom:12px;">2. Платежеспособность государства:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;"><li>Основные источники погашения: нефтегазовые доходы, налоговые поступления.</li><li>Наличие золотовалютных резервов.</li></ul>
-                  <p style="margin-bottom:12px;">3. Ограничения на рискованные инвестиции:</p>
-                  <ul style="padding-left:24px;margin-bottom:12px;"><li>НПФ не могут вкладывать средства в высокорисковые активы (акции с низкой ликвидностью, криптовалюты, производные инструменты).</li><li>Основная часть портфеля — ОФЗ, корпоративные облигации 1-2 эшелона, банковские депозиты.</li></ul>
+                  <p style="margin-bottom:12px;">3. Регуляторные ограничения для институциональных инвесторов:</p>
+                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Для НПФ и страховых компаний действуют ограничения на рискованные активы и требования по качеству портфеля.</li><li>Это снижает вероятность концентрации капитала в спекулятивных инструментах.</li></ul>
                   <p style="font-size:14px;margin-bottom:12px;">Факторы снижения риска:</p>
                   <p style="margin-bottom:12px;">1. Суверенная денежная эмиссия:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;"><li>Россия выпускает ОФЗ в национальной валюте (рубли).</li><li>Технически может всегда напечатать деньги для погашения долга (риск — гиперинфляция, но не дефолт).</li></ul>
@@ -1222,8 +1229,8 @@ function buildRostechStandardTailHtmlPages({
                   <p style="margin-bottom:12px;">3. Политические факторы:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;"><li>Дефолт разрушит доверие к финансовой системе.</li><li>Власти будут любой ценой избегать формального дефолта.</li></ul>
                   <p style="font-size:14px;margin-bottom:12px;">Вывод:</p>
-                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Вероятность дефолта: Минимальная.</li><li>Основная защита: Фактическая невозможность дефолта в национальной валюте при сохранении контроля над денежной эмиссией.</li></ul>
-                  <p style="margin:0;">Для российских инвесторов ОФЗ остаются инструментом с максимальной надежностью в рублевом сегменте. Альтернативы с сопоставимым уровнем защиты капитала отсутствуют (депозиты в банках считаются чуть менее надежными, чем ОФЗ).</p>
+                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Вероятность формального дефолта по рублевым ОФЗ оценивается как низкая.</li><li>Ключевой риск для инвестора чаще связан не с дефолтом, а с инфляцией и рыночной переоценкой.</li></ul>
+                  <p style="margin:0;">ОФЗ остаются базовым защитным инструментом рублевого контура, но итоговая доходность зависит от горизонта, уровня ставки и динамики инфляции.</p>
                 </div>
               </div>
             `,
@@ -1239,12 +1246,13 @@ function buildRostechStandardTailHtmlPages({
             pagePaddingTop: 0,
             bodyHtml: `
               <div style="position:relative;width:535px;height:770px;">
-                <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;">
+                ${riskNotebookBgHtml}
+                <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;z-index:1;">
                   4. Риски инвестирования<br/>в акции российских компаний
                 </div>
-                <div style="position:absolute;top:92px;left:0;width:535px;border:1px solid #722257;border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;">
+                <div style="position:absolute;top:92px;left:0;width:535px;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;z-index:1;">
                   <p style="font-size:14px;margin-bottom:12px;">Суть риска:</p>
-                  <p style="margin-bottom:12px;">НПФ могут вкладывать средства в акции только в пределах, установленных Банком России.</p>
+                  <p style="margin-bottom:12px;">Акционный риск возникает в части портфеля, инвестируемой через рыночные инструменты (в том числе в брокерском контуре Финам) и/или в рамках допустимых долей институциональных портфелей.</p>
                   <p style="margin-bottom:12px;">Основные риски:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
                     <li>Рыночная волатильность — стоимость акций может резко снижаться из-за экономических кризисов, санкций или ухудшения финансовых показателей компаний.</li>
@@ -1252,11 +1260,11 @@ function buildRostechStandardTailHtmlPages({
                     <li>Низкая ликвидность отдельных бумаг — некоторые акции могут быть труднореализуемыми при необходимости срочного выхода.</li>
                   </ul>
                   <p style="font-size:14px;margin-bottom:12px;">Факторы, снижающие риск:</p>
-                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Жесткие требования ЦБ — НПФ могут вкладывать только в акции крупных и ликвидных компаний (голубые фишки, индекс МосБиржи).</li></ul>
-                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Лимиты на долю акций — обычно не более 7% портфеля, что ограничивает потенциальные потери.</li></ul>
-                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Диверсификация портфеля акций — инвестирование в акции разных компаний из различных секторов экономики (финансы, нефтегаз, IT, потребительские товары и др.).</li></ul>
+                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Лимиты по риску и требования к качеству активов в институциональном контуре (НПФ/СК).</li></ul>
+                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Диверсификация по эмитентам, секторам и срокам инвестирования.</li></ul>
+                  <ul style="padding-left:24px;margin-bottom:12px;"><li>Пошаговый вход в рынок и регулярная ребалансировка вместо единовременного размещения крупной суммы.</li></ul>
                   <p style="font-size:14px;margin-bottom:12px;">Вывод:</p>
-                  <p style="margin:0;">НПФ при инвестировании в акции компаний применяют комплексный подход к управлению рисками, сочетая диверсификацию, строгий отбор эмитентов, соблюдение регуляторных ограничений и использование защитных стратегий. Основная цель — минимизировать потери при рыночных колебаниях, обеспечивая при этом долгосрочный рост пенсионных накоплений. За счет консервативной инвестиционной политики и контроля со стороны Банка России НПФ снижают вероятность значительных убытков, сохраняя баланс между доходностью и надежностью.</p>
+                  <p style="margin:0;">Акции дают потенциал роста, но сопровождаются повышенной волатильностью. Контроль риска достигается через диверсификацию, лимиты долей, регулярный пересмотр портфеля и соответствие риск-профилю клиента.</p>
                 </div>
               </div>
             `,
@@ -1272,17 +1280,18 @@ function buildRostechStandardTailHtmlPages({
             pagePaddingTop: 0,
             bodyHtml: `
               <div style="position:relative;width:535px;height:770px;">
-                <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;">
+                ${riskNotebookBgHtml}
+                <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;z-index:1;">
                   5. Риски инвестирования НПФ<br/>в корпоративные облигации
                 </div>
-                <div style="position:absolute;top:92px;left:0;width:535px;border:1px solid #722257;border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;">
+                <div style="position:absolute;top:92px;left:0;width:535px;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;z-index:1;">
                   <p style="font-size:14px;margin-bottom:12px;">Основные риски:</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
                     <li>Кредитный риск — вероятность дефолта эмитента и невыплаты купонов/номинала.</li>
                     <li>Риск ликвидности — сложность продажи бумаг без потери стоимости.</li>
                     <li>Процентный риск — снижение рыночной цены облигаций при росте ключевой ставки.</li>
                   </ul>
-                  <p style="font-size:14px;margin-bottom:12px;">Факторы снижения рисков НПФ:</p>
+                  <p style="font-size:14px;margin-bottom:12px;">Факторы снижения риска (НПФ/СК/брокерский контур):</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
                     <li>Отбор эмитентов с высоким кредитным рейтингом.</li>
                     <li>Диверсификация по секторам/эмитентам.</li>
@@ -1291,7 +1300,10 @@ function buildRostechStandardTailHtmlPages({
                     <li>Мониторинг ликвидности и макроэкономической ситуации.</li>
                   </ul>
                   <p style="font-size:14px;margin-bottom:12px;">Вывод:</p>
-                  <p style="margin:0;">НПФ минимизируют риски за счет консервативного подхода и регулирования, сохраняя баланс между доходностью и надежностью.</p>
+                  <p style="margin:0 0 10px 0;">Корпоративные облигации обычно дают премию к ОФЗ, но требуют контроля кредитного качества эмитентов. В плане этот риск снижается за счет диверсификации, лимитов и регулярного мониторинга макроданных.</p>
+                  <div style="margin-top:8px;padding:8px 10px;border:1px dashed #9ca3af;border-radius:8px;background:#f8fafc;font-size:9px;line-height:1.35;color:#334155;">
+                    Материалы декларации носят информационный характер и не являются индивидуальной инвестиционной рекомендацией (ИИР). Прошлая доходность не гарантирует будущие результаты. Финансовые и страховые условия, порядок гарантий и возможные ограничения определяются действующим законодательством РФ, правилами соответствующих программ НПФ, условиями брокерского обслуживания и страховыми документами продукта.
+                  </div>
                 </div>
               </div>
             `,

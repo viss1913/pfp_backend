@@ -1,13 +1,13 @@
 ---
 name: rostech-report-workflow
-description: Агент для правок PDF-отчета Ростех (страницы пенсии, формулы, отступы, генерация и проверка через first-run/report).
+description: Агент для правок PDF-отчета Ростех — пенсия (PENSION), инвестиции (INVESTMENT), общий хвост; генерация и проверка через first-run/report.
 ---
 
 парамтеры для получения токена (логин агента: vissarovav2408@yandex.ru пароль 123456)
 
 ## Назначение
 
-Агент помогает быстро и безопасно править PDF-отчет Ростех, в первую очередь пенсионные страницы и связанный рендер.
+Агент помогает быстро и безопасно править PDF-отчет Ростех: **пенсионные** страницы, цель **«Сохранить и приумножить» (INVESTMENT, `goal_type_id` 3)** и общий хвост отчета. Пенсию и инвест **не смешивать** в одном билдере — у инвеста свой модуль (см. ниже).
 
 ## Что считать источником правды
 
@@ -19,9 +19,30 @@ description: Агент для правок PDF-отчета Ростех (ст�
 
 ## Где работает
 
-- `src/reports/themes/rostech/buildRostechPensionPagesHtml.js`
-- `src/services/reportPdfService.js`
-- `src/reports/themes/reportRenderers.js`
+**Пенсия и общий хвост Ростех**
+
+- `src/reports/themes/rostech/buildRostechPensionPagesHtml.js` — страницы PENSION, экспорт **`buildRostechStandardTailHtmlPages`** (инфляция, риски, таблица графика), утилиты PDF (`extractPensionPlanFacts`, `calculateOwnFundsFromSchedule`, `isScheduleInitialLumpRow`, …).
+
+**INVESTMENT («Сохранить и приумножить»)**
+
+- `src/reports/themes/rostech/buildRostechInvestmentPagesHtml.js` — **все** страницы инвест-отчета; пенсионный билдер под инвест **не** раздуваем.
+- `src/reports/themes/rostech/buildRostechGoalPageHtml.js` — роутинг: ветка **`INVESTMENT`** → инвест-билдер.
+- Чеклист, порядок страниц, отличия от пенсии, тексты «Вы/Ваш» — **`docs/plans/pravki_investment_rostech.md`** (источник правды по продукту для этой цели).
+
+**Тема и сборка PDF**
+
+- `src/reports/themes/themeResolver.js` — **`project_id === 22`** → тема **`rostech`**.
+- `src/services/reportPdfService.js` — обложка → сводная (опц.) → страницы целей; для **одной** цели **PENSION** или **одной INVESTMENT** сводная **не** вставляется (`isRostechPensionOnly` / `isRostechInvestmentOnly`).
+- `src/reports/themes/reportRenderers.js` — `buildGoalPagesHtmlByTheme`.
+
+**График в `monthly_schedule` (пенсия и инвест)**
+
+- Первая строка при ненулевом стартовом капитале: **`schedule_row_kind: 'INITIAL_LUMP'`** — 1-е число месяца старта, **пополнение = весь первоначальный капитал**, вычет и софинансирование 0; дальше месяцы как в симуляции. Ядро: `src/algorithms/calculators/BaseCalculator.js` (`runSimulation`).
+
+**Скрипты для проверки без ручного клиента**
+
+- `scripts/test_rostech_investment_scenario.js` — расчёт + PDF в `tmp/` (клиент в БД **не** создается).
+- `scripts/seed_rostech_invest_client_and_pdf.js` — создает тестового клиента (проект 22), считает ПФП, пишет `goals_summary`, PDF в `tmp/`.
 
 ## Структура страниц для цели «Достойная пенсия»
 
@@ -38,6 +59,15 @@ description: Агент для правок PDF-отчета Ростех (ст�
 Правило обновления:
 - При добавлении/переносе/удалении страниц сразу обновлять этот список.
 - Для каждого пункта по возможности фиксировать `node-id` из Figma и место в рендере.
+
+## Структура страниц для цели «Сохранить и приумножить» (INVESTMENT)
+
+Реализация уже есть в **`buildRostechInvestmentPagesHtml.js`**. Нумерация и логика страниц (что выкинуть по сравнению с пенсией, что общее с пенсией, портфель, резюме, хвост) — **строго по плану**: **`docs/plans/pravki_investment_rostech.md`**.
+
+Правило обновления (как у пенсии):
+
+- Новая страница / перенос / правка контракта данных — **сначала** правка или дополнение **`pravki_investment_rostech.md`**, затем код.
+- В этом файле агента при необходимости кратко отразить изменение порядка страниц (таблица в плане — основной источник).
 
 ## Как переносить дизайн шаблонов
 
@@ -64,7 +94,7 @@ description: Агент для правок PDF-отчета Ростех (ст�
 3. Проверить lint измененных файлов.
 4. Прогнать генерацию:
    - `POST /api/client/first-run` (через логин агента/JWT),
-   - затем `scripts/test_report_client.js <client_id>`.
+   - затем `scripts/test_report_client.js <client_id>` **или** для инвеста без клиента в CRM: `node scripts/test_rostech_investment_scenario.js` / `node scripts/seed_rostech_invest_client_and_pdf.js`.
 5. Сверить, что в PDF попали реальные значения (не нули), особенно:
    - `cofinancing_2026`,
    - `deduction_2026`,
@@ -142,6 +172,7 @@ description: Агент для правок PDF-отчета Ростех (ст�
 
 ## Критичные проверки перед завершением
 
+- Для **invest-only** Ростех: в PDF **нет** сводной; первая строка таблицы графика — месяц старта с **INITIAL_LUMP** (взнос = первоначальный капитал), дальше обычные месяцы.
 - На странице прогноза пенсии нет лишнего верхнего хедера.
 - На странице плана (`59:132`) сохранена структура «длинный текст + график 3 столбца + плашка доходности».
 - Для вычета формат с 2 знаками после запятой.
@@ -153,4 +184,5 @@ description: Агент для правок PDF-отчета Ростех (ст�
 - Не хардкодить годы и суммы.
 - Не удалять важные строки про софинансирование и налоговый вычет.
 - Не править нерелевантные модули без запроса.
+- Не переносить логику **INVESTMENT** в **`buildRostechPensionPagesHtml.js`** и наоборот — только общий хвост (`buildRostechStandardTailHtml`) и общие утилиты.
 

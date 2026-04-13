@@ -113,6 +113,42 @@ class ReportService {
         };
     }
 
+    /**
+     * Разбивка активов для отчёта / family_page_ai_context: client_assets + недвижимость из family_profile.real_estate,
+     * если в активах ещё нет строки типа REAL_ESTATE (иначе двойной учёт).
+     */
+    _buildClientAssetsBreakdown(client) {
+        const assets = Array.isArray(client?.assets) ? client.assets : [];
+        const rows = assets.map((a) => {
+            const t = String(a?.type || '').toUpperCase();
+            const nameRaw = a?.name != null && String(a.name).trim() !== '' ? String(a.name).trim() : '';
+            const name = nameRaw || (t === 'REAL_ESTATE' ? 'Недвижимость' : a.type);
+            return {
+                name,
+                value: Number(a.current_value || a.amount || 0),
+            };
+        });
+
+        const hasRealEstateAsset = assets.some((a) => String(a?.type || '').toUpperCase() === 'REAL_ESTATE');
+        if (hasRealEstateAsset) return rows;
+
+        const fp = client?.family_profile;
+        const reList =
+            fp && typeof fp === 'object' && !Array.isArray(fp) && Array.isArray(fp.real_estate)
+                ? fp.real_estate
+                : [];
+        for (const re of reList) {
+            const v = Number(re?.estimated_value);
+            if (!Number.isFinite(v) || v <= 0) continue;
+            const rawName = re?.name != null ? String(re.name).trim() : '';
+            rows.push({
+                name: rawName || 'Недвижимость',
+                value: v,
+            });
+        }
+        return rows;
+    }
+
     calculateAge(birthDate) {
         if (!birthDate) return null;
         const dt = new Date(birthDate);
@@ -201,7 +237,8 @@ class ReportService {
 
         // 4. Section: Current Situation (Assets & Net Worth)
         // Recalculating from client data strictly to ensure consistency
-        const assetsTotal = (client.assets || []).reduce((sum, a) => sum + Number(a.current_value || a.amount || 0), 0);
+        const assetsBreakdown = this._buildClientAssetsBreakdown(client);
+        const assetsTotal = assetsBreakdown.reduce((sum, a) => sum + Number(a.value || 0), 0);
         const liabilitiesTotal = (client.liabilities || []).reduce((sum, l) => sum + Number(l.remaining_amount || 0), 0);
 
         const currentStats = {
@@ -209,10 +246,7 @@ class ReportService {
             liabilities_total: liabilitiesTotal,
             net_worth: assetsTotal - liabilitiesTotal,
             stock_capital_context: stockCapitalContext,
-            assets_breakdown: (client.assets || []).map(a => ({
-                name: a.name || a.type,
-                value: Number(a.current_value || a.amount || 0)
-            }))
+            assets_breakdown: assetsBreakdown,
         };
 
         // 5. Section: Overall Plan Metrics (Waterfall Data)
