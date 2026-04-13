@@ -118,17 +118,14 @@
       height: 130px;
       background: #e8e8e8;
       border: 1px solid #cccccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: block;
     }
 
-    .hero-image-placeholder {
-      font-size: 8px;
-      color: #999999;
-      text-align: center;
-      line-height: 1.4;
-      padding: 10px;
+    .hero-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .section-tag {
@@ -530,7 +527,7 @@
         </p>
       </div>
       <div class="hero-image">
-        <div class="hero-image-placeholder">./assets/<br>hero-image.webp<br><br>500 × 600</div>
+        <img src="../../../assets/reports/goal-cards/hero-image.webp" alt="" />
       </div>
     </div>
 

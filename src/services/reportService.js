@@ -267,6 +267,8 @@ class ReportService {
         const pdfSummaryPayload = { goals: goalsReport, goals_detailed: goalsReport, summary };
         const goalsWithPdfMetrics = goalsReport.map((goal) => ({
             ...goal,
+            /** Исходное имя цели до подмены для дашборда (нужно PDF/Финам: квартира vs «Сохранить и приумножить»). */
+            goal_title_raw: goal.goal_name != null && goal.goal_name !== '' ? String(goal.goal_name) : null,
             goal_name: this._normalizeGoalDisplayName(goal),
             pdf_metrics: this._buildGoalPdfMetrics(goal),
         }));
