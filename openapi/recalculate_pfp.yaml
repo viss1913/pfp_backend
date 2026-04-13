@@ -55,6 +55,7 @@ paths:
                 term_months: { type: integer }
                 risk_profile: { type: string, enum: [CONSERVATIVE, BALANCED, AGGRESSIVE] }
                 ipk_current: { type: number, description: "Текущий ИПК (для Пенсии)." }
+                ops_capital: { type: number, description: "ОПС / накопительная часть, руб. (цель или клиент)." }
       responses:
         '200':
           description: Успешный расчет.

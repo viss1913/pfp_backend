@@ -121,6 +121,11 @@ const DEFAULT_RECALCULATE_EXTRACTION_SYSTEM_PROMPT = [
     '- если id неясен, заполни goal_type_id/name и needs_clarification=true;',
     '- в goal_patch и client_patch клади только поля, которые пользователь поменял;',
     '- числа отдавай числами, не строками.',
+    '',
+    'Пенсия / госпенсия (goal_type_id 1):',
+    '- текущий ИПК (баллы) — в goal_patch.ipk_current или client_patch.ipk_current (если явно про «мой ИПК в ПФР»);',
+    '- накопления на ОПС (руб.) — в первую очередь goal_patch.ops_capital (в client_patch тоже можно — сервер перенесёт в цель);',
+    '- желаемая пенсия в месяц — goal_patch.desired_monthly_income или target_amount (числа в «сегодняшних» рублях, как в цели).',
 ].join('\n');
 
 /** Текст без LLM, если first run без успешного расчёта (нельзя выдумывать цифры). */
@@ -545,6 +550,29 @@ function inferCanonicalSex(value) {
     return null;
 }
 
+/**
+ * Экстрактор иногда пишет 1886-01-01 вместо 1986-01-01 (возраст «40» при опорном 2026).
+ * Если год в 1870–1899 и по дате получается ≥100 лет, а при +100 к году — правдоподобный возраст, подменяем.
+ */
+function fixLikelyMissingCenturyInBirthDate(isoBirth, ref = new Date()) {
+    const s = trimText(isoBirth);
+    if (!s) return s;
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return s;
+    const y = parseInt(m[1], 10);
+    if (!Number.isFinite(y) || y < 1870 || y > 1899) return s;
+    const ymd = `${m[1]}-${m[2]}-${m[3]}`;
+    const ageWrong = ageFullYearsAtReference(ymd, ref);
+    if (ageWrong == null || ageWrong < 100) return s;
+    const yFixed = y + 100;
+    const candidate = `${yFixed}-${m[2]}-${m[3]}`;
+    const ageFixed = ageFullYearsAtReference(candidate, ref);
+    if (ageFixed == null || ageFixed < 14 || ageFixed > 100) return s;
+    if (ageFixed >= ageWrong) return s;
+    console.warn('[ConstructorAI] birth_date: исправлен типичный век (18xx→19xx)', JSON.stringify({ from: ymd, to: candidate, age_before: ageWrong, age_after: ageFixed }));
+    return candidate;
+}
+
 /** Доход/суммы из экстрактора: LLM часто шлёт строки "150 000" или дублирует поля — иначе minimal validation падает без причины. */
 function parseMoneyishNumber(v) {
     if (v == null || v === '') return NaN;
@@ -616,6 +644,9 @@ function normalizeExtractedFinancialPlanPayload(extracted) {
         c.total_liquid_capital = rootCv;
     }
     coerceClientMoneyAndIncomeInExtraction(extracted);
+    if (trimText(c.birth_date)) {
+        c.birth_date = fixLikelyMissingCenturyInBirthDate(c.birth_date);
+    }
     return extracted;
 }
 
@@ -1255,6 +1286,10 @@ function normalizeRecalculatePatch(extracted) {
         'priority',
         'id',
         'goal_id',
+        'ipk_current',
+        'ipk_forecast',
+        'ipk_total',
+        'ops_capital',
     ];
     for (const key of numericGoalFields) {
         if (goalPatch[key] !== undefined && goalPatch[key] !== null && goalPatch[key] !== '') {
@@ -1271,7 +1306,7 @@ function normalizeRecalculatePatch(extracted) {
     }
     targetGoal.name = trimText(targetGoal.name);
 
-    for (const key of ['avg_monthly_income', 'total_liquid_capital']) {
+    for (const key of ['avg_monthly_income', 'total_liquid_capital', 'ipk_current', 'ops_capital']) {
         if (clientPatch[key] !== undefined && clientPatch[key] !== null && clientPatch[key] !== '') {
             const n = Number(clientPatch[key]);
             if (Number.isFinite(n)) clientPatch[key] = n;
@@ -1311,6 +1346,10 @@ function normalizeDbGoalForRecalculate(goal) {
         'priority',
         'id',
         'goal_id',
+        'ipk_current',
+        'ipk_forecast',
+        'ipk_total',
+        'ops_capital',
     ];
     for (const field of numericFields) {
         if (parsed[field] !== undefined && parsed[field] !== null && parsed[field] !== '') {
@@ -1834,6 +1873,10 @@ class ConstructorAiService {
                   monthly_replenishment: g.monthly_replenishment,
                   initial_capital: g.initial_capital,
                   risk_profile: g.risk_profile,
+                  ipk_current: g.ipk_current,
+                  ipk_forecast: g.ipk_forecast,
+                  ipk_total: g.ipk_total,
+                  ops_capital: g.ops_capital,
               }))
             : [];
         const prompt = [
@@ -1934,10 +1977,23 @@ class ConstructorAiService {
         const goalPatch = { ...patchPayload.goal_patch };
         delete goalPatch.id;
         delete goalPatch.goal_id;
+
+        const clientPatch = { ...(patchPayload.client_patch || {}) };
+        // У clients нет колонки ops_capital — только у цели; иначе updateClient падает на SQL.
+        if (
+            clientPatch.ops_capital !== undefined &&
+            clientPatch.ops_capital !== null &&
+            clientPatch.ops_capital !== '' &&
+            (goalPatch.ops_capital === undefined || goalPatch.ops_capital === null || goalPatch.ops_capital === '')
+        ) {
+            const o = Number(clientPatch.ops_capital);
+            if (Number.isFinite(o)) goalPatch.ops_capital = o;
+        }
+        delete clientPatch.ops_capital;
+
         const updatedGoal = goalRecalculator.prepare(existingGoal, goalPatch);
         goalsMap.set(targetGoalId, updatedGoal);
 
-        const clientPatch = patchPayload.client_patch || {};
         const clientForCalc = {
             ...existingClient,
             ...clientPatch,

@@ -419,7 +419,21 @@ class ClientController {
                     fromParams = g.params;
                 }
                 parsed = { ...fromParams, ...g };
-                const numericFields = ['target_amount', 'initial_capital', 'term_months', 'monthly_replenishment', 'priority', 'goal_type_id', 'desired_monthly_income', 'id', 'goal_id'];
+                const numericFields = [
+                    'target_amount',
+                    'initial_capital',
+                    'term_months',
+                    'monthly_replenishment',
+                    'priority',
+                    'goal_type_id',
+                    'desired_monthly_income',
+                    'id',
+                    'goal_id',
+                    'ipk_current',
+                    'ipk_forecast',
+                    'ipk_total',
+                    'ops_capital',
+                ];
                 numericFields.forEach(field => {
                     if (parsed[field] !== undefined && parsed[field] !== null) parsed[field] = Number(parsed[field]);
                 });
