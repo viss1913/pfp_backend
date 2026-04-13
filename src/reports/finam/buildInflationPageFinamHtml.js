@@ -150,10 +150,6 @@ async function buildInflationPageFinamHtml(data = {}) {
     const corpSpreadMin = Number.isFinite(ofz5Latest) ? ofz5Latest + 2 : null;
     const corpSpreadMax = Number.isFinite(ofz5Latest) ? ofz5Latest + 3 : null;
 
-    const inflationChart = buildLineChartSvg(inflationSeries, {
-        title: 'Годовая инфляция',
-        lineColor: '#8b1d6c',
-    });
     const keyRateChart = buildLineChartSvg(keyRateSeries, {
         title: 'Ключевая ставка ЦБ',
         lineColor: '#1f2937',
@@ -167,7 +163,7 @@ async function buildInflationPageFinamHtml(data = {}) {
     @page { size: 595px 842px; margin: 0; }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
-    body { font-family: 'ReportSummary', 'DejaVu Sans', sans-serif; color: #0f172a; }
+    body { font-family: 'DejaVu Sans', 'Liberation Sans', sans-serif; color: #212121; }
     .page {
       width: 595px;
       height: 842px;
@@ -175,14 +171,14 @@ async function buildInflationPageFinamHtml(data = {}) {
       background: linear-gradient(135deg, #f8fbff 0%, #eef4ff 52%, #f8fafc 100%);
       overflow: hidden;
     }
-    .title { margin: 0 0 8px 0; font-size: 24px; line-height: 1.15; font-weight: 900; }
+    .title { margin: 0 0 8px 0; font-size: 22px; line-height: 1.15; font-weight: 800; }
     .lead {
       margin: 0 0 12px 0;
       padding: 10px 12px;
       border-radius: 12px;
       border: 1px solid rgba(148,163,184,0.35);
       background: rgba(255,255,255,0.72);
-      font-size: 12px;
+      font-size: 13px;
       line-height: 1.45;
       color: #1e293b;
     }
@@ -194,8 +190,8 @@ async function buildInflationPageFinamHtml(data = {}) {
       background: linear-gradient(150deg, rgba(255,255,255,0.65), rgba(255,255,255,0.4));
       box-shadow: 0 8px 24px rgba(15,23,42,0.08);
     }
-    .chart h3 { margin: 0 0 6px 0; font-size: 15px; font-weight: 800; }
-    .chart p { margin: 0 0 6px 0; font-size: 11px; color: #334155; }
+    .chart h3 { margin: 0 0 6px 0; font-size: 16px; font-weight: 800; }
+    .chart p { margin: 0 0 6px 0; font-size: 12px; color: #334155; line-height: 1.45; }
     .metrics {
       margin-top: 10px;
       display: grid;
@@ -209,14 +205,14 @@ async function buildInflationPageFinamHtml(data = {}) {
       padding: 8px;
       min-height: 76px;
     }
-    .metric__label { font-size: 10px; color: #64748b; margin-bottom: 4px; }
-    .metric__value { font-size: 16px; font-weight: 900; color: #0f172a; }
-    .metric__sub { font-size: 10px; color: #334155; margin-top: 3px; line-height: 1.3; }
+    .metric__label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .metric__value { font-size: 17px; font-weight: 900; color: #0f172a; }
+    .metric__sub { font-size: 11px; color: #334155; margin-top: 3px; line-height: 1.35; }
     .footnote {
       margin-top: 10px;
-      font-size: 9px;
+      font-size: 11px;
       color: #475569;
-      line-height: 1.35;
+      line-height: 1.4;
       border-top: 1px dashed rgba(148,163,184,0.55);
       padding-top: 8px;
     }
@@ -234,7 +230,6 @@ async function buildInflationPageFinamHtml(data = {}) {
       <article class="chart">
         <h3>Годовая инфляция</h3>
         <p>Текущее значение: <b>${escapeHtml(asPercent(inflationLatest))}</b></p>
-        ${inflationChart}
       </article>
       <article class="chart">
         <h3>Ключевая ставка Банка России</h3>

@@ -333,8 +333,12 @@ function buildRepleneshmentRows(report = {}) {
         for (const srcRow of schedule) {
             const isoDate = toMonthStartIso(srcRow?.date);
             if (!isoDate) continue;
+            const isInitialLump = String(srcRow?.schedule_row_kind || '').toUpperCase() === 'INITIAL_LUMP';
             const row = upsertRow(byMonth, isoDate);
-            row.replenishment += toNum(srcRow?.replenishment);
+            // INITIAL_LUMP в строке графика уже отражён в getGoalInitialFromSchedule — иначе двойной учёт в первой строке
+            if (!isInitialLump) {
+                row.replenishment += toNum(srcRow?.replenishment);
+            }
             row.tax_deduction += toNum(srcRow?.tax_deduction);
             row.cofinancing += toNum(srcRow?.cofinancing);
             row.total_capital += toNum(srcRow?.total_capital);
@@ -406,27 +410,27 @@ function buildRepleneshmentPageHtml(report = {}) {
       width: 595px;
       height: 842px;
       padding: 30px 36px 26px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.45;
       background-color: #fafbfc;
       background-image:
         linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
         linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
       background-size: 20px 20px;
-      color: #111827;
+      color: #212121;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    h1 { font-size: 16px; line-height: 1.2; margin-bottom: 10px; }
-    .hint { font-size: 10px; color: #4b5563; margin-bottom: 10px; }
+    h1 { font-size: 18px; line-height: 1.2; margin-bottom: 12px; font-weight: 700; }
     table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.9); }
-    th, td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; font-size: 10px; }
+    th, td { border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; font-size: 12px; }
     th { background: #f3f4f6; font-weight: 700; }
     tbody tr:nth-child(even) { background: rgba(249,250,251,0.8); }
   </style>
 </head>
 <body>
   <h1>Сводный график пополнений</h1>
-  <div class="hint">Первая строка — текущий месяц (INITIAL_LUMP), далее агрегированный monthly_schedule (LIFE отдельно).</div>
   <table>
     <thead>
       <tr>

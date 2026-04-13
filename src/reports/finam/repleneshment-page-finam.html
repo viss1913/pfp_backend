@@ -20,7 +20,8 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: 'DejaVu Sans', 'Liberation Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
       background-color: #fafbfc;
       background-image:
         linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
@@ -96,7 +97,6 @@
   <div class="wrap">
     <div class="head">
       <h1>Сводный график пополнений</h1>
-      <p>Первая строка — текущий месяц с первоначальным капиталом, затем помесячная агрегация по правилам.</p>
     </div>
     <table>
       <thead>
@@ -183,8 +183,12 @@
         for (const srcRow of schedule) {
           const isoDate = toMonthStartIso(srcRow?.date);
           if (!isoDate) continue;
+          const isInitialLump = String(srcRow?.schedule_row_kind || "").toUpperCase() === "INITIAL_LUMP";
           const row = upsertRow(byMonth, isoDate);
-          row.replenishment += toNum(srcRow.replenishment);
+          // INITIAL_LUMP уже в getGoalInitialFromSchedule — иначе двойной учёт в первой строке
+          if (!isInitialLump) {
+            row.replenishment += toNum(srcRow.replenishment);
+          }
           row.tax_deduction += toNum(srcRow.tax_deduction);
           row.cofinancing += toNum(srcRow.cofinancing);
           row.total_capital += toNum(srcRow.total_capital);
