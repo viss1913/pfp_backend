@@ -439,7 +439,7 @@
 
     <div class="chart-card">
       <div class="chart-card-title">Начальный капитал · классы активов</div>
-
+      <!-- @finam-portfolio-initial -->
       <div class="total-layout">
         <div class="donut-wrap">
           <!-- Donut R_out=42 R_in=24, те же углы что пирог 35/30/25/10%; белый обвод для щелей -->
@@ -498,10 +498,12 @@
         <span class="hbar-seg hbar--3 hbar-seg--light">25%</span>
         <span class="hbar-seg hbar--4">10%</span>
       </div>
+      <!-- /@finam-portfolio-initial -->
     </div>
 
     <div class="chart-card chart-card--contrib">
       <div class="chart-card-title">Портфель пополнений · распределение взносов</div>
+      <!-- @finam-portfolio-contrib -->
       <div class="total-layout">
         <div class="donut-wrap donut-wrap--sm">
           <!-- Donut 30/40/30: депозит / облигации / акции (демо как на пассивном доходе) -->
@@ -550,8 +552,10 @@
         <span class="hbar-seg hbar--c40b">40%</span>
         <span class="hbar-seg hbar--c30c">30%</span>
       </div>
+      <!-- /@finam-portfolio-contrib -->
     </div>
 
+    <!-- @finam-portfolio-table-initial -->
     <p class="pct-table-caption">Начальный капитал</p>
     <table class="pct-table" aria-label="Доли начального капитала по классам активов">
       <thead>
@@ -589,7 +593,9 @@
         </tr>
       </tbody>
     </table>
+    <!-- /@finam-portfolio-table-initial -->
 
+    <!-- @finam-portfolio-table-contrib -->
     <p class="pct-table-caption">Портфель пополнений</p>
     <table class="pct-table" aria-label="Доли пополнений по инструментам">
       <thead>
@@ -622,6 +628,7 @@
         </tr>
       </tbody>
     </table>
+    <!-- /@finam-portfolio-table-contrib -->
 
     <p class="block-note">Бэк: <code>initial_asset_breakdown</code> + <code>contribution_asset_breakdown</code> (₽/мес). Donut пополнений — 3 сегмента, пути/SVG и <code>.hbar--c*</code> с таблицей синхронно.</p>
 

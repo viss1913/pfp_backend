@@ -20,6 +20,7 @@ const {
     applyFinamAiAvatarHtml,
     inlineFinamRasterImages,
 } = require('../reports/finam/buildFinamReportHtml');
+const { applyFinamPortfolioFinalPage, applyFinamTaxPlanningPage } = require('../reports/finam/finamPdfPageAppliers');
 
 function escapeHtml(s) {
     if (s == null) return '';
@@ -149,6 +150,11 @@ class ReportPagesController {
                 if (pageType === 'TAX_PLANNING' || pageType === 'PORTFOLIO_FINAL') {
                     const fileName = pageType === 'TAX_PLANNING' ? 'tax-planning-block-finam.html' : 'portfolio-final-page-finam.html';
                     let html = await fs.promises.readFile(path.join(__dirname, `../reports/finam/${fileName}`), 'utf-8');
+                    if (pageType === 'TAX_PLANNING') {
+                        html = applyFinamTaxPlanningPage(html, report);
+                    } else {
+                        html = applyFinamPortfolioFinalPage(html, report);
+                    }
                     html = applyFinamAiAvatarHtml(inlineFinamRasterImages(html, FINAM_REPO_ROOT), finamB2cAvatarUrl);
                     res.setHeader('Content-Type', 'text/html; charset=utf-8');
                     res.setHeader('Cache-Control', 'private, no-store');

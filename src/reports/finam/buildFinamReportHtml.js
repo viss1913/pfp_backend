@@ -2,6 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../../config/database');
 const aiService = require('../../services/aiService');
+const { resolveGoalTemplateFile, resolveOtherGoalTemplateFile } = require('./finamGoalTemplates');
+const {
+    orderFinamGoalsForPdf,
+    applyFinamPage4TargetsFromReport,
+    applyFinamPortfolioFinalPage,
+    applyFinamTaxPlanningPage,
+} = require('./finamPdfPageAppliers');
 
 const FINAM_PROJECT_ID = 14;
 const TEMPLATE_DIR = __dirname;
@@ -111,88 +118,6 @@ function addMonths(isoDate, monthsToAdd) {
 function formatMoney(value) {
     const n = toNum(value);
     return `${n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} руб.`;
-}
-
-function normalizeText(value) {
-    return String(value || '')
-        .toLowerCase()
-        .replace(/ё/g, 'е')
-        .replace(/[^a-zа-я0-9]+/gi, ' ')
-        .trim();
-}
-
-function includesAny(haystack, needles) {
-    return needles.some((needle) => haystack.includes(needle));
-}
-
-/** Подпись цели для маппинга шаблонов: не затирается «Сохранить и приумножить» из reportService. */
-function finamTemplateLabel(goal) {
-    const raw = goal?.goal_title_raw != null && String(goal.goal_title_raw).trim() !== '' ? String(goal.goal_title_raw) : '';
-    if (raw) return raw;
-    return String(goal?.goal_name || '').trim();
-}
-
-function matchesApartmentScenario(label) {
-    const n = normalizeText(label);
-    return includesAny(n, ['квартир', 'ипотек', 'первоначальн', 'взнос', 'новостро']);
-}
-
-/**
- * «Дом» подстрочно ловит «домашн…» и даёт ложный загород — только токены/явные морфемы.
- */
-function matchesCountryHouseScenario(label) {
-    const n = normalizeText(label);
-    const tokens = n.split(/\s+/).filter(Boolean);
-    if (includesAny(n, ['загород', 'коттедж', 'дачн', 'участок', 'таунхаус'])) return true;
-    return tokens.some((t) => {
-        if (t === 'дом' || t === 'дома' || t === 'дому' || t === 'домом' || t === 'доме') return true;
-        return false;
-    });
-}
-
-function resolveOtherGoalTemplateFile(goalName) {
-    const name = normalizeText(goalName);
-    if (!name) return 'goal-page-education-finam.html';
-    if (matchesApartmentScenario(goalName)) return 'goal-page-apartment-finam.html';
-    if (matchesCountryHouseScenario(goalName)) return 'goal-page-house-finam.html';
-    if (includesAny(name, ['бизнес', 'свой бизнес'])) return 'goal-page-business-finam.html';
-    if (includesAny(name, ['управление капиталом', 'капитал'])) return 'goal-page-capital-finam.html';
-    if (includesAny(name, ['путешеств', 'поездк', 'переезд'])) return 'goal-page-travel-finam.html';
-    if (includesAny(name, ['автомоб', 'машин', 'авто'])) return 'goal-page-car-finam.html';
-    if (includesAny(name, ['образован', 'ребенк'])) return 'goal-page-education-finam.html';
-    return 'goal-page-education-finam.html';
-}
-
-function resolveInvestmentTemplateFile(goalName) {
-    const name = normalizeText(goalName);
-    if (matchesApartmentScenario(goalName)) return 'goal-page-apartment-finam.html';
-    if (includesAny(name, ['управление капиталом', 'капитал'])) return 'goal-page-capital-finam.html';
-    return 'goal-page-save-grow-finam.html';
-}
-
-function resolveGoalTemplateFile(goal) {
-    const label = finamTemplateLabel(goal);
-    const id = Number(goal?.goal_type_id);
-
-    if (Number.isFinite(id) && id > 0) {
-        if (id === 7) return 'goal-page-fin-reserve-finam.html';
-        if (id === 5) return 'goal-page-life-finam.html';
-        if (id === 1) return 'goal-page-pension-finam.html';
-        if (id === 2) return 'goal-page-passive-income-finam.html';
-        if (id === 8) return 'goal-page-passive-income-finam.html';
-        if (id === 3) return resolveInvestmentTemplateFile(label);
-        if (id === 4 || id === 6 || id === 9) return resolveOtherGoalTemplateFile(label);
-    }
-
-    const goalType = String(goal?.goal_type || '').toUpperCase();
-    if (goalType === 'FIN_RESERVE') return 'goal-page-fin-reserve-finam.html';
-    if (goalType === 'LIFE') return 'goal-page-life-finam.html';
-    if (goalType === 'PENSION') return 'goal-page-pension-finam.html';
-    if (goalType === 'PASSIVE_INCOME') return 'goal-page-passive-income-finam.html';
-    if (goalType === 'RENT') return 'goal-page-passive-income-finam.html';
-    if (goalType === 'INVESTMENT') return resolveInvestmentTemplateFile(label);
-    if (goalType === 'OTHER') return resolveOtherGoalTemplateFile(label);
-    return null;
 }
 
 async function readTemplate(fileName) {
@@ -984,7 +909,7 @@ function applyFinamAiAvatarHtml(html, avatarUrl) {
 function filterGoalsByTypes(goals, goalTypesRaw) {
     const list = Array.isArray(goals) ? goals : [];
     if (!goalTypesRaw) return list;
-    const valid = new Set(['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'OTHER', 'PASSIVE_INCOME']);
+    const valid = new Set(['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'OTHER', 'PASSIVE_INCOME', 'RENT']);
     const requested = new Set(
         String(goalTypesRaw)
             .split(',')
@@ -995,7 +920,14 @@ function filterGoalsByTypes(goals, goalTypesRaw) {
     return list.filter((goal) => requested.has(String(goal?.goal_type || '').toUpperCase()));
 }
 
-async function buildFinamFullPageHtmlList({ report, includeSummary = true, goalTypes = null, finamAiAvatarUrl = null, projectId = null }) {
+async function buildFinamFullPageHtmlList({
+    report,
+    includeSummary = true,
+    goalTypes = null,
+    finamAiAvatarUrl = null,
+    projectId = null,
+    inflationPageHtml = null,
+}) {
     let avatarUrl = finamAiAvatarUrl;
     if (!avatarUrl && projectId != null) {
         avatarUrl = await fetchAiB2cAvatarUrl(projectId);
@@ -1010,10 +942,14 @@ async function buildFinamFullPageHtmlList({ report, includeSummary = true, goalT
         page3 = applyFinamPage3FamilyFactsFromReport(page3, report);
         page3 = await applyFinamPage3FamilyAi(page3, report, projectId);
         pages.push(withInline(page3));
-        pages.push(withInline(await readTemplate('page-4-targets-finam.html')));
+        let page4 = await readTemplate('page-4-targets-finam.html');
+        const rawGoalsForPage4 = filterGoalsByTypes(report?.goals_detailed || [], goalTypes);
+        const orderedForPage4 = orderFinamGoalsForPdf(rawGoalsForPage4);
+        page4 = applyFinamPage4TargetsFromReport(page4, orderedForPage4);
+        pages.push(withInline(page4));
     }
 
-    const goals = filterGoalsByTypes(report?.goals_detailed || [], goalTypes);
+    const goals = orderFinamGoalsForPdf(filterGoalsByTypes(report?.goals_detailed || [], goalTypes));
     for (const goal of goals) {
         const template = resolveGoalTemplateFile(goal);
         if (!template) continue;
@@ -1021,10 +957,25 @@ async function buildFinamFullPageHtmlList({ report, includeSummary = true, goalT
         pages.push(withInline(applyGoalFactsToTemplate(raw, goal)));
     }
 
-    pages.push(withInline(buildRepleneshmentPageHtml(report)));
-    pages.push(withInline(await readTemplate('tax-planning-block-finam.html')));
+    let portfolioFinal = await readTemplate('portfolio-final-page-finam.html');
+    portfolioFinal = applyFinamPortfolioFinalPage(portfolioFinal, report);
+    pages.push(withInline(portfolioFinal));
+
+    let taxPlanning = await readTemplate('tax-planning-block-finam.html');
+    taxPlanning = applyFinamTaxPlanningPage(taxPlanning, report);
+    pages.push(withInline(taxPlanning));
+
     pages.push(withInline(await readTemplate('comon-autofollow-finam.html')));
-    pages.push(withInline(await readTemplate('portfolio-final-page-finam.html')));
+
+    if (inflationPageHtml && String(inflationPageHtml).trim()) {
+        pages.push(withInline(String(inflationPageHtml)));
+    }
+
+    for (let ri = 1; ri <= 5; ri += 1) {
+        pages.push(withInline(await readTemplate(`risk-declaration-preview-${ri}.html`)));
+    }
+
+    pages.push(withInline(buildRepleneshmentPageHtml(report)));
 
     if (!avatarUrl) return pages;
     return pages.map((pageHtml) => applyFinamAiAvatarHtml(pageHtml, avatarUrl));

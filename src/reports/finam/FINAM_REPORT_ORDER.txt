@@ -1,5 +1,17 @@
 Отчёт Финам — рабочая папка.
 
+Порядок листов в PDF (projectId 14, generateClientReportHtmlPackage → buildFinamFullPageHtmlList):
+  page-2-finam, page-3-family-finam, page-4-targets-finam (тело стр. 4 из расчёта)
+  goal-page-* в порядке: FIN_RESERVE → LIFE → PENSION / PASSIVE_INCOME / RENT → OTHER/INVESTMENT «образование» → прочие (внутри группы priority ↑)
+  portfolio-final-page-finam.html (overall_plan.pdf_metrics.portfolio: share или share_percent)
+  tax-planning-block-finam.html (overall_plan.tax_benefits)
+  comon-autofollow-finam.html
+  inflation-page (buildInflationPageFinamHtml, макро из reportPdfService)
+  risk-declaration-preview-1.html … risk-declaration-preview-5.html
+  repleneshment (buildRepleneshmentPageHtml)
+
+Сборка в коде: src/reports/finam/buildFinamReportHtml.js, finamGoalTemplates.js, finamPdfPageAppliers.js
+
 HTML-макеты (актуальная вёрстка от дизайна):
   page-2-finam.html           — страница 2, введение
   page-3-family-finam.html   — страница 3, семья / текущее состояние

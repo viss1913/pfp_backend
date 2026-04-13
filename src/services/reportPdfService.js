@@ -370,14 +370,15 @@ class ReportPdfService {
             : null;
 
         if (isFinamProject) {
+            const inflationPageHtml = await buildFinamInflationPageHtml();
             const finamPages = await buildFinamFullPageHtmlList({
                 report,
                 includeSummary,
                 goalTypes,
                 projectId,
+                inflationPageHtml,
             });
             pageHtmlList.push(...finamPages);
-            pageHtmlList.push(await buildFinamInflationPageHtml());
         } else {
             for (const goalType of targetGoalTypes) {
                 const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
