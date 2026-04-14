@@ -636,15 +636,47 @@ paths:
     post:
       tags: [ "AI B2C (настройки Агента)" ]
       summary: Создать новый brain-context для chat_AI B2C AI
+      description: |
+        Поддерживает два формата:
+        1) `application/json` — обычное создание с полем `content`.
+        2) `multipart/form-data` — можно передать файл в поле `document` (`pdf/doc/docx/txt/md/rtf`), текст будет извлечён и склеен в `content`.
+
+        Правила:
+        - обязателен `title`;
+        - обязателен хотя бы один из: `content` или `document`;
+        - лимит файла: 8MB.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: './aiB2c.yaml#/components/schemas/AiB2cBrainContextCreate'
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ title ]
+              properties:
+                title:
+                  type: string
+                  description: Название brain-context
+                content:
+                  type: string
+                  description: Базовый текст контекста (опционально, если передаётся document)
+                is_active:
+                  type: boolean
+                  default: true
+                priority:
+                  type: integer
+                  default: 0
+                document:
+                  type: string
+                  format: binary
+                  description: Файл для извлечения текста (pdf/doc/docx/txt/md/rtf)
       responses:
         '201':
           description: Создано
+        '400':
+          description: Невалидный payload, неподдерживаемый формат файла, превышен размер или не удалось извлечь текст
 
   /pfp/ai-b2c-chat/brain-contexts/{id}:
     put:

@@ -7,6 +7,7 @@
 
 const knex = require('../config/database');
 const aiB2cService = require('../services/aiB2cService');
+const { extractTextFromUploadedDocument, formatExtractedDocumentSection } = require('../services/documentTextExtractionService');
 
 class AiB2cController {
 
@@ -111,16 +112,40 @@ class AiB2cController {
         try {
             const { title, content, is_active, priority } = req.body;
             const projectId = req.projectId || req.user?.projectId;
+            const uploadedDocument = req.file;
 
-            if (!title || !content) {
-                return res.status(400).json({ error: 'title and content are required' });
+            if (!title) {
+                return res.status(400).json({ error: 'title is required' });
+            }
+
+            if (!content && !uploadedDocument) {
+                return res.status(400).json({ error: 'content or document is required' });
+            }
+
+            let finalContent = typeof content === 'string' ? content.trim() : '';
+            if (uploadedDocument) {
+                let extracted;
+                try {
+                    extracted = await extractTextFromUploadedDocument(uploadedDocument);
+                } catch (parseError) {
+                    return res.status(400).json({
+                        error: 'Could not extract text from uploaded document',
+                        details: parseError.message
+                    });
+                }
+                if (!extracted.text) {
+                    return res.status(400).json({ error: 'Could not extract text from uploaded document' });
+                }
+
+                const fileSection = formatExtractedDocumentSection(extracted, uploadedDocument.originalname);
+                finalContent = [finalContent, fileSection].filter(Boolean).join('\n\n');
             }
 
             const [id] = await knex('ai_b2c_chat_brain_contexts').insert({
                 title,
-                content,
-                is_active: is_active !== undefined ? is_active : true,
-                priority: priority || 0,
+                content: finalContent,
+                is_active: is_active !== undefined ? is_active === true || is_active === 'true' || is_active === 1 || is_active === '1' : true,
+                priority: Number.isFinite(Number(priority)) ? Number(priority) : 0,
                 project_id: projectId || null
             });
 
