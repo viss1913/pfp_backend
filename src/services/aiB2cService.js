@@ -21,6 +21,22 @@ const DOC_CHUNK_SIZE = 1200;
 const DOC_CHUNK_OVERLAP = 200;
 
 class AiB2cService {
+    _isDocDebugEnabled() {
+        return String(process.env.AI_B2C_DOC_DEBUG || '').toLowerCase() === 'true';
+    }
+
+    _debugLog(message, payload = null) {
+        if (!this._isDocDebugEnabled()) return;
+        if (payload == null) {
+            console.log(`[AiB2C DOC DEBUG] ${message}`);
+            return;
+        }
+        try {
+            console.log(`[AiB2C DOC DEBUG] ${message}: ${JSON.stringify(payload)}`);
+        } catch (_) {
+            console.log(`[AiB2C DOC DEBUG] ${message}`);
+        }
+    }
 
     /**
      * Отправить сообщение ИИ (non-streaming)
@@ -474,6 +490,14 @@ ${clientSection}
             const raw = await aiService.getCompletion(architectPrompt, model);
             const parsed = this._safeJsonParse(raw);
             const dynamic = String(parsed?.dynamic_main_context || '').trim();
+            this._debugLog('Context architect output', {
+                projectId,
+                model: model || 'default',
+                sourceLength: source.length,
+                outputLength: dynamic.length,
+                confidence: parsed?.confidence || null,
+                factsCount: Array.isArray(parsed?.facts) ? parsed.facts.length : 0
+            });
             if (dynamic) {
                 return dynamic.slice(0, CONTEXT_ARCHITECT_MAX_CHARS);
             }
@@ -771,6 +795,7 @@ ${clientSection}
 
         const searchTerms = this._extractSearchTerms(userMessage);
         let totalDocsChars = 0;
+        const selectedDocsDebug = [];
 
         return contexts.map((ctx) => {
             const ctxDocs = docsByContext.get(ctx.id) || [];
@@ -783,6 +808,12 @@ ${clientSection}
                     const remaining = DOC_TOTAL_LIMIT_CHARS - totalDocsChars;
                     const boundedSnippet = snippet.slice(0, Math.max(0, remaining));
                     totalDocsChars += boundedSnippet.length;
+                    selectedDocsDebug.push({
+                        contextId: ctx.id,
+                        docId: doc.id,
+                        filename: doc.original_filename,
+                        snippetLength: boundedSnippet.length
+                    });
                     return formatExtractedDocumentSection(
                         { text: boundedSnippet, truncated: boundedSnippet.length < String(doc.extracted_text || '').length, parserType: doc.mime_type || 'text' },
                         doc.original_filename
@@ -790,6 +821,13 @@ ${clientSection}
                 })
                 .filter(Boolean)
                 .join('\n\n');
+
+            this._debugLog('Document selection for prompt', {
+                projectId,
+                userMessage: String(userMessage || '').slice(0, 200),
+                searchTerms,
+                selectedDocs: selectedDocsDebug
+            });
 
             return {
                 ...ctx,
