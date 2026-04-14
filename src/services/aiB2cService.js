@@ -277,6 +277,13 @@ ${clientSection}
             .map(ctx => `--- ${ctx.title}\n${ctx.content}`)
             .join('\n\n');
 
+        const dynamicBrainSection = await this._buildDynamicChatAiMainContext({
+            projectId,
+            userMessage,
+            history,
+            brainSection
+        });
+
         const stageSection = stageContext
             ? `КОНТЕКСТ ТЕКУЩЕГО ЭТАПА "${stageContext.title}" (stage: ${stageKey}):\n${stageContext.content}`
             : `Этап: ${stageKey} (контекст не настроен)`;
@@ -306,7 +313,7 @@ ${clientSection}
 
 ${assistantNameSection}
 СЛОЙ 1 (ГЛАВНЫЙ МОЗГ — БАЗОВЫЕ ЗНАНИЯ И ИНСТРУКЦИИ):
-${brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
+${dynamicBrainSection || brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
 
 СЛОЙ 2 (КОНТЕКСТ ТЕКУЩЕГО ЭТАПА):
 ${stageSection}${routingSection}
@@ -315,12 +322,14 @@ ${stageSection}${routingSection}
 ${clientSection}
 
 ВАЖНЫЕ ПРАВИЛА:
-1. СЛОЙ 2 (ЭТАП) имеет НАИВЫСШИЙ ПРИОРИТЕТ — выполняй именно то, что там написано.
-2. Используй данные клиента (Слой 3) для персонализации ответов.
-3. Отвечай кратко, по делу, на русском языке.
-4. Используй Markdown для оформления.
-5. Не выходи за рамки текущего этапа.
-6. Если в поле chat_context.missing_fields есть значения — задай максимум 1–3 вопроса из questions_queue и не додумывай значения сам.
+1. СЛОЙ 2 (ЭТАП) имеет высокий приоритет по сценарию и тону ответа.
+2. Для фактов из документов/регламентов (адреса, контакты, условия, тарифы, правила) приоритет у фактов из СЛОЯ 1, если есть противоречие со СЛОЕМ 2.
+3. Если в СЛОЕ 1 нет подтверждённого факта — честно сообщи, что данных недостаточно.
+4. Используй данные клиента (Слой 3) для персонализации ответов.
+5. Отвечай кратко, по делу, на русском языке.
+6. Используй Markdown для оформления.
+7. Не выходи за рамки текущего этапа.
+8. Если в поле chat_context.missing_fields есть значения — задай максимум 1–3 вопроса из questions_queue и не додумывай значения сам.
 `.trim();
 
         return [
@@ -674,6 +683,16 @@ ${clientSection}
         ).slice(0, 10);
     }
 
+    _buildSearchVariants(term) {
+        const t = String(term || '').toLowerCase().trim();
+        if (!t) return [];
+        const variants = new Set([t]);
+        if (t.length >= 6) variants.add(t.slice(0, t.length - 1));
+        if (t.length >= 7) variants.add(t.slice(0, t.length - 2));
+        if (t.length >= 5) variants.add(t.slice(0, 4));
+        return Array.from(variants).filter((v) => v.length >= 3);
+    }
+
     _extractRelevantSnippet(text, searchTerms) {
         const raw = String(text || '');
         if (!raw) return '';
@@ -682,9 +701,15 @@ ${clientSection}
         const lowered = raw.toLowerCase();
         let bestIndex = -1;
         for (const term of searchTerms) {
-            const idx = lowered.indexOf(term.toLowerCase());
-            if (idx !== -1) {
-                bestIndex = idx;
+            const variants = this._buildSearchVariants(term);
+            for (const variant of variants) {
+                const idx = lowered.indexOf(variant);
+                if (idx !== -1) {
+                    bestIndex = idx;
+                    break;
+                }
+            }
+            if (bestIndex !== -1) {
                 break;
             }
         }
