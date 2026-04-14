@@ -7,7 +7,11 @@
 
 const knex = require('../config/database');
 const aiB2cService = require('../services/aiB2cService');
-const { extractTextFromUploadedDocument, formatExtractedDocumentSection } = require('../services/documentTextExtractionService');
+const {
+    extractTextFromUploadedDocument,
+    formatExtractedDocumentSection,
+    normalizeUploadedFilename
+} = require('../services/documentTextExtractionService');
 
 class AiB2cController {
     async _getChatAiBrainContextById(id, projectId) {
@@ -183,7 +187,8 @@ class AiB2cController {
                     return res.status(400).json({ error: 'Could not extract text from uploaded document' });
                 }
 
-                const fileSection = formatExtractedDocumentSection(extracted, uploadedDocument.originalname);
+                const safeFilename = normalizeUploadedFilename(uploadedDocument.originalname);
+                const fileSection = formatExtractedDocumentSection(extracted, safeFilename);
                 finalContent = [finalContent, fileSection].filter(Boolean).join('\n\n');
             }
 
@@ -233,10 +238,11 @@ class AiB2cController {
                 return res.status(400).json({ error: 'Could not extract text from uploaded document' });
             }
 
+            const safeFilename = normalizeUploadedFilename(uploadedDocument.originalname);
             const [docId] = await knex('ai_b2c_chat_brain_context_documents').insert({
                 brain_context_id: Number(id),
                 project_id: projectId || null,
-                original_filename: uploadedDocument.originalname || 'document',
+                original_filename: safeFilename,
                 mime_type: uploadedDocument.mimetype || null,
                 size_bytes: uploadedDocument.size || null,
                 extracted_text: extracted.text,

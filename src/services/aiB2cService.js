@@ -14,6 +14,9 @@ const aiService = require('./aiService');
 const { buildChatContext, formatChatContextForPrompt } = require('./chatContextService');
 const { formatExtractedDocumentSection } = require('./documentTextExtractionService');
 
+const DOC_SNIPPET_LIMIT_CHARS = 4000;
+const DOC_TOTAL_LIMIT_CHARS = 30000;
+
 class AiB2cService {
 
     /**
@@ -254,7 +257,7 @@ ${clientSection}
             : '';
 
         const [brainContexts, stageContext, clientData, history] = await Promise.all([
-            this._getChatAiBrainContexts(projectId),
+            this._getChatAiBrainContexts(projectId, userMessage),
             this._getChatAiStageContext(projectId, stageKey),
             this._getClientData(clientId),
             historyMode === 'global'
@@ -565,7 +568,50 @@ ${clientSection}
         return map;
     }
 
-    async _getChatAiBrainContexts(projectId) {
+    _extractSearchTerms(text) {
+        const stopWords = new Set([
+            'что', 'это', 'для', 'как', 'или', 'если', 'где', 'когда', 'какой', 'какая', 'какие',
+            'есть', 'нет', 'нужно', 'можно', 'надо', 'про', 'and', 'the', 'with', 'from'
+        ]);
+        return Array.from(
+            new Set(
+                String(text || '')
+                    .toLowerCase()
+                    .replace(/[^a-zа-яё0-9\s-]/gi, ' ')
+                    .split(/\s+/)
+                    .filter((word) => word.length >= 4 && !stopWords.has(word))
+            )
+        ).slice(0, 10);
+    }
+
+    _extractRelevantSnippet(text, searchTerms) {
+        const raw = String(text || '');
+        if (!raw) return '';
+        if (raw.length <= DOC_SNIPPET_LIMIT_CHARS) return raw;
+
+        const lowered = raw.toLowerCase();
+        let bestIndex = -1;
+        for (const term of searchTerms) {
+            const idx = lowered.indexOf(term.toLowerCase());
+            if (idx !== -1) {
+                bestIndex = idx;
+                break;
+            }
+        }
+
+        if (bestIndex === -1) {
+            return `${raw.slice(0, DOC_SNIPPET_LIMIT_CHARS)}\n\n[...document snippet truncated...]`;
+        }
+
+        const halfWindow = Math.floor(DOC_SNIPPET_LIMIT_CHARS / 2);
+        const start = Math.max(0, bestIndex - halfWindow);
+        const end = Math.min(raw.length, start + DOC_SNIPPET_LIMIT_CHARS);
+        const prefix = start > 0 ? '[...]\n' : '';
+        const suffix = end < raw.length ? '\n[...]' : '';
+        return `${prefix}${raw.slice(start, end)}${suffix}`;
+    }
+
+    async _getChatAiBrainContexts(projectId, userMessage = '') {
         let contexts = await knex('ai_b2c_chat_brain_contexts')
             .where({ is_active: true })
             .where(function () {
@@ -595,17 +641,26 @@ ${clientSection}
             docsByContext.get(doc.brain_context_id).push(doc);
         }
 
+        const searchTerms = this._extractSearchTerms(userMessage);
+        let totalDocsChars = 0;
+
         return contexts.map((ctx) => {
             const ctxDocs = docsByContext.get(ctx.id) || [];
             if (!ctxDocs.length) return ctx;
 
             const docsSection = ctxDocs
-                .map((doc) =>
-                    formatExtractedDocumentSection(
-                        { text: doc.extracted_text, truncated: false, parserType: doc.mime_type || 'text' },
+                .map((doc) => {
+                    if (totalDocsChars >= DOC_TOTAL_LIMIT_CHARS) return null;
+                    const snippet = this._extractRelevantSnippet(doc.extracted_text, searchTerms);
+                    const remaining = DOC_TOTAL_LIMIT_CHARS - totalDocsChars;
+                    const boundedSnippet = snippet.slice(0, Math.max(0, remaining));
+                    totalDocsChars += boundedSnippet.length;
+                    return formatExtractedDocumentSection(
+                        { text: boundedSnippet, truncated: boundedSnippet.length < String(doc.extracted_text || '').length, parserType: doc.mime_type || 'text' },
                         doc.original_filename
-                    )
-                )
+                    );
+                })
+                .filter(Boolean)
                 .join('\n\n');
 
             return {

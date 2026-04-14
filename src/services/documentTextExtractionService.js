@@ -4,6 +4,24 @@ const mammoth = require('mammoth');
 
 const MAX_EXTRACTED_TEXT_LENGTH = 120000;
 
+function normalizeUploadedFilename(filename) {
+    const raw = String(filename || '').trim();
+    if (!raw) return 'uploaded-document';
+
+    // Multer/busboy can expose UTF-8 names as latin1-decoded strings.
+    // Try to recover original UTF-8 and fallback to raw value if recovery fails.
+    try {
+        const recovered = Buffer.from(raw, 'latin1').toString('utf8').trim();
+        if (recovered && recovered.includes('\uFFFD') === false) {
+            return recovered;
+        }
+    } catch (error) {
+        // noop: fallback below
+    }
+
+    return raw;
+}
+
 function normalizeText(text) {
     return String(text || '')
         .replace(/\u0000/g, ' ')
@@ -30,7 +48,7 @@ async function extractTextFromUploadedDocument(file) {
         throw new Error('Uploaded file is missing');
     }
 
-    const originalName = String(file.originalname || '');
+    const originalName = normalizeUploadedFilename(file.originalname);
     const extension = path.extname(originalName).toLowerCase();
 
     let rawText = '';
@@ -66,7 +84,7 @@ async function extractTextFromUploadedDocument(file) {
 }
 
 function formatExtractedDocumentSection(extracted, originalName) {
-    const safeName = String(originalName || 'uploaded-document');
+    const safeName = normalizeUploadedFilename(originalName);
     const truncationNote = extracted?.truncated ? '\n\n[NOTE] Extracted text was truncated to fit size limits.' : '';
 
     return [
@@ -80,5 +98,6 @@ function formatExtractedDocumentSection(extracted, originalName) {
 
 module.exports = {
     extractTextFromUploadedDocument,
-    formatExtractedDocumentSection
+    formatExtractedDocumentSection,
+    normalizeUploadedFilename
 };
