@@ -399,8 +399,8 @@ function buildRepleneshmentRows(report = {}) {
     return [...byMonth.values()].sort((a, b) => new Date(a.date) - new Date(b.date));
 }
 
-/** Строк таблицы на лист A4 (шапка + отступы); иначе Puppeteer режет хвост одной страницы. */
-const FINAM_REPLENISHMENT_ROWS_PER_PAGE = 24;
+/** Строк таблицы на лист A4; с запасом (перенос в ячейках иначе обрезает хвост чанка в iframe 842px). */
+const FINAM_REPLENISHMENT_ROWS_PER_PAGE = 13;
 
 function buildRepleneshmentTableTbodyHtml(rows) {
     if (!rows.length) {
@@ -410,11 +410,11 @@ function buildRepleneshmentTableTbodyHtml(rows) {
         .map(
             (row) => `
           <tr>
-            <td>${escapeHtml(row.date)}</td>
-            <td>${escapeHtml(formatMoney(row.replenishment))}</td>
-            <td>${escapeHtml(formatMoney(row.tax_deduction))}</td>
-            <td>${escapeHtml(formatMoney(row.cofinancing))}</td>
-            <td>${escapeHtml(formatMoney(row.total_capital))}</td>
+            <td class="rep-col-date">${escapeHtml(row.date)}</td>
+            <td class="rep-col-num">${escapeHtml(formatMoney(row.replenishment))}</td>
+            <td class="rep-col-num">${escapeHtml(formatMoney(row.tax_deduction))}</td>
+            <td class="rep-col-num">${escapeHtml(formatMoney(row.cofinancing))}</td>
+            <td class="rep-col-num">${escapeHtml(formatMoney(row.total_capital))}</td>
           </tr>`
         )
         .join('\n');
@@ -452,7 +452,7 @@ function buildRepleneshmentPageHtml(report = {}) {
   <div class="rep-content">
     <h1>Сводный график пополнений</h1>
     ${paging}
-    <table>
+    <table class="rep-table">
       ${tableHead}
       <tbody>
 ${buildRepleneshmentTableTbodyHtml(chunk)}
@@ -513,16 +513,29 @@ ${buildRepleneshmentTableTbodyHtml(chunk)}
       margin-bottom: 10px;
       flex-shrink: 0;
     }
-    table {
+    table.rep-table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
       background: rgba(255,255,255,0.95);
       flex: 1;
       min-height: 0;
     }
-    th, td { border: 1px solid #d1d5db; padding: 6px 8px; text-align: left; font-size: 11px; }
-    th { background: #f3f4f6; font-weight: 700; }
-    tbody tr:nth-child(even) { background: rgba(249,250,251,0.85); }
+    .rep-table th,
+    .rep-table td {
+      border: 1px solid #d1d5db;
+      padding: 3px 5px;
+      text-align: left;
+      font-size: 9px;
+      line-height: 1.2;
+      vertical-align: top;
+      word-break: normal;
+    }
+    .rep-table th { background: #f3f4f6; font-weight: 700; font-size: 9px; }
+    .rep-table td.rep-col-date { white-space: nowrap; width: 14%; }
+    .rep-table td.rep-col-num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .rep-table thead th:nth-child(1) { width: 14%; }
+    .rep-table tbody tr:nth-child(even) { background: rgba(249,250,251,0.85); }
     @media print {
       body { margin: 0; padding: 0; }
       article.page { page-break-after: always; }
@@ -1047,7 +1060,10 @@ async function buildFinamFullPageHtmlList({
         const template = resolveGoalTemplateFile(goal);
         if (!template) continue;
         const raw = await readTemplate(template);
-        pages.push(withInline(applyGoalFactsToTemplate(raw, goal)));
+        const goalHtml = applyGoalFactsToTemplate(raw, goal);
+        for (const goalPart of splitFinamPage4IntoStandalonePages(goalHtml)) {
+            pages.push(withInline(goalPart));
+        }
     }
 
     let portfolioFinal = await readTemplate('portfolio-final-page-finam.html');

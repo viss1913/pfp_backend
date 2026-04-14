@@ -2,13 +2,13 @@
 
 Порядок листов в PDF (projectId 14, generateClientReportHtmlPackage → buildFinamFullPageHtmlList):
   page-2-finam, page-3-family-finam, page-4-targets-finam (тело стр. 4 из расчёта)
-  goal-page-* в порядке: FIN_RESERVE → LIFE → PENSION / PASSIVE_INCOME / RENT → OTHER/INVESTMENT «образование» → прочие (внутри группы priority ↑)
+  goal-page-* в порядке: FIN_RESERVE → LIFE → PENSION / PASSIVE_INCOME / RENT → OTHER/INVESTMENT «образование» → прочие (внутри группы priority ↑); у шаблона может быть несколько <article class="page"> — в PDF каждый даёт отдельный лист (splitFinamPage4IntoStandalonePages)
   portfolio-final-page-finam.html (overall_plan.pdf_metrics.portfolio: share или share_percent)
   tax-planning-block-finam.html (overall_plan.tax_benefits)
   comon-autofollow-finam.html
   inflation-page (buildInflationPageFinamHtml, макро из reportPdfService)
   risk-declaration-preview-1.html … risk-declaration-preview-5.html
-  repleneshment (buildRepleneshmentPageHtml → несколько листов по 24 строки, splitFinamPage4IntoStandalonePages)
+  repleneshment (buildRepleneshmentPageHtml → несколько листов по FINAM_REPLENISHMENT_ROWS_PER_PAGE строк, splitFinamPage4IntoStandalonePages)
 
 Сборка в коде: src/reports/finam/buildFinamReportHtml.js, finamGoalTemplates.js, finamPdfPageAppliers.js
 
@@ -17,7 +17,7 @@ HTML-макеты (актуальная вёрстка от дизайна):
   page-3-family-finam.html   — страница 3, семья / текущее состояние
   page-4-targets-finam.html   — страница 4, цели
 
-HTML-макеты: одна цель = одна страница (595×842):
+HTML-макеты: цель 595×842; часть шаблонов — два листа в одном HTML (два article.page), в сборке PDF режутся на отдельные iframe-страницы:
   goal-page-fin-reserve-finam.html      — FIN_RESERVE, финансовая подушка
   goal-page-life-finam.html             — LIFE, защита жизни
   goal-page-pension-finam.html          — PENSION, пенсия
