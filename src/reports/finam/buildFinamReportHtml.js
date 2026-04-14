@@ -331,6 +331,245 @@ function computeGoalFacts(goal) {
     };
 }
 
+function sumInstrumentAmounts(list) {
+    if (!Array.isArray(list)) return 0;
+    return list.reduce((acc, item) => acc + toNum(item?.amount), 0);
+}
+
+function resolvePensionRetirementYear(goal) {
+    const details = goal?.details || {};
+    const summary = goal?.summary || {};
+    const fromState = toNum(details?.state_pension?.retirement_year);
+    if (fromState > 1900) return Math.round(fromState);
+    const years = toNum(details?.state_pension?.years_to_pension ?? summary?.years_to_pension);
+    if (years > 0) return new Date().getFullYear() + Math.round(years);
+    return null;
+}
+
+function formatMillionsShort(value) {
+    const n = Math.max(0, toNum(value));
+    if (n >= 1_000_000) {
+        const mln = n / 1_000_000;
+        return `${mln.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} млн ₽`;
+    }
+    return `${Math.round(n).toLocaleString('ru-RU')} ₽`;
+}
+
+function applyFinBarsScaleByValues(html, values) {
+    const nums = values.map((v) => Math.max(0, toNum(v)));
+    const max = Math.max(1, ...nums);
+    let idx = 0;
+    return html.replace(/style="height:\s*\d+(?:\.\d+)?px;"/g, (m) => {
+        if (idx >= nums.length) return m;
+        const v = nums[idx];
+        idx += 1;
+        const height = Math.max(16, Math.round((v / max) * 66));
+        return `style="height: ${height}px;"`;
+    });
+}
+
+function resolveEducationChildName(goal) {
+    const details = goal?.details || {};
+    const candidates = [
+        details?.child_name,
+        details?.child?.name,
+        details?.child?.first_name,
+        details?.children?.[0]?.first_name,
+    ].filter(Boolean);
+    if (candidates.length) return String(candidates[0]).trim();
+    const rawName = String(goal?.goal_name || '').trim();
+    const m = rawName.match(/образован[^\w]*([а-яa-zё][а-яa-zё-]+)/i);
+    if (m && m[1]) return m[1];
+    return '';
+}
+
+function resolvePrimaryGoalInstrument(goal) {
+    const details = goal?.details || {};
+    const initial = Array.isArray(details.initial_instruments) ? details.initial_instruments : [];
+    const monthly = Array.isArray(details.monthly_instruments) ? details.monthly_instruments : [];
+    const first = initial[0] || monthly[0] || {};
+    const monthlyFirst = monthly[0] || {};
+    return {
+        name: first?.name || monthlyFirst?.name || 'Банковский накопительный счёт',
+        productType: String(first?.product_type || monthlyFirst?.product_type || '').toUpperCase(),
+        share: toNum(first?.share ?? monthlyFirst?.share),
+        yield: toNum(first?.short_term_yield ?? first?.yield ?? monthlyFirst?.short_term_yield ?? monthlyFirst?.yield),
+        initialAmount: toNum(first?.amount),
+        monthlyAmount: toNum(monthlyFirst?.amount),
+    };
+}
+
+function finamInstrumentTypeLabel(productTypeRaw) {
+    const type = String(productTypeRaw || '').toUpperCase();
+    if (!type) return 'Инструмент';
+    if (type === 'DEPOSIT') return 'Вклад';
+    if (type === 'BOND') return 'Облигации';
+    if (type === 'STOCK') return 'Акции';
+    if (type === 'ETF') return 'ETF';
+    return type;
+}
+
+function formatThousandShort(value) {
+    const n = Math.max(0, toNum(value));
+    return `${Math.round(n / 1000).toLocaleString('ru-RU')}к`;
+}
+
+function formatChartMonthShortRu(dateLike) {
+    const d = new Date(dateLike);
+    if (Number.isNaN(d.getTime())) return '';
+    const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    return `${months[d.getMonth()]}'${String(d.getFullYear()).slice(-2)}`;
+}
+
+function formatChartMonthLongRu(dateLike) {
+    const d = new Date(dateLike);
+    if (Number.isNaN(d.getTime())) return '';
+    const months = [
+        'январь',
+        'февраль',
+        'март',
+        'апрель',
+        'май',
+        'июнь',
+        'июль',
+        'август',
+        'сентябрь',
+        'октябрь',
+        'ноябрь',
+        'декабрь',
+    ];
+    return `${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function normalizeScheduleRowsForReserve(goal, facts) {
+    const rows = Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
+    const byMonth = new Map();
+    rows.forEach((row) => {
+        if (!row?.date) return;
+        const d = new Date(row.date);
+        if (Number.isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const total = toNum(row.total_capital);
+        if (!Number.isFinite(total) || total < 0) return;
+        byMonth.set(key, { date: d, total });
+    });
+    const points = [...byMonth.values()].sort((a, b) => a.date - b.date);
+    if (points.length > 1) return points;
+
+    const fallbackMonths = Math.max(1, facts.months || 12);
+    const startIso = toMonthStartIso(new Date());
+    const generated = [];
+    for (let i = 0; i <= fallbackMonths; i += 1) {
+        const iso = addMonths(startIso, i);
+        const d = new Date(`${iso}T00:00:00`);
+        const t = fallbackMonths > 0 ? i / fallbackMonths : 1;
+        generated.push({
+            date: d,
+            total: facts.initial + (facts.totalCapital - facts.initial) * t,
+        });
+    }
+    return generated;
+}
+
+function buildFinReserveChartSvg(goal, facts) {
+    const points = normalizeScheduleRowsForReserve(goal, facts);
+    if (!points.length) return null;
+
+    const xStart = 36;
+    const xEnd = 486;
+    const yTop = 20;
+    const yBottom = 110;
+    const width = xEnd - xStart;
+    const height = yBottom - yTop;
+
+    const vals = points.map((p) => p.total);
+    const minV = Math.min(...vals);
+    const maxV = Math.max(...vals);
+    const spread = Math.max(maxV - minV, Math.max(maxV, 1) * 0.08);
+    const low = Math.max(0, minV - spread * 0.2);
+    const high = maxV + spread * 0.2;
+    const range = Math.max(1, high - low);
+
+    const toY = (v) => yBottom - ((v - low) / range) * height;
+    const toX = (i) => (points.length === 1 ? xStart : xStart + (i / (points.length - 1)) * width);
+
+    const chartPoints = points.map((p, i) => ({ x: toX(i), y: toY(p.total), v: p.total, d: p.date }));
+    const polyline = chartPoints.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const areaPath = `M${polyline.replace(/\s+/g, ' L')} L${xEnd},${yBottom} L${xStart},${yBottom} Z`;
+
+    const yTicks = 6;
+    const gridLines = [];
+    const yLabels = [];
+    for (let i = 0; i < yTicks; i += 1) {
+        const t = i / (yTicks - 1);
+        const y = yBottom - t * height;
+        const val = low + t * range;
+        gridLines.push(`<line x1="${xStart}" y1="${y.toFixed(1)}" x2="${xEnd}" y2="${y.toFixed(1)}" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>`);
+        yLabels.push(
+            `<text x="32" y="${(y + 3).toFixed(1)}" font-size="6" fill="#999999" text-anchor="end" font-family="sans-serif">${formatThousandShort(
+                val
+            )}</text>`
+        );
+    }
+
+    const xTicksCount = Math.min(6, chartPoints.length);
+    const xTickSet = new Set();
+    const xLabels = [];
+    for (let i = 0; i < xTicksCount; i += 1) {
+        const idx = Math.round((i * (chartPoints.length - 1)) / Math.max(1, xTicksCount - 1));
+        if (xTickSet.has(idx)) continue;
+        xTickSet.add(idx);
+        const p = chartPoints[idx];
+        xLabels.push(
+            `<text x="${p.x.toFixed(1)}" y="130" font-size="5.5" fill="#999999" text-anchor="middle" font-family="sans-serif">${escapeHtml(
+                formatChartMonthShortRu(p.d)
+            )}</text>`
+        );
+    }
+
+    const first = chartPoints[0];
+    const mid = chartPoints[Math.floor((chartPoints.length - 1) / 2)];
+    const last = chartPoints[chartPoints.length - 1];
+
+    return `<svg class="chart-svg" viewBox="0 0 500 150" xmlns="http://www.w3.org/2000/svg">
+        ${gridLines.join('\n        ')}
+        ${yLabels.join('\n        ')}
+        ${xLabels.join('\n        ')}
+        <defs>
+          <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#6366f1" stop-opacity="0.01"/>
+          </linearGradient>
+        </defs>
+        <path d="${areaPath}" fill="url(#ag)"/>
+        <polyline points="${polyline}" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        ${chartPoints.map((p) => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.3" fill="#6366f1"/>`).join('\n        ')}
+        <text x="${first.x.toFixed(1)}" y="${Math.max(10, first.y - 6).toFixed(1)}" font-size="5.5" fill="#333" text-anchor="middle" font-family="sans-serif" font-weight="600">${formatThousandShort(
+            first.v
+        )}</text>
+        <text x="${mid.x.toFixed(1)}" y="${Math.max(10, mid.y - 6).toFixed(1)}" font-size="5.5" fill="#333" text-anchor="middle" font-family="sans-serif" font-weight="600">${formatThousandShort(
+            mid.v
+        )}</text>
+        <text x="${last.x.toFixed(1)}" y="${Math.max(10, last.y - 6).toFixed(1)}" font-size="5.5" fill="#333" text-anchor="middle" font-family="sans-serif" font-weight="600">${formatThousandShort(
+            last.v
+        )}</text>
+        <rect x="404" y="6" width="120" height="15" rx="3" fill="#eef2ff" stroke="#c7d2fe" stroke-width="0.5"/>
+        <text x="464" y="16" font-size="7" fill="#6366f1" text-anchor="middle" font-family="sans-serif" font-weight="700">${Math.round(
+            last.v
+        ).toLocaleString('ru-RU')} ₽</text>
+      </svg>`;
+}
+
+function formatLifeRiskLimitHtml(amount) {
+    const n = Math.max(0, toNum(amount));
+    if (n >= 1_000_000) {
+        const mln = n / 1_000_000;
+        const value = Number.isInteger(mln) ? String(mln) : mln.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+        return `${value} <small>млн ₽</small>`;
+    }
+    return `${Math.round(n).toLocaleString('ru-RU')} <small>₽</small>`;
+}
+
 function replaceNthMatch(text, regex, replacement, n) {
     let idx = 0;
     return text.replace(regex, (...args) => {
@@ -503,6 +742,8 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
 function applyGoalFactsToTemplate(html, goal) {
     const facts = computeGoalFacts(goal);
     let out = html;
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
 
     out = applyPensionHeroPlaceholders(out, goal);
     out = applyPensionGapMetrics(out, goal);
@@ -572,6 +813,295 @@ function applyGoalFactsToTemplate(html, goal) {
         /<div class="tax-card-hint">Итог по модели \(total_tax_benefit\), с учётом лимитов и сценария взносов\.<\/div>/g,
         ''
     );
+
+    const isFinReserve = goalType === 'FIN_RESERVE' || goalTypeId === 7;
+    if (isFinReserve) {
+        const inst = resolvePrimaryGoalInstrument(goal);
+        const months = facts.months > 0 ? facts.months : 0;
+        const reserveYield = inst.yield > 0 ? inst.yield : facts.portfolioYield;
+        const reserveInitial = inst.initialAmount > 0 ? inst.initialAmount : facts.initial;
+        const reserveMonthly = inst.monthlyAmount > 0 ? inst.monthlyAmount : facts.monthly;
+        const reserveFinal = facts.totalCapital;
+        const reserveShare = inst.share > 0 ? `${Math.round(inst.share)}%` : '100%';
+
+        out = out.replace(
+            /<div class="goal-subtitle">[\s\S]*?<\/div>/,
+            `<div class="goal-subtitle">Подушка безопасности, срок формирования — ${months} месяцев</div>`
+        );
+        out = out.replace(
+            /<div class="goal-comment">[\s\S]*?<\/div>/,
+            `<div class="goal-comment">Начальный капитал <em>${formatMoneyValue(reserveInitial)}</em> уже на месте. Пополнение ${formatMoneyValue(reserveMonthly)}/мес на вкладе с доходностью ${formatPercentValue(
+                reserveYield
+            )} доведёт капитал до <em>${formatMoneyValue(reserveFinal)}</em> за ${months} месяцев.</div>`
+        );
+
+        out = out.replace(
+            /<div class="metric-value green">[\s\S]*?<\/div>/,
+            `<div class="metric-value green">${Math.round(reserveInitial).toLocaleString('ru-RU')}<span> ₽</span></div>`
+        );
+        out = out.replace(
+            /<div class="metric-value">[\s\S]*?<span> ₽\/мес<\/span><\/div>/,
+            `<div class="metric-value">${Math.round(reserveMonthly).toLocaleString('ru-RU')}<span> ₽/мес</span></div>`
+        );
+        out = out.replace(
+            /<div class="metric-value amber">[\s\S]*?<\/div>/,
+            `<div class="metric-value amber">${Math.round(reserveFinal).toLocaleString('ru-RU')}<span> ₽</span></div>`
+        );
+        out = out.replace(/(<div class="metric-desc">Итог через )\d+( мес<\/div>)/, `$1${months}$2`);
+
+        out = out.replace(
+            /<div class="instrument-name">[\s\S]*?<\/div>/,
+            `<div class="instrument-name">${escapeHtml(inst.name)}</div>`
+        );
+        out = out.replace(
+            /(<span class="instrument-key">Тип<\/span>\s*<span class="instrument-val">)[\s\S]*?(<\/span>)/,
+            `$1${escapeHtml(finamInstrumentTypeLabel(inst.productType))}$2`
+        );
+        out = out.replace(
+            /(<span class="instrument-key">Доля<\/span>\s*<span class="instrument-val">)[\s\S]*?(<\/span>)/,
+            `$1${escapeHtml(reserveShare)}$2`
+        );
+        out = out.replace(
+            /(<span class="instrument-key">Начальная сумма<\/span>\s*<span class="instrument-val">)[\s\S]*?(<\/span>)/,
+            `$1${escapeHtml(formatMoneyValue(reserveInitial))}$2`
+        );
+        out = out.replace(
+            /(<span class="instrument-key">Ежемесячное пополнение<\/span>\s*<span class="instrument-val">)[\s\S]*?(<\/span>)/,
+            `$1${escapeHtml(formatMoneyValue(reserveMonthly))}$2`
+        );
+        out = out.replace(
+            /(<span>Пополнение за )\d+( мес<\/span>)/,
+            `$1${months}$2`
+        );
+
+        out = out.replace(
+            /<div class="instrument-yield-big">[\s\S]*?<\/div>/,
+            `<div class="instrument-yield-big">${formatPercentValue(reserveYield)}</div>`
+        );
+
+        const schedulePoints = normalizeScheduleRowsForReserve(goal, facts);
+        const firstDate = schedulePoints[0]?.date;
+        const lastDate = schedulePoints[schedulePoints.length - 1]?.date;
+        const rangeTitle =
+            firstDate && lastDate
+                ? `Рост капитала: ${formatChartMonthLongRu(firstDate)} → ${formatChartMonthLongRu(lastDate)}`
+                : `Рост капитала за ${months} месяцев`;
+        out = out.replace(/<div class="chart-title">[\s\S]*?<\/div>/, `<div class="chart-title">${escapeHtml(rangeTitle)}</div>`);
+        out = out.replace(/<span class="legend-text">Фактические данные<\/span>/, '<span class="legend-text">Данные monthly_schedule</span>');
+        const chartSvg = buildFinReserveChartSvg(goal, facts);
+        if (chartSvg) {
+            out = out.replace(/<svg class="chart-svg"[\s\S]*?<\/svg>/, chartSvg);
+        }
+        out = out.replace(
+            /<div class="speech-sm">[\s\S]*?<\/div>/,
+            `<div class="speech-sm"><p>${schedulePoints.length} точек на графике из <em>monthly_schedule</em>: рост капитала от <em>${formatMoneyValue(
+                reserveInitial
+            )}</em> до <em>${formatMoneyValue(reserveFinal)}</em>.</p></div>`
+        );
+    }
+
+    const isLife = goalType === 'LIFE' || goalTypeId === 5;
+    if (isLife) {
+        const details = goal?.details || {};
+        const summary = goal?.summary || {};
+        const risks = Array.isArray(details.risks) ? details.risks.filter((r) => toNum(r?.limit_amount) > 0) : [];
+        const maxRisk = Math.max(1, ...risks.map((r) => toNum(r.limit_amount)));
+        const annualPremium = toNum(details.annual_premium ?? summary.annual_premium ?? facts.initial);
+        const monthlyPremium = annualPremium > 0 ? annualPremium / 12 : facts.monthly;
+        const yearTaxLife = toNum(summary.tax_deduction_2026 ?? details.tax_deduction_2026 ?? facts.taxYearAmount);
+        const totalTaxLife = toNum(summary.total_tax_deductions ?? details.total_tax_deductions ?? facts.totalTax);
+        const inst = resolvePrimaryGoalInstrument(goal);
+        const lifeYield = inst.yield > 0 ? inst.yield : facts.portfolioYield;
+        const lifeShare = inst.share > 0 ? `${Math.round(inst.share)}%` : '100%';
+        const programName = details.program_name || inst.name || 'НСЖ';
+        const productTypeLabel = finamInstrumentTypeLabel(inst.productType || 'NSZH');
+
+        if (risks.length > 0) {
+            for (let i = 0; i < 3; i += 1) {
+                const risk = risks[i];
+                if (!risk) break;
+                const idx = i + 1;
+                out = replaceNthMatch(
+                    out,
+                    /<div class="life-risk-name">[\s\S]*?<\/div>/g,
+                    `<div class="life-risk-name">${escapeHtml(String(risk.risk_name || 'Риск'))}</div>`,
+                    idx
+                );
+                out = replaceNthMatch(
+                    out,
+                    /<div class="life-risk-limit">[\s\S]*?<\/div>/g,
+                    `<div class="life-risk-limit">${formatLifeRiskLimitHtml(risk.limit_amount)}</div>`,
+                    idx
+                );
+                out = replaceNthMatch(
+                    out,
+                    /<div class="life-risk-bar" style="width:\s*[^"]+;"><\/div>/g,
+                    `<div class="life-risk-bar" style="width: ${Math.max(8, Math.round((toNum(risk.limit_amount) / maxRisk) * 100))}%;"></div>`,
+                    idx
+                );
+            }
+        }
+
+        out = out.replace(
+            /(<div class="life-premium-label">Взнос в год<\/div>\s*<div class="life-premium-val">)[\s\S]*?(<span> ₽<\/span><\/div>)/,
+            `$1${annualPremium.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}$2`
+        );
+        out = out.replace(
+            /(<div class="life-premium-label">Взнос в месяц<\/div>\s*<div class="life-premium-val">)[\s\S]*?(<span> ₽<\/span><\/div>)/,
+            `$1${monthlyPremium.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}$2`
+        );
+
+        out = out.replace(
+            /(<div class="life-hero-program">Продукт: <span>)[\s\S]*?(<\/span><\/div>)/,
+            `$1${escapeHtml(programName)}$2`
+        );
+        out = out.replace(
+            /<div class="life-product-name">[\s\S]*?<\/div>/,
+            `<div class="life-product-name">${escapeHtml(programName)}</div>`
+        );
+        out = out.replace(
+            /(<div class="life-product-row"><span>Тип продукта<\/span><span>)[\s\S]*?(<\/span><\/div>)/,
+            `$1${escapeHtml(productTypeLabel)}$2`
+        );
+        out = out.replace(
+            /(<div class="life-product-row"><span>Доля в цели<\/span><span>)[\s\S]*?(<\/span><\/div>)/,
+            `$1${escapeHtml(lifeShare)}$2`
+        );
+        out = out.replace(
+            /(<div class="life-product-row"><span>Начальная сумма<\/span><span>)[\s\S]*?(<\/span><\/div>)/,
+            `$1${escapeHtml(formatMoneyValue(annualPremium))}$2`
+        );
+        out = out.replace(
+            /(<div class="life-product-row"><span>Ежемесячное пополнение<\/span><span>)[\s\S]*?(<\/span><\/div>)/,
+            `$1${escapeHtml(formatMoneyValue(monthlyPremium))}$2`
+        );
+        out = out.replace(
+            /<div class="life-yield-big">[\s\S]*?<\/div>/,
+            `<div class="life-yield-big">${formatPercentValue(lifeYield)}</div>`
+        );
+
+        out = out.replace(
+            /(<div class="life-tax-desc">)[\s\S]*?(<\/div>)/,
+            `$1По модели плана: суммарный вычет <em>${formatMoneyValue(totalTaxLife)}</em>; в том числе оценка на <em>2026 год — ${formatMoneyValue(
+                yearTaxLife
+            )}</em> (не налоговая консультация).$2`
+        );
+        out = out.replace(
+            /<div class="life-tax-big">[\s\S]*?<\/div>/,
+            `<div class="life-tax-big">${formatMoneyValue(totalTaxLife)}</div>`
+        );
+        out = out.replace(
+            /<div class="life-tax-small" style="margin-top:4px;font-weight:600;color:#059669;">[\s\S]*?<\/div>/,
+            `<div class="life-tax-small" style="margin-top:4px;font-weight:600;color:#059669;">+${formatMoneyValue(yearTaxLife)} в 2026</div>`
+        );
+    }
+
+    const isPension = goalType === 'PENSION' || goalTypeId === 1;
+    if (isPension) {
+        const details = goal?.details || {};
+        const summary = goal?.summary || {};
+        const retirementYear = resolvePensionRetirementYear(goal);
+        const stateToday = toNum(summary.state_pension_monthly_today);
+        const stateFuture = toNum(summary.state_pension_monthly_future);
+        const desiredToday = toNum(summary.projected_pension_monthly_present ?? summary.target_amount_initial);
+        const gapToday = Math.max(desiredToday - stateToday, 0);
+        const gapFuture = toNum(summary.pension_gap_future);
+        const inflationRate = toNum(summary.inflation_rate);
+
+        const initialSum = sumInstrumentAmounts(details.initial_instruments);
+        const monthlySum = sumInstrumentAmounts(details.monthly_instruments);
+        const initialPension = initialSum > 0 ? initialSum : facts.initial;
+        const monthlyPension = monthlySum > 0 ? monthlySum : facts.monthly;
+        const months = facts.months > 0 ? facts.months : Math.round(toNum(summary.target_months));
+        const years = months > 0 ? Math.floor(months / 12) : 0;
+        const totalCapital = toNum(summary.projected_capital_at_retirement ?? facts.totalCapital);
+        const portfolioYield = toNum(summary.accumulation_yield_percent ?? facts.portfolioYield);
+        const payoutYield = toNum(summary.payout_yield_percent);
+
+        out = out.replace(
+            /(<span class="kv-key">Год выхода на пенсию<\/span>\s*<span class="kv-val">)[^<]*(<\/span>)/,
+            `$1${retirementYear || '—'}$2`
+        );
+        out = out.replace(
+            /(<span class="kv-key">Прогноз в «сегодняшних» рублях \(в месяц\)<\/span>\s*<span class="kv-val">)[^<]*(<\/span>)/,
+            `$1${formatMoneyValue(stateToday)}$2`
+        );
+        out = out.replace(
+            /(<span class="kv-key">Прогноз с учётом инфляции к году выхода \(в месяц\)<\/span>\s*<span class="kv-val">)[^<]*(<\/span>)/,
+            `$1${formatMoneyValue(stateFuture)}$2`
+        );
+        out = out.replace(
+            /(<span class="kv-key">Инфляция в модели<\/span>\s*<span class="kv-val">)[^<]*(<\/span>)/,
+            `$1${formatPercentValue(inflationRate)} годовых$2`
+        );
+
+        out = out.replace(
+            /<div class="speech-sm">[\s\S]*?<\/div>/,
+            `<div class="speech-sm"><p>Госпенсии не хватает до желаемого уровня: нехватка дохода к выходу на пенсию — <em>${formatMoneyValue(
+                gapToday
+            )}/мес</em> в сегодняшних рублях, а с учётом инфляции это составит <em>${formatMoneyValue(
+                gapFuture
+            )}/мес</em> в деньгах того времени. Эту часть закрываем отдельной целью «пассивный доход» через накопленный капитал.</p></div>`
+        );
+
+        out = replaceFirstN(
+            out,
+            /<div class="plan-step-value">[^<]*<\/div>/g,
+            [
+                `<div class="plan-step-value">${formatMoneyValue(initialPension)}</div>`,
+                `<div class="plan-step-value">${monthlyPension.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽</div>`,
+                `<div class="plan-step-value">${years} лет</div>`,
+                `<div class="plan-step-value">${formatPercentValue(portfolioYield)}</div>`,
+                `<div class="plan-step-value">${formatMoneyValue(totalCapital)}</div>`,
+            ]
+        );
+        out = out.replace(
+            /<div class="plan-step-value plan-step-value--meta">\d+\s*мес\.<\/div>/,
+            `<div class="plan-step-value plan-step-value--meta">${months} мес.</div>`
+        );
+
+        out = out.replace(
+            /(<span class="instrument-key">Начальная сумма<\/span>\s*<span class="instrument-val">)[^<]*(<\/span>)/,
+            `$1${formatMoneyValue(initialPension)}$2`
+        );
+        out = out.replace(
+            /(<span class="instrument-key">Ежемесячное пополнение<\/span>\s*<span class="instrument-val">)[^<]*(<\/span>)/,
+            `$1${monthlyPension.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽$2`
+        );
+        out = out.replace(/<div class="instrument-yield-big">[^<]*<\/div>/, `<div class="instrument-yield-big">${formatPercentValue(portfolioYield)}</div>`);
+
+        out = out.replace(/<div class="capital-exact">[^<]*<\/div>/, `<div class="capital-exact">${formatMoneyValue(totalCapital)}</div>`);
+        out = out.replace(
+            /<div class="capital-big">[^<]*<span>[^<]*<\/span><\/div>/,
+            `<div class="capital-big">${(Math.max(0, totalCapital) / 1_000_000).toLocaleString('ru-RU', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+            })}<span> млн ₽</span></div>`
+        );
+        out = out.replace(
+            /<em>\d+% в год<\/em>/,
+            `<em>${formatPercentValue(payoutYield || 12)} в год</em>`
+        );
+        out = out.replace(
+            /<em>\d+% годовых<\/em>/,
+            `<em>${formatPercentValue(portfolioYield)} годовых</em>`
+        );
+
+        out = applyFinBarsScaleByValues(out, [facts.own, facts.extra, totalCapital]);
+    }
+
+    const isEducation = (goalType === 'OTHER' || goalType === 'INVESTMENT' || goalTypeId === 4 || goalTypeId === 3) &&
+        /образован/i.test(String(goal?.goal_name || ''));
+    if (isEducation) {
+        const childName = resolveEducationChildName(goal);
+        if (childName) {
+            out = out.replace(/<div class="education-hero-title">[\s\S]*?<\/div>/, `<div class="education-hero-title">Образование. ${escapeHtml(childName)}</div>`);
+            out = out.replace(
+                /<div class="doc-label">Образование(?:\s*—\s*продолжение)?<\/div>/,
+                `<div class="doc-label">Образование · ${escapeHtml(childName)}</div>`
+            );
+        }
+    }
 
     const shouldShowBenefits = hasTaxBenefits || hasCofinBenefits;
     if (!shouldShowBenefits) {
@@ -845,6 +1375,7 @@ async function fetchAiB2cAvatarUrl(projectId) {
 }
 
 const FINAM_FAMILY_CONTEXT_FILE = path.join(TEMPLATE_DIR, 'context-page-03-family.md');
+const FINAM_GOALS_CONTEXT_FILE = path.join(TEMPLATE_DIR, 'context-goals-by-type.md');
 
 const PAGE3_SPEECH1_FALLBACK =
     '<p>Вот ваша финансовая фотография на сегодня. Доход <em>150 000 ₽</em>, но обязательства съедают почти всё — свободным остаётся всего <em>8 000 ₽</em> в месяц. Именно отсюда мы начнём строить план.</p>';
@@ -860,6 +1391,56 @@ function readFinamFamilyContextMarkdown() {
         console.warn('[buildFinamReportHtml] context-page-03-family.md:', e?.message || e);
         return '';
     }
+}
+
+function readFinamGoalsContextMarkdown() {
+    try {
+        if (!fs.existsSync(FINAM_GOALS_CONTEXT_FILE)) return '';
+        return fs.readFileSync(FINAM_GOALS_CONTEXT_FILE, 'utf-8');
+    } catch (e) {
+        console.warn('[buildFinamReportHtml] context-goals-by-type.md:', e?.message || e);
+        return '';
+    }
+}
+
+function goalTypeContextKey(goal) {
+    const gt = String(goal?.goal_type || '').toUpperCase();
+    const id = Number(goal?.goal_type_id);
+    if (gt === 'FIN_RESERVE' || id === 7) return 'GOAL_FIN_RESERVE_AI_MAIN';
+    if (gt === 'LIFE' || id === 5) return 'GOAL_LIFE_AI_MAIN';
+    if (gt === 'PENSION' || id === 1) return 'GOAL_PENSION_AI_MAIN';
+    return 'GOAL_OTHER_AI_MAIN';
+}
+
+function buildGoalAiPayload(goal) {
+    const summary = goal?.summary || {};
+    const details = goal?.details || {};
+    return {
+        goal_type: goal?.goal_type,
+        goal_name: goal?.goal_name,
+        target_months: summary?.target_months ?? details?.term_months,
+        target_amount_initial: summary?.target_amount_initial,
+        target_amount_future: summary?.target_amount_future,
+        projected_capital_at_end: summary?.projected_capital_at_end,
+        projected_capital_at_retirement: summary?.projected_capital_at_retirement,
+        projected_pension_monthly_present: summary?.projected_pension_monthly_present,
+        pension_gap_future: summary?.pension_gap_future,
+        state_pension_monthly_today: summary?.state_pension_monthly_today,
+        state_pension_monthly_future: summary?.state_pension_monthly_future,
+        inflation_rate: summary?.inflation_rate,
+        initial_capital: summary?.initial_capital,
+        monthly_replenishment: summary?.monthly_replenishment,
+        annual_premium: details?.annual_premium,
+        tax_deduction_2026: summary?.tax_deduction_2026 ?? details?.tax_deduction_2026,
+        total_tax_deductions: summary?.total_tax_deductions ?? details?.total_tax_deductions,
+        total_tax_benefit: summary?.total_tax_benefit,
+        total_cofinancing: summary?.total_cofinancing,
+        accumulation_yield_percent: summary?.accumulation_yield_percent,
+        payout_yield_percent: summary?.payout_yield_percent,
+        initial_instruments: Array.isArray(details?.initial_instruments) ? details.initial_instruments.slice(0, 3) : [],
+        monthly_instruments: Array.isArray(details?.monthly_instruments) ? details.monthly_instruments.slice(0, 3) : [],
+        risks: Array.isArray(details?.risks) ? details.risks.slice(0, 3) : [],
+    };
 }
 
 /** Значение ключа `KEY=` из markdown до следующего `\nKEY2=` или конца файла. */
@@ -1252,6 +1833,44 @@ async function applyFinamPage3FamilyAi(html, report, projectId) {
     return out;
 }
 
+async function applyFinamGoalAiSpeech(html, goal, projectId) {
+    if (!html || typeof html !== 'string') return html;
+    if (!html.includes('<div class="speech">')) return html;
+    const md = readFinamGoalsContextMarkdown();
+    const commonRules = parseFinamMarkdownContextKey(md, 'GOAL_COMMON_RULES');
+    const goalCtx = parseFinamMarkdownContextKey(md, goalTypeContextKey(goal));
+    if (!goalCtx) return html;
+    try {
+        if (!aiService.apiKey) return html;
+        const model =
+            (await fetchOpenRouterModelForFinamReport(projectId)) ||
+            process.env.OPENROUTER_MODEL ||
+            'google/gemma-3-27b-it';
+        const payload = buildGoalAiPayload(goal);
+        const systemPrompt = [commonRules, goalCtx].filter(Boolean).join('\n\n');
+        const userPrompt = `Сформируйте краткий текст ИИ для верхнего блока речи на странице цели.\n\nJSON-выжимка:\n${JSON.stringify(
+            payload,
+            null,
+            2
+        )}`;
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+        ];
+        const raw = await aiService.getCompletion(messages, model);
+        const text = String(raw || '').trim();
+        if (!text) return html;
+        const p = `<p>${escapeHtml(text).replace(/\r?\n+/g, ' ')}</p>`;
+        return html.replace(
+            /(<div class="avatar-section">\s*<div class="avatar">[\s\S]*?<\/div>\s*<div class="speech">\s*)<p>[\s\S]*?<\/p>(\s*<\/div>)/,
+            `$1${p}$2`
+        );
+    } catch (err) {
+        console.warn('[buildFinamReportHtml] goal AI speech failed:', err?.message || err);
+        return html;
+    }
+}
+
 /**
  * Подставляет аватар B2C-ассистента (R2 / ai_b2c_settings) вместо плейсхолдеров «ИИ» в финам-шаблонах.
  */
@@ -1343,7 +1962,8 @@ async function buildFinamFullPageHtmlList({
         const template = resolveGoalTemplateFile(goal);
         if (!template) continue;
         const raw = await readTemplate(template);
-        const goalHtml = applyGoalFactsToTemplate(raw, goal);
+        let goalHtml = applyGoalFactsToTemplate(raw, goal);
+        goalHtml = await applyFinamGoalAiSpeech(goalHtml, goal, projectId);
         for (const goalPart of splitFinamPage4IntoStandalonePages(goalHtml)) {
             pages.push(withInline(goalPart));
         }

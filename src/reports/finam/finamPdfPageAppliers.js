@@ -166,6 +166,17 @@ function buildGoalSectionHtml(goal, opts = {}) {
     const commentText = commentParts.length > 0 ? commentParts.join(', ') : 'Параметры цели из расчёта финплана.';
     const commentInner = escapeHtml(commentText);
 
+    const formulaLeadValue = (() => {
+        if (facts.retirementYear) return String(facts.retirementYear);
+        if (facts.months > 0) {
+            if (facts.months % 12 === 0) {
+                return `${Math.round(facts.months / 12)} г.`;
+            }
+            return `${facts.months} мес.`;
+        }
+        return '—';
+    })();
+
     let tailHtml = '';
     if (type === 'FIN_RESERVE' || Number(goal?.goal_type_id) === 7) {
         tailHtml = `
@@ -187,11 +198,10 @@ function buildGoalSectionHtml(goal, opts = {}) {
         <span class="protection-value">${cov != null ? formatMoneyValue(cov) : formatMoneyValue(facts.totalCapital)}</span>
       </div>`;
     } else {
-        const y = facts.retirementYear;
         tailHtml = `
       <div class="goal-formula">
         <div class="formula-block" style="flex:0.55;">
-          <div class="formula-value">${escapeHtml(y ? String(y) : '—')}</div>
+          <div class="formula-value">${escapeHtml(formulaLeadValue)}</div>
           <div class="formula-label">Год / срок</div>
         </div>
         <div class="formula-arrow">→</div>
