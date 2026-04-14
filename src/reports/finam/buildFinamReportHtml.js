@@ -225,6 +225,21 @@ function formatIntValue(value) {
     return Math.round(toNum(value)).toLocaleString('ru-RU');
 }
 
+function formatCompactMoneyWithSpan(value) {
+    const n = Math.max(0, toNum(value));
+    if (n >= 1_000_000) {
+        const mln = n / 1_000_000;
+        return `${mln.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}<span> млн ₽</span>`;
+    }
+    return `${Math.round(n).toLocaleString('ru-RU')}<span> ₽</span>`;
+}
+
+function formatPercentValue(value) {
+    const n = toNum(value);
+    if (n <= 0) return '—';
+    return `${n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
+}
+
 function computeGoalFacts(goal) {
     const summary = goal?.summary || {};
     const details = goal?.details || {};
@@ -246,6 +261,15 @@ function computeGoalFacts(goal) {
     );
     const totalTax = toNum(summary.total_tax_benefit ?? details.total_tax_deductions ?? details.total_tax_refund);
     const totalCofin = toNum(summary.total_cofinancing ?? details.total_cofinancing ?? details.total_cofinancing_nominal);
+    const targetToday = toNum(summary.target_amount_initial ?? details.target_amount_initial ?? goal?.target_amount);
+    const targetFuture = toNum(summary.target_amount_future ?? details.target_amount_future ?? totalCapital);
+    const inflationRate = toNum(summary.inflation_rate ?? details.inflation_rate ?? goal?.inflation_rate);
+    const portfolioYield = toNum(
+        summary.accumulation_yield_percent ??
+            summary.portfolio_yield_percent ??
+            goal?.portfolio_yield_percent ??
+            details.portfolio_yield_percent
+    );
 
     const firstDate = schedule.find((row) => row?.date)?.date;
     const fallbackYear = firstDate ? new Date(firstDate).getFullYear() : new Date().getFullYear();
@@ -282,6 +306,10 @@ function computeGoalFacts(goal) {
         yearCofin,
         taxYearAmount,
         cofinYearAmount,
+        targetToday,
+        targetFuture,
+        inflationRate,
+        portfolioYield,
     };
 }
 
@@ -369,6 +397,80 @@ function stripPensionChartSection(html, goal) {
     return out;
 }
 
+function isOtherGoalTypeFour(goal) {
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
+    return goalTypeId === 4 || (!goalTypeId && goalType === 'OTHER');
+}
+
+function stripOtherChartSection(html, goal) {
+    if (!isOtherGoalTypeFour(goal)) return html;
+    let out = html;
+    out = out.replace(/<p class="passive-extras-note">[\s\S]*?<\/p>/, '');
+    out = out.replace(
+        /<div class="section-label">График капитала<\/div>[\s\S]*?(?=<div class="spacer"|<div class="page-num"|<footer class="footer">)/,
+        ''
+    );
+    return out;
+}
+
+function applyOtherLayoutCompactFix(html, goal) {
+    if (!isOtherGoalTypeFour(goal)) return html;
+    if (html.includes('finam-other-compact-layout')) return html;
+    const compactCss = `
+    /* finam-other-compact-layout */
+    .pie-row { gap: 8px; align-items: flex-start; }
+    .pie-card { padding: 7px 7px 8px; }
+    .pie-card-title { font-size: 10px; margin-bottom: 4px; }
+    .pie-svg-wrap { width: 84px; height: 84px; margin-bottom: 4px; }
+    .pie-legend-row { font-size: 10px; line-height: 1.28; gap: 3px; }
+    .pie-legend-row > span { min-width: 0; overflow-wrap: anywhere; }
+    .pie-dot { margin-top: 2px; }
+    `;
+    return html.replace('</style>', `${compactCss}\n  </style>`);
+}
+
+function applyOtherGoalTemplateAdjustments(html, goal, facts) {
+    if (!isOtherGoalTypeFour(goal)) return html;
+    let out = html;
+
+    const targetToday = facts.targetToday > 0 ? facts.targetToday : facts.totalCapital;
+    const targetFuture = facts.targetFuture > 0 ? facts.targetFuture : facts.totalCapital;
+    const horizonYears = facts.months > 0 ? facts.months / 12 : 0;
+    const horizonText = horizonYears > 0 ? `${Number(horizonYears.toFixed(1)).toLocaleString('ru-RU')} лет` : 'срок цели';
+    const inflationText = formatPercentValue(facts.inflationRate);
+
+    out = out.replace(
+        /<div class="section-label">(Сумма и срок|Цель и горизонт|Капитал и горизонт)<\/div>/,
+        '<div class="section-label">Сумма и срок</div>'
+    );
+
+    out = out.replace(
+        /<div class="metrics-2">[\s\S]*?<\/div>\s*<\/div>/,
+        `<div class="metrics-2">
+      <div class="metric">
+        <div class="metric-value">${formatCompactMoneyWithSpan(targetToday)}</div>
+        <div class="metric-desc">Стоимость цели сегодня</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">${formatCompactMoneyWithSpan(targetFuture)}</div>
+        <div class="metric-desc">Стоимость цели через ${horizonText}<br>с учетом инфляции ${inflationText}</div>
+      </div>
+    </div>`
+    );
+
+    const portfolioYieldText = formatPercentValue(facts.portfolioYield);
+    out = out.replace(
+        /(<div class="plan-step-label">Доходность<br>портфеля<\/div>\s*<div class="plan-step-value">)[^<]*(<\/div>)/,
+        `$1${portfolioYieldText}$2`
+    );
+    out = out.replace(/<em>\d+(?:[.,]\d+)?% годовых<\/em>/, `<em>${portfolioYieldText} годовых</em>`);
+
+    out = stripOtherChartSection(out, goal);
+    out = applyOtherLayoutCompactFix(out, goal);
+    return out;
+}
+
 function applyGoalFactsToTemplate(html, goal) {
     const facts = computeGoalFacts(goal);
     let out = html;
@@ -376,6 +478,7 @@ function applyGoalFactsToTemplate(html, goal) {
     out = applyPensionHeroPlaceholders(out, goal);
     out = applyPensionGapMetrics(out, goal);
     out = stripPensionChartSection(out, goal);
+    out = applyOtherGoalTemplateAdjustments(out, goal, facts);
 
     out = out.replace(/(Налоговый вычет за )\d{4}( год)/g, `$1${facts.yearTax}$2`);
     out = out.replace(/(Софинансирование за )\d{4}( год)/g, `$1${facts.yearCofin}$2`);
