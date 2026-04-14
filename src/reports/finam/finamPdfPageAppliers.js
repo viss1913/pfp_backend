@@ -553,37 +553,6 @@ function buildDonutSvgAnnulus(segments, idPrefix) {
     return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>${defs.join('')}</defs><g paint-order="stroke fill">${paths.join('')}</g></svg>`;
 }
 
-function formatCompactRub(value) {
-    const n = Math.round(toNum(value));
-    if (Math.abs(n) >= 1_000_000) {
-        const m = n / 1_000_000;
-        return `${m.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} млн ₽`;
-    }
-    if (Math.abs(n) >= 1000) {
-        return `${Math.round(n / 1000).toLocaleString('ru-RU')} тыс. ₽`;
-    }
-    return `${n.toLocaleString('ru-RU')} ₽`;
-}
-
-/** Подпись внутри узкого сегмента шкалы лезет друг на друга — у мелких долей только цвет, цифры в легенде и таблице. */
-const HBAR_LABEL_MIN_PCT = 7;
-
-function buildHbarSegsInline(segments) {
-    return segments
-        .map((seg, i) => {
-            const grow = Math.max(0.01, seg.pct);
-            const [c1, c2] = DONUT_PALETTE[i % DONUT_PALETTE.length];
-            const light = i % 3 === 2 ? ' hbar-seg--light' : '';
-            const pctRounded = Math.round(seg.pct * 10) / 10;
-            const pctStr = `${pctRounded}%`;
-            const showLabel = seg.pct >= HBAR_LABEL_MIN_PCT;
-            const noLabel = showLabel ? '' : ' hbar-seg--nolabel';
-            const label = showLabel ? escapeHtml(pctStr) : '';
-            return `<span class="hbar-seg${light}${noLabel}" style="flex-grow:${grow};background:linear-gradient(180deg,${c1} 0%,${c2} 100%)" title="${escapeHtml(pctStr)}">${label}</span>`;
-        })
-        .join('');
-}
-
 function buildPortfolioInitialInject(segments, totalInit, uid) {
     if (!segments.length || totalInit <= 0) return null;
     const svg = buildDonutSvgAnnulus(
@@ -603,17 +572,9 @@ function buildPortfolioInitialInject(segments, totalInit, uid) {
       <div class="total-layout">
         <div class="donut-wrap">
           ${svg}
-          <div class="donut-center">
-            <span class="donut-center-sum">${escapeHtml(formatCompactRub(totalInit))}</span>
-            <span class="donut-center-pct">100%</span>
-            <span class="donut-center-sub">уже в портфеле</span>
-          </div>
         </div>
         <div class="total-legend">${legend}</div>
-      </div>
-
-      <p class="hbar-caption">Линейная шкала долей (та же разбивка, что и круг)</p>
-      <div class="hbar" aria-hidden="true">${buildHbarSegsInline(segments)}</div>`;
+      </div>`;
 }
 
 function buildPortfolioContribInject(segments, totalMo, uid) {
@@ -635,17 +596,9 @@ function buildPortfolioContribInject(segments, totalMo, uid) {
       <div class="total-layout">
         <div class="donut-wrap donut-wrap--sm">
           ${svg}
-          <div class="donut-center">
-            <span class="donut-center-sum">${escapeHtml(formatCompactRub(totalMo))}</span>
-            <span class="donut-center-pct">100%</span>
-            <span class="donut-center-sub">в месяц</span>
-          </div>
         </div>
         <div class="total-legend">${legend}</div>
-      </div>
-
-      <p class="hbar-caption">Доли пополнений (круг = шкала)</p>
-      <div class="hbar" aria-hidden="true">${buildHbarSegsInline(segments)}</div>`;
+      </div>`;
 }
 
 function buildPortfolioTableInitial(segments, totalInit) {
