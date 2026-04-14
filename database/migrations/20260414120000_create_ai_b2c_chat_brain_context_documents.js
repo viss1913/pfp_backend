@@ -1,4 +1,9 @@
 exports.up = async function (knex) {
+    const exists = await knex.schema.hasTable('ai_b2c_chat_brain_context_documents');
+    if (exists) {
+        return;
+    }
+
     await knex.schema.createTable('ai_b2c_chat_brain_context_documents', (table) => {
         table.increments('id').primary();
         table.bigInteger('brain_context_id').unsigned().notNullable();
