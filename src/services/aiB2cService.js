@@ -17,6 +17,8 @@ const { formatExtractedDocumentSection } = require('./documentTextExtractionServ
 const DOC_SNIPPET_LIMIT_CHARS = 4000;
 const DOC_TOTAL_LIMIT_CHARS = 30000;
 const CONTEXT_ARCHITECT_MAX_CHARS = 12000;
+const DOC_CHUNK_SIZE = 1200;
+const DOC_CHUNK_OVERLAP = 200;
 
 class AiB2cService {
 
@@ -698,32 +700,43 @@ ${clientSection}
         if (!raw) return '';
         if (raw.length <= DOC_SNIPPET_LIMIT_CHARS) return raw;
 
-        const lowered = raw.toLowerCase();
-        let bestIndex = -1;
-        for (const term of searchTerms) {
-            const variants = this._buildSearchVariants(term);
-            for (const variant of variants) {
-                const idx = lowered.indexOf(variant);
-                if (idx !== -1) {
-                    bestIndex = idx;
-                    break;
+        const expandedTerms = Array.from(
+            new Set(
+                searchTerms
+                    .flatMap((term) => this._buildSearchVariants(term))
+                    .concat(['офис', 'адрес', 'тел', 'телефон', 'набереж', 'челн'])
+            )
+        );
+
+        const chunks = [];
+        for (let i = 0; i < raw.length; i += (DOC_CHUNK_SIZE - DOC_CHUNK_OVERLAP)) {
+            const piece = raw.slice(i, i + DOC_CHUNK_SIZE);
+            if (!piece) continue;
+            const lowered = piece.toLowerCase();
+            let score = 0;
+            for (const term of expandedTerms) {
+                if (!term) continue;
+                let offset = 0;
+                while (true) {
+                    const idx = lowered.indexOf(term, offset);
+                    if (idx === -1) break;
+                    score += 1;
+                    offset = idx + term.length;
                 }
             }
-            if (bestIndex !== -1) {
-                break;
-            }
+            if (/[0-9]{6}/.test(piece)) score += 2; // postal-like patterns
+            if (/ул\.|улица|д\.|дом|тел|телефон/i.test(piece)) score += 2; // address/contact hints
+            chunks.push({ piece, score, index: i });
         }
 
-        if (bestIndex === -1) {
+        chunks.sort((a, b) => b.score - a.score || a.index - b.index);
+        const best = chunks.filter((c) => c.score > 0).slice(0, 3);
+        if (!best.length) {
             return `${raw.slice(0, DOC_SNIPPET_LIMIT_CHARS)}\n\n[...document snippet truncated...]`;
         }
 
-        const halfWindow = Math.floor(DOC_SNIPPET_LIMIT_CHARS / 2);
-        const start = Math.max(0, bestIndex - halfWindow);
-        const end = Math.min(raw.length, start + DOC_SNIPPET_LIMIT_CHARS);
-        const prefix = start > 0 ? '[...]\n' : '';
-        const suffix = end < raw.length ? '\n[...]' : '';
-        return `${prefix}${raw.slice(start, end)}${suffix}`;
+        const merged = best.map((c, idx) => `[#${idx + 1}]\n${c.piece.trim()}`).join('\n\n...\n\n');
+        return merged.slice(0, DOC_SNIPPET_LIMIT_CHARS);
     }
 
     async _getChatAiBrainContexts(projectId, userMessage = '') {
