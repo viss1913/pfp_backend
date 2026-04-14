@@ -165,10 +165,10 @@
     .chart-card {
       background: #ffffff;
       border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      padding: 7px 9px 8px;
-      margin-bottom: 6px;
+      border-radius: 12px;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+      padding: 8px 10px 9px;
+      margin-bottom: 7px;
     }
 
     .chart-card--contrib {
@@ -176,33 +176,33 @@
     }
 
     .chart-card-title {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.09em;
       text-transform: uppercase;
-      color: #374151;
-      margin-bottom: 5px;
-      padding-bottom: 3px;
-      border-bottom: 1px solid #e5e7eb;
+      color: #334155;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e2e8f0;
     }
 
     .total-layout {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       align-items: center;
-      margin-bottom: 6px;
+      margin-bottom: 7px;
     }
 
     .donut-wrap {
       position: relative;
-      width: 138px;
-      height: 138px;
+      width: 132px;
+      height: 132px;
       flex-shrink: 0;
     }
 
     .donut-wrap--sm {
-      width: 118px;
-      height: 118px;
+      width: 114px;
+      height: 114px;
     }
 
     .donut-wrap--sm .donut-center-sum { font-size: 12px; }
@@ -222,11 +222,14 @@
       top: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
-      width: 76px;
+      width: 84px;
       pointer-events: none;
+      word-break: normal;
+      overflow-wrap: normal;
+      hyphens: none;
     }
 
-    .donut-wrap--sm .donut-center { width: 68px; }
+    .donut-wrap--sm .donut-center { width: 74px; }
 
     .donut-center-sum {
       display: block;
@@ -248,31 +251,34 @@
 
     .donut-center-sub {
       display: block;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      text-transform: none;
       color: #6b7280;
       margin-top: 3px;
       line-height: 1.25;
+      white-space: normal;
+      word-break: keep-all;
+      overflow-wrap: normal;
     }
 
     .hbar-caption {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 600;
       color: #6b7280;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
       margin-bottom: 4px;
     }
 
     .hbar {
       display: flex;
-      height: 19px;
+      height: 18px;
       gap: 1px;
-      border-radius: 6px;
+      border-radius: 7px;
       overflow: hidden;
-      border: 1px solid #e5e7eb;
+      border: 1px solid #dbe1ea;
     }
 
     .hbar-seg {
@@ -317,24 +323,24 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      padding-top: 2px;
+      gap: 5px;
+      padding-top: 1px;
     }
 
     .total-legend-row {
       display: flex;
-      align-items: flex-start;
+      align-items: baseline;
       gap: 6px;
-      font-size: 12px;
-      line-height: 1.35;
-      color: #374151;
+      font-size: 10.5px;
+      line-height: 1.32;
+      color: #334155;
     }
 
     .total-dot {
-      width: 8px; height: 8px;
+      width: 9px; height: 9px;
       border-radius: 2px;
       flex-shrink: 0;
-      margin-top: 2px;
+      margin-top: 1px;
     }
 
     .total-dot--1 { background: #2563eb; }
@@ -342,9 +348,14 @@
     .total-dot--3 { background: #c084fc; }
     .total-dot--4 { background: #059669; }
 
-    .total-name { font-weight: 600; color: #111827; }
+    .total-legend-row > span:last-child {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .total-name { font-weight: 650; color: #0f172a; }
     .total-pct { font-weight: 800; color: #111827; }
-    .total-meta { font-weight: 400; color: #6b7280; }
+    .total-meta { font-weight: 500; color: #64748b; }
 
     .pct-table {
       width: 100%;
@@ -565,122 +576,7 @@
 
     <div class="spacer"></div>
 
-    <div class="page-num">Страница 1 из 2 · Итоговый портфель</div>
-    <footer class="footer">
-      <div class="footer-left">
-        Персональный финансовый план · Конфиденциально<br>
-        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
-      </div>
-      <div class="footer-right">
-        Информация не является индивидуальной<br>
-        инвестиционной рекомендацией
-      </div>
-    </footer>
-
-  </div>
-</article>
-
-<!-- ========== Итоговый портфель · стр. 2 (таблицы) ========== -->
-<article class="page">
-  <div class="content">
-
-    <header class="header">
-      <div class="logo-mark">
-        <div class="logo-dot"></div>
-        <span class="logo-text">Финансовый план</span>
-      </div>
-      <div class="doc-label">Итоговый портфель · доли</div>
-    </header>
-
-    <div class="divider"></div>
-
-    <p class="portfolio-contd">Таблицы — те же доли и суммы, что на предыдущей странице (круги и линейные шкалы). Удобно сверять классы активов и взносы в рублях.</p>
-
-    <!-- @finam-portfolio-table-initial -->
-    <p class="pct-table-caption">Начальный капитал</p>
-    <table class="pct-table" aria-label="Доли начального капитала по классам активов">
-      <thead>
-        <tr>
-          <th>Класс актива</th>
-          <th class="pct">Доля, %</th>
-          <th class="num">Сумма, ₽</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Облигации</td>
-          <td class="pct">35%</td>
-          <td class="num">529 200</td>
-        </tr>
-        <tr>
-          <td>Акции</td>
-          <td class="pct">30%</td>
-          <td class="num">453 600</td>
-        </tr>
-        <tr>
-          <td>Депозиты и вклады</td>
-          <td class="pct">25%</td>
-          <td class="num">378 000</td>
-        </tr>
-        <tr>
-          <td>НПФ / долгосрочные накопления</td>
-          <td class="pct">10%</td>
-          <td class="num">151 200</td>
-        </tr>
-        <tr class="total-row">
-          <td>Итого</td>
-          <td class="pct">100%</td>
-          <td class="num">1 512 000</td>
-        </tr>
-      </tbody>
-    </table>
-    <!-- /@finam-portfolio-table-initial -->
-
-    <!-- @finam-portfolio-table-contrib -->
-    <p class="pct-table-caption">Портфель пополнений</p>
-    <table class="pct-table" aria-label="Доли пополнений по инструментам">
-      <thead>
-        <tr>
-          <th>Инструмент</th>
-          <th class="pct">Доля, %</th>
-          <th class="num">Сумма, ₽/мес</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Депозит / ликвидность</td>
-          <td class="pct">30%</td>
-          <td class="num">15 000</td>
-        </tr>
-        <tr>
-          <td>Облигации</td>
-          <td class="pct">40%</td>
-          <td class="num">20 000</td>
-        </tr>
-        <tr>
-          <td>Акции</td>
-          <td class="pct">30%</td>
-          <td class="num">15 000</td>
-        </tr>
-        <tr class="total-row">
-          <td>Итого взнос</td>
-          <td class="pct">100%</td>
-          <td class="num">50 000</td>
-        </tr>
-      </tbody>
-    </table>
-    <!-- /@finam-portfolio-table-contrib -->
-
-    <div class="avatar-section-sm avatar-section-sm--tight">
-      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
-      <div class="speech-sm">
-        <p>Если доля акций или облигаций в итоге кажется непривычной — сравните с портфелями <em>по отдельным целям</em> в отчёте: консолидация «перемешивает» горизонты. При пересмотре плана имеет смысл смотреть и разрез по целям, и этот суммарный срез.</p>
-      </div>
-    </div>
-
-    <div class="spacer"></div>
-
-    <div class="page-num">Страница 2 из 2 · Итоговый портфель</div>
+    <div class="page-num">Страница · Итоговый портфель</div>
     <footer class="footer">
       <div class="footer-left">
         Персональный финансовый план · Конфиденциально<br>
