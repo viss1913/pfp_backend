@@ -553,6 +553,21 @@ function buildDonutSvgAnnulus(segments, idPrefix) {
     return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>${defs.join('')}</defs><g paint-order="stroke fill">${paths.join('')}</g></svg>`;
 }
 
+function formatDonutCenterRub(value) {
+    const n = Math.abs(toNum(value));
+    if (n >= 1_000_000) {
+        const m = n / 1_000_000;
+        const s = m.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+        return `${s} млн р.`;
+    }
+    if (n >= 1000) {
+        const k = n / 1000;
+        const s = k.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+        return `${s} тыс р.`;
+    }
+    return `${Math.round(n).toLocaleString('ru-RU')} р.`;
+}
+
 function buildPortfolioInitialInject(segments, totalInit, uid) {
     if (!segments.length || totalInit <= 0) return null;
     const svg = buildDonutSvgAnnulus(
@@ -572,6 +587,9 @@ function buildPortfolioInitialInject(segments, totalInit, uid) {
       <div class="total-layout">
         <div class="donut-wrap">
           ${svg}
+          <div class="donut-center">
+            <span class="donut-center-sum">${escapeHtml(formatDonutCenterRub(totalInit))}</span>
+          </div>
         </div>
         <div class="total-legend">${legend}</div>
       </div>`;
@@ -596,6 +614,9 @@ function buildPortfolioContribInject(segments, totalMo, uid) {
       <div class="total-layout">
         <div class="donut-wrap donut-wrap--sm">
           ${svg}
+          <div class="donut-center">
+            <span class="donut-center-sum">${escapeHtml(formatDonutCenterRub(totalMo))}</span>
+          </div>
         </div>
         <div class="total-legend">${legend}</div>
       </div>`;
