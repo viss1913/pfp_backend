@@ -221,6 +221,10 @@ function formatRubValue(value) {
     return `${Math.round(toNum(value)).toLocaleString('ru-RU')} руб.`;
 }
 
+function formatIntValue(value) {
+    return Math.round(toNum(value)).toLocaleString('ru-RU');
+}
+
 function computeGoalFacts(goal) {
     const summary = goal?.summary || {};
     const details = goal?.details || {};
@@ -334,11 +338,30 @@ function applyPensionHeroPlaceholders(html, goal) {
         .replace(/\{\{PENSION_INCOME_FUTURE\}\}/g, formatMoneyValue(future));
 }
 
+function applyPensionGapMetrics(html, goal) {
+    if (!html.includes('Необходимый пассивный доход') || !html.includes('Пассивный доход с учётом инфляции')) return html;
+    const s = goal?.summary || {};
+    const targetPresent = toNum(s.target_amount_initial ?? s.projected_pension_monthly_present);
+    const statePensionToday = toNum(s.state_pension_monthly_today);
+    const requiredPassiveIncomeToday = Math.max(targetPresent - statePensionToday, 0);
+    const pensionGapFuture = toNum(s.pension_gap_future);
+    return html
+        .replace(
+            /(<div class="metric-value">)[\s\S]*?(<span> ₽\/мес<\/span><\/div>\s*<div class="metric-desc">Необходимый пассивный доход)/,
+            `$1${formatIntValue(requiredPassiveIncomeToday)}<span> ₽/мес</span></div>\n        <div class="metric-desc">Необходимый пассивный доход`
+        )
+        .replace(
+            /(<div class="metric-value">)[\s\S]*?(<span> ₽\/мес<\/span><\/div>\s*<div class="metric-desc">Пассивный доход с учётом инфляции)/,
+            `$1${formatIntValue(pensionGapFuture)}<span> ₽/мес</span></div>\n        <div class="metric-desc">Пассивный доход с учётом инфляции`
+        );
+}
+
 function applyGoalFactsToTemplate(html, goal) {
     const facts = computeGoalFacts(goal);
     let out = html;
 
     out = applyPensionHeroPlaceholders(out, goal);
+    out = applyPensionGapMetrics(out, goal);
 
     out = out.replace(/(Налоговый вычет за )\d{4}( год)/g, `$1${facts.yearTax}$2`);
     out = out.replace(/(Софинансирование за )\d{4}( год)/g, `$1${facts.yearCofin}$2`);
