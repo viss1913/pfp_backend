@@ -240,6 +240,16 @@ function formatPercentValue(value) {
     return `${n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
 }
 
+function riskProfileLabelRu(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '—';
+    const norm = raw.toUpperCase();
+    if (norm === 'CONSERVATIVE') return 'Консервативный';
+    if (norm === 'BALANCED') return 'Сбалансированный';
+    if (norm === 'AGGRESSIVE') return 'Агрессивный';
+    return raw;
+}
+
 function computeGoalFacts(goal) {
     const summary = goal?.summary || {};
     const details = goal?.details || {};
@@ -270,6 +280,13 @@ function computeGoalFacts(goal) {
             goal?.portfolio_yield_percent ??
             details.portfolio_yield_percent
     );
+    const goalRiskProfile =
+        goal?.risk_profile ??
+        details?.risk_profile ??
+        summary?.risk_profile ??
+        details?.risk_profile_name ??
+        summary?.risk_profile_name ??
+        null;
 
     const firstDate = schedule.find((row) => row?.date)?.date;
     const fallbackYear = firstDate ? new Date(firstDate).getFullYear() : new Date().getFullYear();
@@ -310,6 +327,7 @@ function computeGoalFacts(goal) {
         targetFuture,
         inflationRate,
         portfolioYield,
+        riskProfileLabel: riskProfileLabelRu(goalRiskProfile),
     };
 }
 
@@ -426,6 +444,13 @@ function applyOtherLayoutCompactFix(html, goal) {
     .pie-legend-row { font-size: 10px; line-height: 1.28; gap: 3px; }
     .pie-legend-row > span { min-width: 0; overflow-wrap: anywhere; }
     .pie-dot { margin-top: 2px; }
+    .other-risk-profile {
+      margin: 0 0 6px;
+      font-size: 10px;
+      color: #475569;
+      line-height: 1.3;
+    }
+    .other-risk-profile strong { color: #1f2937; font-weight: 700; }
     `;
     return html.replace('</style>', `${compactCss}\n  </style>`);
 }
@@ -462,6 +487,13 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
         `$1${portfolioYieldText}$2`
     );
     out = out.replace(/<em>\d+(?:[.,]\d+)?% годовых<\/em>/, `<em>${portfolioYieldText} годовых</em>`);
+    out = out.replace(/(<span class="pie-legend-meta">[^<]*?)\s*·\s*\d+(?:[.,]\d+)?%\s*(<\/span>)/g, '$1$2');
+    if (!out.includes('other-risk-profile')) {
+        out = out.replace(
+            /(<div class="section-label">Структура портфеля<\/div>\s*)/,
+            `$1<div class="other-risk-profile"><strong>Риск-профиль цели:</strong> ${escapeHtml(facts.riskProfileLabel)}</div>\n    `
+        );
+    }
 
     out = stripOtherChartSection(out, goal);
     out = applyOtherLayoutCompactFix(out, goal);
@@ -512,7 +544,19 @@ function applyGoalFactsToTemplate(html, goal) {
         })}<span> млн ₽</span></div>`
     );
 
-    const shouldShowBenefits = facts.taxYearAmount > 0 || facts.totalTax > 0 || facts.cofinYearAmount > 0 || facts.totalCofin > 0;
+    const hasTaxBenefits = facts.taxYearAmount > 0 || facts.totalTax > 0;
+    const hasCofinBenefits = facts.cofinYearAmount > 0 || facts.totalCofin > 0;
+    if (!hasCofinBenefits) {
+        if (hasTaxBenefits) {
+            out = out.replace(/<div class="section-label">Софинансирование и вычеты<\/div>/g, '<div class="section-label">Налоговые вычеты</div>');
+        }
+        out = out.replace(
+            /<div class="section-label passive-benefits-subtitle">Софинансирование<\/div>\s*<div class="tax-row">[\s\S]*?<\/div>\s*/g,
+            ''
+        );
+    }
+
+    const shouldShowBenefits = hasTaxBenefits || hasCofinBenefits;
     if (!shouldShowBenefits) {
         const ids = [
             'savegrow-benefits-dynamic',
