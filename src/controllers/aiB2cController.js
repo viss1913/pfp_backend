@@ -10,6 +10,29 @@ const aiB2cService = require('../services/aiB2cService');
 const { extractTextFromUploadedDocument, formatExtractedDocumentSection } = require('../services/documentTextExtractionService');
 
 class AiB2cController {
+    async _getChatAiBrainContextById(id, projectId) {
+        return knex('ai_b2c_chat_brain_contexts')
+            .where('id', id)
+            .modify((queryBuilder) => {
+                if (projectId) queryBuilder.andWhere('project_id', projectId);
+            })
+            .first();
+    }
+
+    _mapChatAiDocumentListItem(row) {
+        return {
+            id: row.id,
+            brain_context_id: row.brain_context_id,
+            project_id: row.project_id,
+            original_filename: row.original_filename,
+            mime_type: row.mime_type,
+            size_bytes: row.size_bytes,
+            text_length: row.text_length,
+            is_active: row.is_active,
+            created_at: row.created_at,
+            updated_at: row.updated_at
+        };
+    }
 
     // ==================== ADMIN: Brain Contexts ====================
 
@@ -154,6 +177,153 @@ class AiB2cController {
         } catch (error) {
             console.error('[AiB2C] Error creating chat_AI brain context:', error);
             res.status(500).json({ error: 'Failed to create chat_AI brain context' });
+        }
+    }
+
+    /** POST /pfp/ai-b2c-chat/brain-contexts/:id/documents — загрузить документ в brain-context chat_AI */
+    async uploadAiB2cChatAiBrainContextDocument(req, res) {
+        try {
+            const { id } = req.params;
+            const projectId = req.projectId || req.user?.projectId;
+            const uploadedDocument = req.file;
+
+            if (!uploadedDocument) {
+                return res.status(400).json({ error: 'document file is required' });
+            }
+
+            const brainContext = await this._getChatAiBrainContextById(id, projectId);
+            if (!brainContext) {
+                return res.status(404).json({ error: 'Chat_AI brain context not found' });
+            }
+
+            let extracted;
+            try {
+                extracted = await extractTextFromUploadedDocument(uploadedDocument);
+            } catch (parseError) {
+                return res.status(400).json({
+                    error: 'Could not extract text from uploaded document',
+                    details: parseError.message
+                });
+            }
+
+            if (!extracted.text) {
+                return res.status(400).json({ error: 'Could not extract text from uploaded document' });
+            }
+
+            const [docId] = await knex('ai_b2c_chat_brain_context_documents').insert({
+                brain_context_id: Number(id),
+                project_id: projectId || null,
+                original_filename: uploadedDocument.originalname || 'document',
+                mime_type: uploadedDocument.mimetype || null,
+                size_bytes: uploadedDocument.size || null,
+                extracted_text: extracted.text,
+                text_length: extracted.text.length,
+                is_active: true
+            });
+
+            const created = await knex('ai_b2c_chat_brain_context_documents').where('id', docId).first();
+            res.status(201).json({
+                ...this._mapChatAiDocumentListItem(created),
+                parser_type: extracted.parserType,
+                extracted_text_preview: extracted.text.slice(0, 500)
+            });
+        } catch (error) {
+            console.error('[AiB2C] Error uploading chat_AI brain context document:', error);
+            res.status(500).json({ error: 'Failed to upload chat_AI brain context document' });
+        }
+    }
+
+    /** GET /pfp/ai-b2c-chat/brain-contexts/:id/documents — список документов brain-context chat_AI */
+    async listAiB2cChatAiBrainContextDocuments(req, res) {
+        try {
+            const { id } = req.params;
+            const projectId = req.projectId || req.user?.projectId;
+            const includeInactive = req.query?.include_inactive === 'true';
+
+            const brainContext = await this._getChatAiBrainContextById(id, projectId);
+            if (!brainContext) {
+                return res.status(404).json({ error: 'Chat_AI brain context not found' });
+            }
+
+            const query = knex('ai_b2c_chat_brain_context_documents')
+                .where('brain_context_id', id)
+                .orderBy('created_at', 'desc');
+
+            if (projectId) query.andWhere('project_id', projectId);
+            if (!includeInactive) query.andWhere('is_active', true);
+
+            const docs = await query;
+            res.json(docs.map((row) => this._mapChatAiDocumentListItem(row)));
+        } catch (error) {
+            console.error('[AiB2C] Error listing chat_AI brain context documents:', error);
+            res.status(500).json({ error: 'Failed to list chat_AI brain context documents' });
+        }
+    }
+
+    /** GET /pfp/ai-b2c-chat/brain-contexts/:id/documents/:docId — документ + extracted_text */
+    async getAiB2cChatAiBrainContextDocument(req, res) {
+        try {
+            const { id, docId } = req.params;
+            const projectId = req.projectId || req.user?.projectId;
+
+            const brainContext = await this._getChatAiBrainContextById(id, projectId);
+            if (!brainContext) {
+                return res.status(404).json({ error: 'Chat_AI brain context not found' });
+            }
+
+            const doc = await knex('ai_b2c_chat_brain_context_documents')
+                .where({
+                    id: docId,
+                    brain_context_id: id
+                })
+                .modify((queryBuilder) => {
+                    if (projectId) queryBuilder.andWhere('project_id', projectId);
+                })
+                .first();
+
+            if (!doc) {
+                return res.status(404).json({ error: 'Document not found' });
+            }
+
+            res.json({
+                ...this._mapChatAiDocumentListItem(doc),
+                extracted_text: doc.extracted_text
+            });
+        } catch (error) {
+            console.error('[AiB2C] Error getting chat_AI brain context document:', error);
+            res.status(500).json({ error: 'Failed to get chat_AI brain context document' });
+        }
+    }
+
+    /** DELETE /pfp/ai-b2c-chat/brain-contexts/:id/documents/:docId — удалить документ */
+    async deleteAiB2cChatAiBrainContextDocument(req, res) {
+        try {
+            const { id, docId } = req.params;
+            const projectId = req.projectId || req.user?.projectId;
+
+            const brainContext = await this._getChatAiBrainContextById(id, projectId);
+            if (!brainContext) {
+                return res.status(404).json({ error: 'Chat_AI brain context not found' });
+            }
+
+            const deleted = await knex('ai_b2c_chat_brain_context_documents')
+                .where({
+                    id: docId,
+                    brain_context_id: id
+                })
+                .modify((queryBuilder) => {
+                    if (projectId) queryBuilder.andWhere('project_id', projectId);
+                })
+                .del();
+
+            if (!deleted) {
+                return res.status(404).json({ error: 'Document not found' });
+            }
+
+            res.json({ success: true });
+        } catch (error) {
+            console.error('[AiB2C] Error deleting chat_AI brain context document:', error);
+            res.status(500).json({ error: 'Failed to delete chat_AI brain context document' });
         }
     }
 

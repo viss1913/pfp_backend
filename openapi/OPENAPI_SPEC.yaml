@@ -2944,6 +2944,98 @@ paths:
         '400':
           description: Невалидные параметры, неподдерживаемый файл или ошибка извлечения текста
 
+  /pfp/ai-b2c-chat/brain-contexts/{id}/documents:
+    get:
+      summary: Список документов для chat_AI brain-context
+      tags: [AiB2C, Agents]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: query
+          name: include_inactive
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Список документов
+    post:
+      summary: Загрузить документ в chat_AI brain-context
+      description: |
+        Загружает документ, извлекает текст и сохраняет его как отдельный кусок контекста.
+      tags: [AiB2C, Agents]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [document]
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: Файл для извлечения текста (pdf/doc/docx/txt/md/rtf), до 8MB
+      responses:
+        '201':
+          description: Документ загружен
+        '400':
+          description: Ошибка валидации или извлечения текста
+        '404':
+          description: Brain-context не найден
+
+  /pfp/ai-b2c-chat/brain-contexts/{id}/documents/{docId}:
+    get:
+      summary: Получить документ chat_AI brain-context
+      tags: [AiB2C, Agents]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: docId
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Документ и извлечённый текст
+        '404':
+          description: Документ или brain-context не найден
+    delete:
+      summary: Удалить документ chat_AI brain-context
+      tags: [AiB2C, Agents]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: docId
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Удалено
+        '404':
+          description: Документ или brain-context не найден
+
   /pfp/ai-b2c/avatar-upload:
     post:
       summary: Загрузка аватара для AI B2C ассистента (агентский ЛК)

@@ -54,6 +54,28 @@ router.post(
     chatAiContextUploadError,
     aiB2cController.createAiB2cChatAiBrainContext.bind(aiB2cController)
 );
+router.get(
+    '/brain-contexts/:id/documents',
+    agentAiMiddleware,
+    aiB2cController.listAiB2cChatAiBrainContextDocuments.bind(aiB2cController)
+);
+router.post(
+    '/brain-contexts/:id/documents',
+    agentAiMiddleware,
+    chatAiContextUpload.single('document'),
+    chatAiContextUploadError,
+    aiB2cController.uploadAiB2cChatAiBrainContextDocument.bind(aiB2cController)
+);
+router.get(
+    '/brain-contexts/:id/documents/:docId',
+    agentAiMiddleware,
+    aiB2cController.getAiB2cChatAiBrainContextDocument.bind(aiB2cController)
+);
+router.delete(
+    '/brain-contexts/:id/documents/:docId',
+    agentAiMiddleware,
+    aiB2cController.deleteAiB2cChatAiBrainContextDocument.bind(aiB2cController)
+);
 router.put('/brain-contexts/:id', agentAiMiddleware, aiB2cController.updateAiB2cChatAiBrainContext.bind(aiB2cController));
 router.delete('/brain-contexts/:id', agentAiMiddleware, aiB2cController.deleteAiB2cChatAiBrainContext.bind(aiB2cController));
 

@@ -12,6 +12,7 @@
 const knex = require('../config/database');
 const aiService = require('./aiService');
 const { buildChatContext, formatChatContextForPrompt } = require('./chatContextService');
+const { formatExtractedDocumentSection } = require('./documentTextExtractionService');
 
 class AiB2cService {
 
@@ -565,12 +566,47 @@ ${clientSection}
     }
 
     async _getChatAiBrainContexts(projectId) {
-        return knex('ai_b2c_chat_brain_contexts')
+        const contexts = await knex('ai_b2c_chat_brain_contexts')
             .where({ is_active: true })
             .where(function () {
                 this.where('project_id', projectId).orWhereNull('project_id');
             })
             .orderBy('priority', 'desc');
+
+        if (!contexts.length) return contexts;
+
+        const contextIds = contexts.map((ctx) => ctx.id);
+        const docs = await knex('ai_b2c_chat_brain_context_documents')
+            .whereIn('brain_context_id', contextIds)
+            .where({ is_active: true })
+            .orderBy('created_at', 'asc');
+
+        const docsByContext = new Map();
+        for (const doc of docs) {
+            if (!docsByContext.has(doc.brain_context_id)) {
+                docsByContext.set(doc.brain_context_id, []);
+            }
+            docsByContext.get(doc.brain_context_id).push(doc);
+        }
+
+        return contexts.map((ctx) => {
+            const ctxDocs = docsByContext.get(ctx.id) || [];
+            if (!ctxDocs.length) return ctx;
+
+            const docsSection = ctxDocs
+                .map((doc) =>
+                    formatExtractedDocumentSection(
+                        { text: doc.extracted_text, truncated: false, parserType: doc.mime_type || 'text' },
+                        doc.original_filename
+                    )
+                )
+                .join('\n\n');
+
+            return {
+                ...ctx,
+                content: [ctx.content, docsSection].filter(Boolean).join('\n\n')
+            };
+        });
     }
 
     async _getChatAiStageContext(projectId, stageKey) {

@@ -710,6 +710,100 @@ paths:
         '204':
           description: Удалено
 
+  /pfp/ai-b2c-chat/brain-contexts/{id}/documents:
+    get:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Список документов brain-context (chat_AI)
+      description: |
+        Возвращает документы, загруженные в конкретный brain-context.
+        По умолчанию только активные документы.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: include_inactive
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Список документов
+    post:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Загрузить документ в brain-context (chat_AI)
+      description: |
+        Загружает файл, извлекает текст и сохраняет отдельным кусочком контекста.
+        Поддержка: `pdf/doc/docx/txt/md/rtf`, лимит 8MB.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ document ]
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: Файл для извлечения текста
+      responses:
+        '201':
+          description: Документ загружен
+        '400':
+          description: Невалидный файл или не удалось извлечь текст
+        '404':
+          description: Brain-context не найден
+
+  /pfp/ai-b2c-chat/brain-contexts/{id}/documents/{docId}:
+    get:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Получить документ brain-context (chat_AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Документ с extracted_text
+        '404':
+          description: Документ или brain-context не найден
+    delete:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Удалить документ brain-context (chat_AI)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: docId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Удалено
+        '404':
+          description: Документ или brain-context не найден
+
   /pfp/ai-b2c-chat/stages:
     get:
       tags: [ "AI B2C (настройки Агента)" ]
