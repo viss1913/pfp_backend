@@ -16,6 +16,7 @@ const { formatExtractedDocumentSection } = require('./documentTextExtractionServ
 
 const DOC_SNIPPET_LIMIT_CHARS = 4000;
 const DOC_TOTAL_LIMIT_CHARS = 30000;
+const CONTEXT_ARCHITECT_MAX_CHARS = 12000;
 
 class AiB2cService {
 
@@ -199,6 +200,13 @@ class AiB2cService {
             .map(ctx => `--- ${ctx.title}\n${ctx.content}`)
             .join('\n\n');
 
+        const dynamicBrainSection = await this._buildDynamicChatAiMainContext({
+            projectId,
+            userMessage,
+            history,
+            brainSection
+        });
+
         // Слой 2: Контекст этапа
         const stageSection = stageContext
             ? `КОНТЕКСТ ТЕКУЩЕГО ЭТАПА "${stageContext.title}" (stage: ${stageKey}):\n${stageContext.content}`
@@ -224,7 +232,7 @@ class AiB2cService {
 
 ${assistantNameSection}
 СЛОЙ 1 (ГЛАВНЫЙ МОЗГ — БАЗОВЫЕ ЗНАНИЯ И ИНСТРУКЦИИ):
-${brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
+${dynamicBrainSection || brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
 
 СЛОЙ 2 (КОНТЕКСТ ТЕКУЩЕГО ЭТАПА):
 ${stageSection}${routingSection}
@@ -381,6 +389,88 @@ ${clientSection}
             .where({ project_id: projectId })
             .first();
         return settings?.dynamic_context_text || null;
+    }
+
+    _safeJsonParse(text) {
+        const raw = String(text || '').trim();
+        if (!raw) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (_) {
+            const match = raw.match(/\{[\s\S]*\}/);
+            if (match) {
+                try {
+                    return JSON.parse(match[0]);
+                } catch (_) {
+                    return null;
+                }
+            }
+            return null;
+        }
+    }
+
+    async _getAiB2cProjectModel(projectId) {
+        const settings = await knex('ai_b2c_settings')
+            .where({ project_id: projectId })
+            .first();
+        const model = String(settings?.openrouter_model || '').trim();
+        return model || null;
+    }
+
+    async _buildDynamicChatAiMainContext({ projectId, userMessage, history, brainSection }) {
+        const source = String(brainSection || '').trim();
+        if (!source) return '';
+
+        const enabled = String(process.env.AI_B2C_CONTEXT_ARCHITECT_ENABLED || 'true').toLowerCase() !== 'false';
+        if (!enabled) {
+            return source.slice(0, CONTEXT_ARCHITECT_MAX_CHARS);
+        }
+
+        const historyTail = (history || [])
+            .slice(-8)
+            .map((m) => `${m.role === 'assistant' ? 'ASSISTANT' : 'USER'}: ${m.content}`)
+            .join('\n');
+
+        const architectPrompt = [
+            {
+                role: 'system',
+                content: [
+                    'Ты архитектор контекстов для другого ИИ.',
+                    'Твоя задача: из исходного главного контекста выбрать только релевантные факты под текущий вопрос пользователя.',
+                    'Верни строго JSON-объект без markdown:',
+                    '{"dynamic_main_context":"...", "facts":[{"fact":"...", "source":"..."}], "confidence":"high|medium|low"}',
+                    'Правила:',
+                    '- Не выдумывай факты, бери только из SOURCE_CONTEXT.',
+                    '- Если данных недостаточно, так и напиши в dynamic_main_context.',
+                    `- dynamic_main_context должен быть не длиннее ${CONTEXT_ARCHITECT_MAX_CHARS} символов.`,
+                    '- Максимум 8 facts.'
+                ].join('\n')
+            },
+            {
+                role: 'user',
+                content: [
+                    `USER_QUESTION:\n${String(userMessage || '').trim()}`,
+                    '',
+                    `DIALOG_HISTORY:\n${historyTail || 'no history'}`,
+                    '',
+                    `SOURCE_CONTEXT:\n${source}`
+                ].join('\n')
+            }
+        ];
+
+        try {
+            const model = await this._getAiB2cProjectModel(projectId);
+            const raw = await aiService.getCompletion(architectPrompt, model);
+            const parsed = this._safeJsonParse(raw);
+            const dynamic = String(parsed?.dynamic_main_context || '').trim();
+            if (dynamic) {
+                return dynamic.slice(0, CONTEXT_ARCHITECT_MAX_CHARS);
+            }
+            return source.slice(0, CONTEXT_ARCHITECT_MAX_CHARS);
+        } catch (error) {
+            console.warn('[AiB2C] Context architect fallback to source context:', error.message);
+            return source.slice(0, CONTEXT_ARCHITECT_MAX_CHARS);
+        }
     }
 
     async _getAssistantDisplayName(projectId) {
