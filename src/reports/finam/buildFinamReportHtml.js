@@ -250,7 +250,7 @@ function computeGoalFacts(goal) {
             details.monthly_replenishment ??
             (String(goal?.goal_type || '').toUpperCase() === 'LIFE' ? toNum(details.annual_premium) / 12 : 0)
     );
-    const months = Math.max(0, Math.round(toNum(summary.target_months ?? summary.term_months ?? details.term_months)));
+    const months = Math.max(0, Math.round(toNum(details.term_months ?? summary.target_months ?? summary.term_months)));
     const totalCapital = toNum(
         summary.projected_capital_at_end ??
             summary.projected_capital_at_retirement ??
@@ -441,13 +441,9 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
     const inflationText = formatPercentValue(facts.inflationRate);
 
     out = out.replace(
-        /<div class="section-label">(Сумма и срок|Цель и горизонт|Капитал и горизонт)<\/div>/,
-        '<div class="section-label">Сумма и срок</div>'
-    );
-
-    out = out.replace(
-        /<div class="metrics-2">[\s\S]*?<\/div>\s*<\/div>/,
-        `<div class="metrics-2">
+        /<div class="section-label">(Сумма и срок|Цель и горизонт|Капитал и горизонт)<\/div>[\s\S]*?(?=<div class="capital-highlight)/,
+        `<div class="section-label">Сумма и срок</div>
+    <div class="metrics-2">
       <div class="metric">
         <div class="metric-value">${formatCompactMoneyWithSpan(targetToday)}</div>
         <div class="metric-desc">Стоимость цели сегодня</div>
@@ -456,7 +452,8 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
         <div class="metric-value">${formatCompactMoneyWithSpan(targetFuture)}</div>
         <div class="metric-desc">Стоимость цели через ${horizonText}<br>с учетом инфляции ${inflationText}</div>
       </div>
-    </div>`
+    </div>
+    `
     );
 
     const portfolioYieldText = formatPercentValue(facts.portfolioYield);
