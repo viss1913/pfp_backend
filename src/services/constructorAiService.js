@@ -22,6 +22,16 @@ function isConstructorTraceWithMessageBodies() {
     return v !== '0' && v !== 'false' && v !== 'no';
 }
 
+function isConstructorDocContextEnabled() {
+    const v = (process.env.CONSTRUCTOR_DOC_CONTEXT_ENABLED || 'false').trim().toLowerCase();
+    return v === '1' || v === 'true' || v === 'yes';
+}
+
+function isConstructorDocDebugOn() {
+    const v = (process.env.CONSTRUCTOR_DOC_DEBUG || 'false').trim().toLowerCase();
+    return v === '1' || v === 'true' || v === 'yes';
+}
+
 const TRACE_MAX_CONTENT = 6000;
 
 function truncateTraceText(str, max = TRACE_MAX_CONTENT) {
@@ -1361,6 +1371,158 @@ function normalizeDbGoalForRecalculate(goal) {
 }
 
 class ConstructorAiService {
+    _extractDocSearchTerms(text) {
+        return Array.from(
+            new Set(
+                String(text || '')
+                    .toLowerCase()
+                    .replace(/[^a-zа-яё0-9\s-]/gi, ' ')
+                    .split(/\s+/)
+                    .filter((w) => w.length >= 4)
+            )
+        ).slice(0, 12);
+    }
+
+    _buildDocTermVariants(term) {
+        const t = String(term || '').toLowerCase().trim();
+        if (!t) return [];
+        const variants = new Set([t]);
+        if (t.length >= 6) variants.add(t.slice(0, t.length - 1));
+        if (t.length >= 7) variants.add(t.slice(0, t.length - 2));
+        if (t.length >= 5) variants.add(t.slice(0, 4));
+        return Array.from(variants).filter((v) => v.length >= 3);
+    }
+
+    _selectRelevantDocSnippet(text, searchTerms) {
+        const raw = String(text || '');
+        if (!raw) return '';
+        const CHUNK_SIZE = 1200;
+        const CHUNK_OVERLAP = 200;
+        const MAX_SNIPPET = 2800;
+
+        const boostedTerms = Array.from(
+            new Set(searchTerms.flatMap((t) => this._buildDocTermVariants(t)).concat(['офис', 'адрес', 'тел', 'телефон', 'набереж', 'челн']))
+        );
+
+        const chunks = [];
+        for (let i = 0; i < raw.length; i += (CHUNK_SIZE - CHUNK_OVERLAP)) {
+            const piece = raw.slice(i, i + CHUNK_SIZE);
+            if (!piece) continue;
+            const low = piece.toLowerCase();
+            let score = 0;
+            for (const term of boostedTerms) {
+                if (!term) continue;
+                let pos = 0;
+                while (true) {
+                    const idx = low.indexOf(term, pos);
+                    if (idx === -1) break;
+                    score += 1;
+                    pos = idx + term.length;
+                }
+            }
+            if (/ул\.|улица|д\.|дом|тел|телефон/i.test(piece)) score += 2;
+            chunks.push({ piece, score, idx: i });
+        }
+
+        chunks.sort((a, b) => b.score - a.score || a.idx - b.idx);
+        const top = chunks.filter((c) => c.score > 0).slice(0, 3);
+        const merged = top.length ? top.map((c) => c.piece.trim()).join('\n\n...\n\n') : raw.slice(0, MAX_SNIPPET);
+        return merged.slice(0, MAX_SNIPPET);
+    }
+
+    async _buildDynamicConstructorBrainSection(projectId, userMessage, historyMessages, baseBrainSection) {
+        if (!isConstructorDocContextEnabled()) {
+            return baseBrainSection;
+        }
+        if (!projectId) return baseBrainSection;
+
+        const docRows = await knex('ai_b2c_chat_brain_context_documents as d')
+            .join('ai_b2c_chat_brain_contexts as c', 'd.brain_context_id', 'c.id')
+            .where('d.is_active', true)
+            .where('c.is_active', true)
+            .andWhere('d.project_id', projectId)
+            .andWhere('c.project_id', projectId)
+            .select('d.id', 'd.original_filename', 'd.extracted_text');
+
+        if (!docRows.length) {
+            if (isConstructorDocDebugOn()) {
+                console.log('[ConstructorAI DOC DEBUG] No active documents found for project', projectId);
+            }
+            return baseBrainSection;
+        }
+
+        const searchTerms = this._extractDocSearchTerms(userMessage);
+        const selectedDocs = docRows
+            .map((row) => ({
+                id: row.id,
+                filename: row.original_filename,
+                snippet: this._selectRelevantDocSnippet(row.extracted_text, searchTerms)
+            }))
+            .filter((x) => x.snippet && x.snippet.trim().length > 0)
+            .slice(0, 5);
+
+        const docSection = selectedDocs
+            .map((d) => `--- ДОКУМЕНТ: ${d.filename} ---\n${d.snippet}`)
+            .join('\n\n');
+
+        const sourceContext = [baseBrainSection, docSection].filter(Boolean).join('\n\n');
+        const historyTail = (historyMessages || [])
+            .slice(-6)
+            .map((m) => `${m.role}: ${m.content}`)
+            .join('\n');
+
+        const architectMessages = [
+            {
+                role: 'system',
+                content: [
+                    'Ты архитектор контекста для чат-ассистента.',
+                    'Выбери из SOURCE_CONTEXT только факты, релевантные вопросу пользователя.',
+                    'Верни строго JSON: {"dynamic_context":"...","used_docs":["..."]}',
+                    'Не выдумывай факты, используй только SOURCE_CONTEXT.',
+                    'Если данных не хватает — напиши это в dynamic_context.'
+                ].join('\n')
+            },
+            {
+                role: 'user',
+                content: [
+                    `QUESTION:\n${userMessage}`,
+                    '',
+                    `HISTORY:\n${historyTail || 'no history'}`,
+                    '',
+                    `SOURCE_CONTEXT:\n${sourceContext}`
+                ].join('\n')
+            }
+        ];
+
+        try {
+            const raw = await aiService.getCompletion(architectMessages);
+            const jsonMatch = String(raw || '').match(/\{[\s\S]*\}/);
+            const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+            const dynamic = String(parsed?.dynamic_context || '').trim();
+            const finalSection = dynamic || sourceContext;
+            if (isConstructorDocDebugOn()) {
+                console.log(
+                    '[ConstructorAI DOC DEBUG] selected docs',
+                    JSON.stringify(
+                        {
+                            projectId,
+                            question: String(userMessage || '').slice(0, 180),
+                            searchTerms,
+                            selectedDocs: selectedDocs.map((d) => ({ id: d.id, filename: d.filename, snippetChars: d.snippet.length })),
+                            dynamicContextChars: dynamic.length
+                        },
+                        null,
+                        2
+                    )
+                );
+            }
+            return finalSection;
+        } catch (e) {
+            console.warn('[ConstructorAI DOC DEBUG] dynamic context architect failed:', e.message || e);
+            return sourceContext;
+        }
+    }
+
     /**
      * Строка команды /start для генератора: сначала у этого bot_id, иначе шаблон проекта
      * (как в classifyStage — у site-бота часто нет своих копий, только is_template + project_id).
@@ -2066,9 +2228,15 @@ class ConstructorAiService {
             })
             .orderBy('priority', 'desc');
 
-        const brainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
+        const baseBrainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
 
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
+        const brainSection = await this._buildDynamicConstructorBrainSection(
+            bot.project_id,
+            userMessage,
+            historyMessages,
+            baseBrainSection
+        );
 
         const { systemContent, trailingUserCalculationJson } = buildConstructorGeneratorPromptParts(
             bot,
@@ -2159,9 +2327,15 @@ class ConstructorAiService {
             })
             .orderBy('priority', 'desc');
 
-        const brainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
+        const baseBrainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
 
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
+        const brainSection = await this._buildDynamicConstructorBrainSection(
+            bot.project_id,
+            userMessage,
+            historyMessages,
+            baseBrainSection
+        );
 
         const { systemContent, trailingUserCalculationJson } = buildConstructorGeneratorPromptParts(
             bot,
