@@ -566,12 +566,18 @@ ${clientSection}
     }
 
     async _getChatAiBrainContexts(projectId) {
-        const contexts = await knex('ai_b2c_chat_brain_contexts')
+        let contexts = await knex('ai_b2c_chat_brain_contexts')
             .where({ is_active: true })
             .where(function () {
                 this.where('project_id', projectId).orWhereNull('project_id');
             })
             .orderBy('priority', 'desc');
+
+        if (!contexts.length && projectId) {
+            contexts = await knex('constructor_brain_contexts')
+                .where({ is_active: true, project_id: projectId })
+                .orderBy('priority', 'desc');
+        }
 
         if (!contexts.length) return contexts;
 

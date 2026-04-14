@@ -122,7 +122,30 @@ class AiB2cController {
             const projectId = req.projectId || req.user?.projectId;
             const query = knex('ai_b2c_chat_brain_contexts');
             if (projectId) query.where('project_id', projectId);
-            const contexts = await query.orderBy('priority', 'desc');
+            let contexts = await query.orderBy('priority', 'desc');
+
+            // Backward-compat fallback: if chat_AI contexts are empty, bootstrap from legacy constructor contexts.
+            if (!contexts.length && projectId) {
+                const legacyContexts = await knex('constructor_brain_contexts')
+                    .where('project_id', projectId)
+                    .orderBy('priority', 'desc');
+
+                if (legacyContexts.length) {
+                    await knex('ai_b2c_chat_brain_contexts').insert(
+                        legacyContexts.map((row) => ({
+                            project_id: row.project_id || null,
+                            title: row.title,
+                            content: row.content,
+                            is_active: row.is_active !== undefined ? !!row.is_active : true,
+                            priority: Number.isFinite(Number(row.priority)) ? Number(row.priority) : 0
+                        }))
+                    );
+
+                    const refreshQuery = knex('ai_b2c_chat_brain_contexts').where('project_id', projectId);
+                    contexts = await refreshQuery.orderBy('priority', 'desc');
+                }
+            }
+
             res.json(contexts);
         } catch (error) {
             console.error('[AiB2C] Error getting chat_AI brain contexts:', error);
