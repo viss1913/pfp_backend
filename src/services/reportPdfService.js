@@ -1,5 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
+const { execFile } = require('child_process');
 const puppeteer = require('puppeteer');
 
 const reportService = require('./reportService');
@@ -141,6 +144,79 @@ function getDefaultExecutablePath() {
     return candidates.find((p) => fs.existsSync(p)) || null;
 }
 
+function isTrueEnv(v) {
+    if (v == null) return false;
+    const s = String(v).trim().toLowerCase();
+    return s === '1' || s === 'true' || s === 'yes';
+}
+
+function getGhostscriptExecutablePath() {
+    const candidates = [
+        process.env.GS_EXECUTABLE_PATH,
+        process.env.GHOSTSCRIPT_PATH,
+        'C:\\Program Files\\gs\\gs10.05.1\\bin\\gswin64c.exe',
+        'C:\\Program Files\\gs\\gs10.04.0\\bin\\gswin64c.exe',
+        'C:\\Program Files\\gs\\gs10.03.1\\bin\\gswin64c.exe',
+        '/usr/bin/gs',
+        '/usr/local/bin/gs',
+    ].filter(Boolean);
+    return candidates.find((p) => fs.existsSync(p)) || null;
+}
+
+function execFileAsync(command, args) {
+    return new Promise((resolve, reject) => {
+        execFile(command, args, { windowsHide: true }, (err, stdout, stderr) => {
+            if (err) {
+                err.stdout = stdout;
+                err.stderr = stderr;
+                reject(err);
+                return;
+            }
+            resolve({ stdout, stderr });
+        });
+    });
+}
+
+async function compressPdfWithGhostscriptIfPossible(pdfBuffer) {
+    const source = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer || []);
+    if (!source.length) return source;
+    if (!isTrueEnv(process.env.REPORT_PDF_ENABLE_COMPRESSION || '1')) return source;
+
+    const gsPath = getGhostscriptExecutablePath();
+    if (!gsPath) return source;
+
+    const quality = String(process.env.REPORT_PDF_GS_QUALITY || '/ebook').trim() || '/ebook';
+    const tmpDir = path.join(os.tmpdir(), 'pfp-pdf-compress');
+    const uid = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+    const inputPath = path.join(tmpDir, `report-${uid}.pdf`);
+    const outputPath = path.join(tmpDir, `report-${uid}.compressed.pdf`);
+
+    try {
+        await fs.promises.mkdir(tmpDir, { recursive: true });
+        await fs.promises.writeFile(inputPath, source);
+        const args = [
+            '-sDEVICE=pdfwrite',
+            '-dCompatibilityLevel=1.6',
+            `-dPDFSETTINGS=${quality}`,
+            '-dNOPAUSE',
+            '-dQUIET',
+            '-dBATCH',
+            `-sOutputFile=${outputPath}`,
+            inputPath,
+        ];
+        await execFileAsync(gsPath, args);
+        const compressed = await fs.promises.readFile(outputPath);
+        if (!compressed.length) return source;
+        return compressed.length < source.length ? compressed : source;
+    } catch (err) {
+        console.warn('[reportPdfService] PDF compression skipped:', err?.message || err);
+        return source;
+    } finally {
+        await fs.promises.unlink(inputPath).catch(() => {});
+        await fs.promises.unlink(outputPath).catch(() => {});
+    }
+}
+
 function estimateScheduleChunks(goal) {
     const scheduleRows = Array.isArray(goal?.details?.monthly_schedule)
         ? goal.details.monthly_schedule.filter((row) => row && row.date).length
@@ -252,7 +328,8 @@ class ReportPdfService {
             includeSummary,
             goalTypes,
         });
-        const pdfBuffer = await this._renderPdfFromMergedHtml(htmlPkg.mergedHtml);
+        const rawPdfBuffer = await this._renderPdfFromMergedHtml(htmlPkg.mergedHtml);
+        const pdfBuffer = await compressPdfWithGhostscriptIfPossible(rawPdfBuffer);
         return {
             pdfBuffer,
             toc: htmlPkg.toc,

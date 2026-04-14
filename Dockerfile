@@ -6,6 +6,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
+    ghostscript \
     ca-certificates \
     fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
