@@ -554,7 +554,24 @@ function applyGoalFactsToTemplate(html, goal) {
             /<div class="section-label passive-benefits-subtitle">Софинансирование<\/div>\s*<div class="tax-row">[\s\S]*?<\/div>\s*/g,
             ''
         );
+        out = out.replace(
+            /<div class="tax-card[^"]*">\s*<div class="tax-card-label">Софинансирование за \d{4} год<\/div>[\s\S]*?<\/div>\s*/g,
+            ''
+        );
+        out = out.replace(
+            /<div class="tax-card[^"]*">\s*<div class="tax-card-label">Всего софинансирование за период плана<\/div>[\s\S]*?<\/div>\s*/g,
+            ''
+        );
     }
+
+    out = out.replace(
+        /<div class="tax-card-hint">Сумма по строкам графика с датами в выбранном году \(поле tax_deduction\)\.<\/div>/g,
+        ''
+    );
+    out = out.replace(
+        /<div class="tax-card-hint">Итог по модели \(total_tax_benefit\), с учётом лимитов и сценария взносов\.<\/div>/g,
+        ''
+    );
 
     const shouldShowBenefits = hasTaxBenefits || hasCofinBenefits;
     if (!shouldShowBenefits) {
