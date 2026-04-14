@@ -96,6 +96,91 @@ function escapeHtml(value) {
         .replace(/'/g, '&#039;');
 }
 
+function comonPublicBaseUrl() {
+    return (process.env.COMON_BASE_URL || 'https://www.comon.ru').replace(/\/$/, '');
+}
+
+function resolveComonStrategyPageUrl(row) {
+    if (!row || typeof row !== 'object') return '';
+    const idNum = row.id != null ? Number(row.id) : NaN;
+    const base = comonPublicBaseUrl();
+    const pick = (v) => (v != null && String(v).trim() ? String(v).trim() : '');
+    let u = pick(row.url);
+    if (!u) u = pick(row.pageUrl);
+    if (!u) u = pick(row.link);
+    if (u.startsWith('/')) u = `${base}${u}`;
+    if (!u && Number.isFinite(idNum) && idNum > 0) u = `${base}/strategies/${idNum}`;
+    return u;
+}
+
+function formatComonPercent(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '—';
+    const sign = n > 0 ? '+' : '';
+    return `${sign}${n.toFixed(1)}% / 12 мес`;
+}
+
+function formatComonMinSum(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return 'Мин. вход: —';
+    return `Мин. вход: ${Math.round(n).toLocaleString('ru-RU')} ₽`;
+}
+
+function buildFinamComonAutofollowCardsHtml(report) {
+    const showcase = report?.comon_showcase && typeof report.comon_showcase === 'object' ? report.comon_showcase : null;
+    if (!showcase || showcase.error) {
+        return `<article class="strategy-card"><p class="strategy-desc">Каталог стратегий временно недоступен. Попробуйте позже.</p></article>`;
+    }
+    const items = Array.isArray(showcase.items) ? showcase.items.slice(0, 6) : [];
+    if (items.length === 0) {
+        return `<article class="strategy-card"><p class="strategy-desc">Подходящие стратегии пока не найдены.</p></article>`;
+    }
+    return items
+        .map((it) => {
+            const title = escapeHtml(it?.name || 'Стратегия');
+            const desc = escapeHtml(
+                it?.author ? `Автор стратегии: ${String(it.author)}` : 'Актуальная стратегия автоследования на платформе Comon.'
+            );
+            const minSum = escapeHtml(formatComonMinSum(it?.min_sum));
+            const y = escapeHtml(formatComonPercent(it?.profit_365_days_percent));
+            const rawUrl = resolveComonStrategyPageUrl(it);
+            const safeUrl = escapeHtml(rawUrl);
+            const urlLabel = escapeHtml(rawUrl.replace(/^https?:\/\//i, ''));
+            const linkHtml = safeUrl
+                ? `<a class="link-line" href="${safeUrl}" target="_blank" rel="noopener noreferrer">${urlLabel}</a>`
+                : '<p class="link-line">Ссылка недоступна</p>';
+            return `<article class="strategy-card">
+        <h3 class="strategy-title">${title}</h3>
+        <p class="strategy-desc">${desc}</p>
+        <div class="chip-row">
+          <span class="chip">${minSum}</span>
+          <span class="chip chip--yield">${y}</span>
+        </div>
+        ${linkHtml}
+      </article>`;
+        })
+        .join('\n');
+}
+
+function applyFinamComonAutofollowPage(html, report) {
+    if (!html || typeof html !== 'string') return html;
+    let out = html;
+    out = out.replace(
+        /<section class="cards-grid" aria-label="Карточки стратегий автоследования">[\s\S]*?<\/section>/,
+        `<section class="cards-grid" aria-label="Карточки стратегий автоследования">\n${buildFinamComonAutofollowCardsHtml(
+            report
+        )}\n    </section>`
+    );
+    const disclaimer = report?.comon_showcase?.disclaimer_ru;
+    if (disclaimer && String(disclaimer).trim()) {
+        out = out.replace(
+            /<p class="disclaimer">[\s\S]*?<\/p>/,
+            `<p class="disclaimer">${escapeHtml(String(disclaimer).trim())}</p>`
+        );
+    }
+    return out;
+}
+
 function toNum(value) {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
@@ -1076,7 +1161,9 @@ async function buildFinamFullPageHtmlList({
     taxPlanning = applyFinamTaxPlanningPage(taxPlanning, report);
     pages.push(withInline(taxPlanning));
 
-    pages.push(withInline(await readTemplate('comon-autofollow-finam.html')));
+    let comonAutofollow = await readTemplate('comon-autofollow-finam.html');
+    comonAutofollow = applyFinamComonAutofollowPage(comonAutofollow, report);
+    pages.push(withInline(comonAutofollow));
 
     if (inflationPageHtml && String(inflationPageHtml).trim()) {
         pages.push(withInline(String(inflationPageHtml)));
