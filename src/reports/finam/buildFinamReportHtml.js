@@ -356,12 +356,26 @@ function applyPensionGapMetrics(html, goal) {
         );
 }
 
+function stripPensionChartSection(html, goal) {
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
+    const isPensionGoal = goalType === 'PENSION' || goalTypeId === 1;
+    if (!isPensionGoal) return html;
+    let out = html;
+    out = out.replace(
+        /<div class="section-label">График капитала<\/div>[\s\S]*?(?=<div class="page-tail">)/,
+        ''
+    );
+    return out;
+}
+
 function applyGoalFactsToTemplate(html, goal) {
     const facts = computeGoalFacts(goal);
     let out = html;
 
     out = applyPensionHeroPlaceholders(out, goal);
     out = applyPensionGapMetrics(out, goal);
+    out = stripPensionChartSection(out, goal);
 
     out = out.replace(/(Налоговый вычет за )\d{4}( год)/g, `$1${facts.yearTax}$2`);
     out = out.replace(/(Софинансирование за )\d{4}( год)/g, `$1${facts.yearCofin}$2`);
