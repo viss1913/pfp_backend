@@ -408,6 +408,19 @@ function splitFinamPage4GoalChunks(goals) {
         i += take;
     }
 
+    // Избегаем «сиротских» страниц с одной целью без пирогов.
+    // Если средний чанк получил 1 цель, перебрасываем по одной цели из предыдущих чанков.
+    for (let ci = 1; ci < chunks.length - 1; ci += 1) {
+        const chunk = chunks[ci];
+        if (chunk.pies || chunk.goals.length !== 1) continue;
+        for (let prev = ci - 1; prev >= 0; prev -= 1) {
+            if (chunks[prev].goals.length > 1) {
+                chunk.goals.unshift(chunks[prev].goals.pop());
+                break;
+            }
+        }
+    }
+
     return chunks;
 }
 

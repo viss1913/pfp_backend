@@ -368,6 +368,42 @@ function applyFinBarsScaleByValues(html, values) {
     });
 }
 
+function parseMoneyFromText(raw) {
+    const cleaned = String(raw || '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[^\d,.-]/g, '')
+        .replace(/\s+/g, '')
+        .replace(',', '.');
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Пересчитывает высоты столбиков в каждом .fin-bar-chart-area по их значениям из .fin-bar-val.
+ * Работает для всех goal-шаблонов Финам с одинаковой разметкой столбиков.
+ */
+function applyFinBarHeightsFromCurrentValues(html) {
+    return String(html || '').replace(/<div class="fin-bar-chart-area"[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g, (areaBlock) => {
+        const valMatches = [...areaBlock.matchAll(/<span class="fin-bar-val">([\s\S]*?)<\/span>/g)];
+        const values = valMatches.map((m) => Math.max(0, parseMoneyFromText(m[1])));
+        if (!values.length) return areaBlock;
+        const maxValue = Math.max(1, ...values);
+
+        const styleHeights = [...areaBlock.matchAll(/style="height:\s*(\d+(?:\.\d+)?)px;"/g)].map((m) => Number(m[1]));
+        const maxHeightPx = Math.max(66, ...styleHeights.filter((n) => Number.isFinite(n)));
+        const minHeightPx = 22;
+
+        let idx = 0;
+        return areaBlock.replace(/style="height:\s*\d+(?:\.\d+)?px;"/g, (orig) => {
+            if (idx >= values.length) return orig;
+            const v = values[idx];
+            idx += 1;
+            const h = Math.max(minHeightPx, Math.round((v / maxValue) * maxHeightPx));
+            return `style="height: ${h}px;"`;
+        });
+    });
+}
+
 function resolveEducationChildName(goal) {
     const details = goal?.details || {};
     const candidates = [
@@ -378,7 +414,15 @@ function resolveEducationChildName(goal) {
     ].filter(Boolean);
     if (candidates.length) return String(candidates[0]).trim();
     const rawName = String(goal?.goal_name || '').trim();
-    const m = rawName.match(/образован[^\w]*([а-яa-zё][а-яa-zё-]+)/i);
+    const parts = rawName
+        .split(/[.,:;|/\\-]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (parts.length > 1) {
+        const firstWord = parts[1].split(/\s+/).filter(Boolean)[0];
+        if (firstWord && firstWord.length >= 2) return firstWord;
+    }
+    const m = rawName.match(/образован(?:ие)?\s+([а-яa-zё][а-яa-zё-]+)/i);
     if (m && m[1]) return m[1];
     return '';
 }
@@ -660,8 +704,15 @@ function isOtherGoalTypeFour(goal) {
     return goalTypeId === 4 || (!goalTypeId && goalType === 'OTHER');
 }
 
+function isSaveGrowGoal(goal) {
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
+    const name = String(goal?.goal_name || '').toLowerCase();
+    return goalType === 'INVESTMENT' || goalTypeId === 3 || /сохран|приумнож/.test(name);
+}
+
 function stripOtherChartSection(html, goal) {
-    if (!isOtherGoalTypeFour(goal)) return html;
+    if (!isOtherGoalTypeFour(goal) && !isSaveGrowGoal(goal)) return html;
     let out = html;
     out = out.replace(/<p class="passive-extras-note">[\s\S]*?<\/p>/, '');
     out = out.replace(
@@ -672,7 +723,7 @@ function stripOtherChartSection(html, goal) {
 }
 
 function applyOtherLayoutCompactFix(html, goal) {
-    if (!isOtherGoalTypeFour(goal)) return html;
+    if (!isOtherGoalTypeFour(goal) && !isSaveGrowGoal(goal)) return html;
     if (html.includes('finam-other-compact-layout')) return html;
     const compactCss = `
     /* finam-other-compact-layout */
@@ -695,26 +746,33 @@ function applyOtherLayoutCompactFix(html, goal) {
 }
 
 function applyOtherGoalTemplateAdjustments(html, goal, facts) {
-    if (!isOtherGoalTypeFour(goal)) return html;
+    if (!isOtherGoalTypeFour(goal) && !isSaveGrowGoal(goal)) return html;
     let out = html;
 
-    const targetToday = facts.targetToday > 0 ? facts.targetToday : facts.totalCapital;
+    const targetToday = isSaveGrowGoal(goal)
+        ? toNum(goal?.summary?.initial_capital ?? facts.initial)
+        : facts.targetToday > 0
+          ? facts.targetToday
+          : facts.totalCapital;
     const targetFuture = facts.targetFuture > 0 ? facts.targetFuture : facts.totalCapital;
     const horizonYears = facts.months > 0 ? facts.months / 12 : 0;
     const horizonText = horizonYears > 0 ? `${Number(horizonYears.toFixed(1)).toLocaleString('ru-RU')} лет` : 'срок цели';
     const inflationText = formatPercentValue(facts.inflationRate);
 
+    const rightMetricTitle = isSaveGrowGoal(goal)
+        ? `Ожидаемый капитал через ${horizonText}`
+        : `Стоимость цели через ${horizonText}`;
     out = out.replace(
         /<div class="section-label">(Сумма и срок|Цель и горизонт|Капитал и горизонт)<\/div>[\s\S]*?(?=<div class="capital-highlight)/,
-        `<div class="section-label">Сумма и срок</div>
+        `<div class="section-label">${isSaveGrowGoal(goal) ? 'Капитал и горизонт' : 'Сумма и срок'}</div>
     <div class="metrics-2">
       <div class="metric">
         <div class="metric-value">${formatCompactMoneyWithSpan(targetToday)}</div>
-        <div class="metric-desc">Стоимость цели сегодня</div>
+        <div class="metric-desc">${isSaveGrowGoal(goal) ? 'Начальный капитал' : 'Стоимость цели сегодня'}</div>
       </div>
       <div class="metric">
         <div class="metric-value">${formatCompactMoneyWithSpan(targetFuture)}</div>
-        <div class="metric-desc">Стоимость цели через ${horizonText}<br>с учетом инфляции ${inflationText}</div>
+        <div class="metric-desc">${rightMetricTitle}<br>${isSaveGrowGoal(goal) ? '' : `с учетом инфляции ${inflationText}`}</div>
       </div>
     </div>
     `
@@ -724,6 +782,22 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
     out = out.replace(
         /(<div class="plan-step-label">Доходность<br>портфеля<\/div>\s*<div class="plan-step-value">)[^<]*(<\/div>)/,
         `$1${portfolioYieldText}$2`
+    );
+    out = out.replace(
+        /(<div class="plan-step-label">Начальный<br>капитал<\/div>\s*<div class="plan-step-value">)[^<]*(<\/div>)/,
+        `$1${formatMoneyValue(toNum(goal?.summary?.initial_capital ?? facts.initial))}$2`
+    );
+    out = out.replace(
+        /(<div class="plan-step-label">Пополнение<br>в месяц<\/div>\s*<div class="plan-step-value">)[^<]*(<\/div>)/,
+        `$1${toNum(goal?.summary?.monthly_replenishment ?? facts.monthly).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽$2`
+    );
+    out = out.replace(
+        /(<div class="plan-step-label">Срок<\/div>\s*<div class="plan-step-value">)[^<]*(<\/div>\s*<div class="plan-step-value plan-step-value--meta">)[^<]*(<\/div>)/,
+        `$1${Math.max(0, Math.round(facts.months / 12))} лет$2${facts.months} мес.$3`
+    );
+    out = out.replace(
+        /(<div class="plan-step-label">Капитал<br>к концу срока<\/div>\s*<div class="plan-step-value">)[^<]*(<\/div>)/,
+        `$1${formatMoneyValue(facts.totalCapital)}$2`
     );
     out = out.replace(/<em>\d+(?:[.,]\d+)?% годовых<\/em>/, `<em>${portfolioYieldText} годовых</em>`);
     out = out.replace(/(<span class="pie-legend-meta">[^<]*?)\s*·\s*\d+(?:[.,]\d+)?%\s*(<\/span>)/g, '$1$2');
@@ -736,6 +810,24 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
 
     out = stripOtherChartSection(out, goal);
     out = applyOtherLayoutCompactFix(out, goal);
+    if (isSaveGrowGoal(goal)) {
+        out = out.replace(/<div class="capital-exact">[\s\S]*?<\/div>/, '');
+        out = out.replace(
+            /<div id="savegrow-benefits-dynamic"[\s\S]*?<\/div>\s*<\/div>/,
+            ''
+        );
+        out = out.replace(/<p class="passive-extras-note">[\s\S]*?<\/p>/, '');
+        out = out.replace(
+            /<\/style>/,
+            `
+    .pie-card { padding: 6px 6px 8px; }
+    .pie-card-title { font-size: 10px; margin-bottom: 4px; }
+    .pie-svg-wrap { width: 82px; height: 82px; margin-bottom: 4px; }
+    .pie-legend-row { font-size: 10px; line-height: 1.25; gap: 3px; }
+    .fin-bar-val { font-size: 9px; line-height: 1.15; }
+  </style>`
+        );
+    }
     return out;
 }
 
@@ -1120,6 +1212,7 @@ function applyGoalFactsToTemplate(html, goal) {
             out = removeElementById(out, id);
         });
     }
+    out = applyFinBarHeightsFromCurrentValues(out);
     return out;
 }
 
