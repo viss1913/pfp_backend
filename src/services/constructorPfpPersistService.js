@@ -1,7 +1,7 @@
 const knex = require('../config/database');
 const clientService = require('./clientService');
 const clientRepository = require('../repositories/clientRepository');
-const { generateAndUploadClientReportPdf } = require('./reportPdfStorageService');
+const { ensureClientReportPdfReady } = require('./reportPdfStorageService');
 const { syncCalculationGoalsWithDatabase } = require('./clientGoalSyncService');
 const {
     signSiteChatReportPdfToken,
@@ -91,7 +91,7 @@ async function persistConstructorCalculationToPfpClient({
 
 async function uploadConstructorClientReportPdf({ clientId, agentId, projectId, onCompressedPdfUrl }) {
     try {
-        const { pdfUrl } = await generateAndUploadClientReportPdf({
+        const { pdfUrl } = await ensureClientReportPdfReady({
             clientId,
             projectId,
             agentId,
@@ -99,6 +99,8 @@ async function uploadConstructorClientReportPdf({ clientId, agentId, projectId, 
             includeSummary: true,
             goalTypes: null,
             fileNamePrefix: 'constructor-report',
+            forceRegenerate: true,
+            waitForResult: true,
         });
         if (typeof onCompressedPdfUrl === 'function' && pdfUrl) {
             onCompressedPdfUrl(pdfUrl);

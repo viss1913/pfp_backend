@@ -3,7 +3,11 @@ const clientService = require('../services/clientService');
 const { comonShowcaseService } = require('../services/comonShowcaseService');
 const reportService = require('../services/reportService');
 const reportPdfService = require('../services/reportPdfService');
-const { generateAndUploadClientReportPdf, maybeCompressPdfBuffer } = require('../services/reportPdfStorageService');
+const {
+    maybeCompressPdfBuffer,
+    ensureClientReportPdfReady,
+    getClientReportPdfCacheStatus,
+} = require('../services/reportPdfStorageService');
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const Joi = require('joi');
@@ -257,7 +261,18 @@ class ClientCabinetController {
                     ? Number(client.agent_id)
                     : null;
 
-            const uploadRes = await generateAndUploadClientReportPdf({
+            const cacheState = await getClientReportPdfCacheStatus({ clientId: Number(clientId), projectId });
+            if (cacheState.status === 'ready' && cacheState.pdfUrl) {
+                return res.json({
+                    status: 'ready',
+                    pdf_url: cacheState.pdfUrl,
+                    toc: [],
+                    compressed: true,
+                    generated_at: cacheState.generatedAt || new Date().toISOString(),
+                });
+            }
+
+            const uploadRes = await ensureClientReportPdfReady({
                 clientId: Number(clientId),
                 agentId: null,
                 brandingAgentId,
@@ -266,9 +281,21 @@ class ClientCabinetController {
                 includeSummary,
                 goalTypes,
                 fileNamePrefix: 'report',
+                forceRegenerate: false,
+                waitForResult: false,
             });
 
+            if (uploadRes.status !== 'ready') {
+                return res.status(202).json({
+                    status: 'processing',
+                    pdf_url: uploadRes.pdfUrl || null,
+                    compressed: !!uploadRes.compressed,
+                    generated_at: uploadRes.generatedAt || null,
+                });
+            }
+
             res.json({
+                status: 'ready',
                 pdf_url: uploadRes.pdfUrl,
                 toc: Array.isArray(uploadRes.toc) ? uploadRes.toc : [],
                 compressed: !!uploadRes.compressed,

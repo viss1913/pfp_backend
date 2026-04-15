@@ -157,10 +157,10 @@ const constructorSiteChatAgentService = require('../services/constructorSiteChat
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const taxPlanningService = require('../services/taxPlanningService');
-const { generateAndUploadClientReportPdf } = require('../services/reportPdfStorageService');
+const { ensureClientReportPdfReady } = require('../services/reportPdfStorageService');
 const pdfWarmupScheduleByClient = new Map();
 
-async function warmupClientPdfInBackground({ clientId, projectId, agentId }) {
+async function warmupClientPdfInBackground({ clientId, projectId, agentId, forceRegenerate = false }) {
     if (!clientId || !projectId) return;
     const now = Date.now();
     const minIntervalMs = 90 * 1000;
@@ -169,7 +169,7 @@ async function warmupClientPdfInBackground({ clientId, projectId, agentId }) {
     if (now - lastTs < minIntervalMs) return;
     pdfWarmupScheduleByClient.set(k, now);
     setImmediate(() => {
-        void generateAndUploadClientReportPdf({
+        void ensureClientReportPdfReady({
             clientId: Number(clientId),
             projectId: Number(projectId),
             agentId: Number(agentId) || null,
@@ -177,6 +177,8 @@ async function warmupClientPdfInBackground({ clientId, projectId, agentId }) {
             includeSummary: true,
             goalTypes: null,
             fileNamePrefix: 'report',
+            forceRegenerate,
+            waitForResult: false,
         }).catch((err) => {
             console.warn('[ClientController] PDF warmup failed:', err.message || err);
         });
@@ -267,6 +269,7 @@ class ClientController {
                 clientId,
                 projectId: req.body.client.project_id,
                 agentId: req.user?.agentId || req.body.client?.agent_id || null,
+                forceRegenerate: true,
             });
             res.json(calculationService.simplify(calculationResponse));
         } catch (err) {
@@ -573,11 +576,6 @@ class ClientController {
                 goals_summary: JSON.stringify(calculationResponse)
             });
 
-            warmupClientPdfInBackground({
-                clientId: clientId,
-                projectId,
-                agentId,
-            });
             res.json(calculationService.simplify(calculationResponse));
 
         } catch (err) {
