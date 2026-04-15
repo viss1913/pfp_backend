@@ -197,9 +197,10 @@ class ReportController {
             const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
             const goalTypes = req.query.goalTypes || null;
+            const forceRegenerate = req.query.forceRegenerate === '1' || req.query.forceRegenerate === 'true';
 
             const cacheState = await getClientReportPdfCacheStatus({ clientId, projectId });
-            if (cacheState.status === 'ready' && cacheState.pdfUrl) {
+            if (!forceRegenerate && cacheState.status === 'ready' && cacheState.pdfUrl) {
                 res.json({
                     status: 'ready',
                     pdf_url: cacheState.pdfUrl,
@@ -218,7 +219,7 @@ class ReportController {
                 goalTypes,
                 ...reportBrandingOpts(req.user, client),
                 fileNamePrefix: 'report',
-                forceRegenerate: false,
+                forceRegenerate,
                 waitForResult: false,
             });
 

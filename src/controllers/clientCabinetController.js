@@ -205,6 +205,7 @@ class ClientCabinetController {
             const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
             const goalTypes = req.query.goalTypes || null;
+            const forceRegenerate = req.query.forceRegenerate === '1' || req.query.forceRegenerate === 'true';
             const useAttachment = String(req.query.disposition || '').toLowerCase() === 'attachment';
 
             const brandingAgentId =
@@ -262,7 +263,7 @@ class ClientCabinetController {
                     : null;
 
             const cacheState = await getClientReportPdfCacheStatus({ clientId: Number(clientId), projectId });
-            if (cacheState.status === 'ready' && cacheState.pdfUrl) {
+            if (!forceRegenerate && cacheState.status === 'ready' && cacheState.pdfUrl) {
                 return res.json({
                     status: 'ready',
                     pdf_url: cacheState.pdfUrl,
@@ -281,7 +282,7 @@ class ClientCabinetController {
                 includeSummary,
                 goalTypes,
                 fileNamePrefix: 'report',
-                forceRegenerate: false,
+                forceRegenerate,
                 waitForResult: false,
             });
 
