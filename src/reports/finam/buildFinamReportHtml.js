@@ -962,11 +962,6 @@ function applyGoalFactsToTemplate(html, goal) {
             `$1${escapeHtml(formatMoneyValue(reserveMonthly))}$2`
         );
         out = out.replace(
-            /(<span>Пополнение за )\d+( мес<\/span>)/,
-            `$1${months}$2`
-        );
-
-        out = out.replace(
             /<div class="instrument-yield-big">[\s\S]*?<\/div>/,
             `<div class="instrument-yield-big">${formatPercentValue(reserveYield)}</div>`
         );
@@ -979,17 +974,10 @@ function applyGoalFactsToTemplate(html, goal) {
                 ? `Рост капитала: ${formatChartMonthLongRu(firstDate)} → ${formatChartMonthLongRu(lastDate)}`
                 : `Рост капитала за ${months} месяцев`;
         out = out.replace(/<div class="chart-title">[\s\S]*?<\/div>/, `<div class="chart-title">${escapeHtml(rangeTitle)}</div>`);
-        out = out.replace(/<span class="legend-text">Фактические данные<\/span>/, '<span class="legend-text">Данные monthly_schedule</span>');
         const chartSvg = buildFinReserveChartSvg(goal, facts);
         if (chartSvg) {
             out = out.replace(/<svg class="chart-svg"[\s\S]*?<\/svg>/, chartSvg);
         }
-        out = out.replace(
-            /<div class="speech-sm">[\s\S]*?<\/div>/,
-            `<div class="speech-sm"><p>${schedulePoints.length} точек на графике из <em>monthly_schedule</em>: рост капитала от <em>${formatMoneyValue(
-                reserveInitial
-            )}</em> до <em>${formatMoneyValue(reserveFinal)}</em>.</p></div>`
-        );
     }
 
     const isLife = goalType === 'LIFE' || goalTypeId === 5;
