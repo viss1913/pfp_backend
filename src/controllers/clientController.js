@@ -157,6 +157,31 @@ const constructorSiteChatAgentService = require('../services/constructorSiteChat
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const taxPlanningService = require('../services/taxPlanningService');
+const { generateAndUploadClientReportPdf } = require('../services/reportPdfStorageService');
+const pdfWarmupScheduleByClient = new Map();
+
+async function warmupClientPdfInBackground({ clientId, projectId, agentId }) {
+    if (!clientId || !projectId) return;
+    const now = Date.now();
+    const minIntervalMs = 90 * 1000;
+    const k = `${projectId}:${clientId}`;
+    const lastTs = Number(pdfWarmupScheduleByClient.get(k) || 0);
+    if (now - lastTs < minIntervalMs) return;
+    pdfWarmupScheduleByClient.set(k, now);
+    setImmediate(() => {
+        void generateAndUploadClientReportPdf({
+            clientId: Number(clientId),
+            projectId: Number(projectId),
+            agentId: Number(agentId) || null,
+            includeCover: true,
+            includeSummary: true,
+            goalTypes: null,
+            fileNamePrefix: 'report',
+        }).catch((err) => {
+            console.warn('[ClientController] PDF warmup failed:', err.message || err);
+        });
+    });
+}
 
 class ClientController {
     // --- Existing Calculator ---
@@ -238,6 +263,11 @@ class ClientController {
             });
 
             calculationResponse.client_id = clientId;
+            warmupClientPdfInBackground({
+                clientId,
+                projectId: req.body.client.project_id,
+                agentId: req.user?.agentId || req.body.client?.agent_id || null,
+            });
             res.json(calculationService.simplify(calculationResponse));
         } catch (err) {
             next(err);
@@ -340,6 +370,11 @@ class ClientController {
                 return res.status(404).json({ error: 'Client not found' });
             }
             let payload = calculationService.simplify(client);
+            warmupClientPdfInBackground({
+                clientId: id,
+                projectId,
+                agentId: req.user?.agentId || client.agent_id || null,
+            });
             const forceChatAi = req.query.include_chat_ai === 'true' || req.query.include_chat_ai === '1';
             const isAgentPlansRoute = req.route && req.route.path === '/:id/plans';
             const skipChatAi =
@@ -538,6 +573,11 @@ class ClientController {
                 goals_summary: JSON.stringify(calculationResponse)
             });
 
+            warmupClientPdfInBackground({
+                clientId: clientId,
+                projectId,
+                agentId,
+            });
             res.json(calculationService.simplify(calculationResponse));
 
         } catch (err) {

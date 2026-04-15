@@ -1,7 +1,7 @@
 const reportService = require('../services/reportService');
 const reportPdfService = require('../services/reportPdfService');
 const clientService = require('../services/clientService');
-const { uploadPublicFile } = require('../utils/r2Client');
+const { generateAndUploadClientReportPdf, maybeCompressPdfBuffer } = require('../services/reportPdfStorageService');
 
 async function ensureClientReportAccess({ user, clientId, projectId }) {
     const client = await clientService.getFullClient(clientId, projectId);
@@ -109,6 +109,7 @@ class ReportController {
                 goalTypes,
                 ...reportBrandingOpts(req.user, client),
             });
+            const finalPdf = (await maybeCompressPdfBuffer(pdfBuffer)).buffer;
 
             const useAttachment = String(req.query.disposition || '').toLowerCase() === 'attachment';
             const ts = new Date().toISOString().slice(0, 10);
@@ -118,7 +119,7 @@ class ReportController {
                 `${useAttachment ? 'attachment' : 'inline'}; filename="report-client-${clientId}-${ts}.pdf"`
             );
             res.setHeader('Cache-Control', 'private, no-store');
-            res.send(pdfBuffer);
+            res.send(finalPdf);
         } catch (error) {
             if (error?.statusCode) {
                 res.status(error.statusCode).json({ error: error.message });
@@ -193,31 +194,20 @@ class ReportController {
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
             const goalTypes = req.query.goalTypes || null;
 
-            const { pdfBuffer, toc } = await reportPdfService.generateClientReportPdfPackage({
+            const uploadRes = await generateAndUploadClientReportPdf({
                 clientId,
                 projectId,
                 includeCover,
                 includeSummary,
                 goalTypes,
                 ...reportBrandingOpts(req.user, client),
+                fileNamePrefix: 'report',
             });
-
-            const ts = new Date().toISOString().replace(/[:.]/g, '-');
-            const key = `pdf-reports/${projectId || 'no-project'}/${clientId}/report-${ts}.pdf`;
-            const uploadResult = await uploadPublicFile({
-                key,
-                body: pdfBuffer,
-                contentType: 'application/pdf',
-            });
-
-            if (!uploadResult?.ok || !uploadResult?.url) {
-                const detail = uploadResult?.detail || uploadResult?.reason || 'Storage upload failed';
-                return res.status(503).json({ error: 'Failed to upload generated PDF', detail });
-            }
 
             res.json({
-                pdf_url: uploadResult.url,
-                toc: Array.isArray(toc) ? toc : [],
+                pdf_url: uploadRes.pdfUrl,
+                toc: Array.isArray(uploadRes.toc) ? uploadRes.toc : [],
+                compressed: !!uploadRes.compressed,
                 generated_at: new Date().toISOString(),
             });
         } catch (error) {

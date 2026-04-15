@@ -1,8 +1,7 @@
 const knex = require('../config/database');
 const clientService = require('./clientService');
 const clientRepository = require('../repositories/clientRepository');
-const reportPdfService = require('./reportPdfService');
-const { uploadPublicFile } = require('../utils/r2Client');
+const { generateAndUploadClientReportPdf } = require('./reportPdfStorageService');
 const { syncCalculationGoalsWithDatabase } = require('./clientGoalSyncService');
 const {
     signSiteChatReportPdfToken,
@@ -90,31 +89,25 @@ async function persistConstructorCalculationToPfpClient({
     return { clientId };
 }
 
-async function uploadConstructorClientReportPdf({ clientId, agentId, projectId }) {
-    const { pdfBuffer } = await reportPdfService.generateClientReportPdfPackage({
-        clientId,
-        agentId,
-        projectId,
-        includeCover: true,
-        includeSummary: true,
-        goalTypes: null,
-    });
-
-    const ts = new Date().toISOString().replace(/[:.]/g, '-');
-    const key = `pdf-reports/${projectId || 'no-project'}/${clientId}/constructor-report-${ts}.pdf`;
-    const uploadResult = await uploadPublicFile({
-        key,
-        body: pdfBuffer,
-        contentType: 'application/pdf',
-    });
-
-    if (!uploadResult?.ok || !uploadResult?.url) {
-        const detail = uploadResult?.detail || uploadResult?.reason || 'Storage upload failed';
-        console.error('[ConstructorPfpPersist] PDF upload failed:', detail);
+async function uploadConstructorClientReportPdf({ clientId, agentId, projectId, onCompressedPdfUrl }) {
+    try {
+        const { pdfUrl } = await generateAndUploadClientReportPdf({
+            clientId,
+            projectId,
+            agentId,
+            includeCover: true,
+            includeSummary: true,
+            goalTypes: null,
+            fileNamePrefix: 'constructor-report',
+        });
+        if (typeof onCompressedPdfUrl === 'function' && pdfUrl) {
+            onCompressedPdfUrl(pdfUrl);
+        }
+        return pdfUrl;
+    } catch (e) {
+        console.error('[ConstructorPfpPersist] PDF upload failed:', e.message || e);
         return null;
     }
-
-    return uploadResult.url;
 }
 
 /**
@@ -125,6 +118,7 @@ async function persistConstructorFirstRunAndUploadPdf({
     bot,
     extraction,
     calculationResponse,
+    onCompressedPdfUrl,
 }) {
     const { clientId } = await persistConstructorCalculationToPfpClient({
         constructorClientRow,
@@ -139,6 +133,7 @@ async function persistConstructorFirstRunAndUploadPdf({
             clientId,
             agentId: bot.agent_id,
             projectId: bot.project_id,
+            onCompressedPdfUrl,
         });
     } catch (pdfErr) {
         console.error('[ConstructorPfpPersist] generateClientReportPdfPackage failed:', pdfErr.message || pdfErr);
