@@ -71,6 +71,10 @@ router.use('/pfp/reports', pfpMiddleware, reportRoutes);
 const pdfSettingsRoutes = require('./pdfSettingsRoutes');
 router.use('/pfp/pdf-settings', pfpMiddleware, pdfSettingsRoutes);
 
+// AV Inform / Resolut integration routes
+const resolutRoutes = require('./resolutRoutes');
+router.use('/pfp/resolut', pfpMiddleware, resolutRoutes);
+
 // Constructor Routes
 const constructorRoutes = require('./constructorRoutes');
 router.use('/pfp/constructor', pfpMiddleware, constructorRoutes);
