@@ -368,8 +368,8 @@ function goalsCountLabelRu(n) {
     return 'финансовых целей';
 }
 
-/** Первая страница блока «Цели»: вводный speech + карточки (пироги занимают много места на последнем листе). */
-const FINAM_PAGE4_GOALS_PAGE1 = 3;
+/** Первая страница блока «Цели»: вводный speech + карточки (без диаграмм при 3+ целях). */
+const FINAM_PAGE4_GOALS_PAGE1 = 4;
 /** Промежуточные листы только с целями (без вводного блока). */
 const FINAM_PAGE4_GOALS_MIDDLE = 3;
 /** Сколько целей максимум оставить на последнем листе вместе с «Итого по всем целям» (два пирога + легенды). */
@@ -385,11 +385,27 @@ function splitFinamPage4GoalChunks(goals) {
         return [{ intro: true, pies: true, goals: [] }];
     }
 
-    const takeFirst = Math.min(FINAM_PAGE4_GOALS_PAGE1, n);
-    if (takeFirst === n) {
+    // Правила компоновки по количеству целей:
+    // 1) 2 цели -> диаграммы на первой странице.
+    // 2) 3-4 цели -> диаграммы на следующей странице.
+    // 3) 5 целей -> 4 на первой, 5-я + диаграммы на второй.
+    if (n <= 2) {
         return [{ intro: true, pies: true, goals: list.slice() }];
     }
+    if (n === 3 || n === 4) {
+        return [
+            { intro: true, pies: false, goals: list.slice() },
+            { intro: false, pies: true, goals: [] },
+        ];
+    }
+    if (n === 5) {
+        return [
+            { intro: true, pies: false, goals: list.slice(0, 4) },
+            { intro: false, pies: true, goals: list.slice(4) },
+        ];
+    }
 
+    const takeFirst = Math.min(FINAM_PAGE4_GOALS_PAGE1, n);
     const chunks = [{ intro: true, pies: false, goals: list.slice(0, takeFirst) }];
     let i = takeFirst;
 

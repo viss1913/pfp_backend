@@ -145,10 +145,9 @@ function buildFinamComonAutofollowCardsHtml(report) {
             const y = escapeHtml(formatComonPercent(it?.profit_365_days_percent));
             const rawUrl = resolveComonStrategyPageUrl(it);
             const safeUrl = escapeHtml(rawUrl);
-            const urlLabel = escapeHtml(rawUrl.replace(/^https?:\/\//i, ''));
             const linkHtml = safeUrl
-                ? `<a class="link-line" href="${safeUrl}" target="_blank" rel="noopener noreferrer">${urlLabel}</a>`
-                : '<p class="link-line">Ссылка недоступна</p>';
+                ? `<a class="link-line" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${safeUrl}">Смотреть на Comon</a>`
+                : '<span class="link-line link-line--disabled">Ссылка недоступна</span>';
             return `<article class="strategy-card">
         <h3 class="strategy-title">${title}</h3>
         <p class="strategy-desc">${desc}</p>
@@ -748,6 +747,7 @@ function applyOtherLayoutCompactFix(html, goal) {
 function applyOtherGoalTemplateAdjustments(html, goal, facts) {
     if (!isOtherGoalTypeFour(goal) && !isSaveGrowGoal(goal)) return html;
     let out = html;
+    const isOtherGoal = isOtherGoalTypeFour(goal);
 
     const targetToday = isSaveGrowGoal(goal)
         ? toNum(goal?.summary?.initial_capital ?? facts.initial)
@@ -806,6 +806,14 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
             /(<div class="section-label">Структура портфеля<\/div>\s*)/,
             `$1<div class="other-risk-profile"><strong>Риск-профиль цели:</strong> ${escapeHtml(facts.riskProfileLabel)}</div>\n    `
         );
+    }
+
+    if (isOtherGoal) {
+        // Для OTHER-целей убираем верхний акцентный блок "Капитал к дате сделки/к концу срока"
+        // на первой странице: после блока "Сумма и срок" сразу идет следующая секция.
+        out = out.replace(/\s*<div class="capital-highlight[\s\S]*?<\/div>\s*(?=<div class="section-label">План)/, '\n\n    ');
+        // В карточках вычетов/софинансирования скрываем поясняющий мелкий текст.
+        out = out.replace(/<div class="tax-card-hint">[\s\S]*?<\/div>/g, '');
     }
 
     out = stripOtherChartSection(out, goal);
