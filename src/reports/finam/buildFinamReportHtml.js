@@ -809,6 +809,12 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
     }
 
     if (isOtherGoal) {
+        const projectedEndCapital = toNum(goal?.summary?.projected_capital_at_end);
+        const otherFinalCapital = projectedEndCapital > 0 ? projectedEndCapital : facts.totalCapital;
+        out = out.replace(
+            /(<div class="plan-step finish">[\s\S]*?<div class="plan-step-label">)[\s\S]*?(<\/div>\s*<div class="plan-step-value">)[^<]*(<\/div>)/,
+            `$1Прогнозируемый<br>капитал$2${formatMoneyValue(otherFinalCapital)}$3`
+        );
         // Для OTHER-целей убираем верхний акцентный блок "Капитал к дате сделки/к концу срока"
         // на первой странице: после блока "Сумма и срок" сразу идет следующая секция.
         out = out.replace(/\s*<div class="capital-highlight[\s\S]*?<\/div>\s*(?=<div class="section-label">План)/, '\n\n    ');
