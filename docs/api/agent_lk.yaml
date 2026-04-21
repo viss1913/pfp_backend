@@ -509,6 +509,122 @@ paths:
         '404':
           description: Клиент или план не найдены
 
+  # ==================== AI CRM В ЛК АГЕНТА ====================
+  /pfp/ai/assistants:
+    get:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Список доступных AI-ассистентов
+      description: |
+        Возвращает список активных ассистентов для ЛК агента.
+        Поле `description` предназначено для UI (краткое описание), а не для полного system prompt.
+      responses:
+        '200':
+          description: Список ассистентов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    name: { type: string }
+                    slug: { type: string }
+                    description: { type: string }
+
+  /pfp/ai/history/{assistant_id}:
+    get:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: История чата с ассистентом
+      description: |
+        Возвращает последние сообщения по выбранному ассистенту.
+        Для `ai-crm` действует авто-briefing:
+        если история пустая или последнее сообщение старше 8 часов,
+        бэкенд автоматически добавляет свежую CRM-сводку.
+      parameters:
+        - name: assistant_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: История сообщений
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AiAssistantChatMessage'
+
+  /pfp/ai/chat:
+    post:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Отправить сообщение ассистенту
+      description: |
+        Принимает `assistant_id` и `message`.
+        Ответ отдается стримом (SSE). Для совместимости доступен и `/pfp/ai/chat/stream`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assistant_id, message]
+              properties:
+                assistant_id: { type: integer }
+                message: { type: string }
+      responses:
+        '200':
+          description: Потоковый ответ SSE
+
+  /pfp/ai/chat/stream:
+    post:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Алиас stream-чата с ассистентом
+      description: Полностью эквивалентен `POST /pfp/ai/chat`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assistant_id, message]
+              properties:
+                assistant_id: { type: integer }
+                message: { type: string }
+      responses:
+        '200':
+          description: Потоковый ответ SSE
+
+  /pfp/crm/briefing:
+    get:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Получить ежедневную CRM-сводку
+      description: |
+        Генерирует текстовый брифинг по клиентам агента
+        (в первую очередь статусы THINKING и RENEWAL).
+      responses:
+        '200':
+          description: Текст CRM-сводки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmBriefingResponse'
+
+  /pfp/crm/status:
+    post:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Обновить CRM-статус клиента
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCrmUpdate'
+      responses:
+        '200':
+          description: Статус обновлён
+
   # ==================== AI B2C В ЛК АГЕНТА (УПРАВЛЕНИЕ НАСТРОЙКАМИ) ====================
   /pfp/ai-b2c/brain-contexts:
     get:
@@ -1453,6 +1569,34 @@ paths:
 
 components:
   schemas:
+    AiAssistantChatMessage:
+      type: object
+      properties:
+        id: { type: integer }
+        role: { type: string, enum: [user, assistant, system] }
+        content: { type: string }
+        created_at: { type: string, format: date-time }
+
+    CrmBriefingResponse:
+      type: object
+      properties:
+        briefing:
+          type: string
+          description: AI-generated daily briefing text
+
+    ClientCrmUpdate:
+      type: object
+      required: [client_id, crm_status]
+      properties:
+        client_id:
+          type: integer
+        crm_status:
+          type: string
+          enum: [THINKING, BOUGHT, REFUSED, RENEWAL]
+        notes:
+          type: string
+          nullable: true
+
     ChatAiMessage:
       type: object
       description: Одно сообщение B2C-чата (общий формат для site и chat_AI)
