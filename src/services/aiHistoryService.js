@@ -1,4 +1,6 @@
-const knex = require('knex')(require('../../knexfile').development);
+const knexConfig = require('../../knexfile');
+const knexEnv = process.env.NODE_ENV || 'development';
+const knex = require('knex')(knexConfig[knexEnv] || knexConfig.development);
 
 class AiHistoryService {
     async addMessage(agentId, assistantId, role, content) {

@@ -138,9 +138,10 @@ class CrmService {
         Формат: Четкий маркированный список с акцентом на действия.
         `;
 
-        // Execute AI call using the new non-streaming method
+        // Execute AI call using OPENROUTER_MODEL from env when available
         const messages = [{ role: 'system', content: systemPrompt }];
-        return await aiService.getCompletion(messages, 'Qwen/Qwen2.5-14B-Instruct');
+        const selectedModel = (process.env.OPENROUTER_MODEL || '').trim() || 'Qwen/Qwen2.5-14B-Instruct';
+        return await aiService.getCompletion(messages, selectedModel);
     }
 
     async updateClientStatus(clientId, status, notes, projectId = null) {

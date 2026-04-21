@@ -3,16 +3,33 @@ const aiHistoryService = require('../services/aiHistoryService');
 const aiService = require('../services/aiService');
 const crmService = require('../services/crmService');
 
+function getAssistantShortDescription(assistant) {
+    const descriptionsBySlug = {
+        'ai-crm': 'CRM-ассистент: приоритеты по клиентам, статусы и следующие шаги продаж.',
+        'ai-pfp': 'Продуктовый ассистент: помогает по продуктам PFP и финансовым сценариям.'
+    };
+
+    if (assistant.slug && descriptionsBySlug[assistant.slug]) {
+        return descriptionsBySlug[assistant.slug];
+    }
+
+    if (!assistant.context_template) {
+        return `Ассистент ${assistant.name}`;
+    }
+
+    const compactTemplate = assistant.context_template.replace(/\s+/g, ' ').trim();
+    return compactTemplate.slice(0, 140);
+}
+
 class AiController {
     async listAssistants(req, res) {
         try {
             const assistants = await aiAssistantService.getActive();
-            // Map to match AiAssistantShort schema (add descriptions if needed, currently reusing name/context)
             const result = assistants.map(a => ({
                 id: a.id,
                 name: a.name,
                 slug: a.slug,
-                description: a.context_template // Or truncate it
+                description: getAssistantShortDescription(a)
             }));
             res.json(result);
         } catch (err) {
@@ -38,7 +55,7 @@ class AiController {
                 const lastMsgTime = new Date(lastMessage.created_at);
                 const now = new Date();
                 const diffHours = (now - lastMsgTime) / (1000 * 60 * 60);
-                if (diffHours >= 24) {
+                if (diffHours >= 8) {
                     shouldInjectBrief = true;
                 }
             }
@@ -76,6 +93,7 @@ class AiController {
             console.log('[AiController] chatStream called. Body:', JSON.stringify(req.body, null, 2));
             const { assistant_id, message } = req.body;
             const agent = req.user;
+            const resolvedAgentId = agent.agentId || agent.id;
 
             // 1. Get Assistant
             const assistant = await aiAssistantService.getById(assistant_id);
@@ -85,11 +103,10 @@ class AiController {
             // If this is the CRM Assistant (ID 1) or slug 'ai-crm', inject rich client data
             if (assistant.id == 1 || assistant.slug === 'ai-crm') {
                 try {
-                    const agentIdToUse = agent.agentId || agent.id; // Try agentId first (JWT), then id
-                    console.log(`[AiController] DEBUG AUTH: User ID (agent.id): ${agent.id}, Agent ID Field (agent.agentId): ${agent.agentId}, Final Used ID: ${agentIdToUse}`);
+                    console.log(`[AiController] DEBUG AUTH: User ID (agent.id): ${agent.id}, Agent ID Field (agent.agentId): ${agent.agentId}, Final Used ID: ${resolvedAgentId}`);
 
                     // Fetch DEEP Summary for all clients
-                    const allClients = await crmService.getDetailedAgentClientsSummary(agentIdToUse);
+                    const allClients = await crmService.getDetailedAgentClientsSummary(resolvedAgentId);
                     console.log(`[AiController] Found ${allClients.length} clients for context.`);
 
                     let clientContext = "\n\n=== ПОЛНОЕ ДОСЬЕ КЛИЕНТОВ (Только для системы) ===\n";
@@ -131,7 +148,7 @@ class AiController {
             const systemPrompt = aiService.injectContext(assistant.context_template, agent);
 
             // 3. Get History
-            const history = await aiHistoryService.getHistory(agent.id, assistant_id);
+            const history = await aiHistoryService.getHistory(resolvedAgentId, assistant_id);
 
             // 3. Construct Messages Payload
             const messages = [];
@@ -147,7 +164,7 @@ class AiController {
             messages.push({ role: 'user', content: message });
 
             // 5. Save USER message to DB
-            await aiHistoryService.addMessage(agent.id, assistant_id, 'user', message);
+            await aiHistoryService.addMessage(resolvedAgentId, assistant_id, 'user', message);
 
             // 6. Setup Headers for SSE
             res.setHeader('Content-Type', 'text/event-stream');
@@ -155,12 +172,15 @@ class AiController {
             res.setHeader('Connection', 'keep-alive');
 
             // 7. Call OpenRouter & Stream
+            // Railway env model must have priority over DB-configured assistant model.
+            const selectedModel = (process.env.OPENROUTER_MODEL || '').trim() || assistant.model;
+            console.log(`[AiController] Selected model for chat: ${selectedModel}`);
             // streamCompletion handles writing to res and returns full text
-            const fullAiResponse = await aiService.streamCompletion(messages, assistant.model, res);
+            const fullAiResponse = await aiService.streamCompletion(messages, selectedModel, res);
 
             // 8. Save AI message to DB
             if (fullAiResponse) {
-                await aiHistoryService.addMessage(agent.id, assistant_id, 'assistant', fullAiResponse);
+                await aiHistoryService.addMessage(resolvedAgentId, assistant_id, 'assistant', fullAiResponse);
             }
 
         } catch (err) {
