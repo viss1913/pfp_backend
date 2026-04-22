@@ -1372,6 +1372,25 @@ function normalizeDbGoalForRecalculate(goal) {
 }
 
 class ConstructorAiService {
+    async _getMainBrainContextsForGenerator(projectId) {
+        if (!projectId) return [];
+
+        const chatAiContexts = await knex('ai_b2c_chat_brain_contexts')
+            .where({
+                is_active: true,
+                project_id: projectId,
+            })
+            .orderBy('priority', 'desc');
+        if (chatAiContexts.length) return chatAiContexts;
+
+        return knex('constructor_brain_contexts')
+            .where({
+                is_active: true,
+                project_id: projectId,
+            })
+            .orderBy('priority', 'desc');
+    }
+
     _extractDocSearchTerms(text) {
         return Array.from(
             new Set(
@@ -2221,13 +2240,8 @@ class ConstructorAiService {
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
-        // Получаем активные контексты Мозга (Brain) для конкретного проекта
-        const brainContexts = await knex('constructor_brain_contexts')
-            .where({
-                is_active: true,
-                project_id: bot.project_id
-            })
-            .orderBy('priority', 'desc');
+        // Приоритет: chat_AI brain contexts -> fallback в legacy constructor brain contexts.
+        const brainContexts = await this._getMainBrainContextsForGenerator(bot.project_id);
 
         const baseBrainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
 
@@ -2320,13 +2334,8 @@ class ConstructorAiService {
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
-        // Получаем активные контексты Мозга (Brain) для конкретного проекта
-        const brainContexts = await knex('constructor_brain_contexts')
-            .where({
-                is_active: true,
-                project_id: bot.project_id
-            })
-            .orderBy('priority', 'desc');
+        // Приоритет: chat_AI brain contexts -> fallback в legacy constructor brain contexts.
+        const brainContexts = await this._getMainBrainContextsForGenerator(bot.project_id);
 
         const baseBrainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
 
