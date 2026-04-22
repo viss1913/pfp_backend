@@ -1101,14 +1101,15 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
         );
     }
 
-    const botName = trimText(bot?.name);
-    if (botName) sections.push(`Имя ассистента (настройки бота): ${botName}`);
-
     const base = trimText(bot?.base_brain_context);
-    if (base) sections.push(`Базовый контекст бота:\n${base}`);
-
     const bs = trimText(brainSection);
-    if (bs) sections.push(`Контексты из админки:\n${bs}`);
+    const mergedMainContext = [base, bs].filter(Boolean).join('\n\n');
+    sections.push(
+        `Главный контекст:\n${
+            mergedMainContext ||
+            'Контекст не настроен в БД. Следуй сценарию стадии и отвечай нейтрально, без выдумывания фактов.'
+        }`
+    );
 
     const style = trimText(bot?.communication_style);
     if (style) sections.push(`Стиль общения:\n${style}`);
