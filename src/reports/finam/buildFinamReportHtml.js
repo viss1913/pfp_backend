@@ -61,6 +61,15 @@ function inlineFinamRasterImages(html, repoRoot = FINAM_REPO_ROOT) {
             return dataUrl ? `src="${dataUrl}"` : match;
         }
     );
+    // Инлайнинг картинок для Плана действий (Action Plan) из src/reports/finam/assets/todo
+    out = out.replace(
+        /src="\.\/assets\/todo\/([^"]+)"/gi,
+        (match, filename) => {
+            const abs = path.join(__dirname, 'assets', 'todo', filename);
+            const dataUrl = imageDataUrlFromLocalFile(abs);
+            return dataUrl ? `src="${dataUrl}"` : match;
+        }
+    );
     out = out.replace(
         /<div class="life-hero-image">\s*<div class="ph">[\s\S]*?<\/div>\s*<\/div>/i,
         () => {
