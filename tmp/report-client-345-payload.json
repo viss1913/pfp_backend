@@ -1,0 +1,48 @@
+{
+  "client_info": {
+    "id": 345,
+    "full_name": "тест тест",
+    "age": 39,
+    "email": "sdlsl@lflf.ru"
+  },
+  "current_situation": {
+    "assets_total": 0,
+    "liabilities_total": 0,
+    "net_worth": 0,
+    "assets_breakdown": []
+  },
+  "overall_plan": {
+    "chart_waterfall": {
+      "invested_by_client": 0,
+      "state_support_nominal": 0,
+      "investment_income": 0,
+      "total_projected": 0
+    },
+    "consolidated_portfolio": {},
+    "tax_benefits": {}
+  },
+  "goals_detailed": [],
+  "goal_type_parameter_catalog": {},
+  "ai_executive_summary": {
+    "summary_text": "Не удалось сгенерировать резюме.",
+    "insurance_protection": []
+  },
+  "pdf_summary_layout": {
+    "version": 1,
+    "goal_card_assets": {
+      "directory_repo_relative": "assets/reports/goal-cards",
+      "r2_key_prefix": "pdf-report-goal-cards",
+      "rule": "Локально: goal_type + расширение, иначе DEFAULT.*. В R2 после seed: ключи pdf-report-goal-cards/{имя_файла}. В API у карточки: public_url (CDN), если задан R2_PUBLIC_* и файлы залиты."
+    },
+    "layout_hints": {
+      "keep_blocks_together": [
+        "capital_distribution"
+      ],
+      "main_goals_on_first_overview_html": 3,
+      "suggested_goals_per_continuation_page": 2
+    },
+    "overview_main_goal_cards": [],
+    "goals_continuation": null,
+    "capital_distribution": null
+  }
+}

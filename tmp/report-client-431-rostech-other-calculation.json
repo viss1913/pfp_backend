@@ -1,0 +1,1916 @@
+{
+  "client_id": 431,
+  "investment_expense_growth_annual_percent": 6,
+  "summary": {
+    "goals_count": 1,
+    "total_capital": 21911231.46,
+    "total_state_benefit": 737799.42,
+    "total_target_amount_initial": 10000000,
+    "total_target_amount_future": 21911231.43,
+    "consolidated_portfolio": {
+      "total_initial_capital": 500000,
+      "total_monthly_replenishment": 5792.86,
+      "assets_allocation": [
+        {
+          "name": "ДДС НПФ Ростех",
+          "amount": 500000,
+          "share": 100,
+          "yield": 14.3,
+          "short_term_yield": 13.8
+        }
+      ],
+      "cash_flow_allocation": [
+        {
+          "name": "ДДС НПФ Ростех",
+          "amount": 5792.86,
+          "share": 100,
+          "yield": 14.3,
+          "short_term_yield": 13.8,
+          "payment_frequency": "monthly"
+        }
+      ]
+    },
+    "tax_benefits_summary": {
+      "pds_benefits": {
+        "deduction_2026": 52000,
+        "cofinancing_2026": 36000,
+        "total_deductions": 377799.42,
+        "total_cofinancing": 360000
+      },
+      "nsj_benefits": {
+        "annual_premium": 0,
+        "deduction_2026": 0,
+        "total_deductions": 0
+      },
+      "totals": {
+        "deduction_2026": 52000,
+        "cofinancing_2026": 36000,
+        "total_deductions": 377799.42,
+        "total_cofinancing": 360000,
+        "total_state_benefits": 737799.42
+      }
+    },
+    "investment_expense_growth_annual_percent": 6
+  },
+  "goals": [
+    {
+      "goal_id": 1110,
+      "goal_type_id": 4,
+      "goal_type": "OTHER",
+      "summary": {
+        "status": "OK",
+        "target_amount_initial": 10000000,
+        "target_amount_future": 21911231.43,
+        "inflation_rate": 4,
+        "initial_capital": 500000,
+        "monthly_replenishment": 5792.86,
+        "target_months": 240,
+        "projected_capital_at_end": 21911231.46,
+        "total_tax_benefit": 377799.42,
+        "total_cofinancing": 360000,
+        "accumulation_yield_percent": 14.3
+      },
+      "details": {
+        "portfolio_id": 70,
+        "portfolio_name": "Один портфель",
+        "initial_instruments": [
+          {
+            "name": "ДДС НПФ Ростех",
+            "share": 100,
+            "yield": 14.3,
+            "amount": 500000
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "ДДС НПФ Ростех",
+            "share": 100,
+            "yield": 14.3,
+            "amount": 5792.863204059937
+          }
+        ],
+        "yearly_breakdown": [
+          {
+            "year": 2026,
+            "month": 12,
+            "tax_refund_projected": 0,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2027,
+            "month": 12,
+            "tax_refund_projected": 52000,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2028,
+            "month": 12,
+            "tax_refund_projected": 9650.46,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2029,
+            "month": 12,
+            "tax_refund_projected": 10229.49,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2030,
+            "month": 12,
+            "tax_refund_projected": 10843.26,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2031,
+            "month": 12,
+            "tax_refund_projected": 11493.85,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2032,
+            "month": 12,
+            "tax_refund_projected": 12183.48,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2033,
+            "month": 12,
+            "tax_refund_projected": 12914.49,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2034,
+            "month": 12,
+            "tax_refund_projected": 13689.36,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2035,
+            "month": 12,
+            "tax_refund_projected": 14510.72,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2036,
+            "month": 12,
+            "tax_refund_projected": 15381.37,
+            "cofinancing_for_year": 36000
+          },
+          {
+            "year": 2037,
+            "month": 12,
+            "tax_refund_projected": 16304.25,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2038,
+            "month": 12,
+            "tax_refund_projected": 17282.5,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2039,
+            "month": 12,
+            "tax_refund_projected": 18319.45,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2040,
+            "month": 12,
+            "tax_refund_projected": 19418.62,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2041,
+            "month": 12,
+            "tax_refund_projected": 20583.74,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2042,
+            "month": 12,
+            "tax_refund_projected": 21818.76,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2043,
+            "month": 12,
+            "tax_refund_projected": 23127.89,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2044,
+            "month": 12,
+            "tax_refund_projected": 24515.56,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2045,
+            "month": 12,
+            "tax_refund_projected": 25986.49,
+            "cofinancing_for_year": 0
+          },
+          {
+            "year": 2046,
+            "month": 4,
+            "tax_refund_projected": 27545.68,
+            "cofinancing_for_year": 0
+          }
+        ],
+        "monthly_schedule": [
+          {
+            "date": "2026-04-01",
+            "replenishment": 500000,
+            "total_capital": 500000,
+            "tax_deduction": 0,
+            "cofinancing": 0,
+            "schedule_row_kind": "INITIAL_LUMP"
+          },
+          {
+            "date": "2026-05-05",
+            "replenishment": 5792.86,
+            "total_capital": 511393.01,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2026-06-05",
+            "replenishment": 5821.06,
+            "total_capital": 522941.82,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2026-07-05",
+            "replenishment": 5849.39,
+            "total_capital": 534648.31,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2026-08-05",
+            "replenishment": 5877.87,
+            "total_capital": 546514.4,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2026-09-05",
+            "replenishment": 5906.48,
+            "total_capital": 558542,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2026-10-05",
+            "replenishment": 5935.23,
+            "total_capital": 570733.06,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2026-11-05",
+            "replenishment": 5964.12,
+            "total_capital": 583089.55,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2026-12-05",
+            "replenishment": 5993.15,
+            "total_capital": 595613.47,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-01-05",
+            "replenishment": 6022.32,
+            "total_capital": 608306.84,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-02-05",
+            "replenishment": 6051.63,
+            "total_capital": 621171.68,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-03-05",
+            "replenishment": 6081.09,
+            "total_capital": 634210.08,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-04-05",
+            "replenishment": 6110.69,
+            "total_capital": 699424.11,
+            "tax_deduction": 52000,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-05-05",
+            "replenishment": 6140.43,
+            "total_capital": 713398.29,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-06-05",
+            "replenishment": 6170.32,
+            "total_capital": 727558.89,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-07-05",
+            "replenishment": 6200.36,
+            "total_capital": 741908.12,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-08-05",
+            "replenishment": 6230.54,
+            "total_capital": 792448.24,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2027-09-05",
+            "replenishment": 6260.87,
+            "total_capital": 807584.76,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-10-05",
+            "replenishment": 6291.34,
+            "total_capital": 822921.28,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-11-05",
+            "replenishment": 6321.96,
+            "total_capital": 838460.21,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2027-12-05",
+            "replenishment": 6352.74,
+            "total_capital": 854203.94,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-01-05",
+            "replenishment": 6383.66,
+            "total_capital": 870154.93,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-02-05",
+            "replenishment": 6414.73,
+            "total_capital": 886315.65,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-03-05",
+            "replenishment": 6445.96,
+            "total_capital": 902688.6,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-04-05",
+            "replenishment": 6477.33,
+            "total_capital": 928926.77,
+            "tax_deduction": 9650.46,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-05-05",
+            "replenishment": 6508.86,
+            "total_capital": 945839.88,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-06-05",
+            "replenishment": 6540.54,
+            "total_capital": 962974.11,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-07-05",
+            "replenishment": 6572.38,
+            "total_capital": 980332.08,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-08-05",
+            "replenishment": 6604.37,
+            "total_capital": 1033916.45,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2028-09-05",
+            "replenishment": 6636.52,
+            "total_capital": 1052133.14,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-10-05",
+            "replenishment": 6668.82,
+            "total_capital": 1070586.16,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-11-05",
+            "replenishment": 6701.28,
+            "total_capital": 1089278.31,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2028-12-05",
+            "replenishment": 6733.9,
+            "total_capital": 1108212.45,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-01-05",
+            "replenishment": 6766.68,
+            "total_capital": 1127391.43,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-02-05",
+            "replenishment": 6799.62,
+            "total_capital": 1146818.16,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-03-05",
+            "replenishment": 6832.71,
+            "total_capital": 1166495.57,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-04-05",
+            "replenishment": 6865.97,
+            "total_capital": 1196656.12,
+            "tax_deduction": 10229.49,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-05-05",
+            "replenishment": 6899.39,
+            "total_capital": 1216958.41,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-06-05",
+            "replenishment": 6932.98,
+            "total_capital": 1237521.68,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-07-05",
+            "replenishment": 6966.72,
+            "total_capital": 1258349,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-08-05",
+            "replenishment": 7000.63,
+            "total_capital": 1315443.51,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2029-09-05",
+            "replenishment": 7034.71,
+            "total_capital": 1337211.57,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-10-05",
+            "replenishment": 7068.95,
+            "total_capital": 1359257.68,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-11-05",
+            "replenishment": 7103.36,
+            "total_capital": 1381585.12,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2029-12-05",
+            "replenishment": 7137.94,
+            "total_capital": 1404197.21,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-01-05",
+            "replenishment": 7172.68,
+            "total_capital": 1427097.31,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-02-05",
+            "replenishment": 7207.59,
+            "total_capital": 1450288.8,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-03-05",
+            "replenishment": 7242.68,
+            "total_capital": 1473775.14,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-04-05",
+            "replenishment": 7277.93,
+            "total_capital": 1508403.04,
+            "tax_deduction": 10843.26,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-05-05",
+            "replenishment": 7313.36,
+            "total_capital": 1532610.95,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-06-05",
+            "replenishment": 7348.95,
+            "total_capital": 1557125.59,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-07-05",
+            "replenishment": 7384.73,
+            "total_capital": 1581950.58,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-08-05",
+            "replenishment": 7420.67,
+            "total_capital": 1643089.55,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2030-09-05",
+            "replenishment": 7456.79,
+            "total_capital": 1668949.43,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-10-05",
+            "replenishment": 7493.09,
+            "total_capital": 1695135.23,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-11-05",
+            "replenishment": 7529.56,
+            "total_capital": 1721650.8,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2030-12-05",
+            "replenishment": 7566.21,
+            "total_capital": 1748500,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-01-05",
+            "replenishment": 7603.04,
+            "total_capital": 1775686.75,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-02-05",
+            "replenishment": 7640.05,
+            "total_capital": 1803215.01,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-03-05",
+            "replenishment": 7677.24,
+            "total_capital": 1831088.78,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-04-05",
+            "replenishment": 7714.61,
+            "total_capital": 1870805.96,
+            "tax_deduction": 11493.85,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-05-05",
+            "replenishment": 7752.16,
+            "total_capital": 1899511.69,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-06-05",
+            "replenishment": 7789.89,
+            "total_capital": 1928576.67,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-07-05",
+            "replenishment": 7827.81,
+            "total_capital": 1958005.1,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-08-05",
+            "replenishment": 7865.91,
+            "total_capital": 2023801.23,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2031-09-05",
+            "replenishment": 7904.2,
+            "total_capital": 2054372.6,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-10-05",
+            "replenishment": 7942.67,
+            "total_capital": 2085324.84,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-11-05",
+            "replenishment": 7981.33,
+            "total_capital": 2116662.42,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2031-12-05",
+            "replenishment": 8020.18,
+            "total_capital": 2148389.84,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-01-05",
+            "replenishment": 8059.22,
+            "total_capital": 2180511.65,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-02-05",
+            "replenishment": 8098.45,
+            "total_capital": 2213032.47,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-03-05",
+            "replenishment": 8137.87,
+            "total_capital": 2245956.95,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-04-05",
+            "replenishment": 8177.48,
+            "total_capital": 2291473.28,
+            "tax_deduction": 12183.48,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-05-05",
+            "replenishment": 8217.29,
+            "total_capital": 2325355.74,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-06-05",
+            "replenishment": 8257.29,
+            "total_capital": 2359657.68,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-07-05",
+            "replenishment": 8297.48,
+            "total_capital": 2394384.01,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-08-05",
+            "replenishment": 8337.87,
+            "total_capital": 2465539.68,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2032-09-05",
+            "replenishment": 8378.45,
+            "total_capital": 2501532.89,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-10-05",
+            "replenishment": 8419.23,
+            "total_capital": 2537970.02,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-11-05",
+            "replenishment": 8460.21,
+            "total_capital": 2574856.24,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2032-12-05",
+            "replenishment": 8501.4,
+            "total_capital": 2612196.77,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-01-05",
+            "replenishment": 8542.78,
+            "total_capital": 2649996.91,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-02-05",
+            "replenishment": 8584.36,
+            "total_capital": 2688262.01,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-03-05",
+            "replenishment": 8626.14,
+            "total_capital": 2726997.47,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-04-05",
+            "replenishment": 8668.13,
+            "total_capital": 2779123.25,
+            "tax_deduction": 12914.49,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-05-05",
+            "replenishment": 8710.32,
+            "total_capital": 2818960.57,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-06-05",
+            "replenishment": 8752.72,
+            "total_capital": 2859286.47,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-07-05",
+            "replenishment": 8795.33,
+            "total_capital": 2900106.64,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-08-05",
+            "replenishment": 8838.14,
+            "total_capital": 2977426.81,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2033-09-05",
+            "replenishment": 8881.16,
+            "total_capital": 3019656.02,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-10-05",
+            "replenishment": 8924.39,
+            "total_capital": 3062401.43,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-11-05",
+            "replenishment": 8967.83,
+            "total_capital": 3105669.04,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2033-12-05",
+            "replenishment": 9011.48,
+            "total_capital": 3149464.92,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-01-05",
+            "replenishment": 9055.34,
+            "total_capital": 3193795.19,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-02-05",
+            "replenishment": 9099.42,
+            "total_capital": 3238666.04,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-03-05",
+            "replenishment": 9143.71,
+            "total_capital": 3284083.76,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-04-05",
+            "replenishment": 9188.22,
+            "total_capital": 3343744.03,
+            "tax_deduction": 13689.36,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-05-05",
+            "replenishment": 9232.94,
+            "total_capital": 3390427.88,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-06-05",
+            "replenishment": 9277.89,
+            "total_capital": 3437679.54,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-07-05",
+            "replenishment": 9323.05,
+            "total_capital": 3485505.6,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-08-05",
+            "replenishment": 9368.43,
+            "total_capital": 3569912.7,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2034-09-05",
+            "replenishment": 9414.03,
+            "total_capital": 3619310.79,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-10-05",
+            "replenishment": 9459.85,
+            "total_capital": 3669307.98,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-11-05",
+            "replenishment": 9505.9,
+            "total_capital": 3719911.19,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2034-12-05",
+            "replenishment": 9552.17,
+            "total_capital": 3771127.45,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-01-05",
+            "replenishment": 9598.66,
+            "total_capital": 3822963.83,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-02-05",
+            "replenishment": 9645.39,
+            "total_capital": 3875427.53,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-03-05",
+            "replenishment": 9692.33,
+            "total_capital": 3928525.78,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-04-05",
+            "replenishment": 9739.51,
+            "total_capital": 3996776.64,
+            "tax_deduction": 14510.72,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-05-05",
+            "replenishment": 9786.92,
+            "total_capital": 4051328.62,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-06-05",
+            "replenishment": 9834.56,
+            "total_capital": 4106539.24,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-07-05",
+            "replenishment": 9882.43,
+            "total_capital": 4162416.1,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-08-05",
+            "replenishment": 9930.53,
+            "total_capital": 4254966.91,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2035-09-05",
+            "replenishment": 9978.87,
+            "total_capital": 4312602.64,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-10-05",
+            "replenishment": 10027.44,
+            "total_capital": 4370932.49,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-11-05",
+            "replenishment": 10076.25,
+            "total_capital": 4429964.46,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2035-12-05",
+            "replenishment": 10125.3,
+            "total_capital": 4489706.65,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-01-05",
+            "replenishment": 10174.58,
+            "total_capital": 4550167.25,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-02-05",
+            "replenishment": 10224.11,
+            "total_capital": 4611354.56,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-03-05",
+            "replenishment": 10273.88,
+            "total_capital": 4673276.94,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-04-05",
+            "replenishment": 10323.88,
+            "total_capital": 4751324.26,
+            "tax_deduction": 15381.37,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-05-05",
+            "replenishment": 10374.14,
+            "total_capital": 4814914.61,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-06-05",
+            "replenishment": 10424.63,
+            "total_capital": 4879267.68,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-07-05",
+            "replenishment": 10475.37,
+            "total_capital": 4944392.28,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-08-05",
+            "replenishment": 10526.36,
+            "total_capital": 5046297.27,
+            "tax_deduction": 0,
+            "cofinancing": 36000
+          },
+          {
+            "date": "2036-09-05",
+            "replenishment": 10577.6,
+            "total_capital": 5113394.87,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-10-05",
+            "replenishment": 10629.09,
+            "total_capital": 5181295.47,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-11-05",
+            "replenishment": 10680.83,
+            "total_capital": 5250008.31,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2036-12-05",
+            "replenishment": 10732.82,
+            "total_capital": 5319542.75,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-01-05",
+            "replenishment": 10785.06,
+            "total_capital": 5389908.23,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-02-05",
+            "replenishment": 10837.56,
+            "total_capital": 5461114.33,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-03-05",
+            "replenishment": 10890.31,
+            "total_capital": 5533170.7,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-04-05",
+            "replenishment": 10943.32,
+            "total_capital": 5622391.39,
+            "tax_deduction": 16304.25,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-05-05",
+            "replenishment": 10996.58,
+            "total_capital": 5696360.4,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-06-05",
+            "replenishment": 11050.11,
+            "total_capital": 5771211.4,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-07-05",
+            "replenishment": 11103.9,
+            "total_capital": 5846954.54,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-08-05",
+            "replenishment": 11157.95,
+            "total_capital": 5923600.08,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-09-05",
+            "replenishment": 11212.26,
+            "total_capital": 6001158.38,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-10-05",
+            "replenishment": 11266.83,
+            "total_capital": 6079639.94,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-11-05",
+            "replenishment": 11321.68,
+            "total_capital": 6159055.35,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2037-12-05",
+            "replenishment": 11376.78,
+            "total_capital": 6239415.34,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-01-05",
+            "replenishment": 11432.16,
+            "total_capital": 6320730.77,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-02-05",
+            "replenishment": 11487.81,
+            "total_capital": 6403012.6,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-03-05",
+            "replenishment": 11543.73,
+            "total_capital": 6486271.93,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-04-05",
+            "replenishment": 11599.92,
+            "total_capital": 6587802.48,
+            "tax_deduction": 17282.5,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-05-05",
+            "replenishment": 11656.38,
+            "total_capital": 6673244.17,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-06-05",
+            "replenishment": 11713.12,
+            "total_capital": 6759699.56,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-07-05",
+            "replenishment": 11770.13,
+            "total_capital": 6847180.29,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-08-05",
+            "replenishment": 11827.42,
+            "total_capital": 6935698.12,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-09-05",
+            "replenishment": 11884.99,
+            "total_capital": 7025264.95,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-10-05",
+            "replenishment": 11942.84,
+            "total_capital": 7115892.81,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-11-05",
+            "replenishment": 12000.98,
+            "total_capital": 7207593.86,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2038-12-05",
+            "replenishment": 12059.39,
+            "total_capital": 7300380.4,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-01-05",
+            "replenishment": 12118.09,
+            "total_capital": 7394264.87,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-02-05",
+            "replenishment": 12177.08,
+            "total_capital": 7489259.87,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-03-05",
+            "replenishment": 12236.35,
+            "total_capital": 7585378.1,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-04-05",
+            "replenishment": 12295.91,
+            "total_capital": 7700951.91,
+            "tax_deduction": 18319.45,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-05-05",
+            "replenishment": 12355.76,
+            "total_capital": 7799560.57,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-06-05",
+            "replenishment": 12415.9,
+            "total_capital": 7899333.82,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-07-05",
+            "replenishment": 12476.34,
+            "total_capital": 8000285,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-08-05",
+            "replenishment": 12537.07,
+            "total_capital": 8102427.58,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-09-05",
+            "replenishment": 12598.09,
+            "total_capital": 8205775.22,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-10-05",
+            "replenishment": 12659.41,
+            "total_capital": 8310341.71,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-11-05",
+            "replenishment": 12721.04,
+            "total_capital": 8416140.98,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2039-12-05",
+            "replenishment": 12782.96,
+            "total_capital": 8523187.17,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-01-05",
+            "replenishment": 12845.18,
+            "total_capital": 8631494.52,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-02-05",
+            "replenishment": 12907.7,
+            "total_capital": 8741077.47,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-03-05",
+            "replenishment": 12970.53,
+            "total_capital": 8851950.61,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-04-05",
+            "replenishment": 13033.67,
+            "total_capital": 8983547.32,
+            "tax_deduction": 19418.62,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-05-05",
+            "replenishment": 13097.11,
+            "total_capital": 9097262.77,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-06-05",
+            "replenishment": 13160.86,
+            "total_capital": 9212315.62,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-07-05",
+            "replenishment": 13224.92,
+            "total_capital": 9328721.15,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-08-05",
+            "replenishment": 13289.29,
+            "total_capital": 9446494.83,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-09-05",
+            "replenishment": 13353.98,
+            "total_capital": 9565652.3,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-10-05",
+            "replenishment": 13418.98,
+            "total_capital": 9686209.37,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-11-05",
+            "replenishment": 13484.3,
+            "total_capital": 9808182.03,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2040-12-05",
+            "replenishment": 13549.93,
+            "total_capital": 9931586.45,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-01-05",
+            "replenishment": 13615.89,
+            "total_capital": 10056439,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-02-05",
+            "replenishment": 13682.16,
+            "total_capital": 10182756.21,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-03-05",
+            "replenishment": 13748.76,
+            "total_capital": 10310554.8,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-04-05",
+            "replenishment": 13815.69,
+            "total_capital": 10460435.44,
+            "tax_deduction": 20583.74,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-05-05",
+            "replenishment": 13882.93,
+            "total_capital": 10591478.29,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-06-05",
+            "replenishment": 13950.51,
+            "total_capital": 10724056.44,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-07-05",
+            "replenishment": 14018.41,
+            "total_capital": 10858187.4,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-08-05",
+            "replenishment": 14086.65,
+            "total_capital": 10993888.91,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-09-05",
+            "replenishment": 14155.22,
+            "total_capital": 11131178.88,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-10-05",
+            "replenishment": 14224.12,
+            "total_capital": 11270075.44,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-11-05",
+            "replenishment": 14293.36,
+            "total_capital": 11410596.92,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2041-12-05",
+            "replenishment": 14362.93,
+            "total_capital": 11552761.85,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-01-05",
+            "replenishment": 14432.84,
+            "total_capital": 11696588.99,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-02-05",
+            "replenishment": 14503.09,
+            "total_capital": 11842097.28,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-03-05",
+            "replenishment": 14573.69,
+            "total_capital": 11989305.9,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-04-05",
+            "replenishment": 14644.63,
+            "total_capital": 12160053,
+            "tax_deduction": 21818.76,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-05-05",
+            "replenishment": 14715.91,
+            "total_capital": 12310965.04,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-06-05",
+            "replenishment": 14787.54,
+            "total_capital": 12463638.97,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-07-05",
+            "replenishment": 14859.52,
+            "total_capital": 12618094.87,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-08-05",
+            "replenishment": 14931.85,
+            "total_capital": 12774353.06,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-09-05",
+            "replenishment": 15004.53,
+            "total_capital": 12932434.06,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-10-05",
+            "replenishment": 15077.57,
+            "total_capital": 13092358.64,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-11-05",
+            "replenishment": 15150.96,
+            "total_capital": 13254147.83,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2042-12-05",
+            "replenishment": 15224.7,
+            "total_capital": 13417822.84,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-01-05",
+            "replenishment": 15298.81,
+            "total_capital": 13583405.17,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-02-05",
+            "replenishment": 15373.28,
+            "total_capital": 13750916.54,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-03-05",
+            "replenishment": 15448.11,
+            "total_capital": 13920378.92,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-04-05",
+            "replenishment": 15523.3,
+            "total_capital": 14114942.4,
+            "tax_deduction": 23127.89,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-05-05",
+            "replenishment": 15598.86,
+            "total_capital": 14288632.73,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-06-05",
+            "replenishment": 15674.79,
+            "total_capital": 14464344.36,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-07-05",
+            "replenishment": 15751.09,
+            "total_capital": 14642100.32,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-08-05",
+            "replenishment": 15827.76,
+            "total_capital": 14821923.86,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-09-05",
+            "replenishment": 15904.8,
+            "total_capital": 15003838.52,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-10-05",
+            "replenishment": 15982.22,
+            "total_capital": 15187868.1,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-11-05",
+            "replenishment": 16060.01,
+            "total_capital": 15374036.65,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2043-12-05",
+            "replenishment": 16138.19,
+            "total_capital": 15562368.52,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-01-05",
+            "replenishment": 16216.74,
+            "total_capital": 15752888.31,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-02-05",
+            "replenishment": 16295.68,
+            "total_capital": 15945620.92,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-03-05",
+            "replenishment": 16375,
+            "total_capital": 16140591.51,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-04-05",
+            "replenishment": 16454.7,
+            "total_capital": 16362341.09,
+            "tax_deduction": 24515.56,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-05-05",
+            "replenishment": 16534.8,
+            "total_capital": 16562138.87,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-06-05",
+            "replenishment": 16615.28,
+            "total_capital": 16764254.92,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-07-05",
+            "replenishment": 16696.16,
+            "total_capital": 16968715.61,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-08-05",
+            "replenishment": 16777.43,
+            "total_capital": 17175547.58,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-09-05",
+            "replenishment": 16859.09,
+            "total_capital": 17384777.8,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-10-05",
+            "replenishment": 16941.15,
+            "total_capital": 17596433.52,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-11-05",
+            "replenishment": 17023.61,
+            "total_capital": 17810542.31,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2044-12-05",
+            "replenishment": 17106.48,
+            "total_capital": 18027132.05,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-01-05",
+            "replenishment": 17189.74,
+            "total_capital": 18246230.91,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-02-05",
+            "replenishment": 17273.42,
+            "total_capital": 18467867.42,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-03-05",
+            "replenishment": 17357.5,
+            "total_capital": 18692070.41,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-04-05",
+            "replenishment": 17441.98,
+            "total_capital": 18944855.51,
+            "tax_deduction": 25986.49,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-05-05",
+            "replenishment": 17526.88,
+            "total_capital": 19174570.28,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-06-05",
+            "replenishment": 17612.2,
+            "total_capital": 19406943.24,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-07-05",
+            "replenishment": 17697.93,
+            "total_capital": 19642004.58,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-08-05",
+            "replenishment": 17784.07,
+            "total_capital": 19879784.81,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-09-05",
+            "replenishment": 17870.64,
+            "total_capital": 20120314.82,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-10-05",
+            "replenishment": 17957.62,
+            "total_capital": 20363625.82,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-11-05",
+            "replenishment": 18045.03,
+            "total_capital": 20609749.39,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2045-12-05",
+            "replenishment": 18132.87,
+            "total_capital": 20858717.44,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2046-01-05",
+            "replenishment": 18221.13,
+            "total_capital": 21110562.27,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2046-02-05",
+            "replenishment": 18309.82,
+            "total_capital": 21365316.53,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2046-03-05",
+            "replenishment": 18398.95,
+            "total_capital": 21623013.24,
+            "tax_deduction": 0,
+            "cofinancing": 0
+          },
+          {
+            "date": "2046-04-05",
+            "replenishment": 18488.5,
+            "total_capital": 21911231.46,
+            "tax_deduction": 27545.68,
+            "cofinancing": 0
+          }
+        ]
+      },
+      "goal_name": "Квартира",
+      "risk_profile": "BALANCED",
+      "id": 1110
+    }
+  ]
+}

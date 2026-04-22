@@ -1,0 +1,280 @@
+/* ====================================
+   ROSTECH PDF LAYOUT - A4 FORMAT
+   Размер: 595x842px (A4)
+   Без внешних зависимостей
+   ==================================== */
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'DejaVu Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+}
+
+/* ====================================
+   PAGE CONTAINER - A4 (595x842px)
+   ==================================== */
+.page-container {
+    position: relative;
+    width: 595px;
+    height: 842px;
+    background: #ffffff;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+/* ====================================
+   HEADER BLOCK
+   ==================================== */
+.header-title {
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    font-family: 'Proxima Nova', 'DejaVu Sans', sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 20px;
+    color: #000000;
+    white-space: nowrap;
+    font-feature-settings: 'pcap', 'salt';
+}
+
+/* ====================================
+   INFO CARD
+   ==================================== */
+.info-card {
+    position: absolute;
+    left: 30px;
+    top: 80px;
+    width: 535px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.avatar-container {
+    position: relative;
+    width: 60px;
+    height: 68px;
+    border-radius: 8px;
+    background: linear-gradient(152.116deg, rgb(252, 237, 242) 0%, rgb(229, 239, 248) 120.41%);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.info-text-wrapper {
+    flex: 1;
+    margin-left: 17px;
+    padding: 10px 27px 10px 10px;
+    border: 1px solid #f1f1f1;
+    border-radius: 8px;
+}
+
+.info-text {
+    font-family: 'Proxima Nova', 'DejaVu Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 15px;
+    color: #000000;
+    width: 428px;
+    font-feature-settings: 'pcap', 'salt';
+}
+
+/* ====================================
+   TABLE CONTAINER
+   ==================================== */
+.table-container {
+    position: absolute;
+    left: 30px;
+    top: 210px;
+    width: 535px;
+    height: 410px;
+}
+
+.table-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 535px;
+    height: 410px;
+}
+
+/* ====================================
+   TABLE HEADER
+   ==================================== */
+.table-header {
+    position: absolute;
+    top: 15px;
+    left: 20px;
+    width: 495px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.header-cell {
+    font-family: 'Proxima Nova', 'DejaVu Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 12px;
+    color: #000000;
+    font-feature-settings: 'pcap', 'salt';
+}
+
+.header-date {
+    position: absolute;
+    left: 0;
+    width: auto;
+    white-space: nowrap;
+}
+
+.header-refill {
+    position: absolute;
+    left: 109px;
+    transform: translateX(-50%);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.header-tax {
+    position: absolute;
+    left: 219px;
+    width: 68px;
+}
+
+.header-cofinancing {
+    position: absolute;
+    left: 299px;
+    transform: translateX(-50%);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.header-capital {
+    position: absolute;
+    left: 419px;
+    white-space: nowrap;
+}
+
+/* ====================================
+   TABLE DIVIDER LINE
+   ==================================== */
+.table-divider {
+    position: absolute;
+    top: 45px;
+    left: 20px;
+    width: 495px;
+    height: 1px;
+}
+
+/* ====================================
+   TABLE DATA
+   ==================================== */
+.table-data {
+    position: absolute;
+    top: 55px;
+    left: 20px;
+    width: 495px;
+    display: flex;
+}
+
+.data-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.data-cell {
+    font-family: 'Proxima Nova', 'DejaVu Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 20px;
+    color: #000000;
+}
+
+.column-date {
+    position: absolute;
+    left: 0;
+}
+
+.column-date .data-cell {
+    white-space: nowrap;
+}
+
+.column-refill {
+    position: absolute;
+    left: 109px;
+}
+
+.column-refill .data-cell {
+    white-space: nowrap;
+}
+
+.column-tax {
+    position: absolute;
+    left: 219px;
+    width: 68px;
+}
+
+.column-cofinancing {
+    position: absolute;
+    left: 299px;
+    width: 68px;
+}
+
+.column-capital {
+    position: absolute;
+    left: 419px;
+    width: 68px;
+}
+
+/* ====================================
+   LOGO BLOCK
+   ==================================== */
+.logo-container {
+    position: absolute;
+    left: calc(50% - 232.5px);
+    top: 811px;
+    width: 70px;
+    height: 19px;
+    transform: translateX(-50%);
+}
+
+.logo {
+    width: 100%;
+    height: 100%;
+}
+
+/* ====================================
+   PRINT STYLES
+   ==================================== */
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .page-container {
+        width: 595px;
+        height: 842px;
+        margin: 0;
+        page-break-after: avoid;
+    }
+    
+    @page {
+        size: A4;
+        margin: 0;
+    }
+}

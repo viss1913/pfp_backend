@@ -11,6 +11,10 @@ class AiAssistantService {
         return knex('ai_assistants').where({ id }).first();
     }
 
+    async getBySlug(slug) {
+        return knex('ai_assistants').where({ slug }).first();
+    }
+
     async getActive() {
         return knex('ai_assistants').where({ is_active: true }).select('id', 'name', 'slug', 'context_template');
     }

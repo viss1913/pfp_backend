@@ -1,0 +1,14 @@
+Порядок страниц PDF/HTML отчёта Финам (черновики верстальщика в этой папке)
+
+1. cover-designer-input.html          — обложка (прод: cover/buildCoverHtml.js)
+2. summary-designer-input.html        — сводная после обложки (прод: summary/buildSummaryOverviewHtml.js)
+   page-2-finam.html                   — введение (короткое имя); с summary-designer сольём при необходимости
+3. page-3-family-finam.html            — страница «family» (черновик; прод — после интеграции в reportPdfService)
+4. page-4-targets-finam.html            — страница «targets» / цели (черновик; прод — после интеграции)
+5. comon-autofollow-designer-input.html — только Финам, отдельная вставка (прод: buildComonAutofollowPageHtml)
+6. goals-designer-input.html          — блоки FIN_RESERVE, LIFE, INVESTMENT, OTHER (прод: goalPages/buildGoalPagesHtml.js)
+
+Дальше в проде могут идти служебные страницы (инфляция, дисклеймеры и т.д.) из текущих билдеров —
+их макеты пока не вынесены в отдельные файлы; если появятся — добавить сюда строку и новый HTML.
+
+Все *.html в этой папке — только инпут для дизайна; в рантайм отчёт собирается из JS-сборщиков.

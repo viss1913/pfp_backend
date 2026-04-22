@@ -1,0 +1,1123 @@
+{
+  "client_info": {
+    "id": 461,
+    "first_name": "Иван",
+    "last_name": "Unknown",
+    "full_name": "Unknown Иван",
+    "avg_monthly_income": 150000,
+    "age": 39,
+    "email": null,
+    "income_display": "150 000 ₽/мес"
+  },
+  "current_situation": {
+    "assets_total": 5000000,
+    "liabilities_total": 0,
+    "net_worth": 5000000,
+    "assets_breakdown": [
+      {
+        "name": "Наличные",
+        "value": 5000000
+      }
+    ]
+  },
+  "overall_plan": {
+    "chart_waterfall": {
+      "invested_by_client": 8000000,
+      "state_support_nominal": 0,
+      "investment_income": 7833343,
+      "total_projected": 15833343
+    },
+    "consolidated_portfolio": {
+      "assets_allocation": [
+        {
+          "name": "Акции",
+          "share": 44,
+          "yield": 19,
+          "amount": 2205000,
+          "product_type": "STOCK",
+          "short_term_yield": 19
+        },
+        {
+          "name": "ДСЖ Рантье",
+          "share": 29,
+          "yield": 17,
+          "amount": 1470000,
+          "product_type": "STOCK",
+          "short_term_yield": 17
+        },
+        {
+          "name": "Облигации",
+          "share": 25,
+          "yield": 15,
+          "amount": 1225000,
+          "product_type": "BOND",
+          "short_term_yield": 15
+        },
+        {
+          "name": "Накопительный счет",
+          "share": 2,
+          "yield": 12,
+          "amount": 100000,
+          "product_type": "DEPOSIT",
+          "short_term_yield": 12
+        }
+      ],
+      "cash_flow_allocation": [
+        {
+          "name": "Накопительный счет",
+          "share": 56,
+          "yield": 12,
+          "amount": 50000,
+          "product_type": "DEPOSIT",
+          "short_term_yield": 12,
+          "payment_frequency": "monthly"
+        },
+        {
+          "name": "Акции",
+          "share": 20,
+          "yield": 19,
+          "amount": 18000,
+          "product_type": "STOCK",
+          "short_term_yield": 19,
+          "payment_frequency": "monthly"
+        },
+        {
+          "name": "ДСЖ Рантье",
+          "share": 13,
+          "yield": 17,
+          "amount": 12000,
+          "product_type": "STOCK",
+          "short_term_yield": 17,
+          "payment_frequency": "monthly"
+        },
+        {
+          "name": "Облигации",
+          "share": 11,
+          "yield": 15,
+          "amount": 10000,
+          "product_type": "BOND",
+          "short_term_yield": 15,
+          "payment_frequency": "monthly"
+        }
+      ],
+      "total_initial_capital": 5000000,
+      "total_monthly_replenishment": 90000
+    },
+    "tax_benefits": {
+      "totals": {
+        "deduction_2026": 0,
+        "cofinancing_2026": 0,
+        "total_deductions": 0,
+        "total_cofinancing": 0,
+        "total_state_benefits": 0
+      },
+      "nsj_benefits": {
+        "annual_premium": 0,
+        "deduction_2026": 0,
+        "total_deductions": 0
+      },
+      "pds_benefits": {
+        "deduction_2026": 0,
+        "cofinancing_2026": 0,
+        "total_deductions": 0,
+        "total_cofinancing": 0
+      }
+    },
+    "pdf_metrics": {
+      "portfolio": {
+        "total_initial_capital": 5000000,
+        "total_monthly_replenishment": 90000,
+        "estimated_portfolio_yield_percent": 14.7,
+        "assets_allocation": [
+          {
+            "name": "Акции",
+            "share_percent": 44,
+            "yield_percent": 19,
+            "short_term_yield_percent": 19
+          },
+          {
+            "name": "ДСЖ Рантье",
+            "share_percent": 29,
+            "yield_percent": 17,
+            "short_term_yield_percent": 17
+          },
+          {
+            "name": "Облигации",
+            "share_percent": 25,
+            "yield_percent": 15,
+            "short_term_yield_percent": 15
+          },
+          {
+            "name": "Накопительный счет",
+            "share_percent": 2,
+            "yield_percent": 12,
+            "short_term_yield_percent": 12
+          }
+        ],
+        "cash_flow_allocation": [
+          {
+            "name": "Накопительный счет",
+            "share_percent": 56,
+            "yield_percent": 12,
+            "short_term_yield_percent": 12
+          },
+          {
+            "name": "Акции",
+            "share_percent": 20,
+            "yield_percent": 19,
+            "short_term_yield_percent": 19
+          },
+          {
+            "name": "ДСЖ Рантье",
+            "share_percent": 13,
+            "yield_percent": 17,
+            "short_term_yield_percent": 17
+          },
+          {
+            "name": "Облигации",
+            "share_percent": 11,
+            "yield_percent": 15,
+            "short_term_yield_percent": 15
+          }
+        ]
+      }
+    }
+  },
+  "goals_detailed": [
+    {
+      "id": 1160,
+      "details": {
+        "portfolio_id": 74,
+        "portfolio_name": "Основной от 2 лет до 5 лет",
+        "monthly_schedule": [
+          {
+            "date": "2026-04-01",
+            "cofinancing": 0,
+            "replenishment": 4900000,
+            "tax_deduction": 0,
+            "total_capital": 4900000,
+            "schedule_row_kind": "INITIAL_LUMP"
+          },
+          {
+            "date": "2026-05-07",
+            "cofinancing": 0,
+            "replenishment": 40000,
+            "tax_deduction": 0,
+            "total_capital": 5005943.28
+          },
+          {
+            "date": "2026-06-07",
+            "cofinancing": 0,
+            "replenishment": 40191.54,
+            "tax_deduction": 0,
+            "total_capital": 5113503.86
+          },
+          {
+            "date": "2026-07-07",
+            "cofinancing": 0,
+            "replenishment": 40384,
+            "tax_deduction": 0,
+            "total_capital": 5222704.44
+          },
+          {
+            "date": "2026-08-07",
+            "cofinancing": 0,
+            "replenishment": 40577.38,
+            "tax_deduction": 0,
+            "total_capital": 5333567.99
+          },
+          {
+            "date": "2026-09-07",
+            "cofinancing": 0,
+            "replenishment": 40771.68,
+            "tax_deduction": 0,
+            "total_capital": 5446117.83
+          },
+          {
+            "date": "2026-10-07",
+            "cofinancing": 0,
+            "replenishment": 40966.92,
+            "tax_deduction": 0,
+            "total_capital": 5560377.58
+          },
+          {
+            "date": "2026-11-07",
+            "cofinancing": 0,
+            "replenishment": 41163.09,
+            "tax_deduction": 0,
+            "total_capital": 5676371.19
+          },
+          {
+            "date": "2026-12-07",
+            "cofinancing": 0,
+            "replenishment": 41360.2,
+            "tax_deduction": 0,
+            "total_capital": 5794122.92
+          },
+          {
+            "date": "2027-01-07",
+            "cofinancing": 0,
+            "replenishment": 41558.25,
+            "tax_deduction": 0,
+            "total_capital": 5913657.4
+          },
+          {
+            "date": "2027-02-07",
+            "cofinancing": 0,
+            "replenishment": 41757.26,
+            "tax_deduction": 0,
+            "total_capital": 6034999.54
+          },
+          {
+            "date": "2027-03-07",
+            "cofinancing": 0,
+            "replenishment": 41957.21,
+            "tax_deduction": 0,
+            "total_capital": 6158174.65
+          },
+          {
+            "date": "2027-04-07",
+            "cofinancing": 0,
+            "replenishment": 42158.13,
+            "tax_deduction": 0,
+            "total_capital": 6283208.33
+          },
+          {
+            "date": "2027-05-07",
+            "cofinancing": 0,
+            "replenishment": 42360,
+            "tax_deduction": 0,
+            "total_capital": 6410126.57
+          },
+          {
+            "date": "2027-06-07",
+            "cofinancing": 0,
+            "replenishment": 42562.84,
+            "tax_deduction": 0,
+            "total_capital": 6538955.69
+          },
+          {
+            "date": "2027-07-07",
+            "cofinancing": 0,
+            "replenishment": 42766.65,
+            "tax_deduction": 0,
+            "total_capital": 6669722.38
+          },
+          {
+            "date": "2027-08-07",
+            "cofinancing": 0,
+            "replenishment": 42971.44,
+            "tax_deduction": 0,
+            "total_capital": 6802453.69
+          },
+          {
+            "date": "2027-09-07",
+            "cofinancing": 0,
+            "replenishment": 43177.21,
+            "tax_deduction": 0,
+            "total_capital": 6937177.05
+          },
+          {
+            "date": "2027-10-07",
+            "cofinancing": 0,
+            "replenishment": 43383.97,
+            "tax_deduction": 0,
+            "total_capital": 7073920.24
+          },
+          {
+            "date": "2027-11-07",
+            "cofinancing": 0,
+            "replenishment": 43591.71,
+            "tax_deduction": 0,
+            "total_capital": 7212711.44
+          },
+          {
+            "date": "2027-12-07",
+            "cofinancing": 0,
+            "replenishment": 43800.45,
+            "tax_deduction": 0,
+            "total_capital": 7353579.21
+          },
+          {
+            "date": "2028-01-07",
+            "cofinancing": 0,
+            "replenishment": 44010.19,
+            "tax_deduction": 0,
+            "total_capital": 7496552.49
+          },
+          {
+            "date": "2028-02-07",
+            "cofinancing": 0,
+            "replenishment": 44220.94,
+            "tax_deduction": 0,
+            "total_capital": 7641660.62
+          },
+          {
+            "date": "2028-03-07",
+            "cofinancing": 0,
+            "replenishment": 44432.69,
+            "tax_deduction": 0,
+            "total_capital": 7788933.34
+          },
+          {
+            "date": "2028-04-07",
+            "cofinancing": 0,
+            "replenishment": 44645.45,
+            "tax_deduction": 0,
+            "total_capital": 7938400.8
+          },
+          {
+            "date": "2028-05-07",
+            "cofinancing": 0,
+            "replenishment": 44859.24,
+            "tax_deduction": 0,
+            "total_capital": 8090093.54
+          },
+          {
+            "date": "2028-06-07",
+            "cofinancing": 0,
+            "replenishment": 45074.05,
+            "tax_deduction": 0,
+            "total_capital": 8244042.55
+          },
+          {
+            "date": "2028-07-07",
+            "cofinancing": 0,
+            "replenishment": 45289.89,
+            "tax_deduction": 0,
+            "total_capital": 8400279.21
+          },
+          {
+            "date": "2028-08-07",
+            "cofinancing": 0,
+            "replenishment": 45506.76,
+            "tax_deduction": 0,
+            "total_capital": 8558835.35
+          },
+          {
+            "date": "2028-09-07",
+            "cofinancing": 0,
+            "replenishment": 45724.67,
+            "tax_deduction": 0,
+            "total_capital": 8719743.22
+          },
+          {
+            "date": "2028-10-07",
+            "cofinancing": 0,
+            "replenishment": 45943.62,
+            "tax_deduction": 0,
+            "total_capital": 8883035.51
+          },
+          {
+            "date": "2028-11-07",
+            "cofinancing": 0,
+            "replenishment": 46163.62,
+            "tax_deduction": 0,
+            "total_capital": 9048745.35
+          },
+          {
+            "date": "2028-12-07",
+            "cofinancing": 0,
+            "replenishment": 46384.68,
+            "tax_deduction": 0,
+            "total_capital": 9216906.35
+          },
+          {
+            "date": "2029-01-07",
+            "cofinancing": 0,
+            "replenishment": 46606.79,
+            "tax_deduction": 0,
+            "total_capital": 9387552.53
+          },
+          {
+            "date": "2029-02-07",
+            "cofinancing": 0,
+            "replenishment": 46829.97,
+            "tax_deduction": 0,
+            "total_capital": 9560718.42
+          },
+          {
+            "date": "2029-03-07",
+            "cofinancing": 0,
+            "replenishment": 47054.22,
+            "tax_deduction": 0,
+            "total_capital": 9736438.99
+          },
+          {
+            "date": "2029-04-07",
+            "cofinancing": 0,
+            "replenishment": 47279.54,
+            "tax_deduction": 0,
+            "total_capital": 9914749.69
+          },
+          {
+            "date": "2029-05-07",
+            "cofinancing": 0,
+            "replenishment": 47505.94,
+            "tax_deduction": 0,
+            "total_capital": 10095686.47
+          },
+          {
+            "date": "2029-06-07",
+            "cofinancing": 0,
+            "replenishment": 47733.42,
+            "tax_deduction": 0,
+            "total_capital": 10279285.74
+          },
+          {
+            "date": "2029-07-07",
+            "cofinancing": 0,
+            "replenishment": 47961.99,
+            "tax_deduction": 0,
+            "total_capital": 10465584.43
+          },
+          {
+            "date": "2029-08-07",
+            "cofinancing": 0,
+            "replenishment": 48191.66,
+            "tax_deduction": 0,
+            "total_capital": 10654619.95
+          },
+          {
+            "date": "2029-09-07",
+            "cofinancing": 0,
+            "replenishment": 48422.42,
+            "tax_deduction": 0,
+            "total_capital": 10846430.25
+          },
+          {
+            "date": "2029-10-07",
+            "cofinancing": 0,
+            "replenishment": 48654.3,
+            "tax_deduction": 0,
+            "total_capital": 11041053.76
+          },
+          {
+            "date": "2029-11-07",
+            "cofinancing": 0,
+            "replenishment": 48887.28,
+            "tax_deduction": 0,
+            "total_capital": 11238529.47
+          },
+          {
+            "date": "2029-12-07",
+            "cofinancing": 0,
+            "replenishment": 49121.38,
+            "tax_deduction": 0,
+            "total_capital": 11438896.86
+          },
+          {
+            "date": "2030-01-07",
+            "cofinancing": 0,
+            "replenishment": 49356.59,
+            "tax_deduction": 0,
+            "total_capital": 11642195.98
+          },
+          {
+            "date": "2030-02-07",
+            "cofinancing": 0,
+            "replenishment": 49592.94,
+            "tax_deduction": 0,
+            "total_capital": 11848467.41
+          },
+          {
+            "date": "2030-03-07",
+            "cofinancing": 0,
+            "replenishment": 49830.42,
+            "tax_deduction": 0,
+            "total_capital": 12057752.27
+          },
+          {
+            "date": "2030-04-07",
+            "cofinancing": 0,
+            "replenishment": 50069.03,
+            "tax_deduction": 0,
+            "total_capital": 12270092.26
+          },
+          {
+            "date": "2030-05-07",
+            "cofinancing": 0,
+            "replenishment": 50308.79,
+            "tax_deduction": 0,
+            "total_capital": 12485529.64
+          },
+          {
+            "date": "2030-06-07",
+            "cofinancing": 0,
+            "replenishment": 50549.69,
+            "tax_deduction": 0,
+            "total_capital": 12704107.25
+          },
+          {
+            "date": "2030-07-07",
+            "cofinancing": 0,
+            "replenishment": 50791.75,
+            "tax_deduction": 0,
+            "total_capital": 12925868.48
+          },
+          {
+            "date": "2030-08-07",
+            "cofinancing": 0,
+            "replenishment": 51034.97,
+            "tax_deduction": 0,
+            "total_capital": 13150857.36
+          },
+          {
+            "date": "2030-09-07",
+            "cofinancing": 0,
+            "replenishment": 51279.35,
+            "tax_deduction": 0,
+            "total_capital": 13379118.47
+          },
+          {
+            "date": "2030-10-07",
+            "cofinancing": 0,
+            "replenishment": 51524.9,
+            "tax_deduction": 0,
+            "total_capital": 13610697.03
+          },
+          {
+            "date": "2030-11-07",
+            "cofinancing": 0,
+            "replenishment": 51771.63,
+            "tax_deduction": 0,
+            "total_capital": 13845638.86
+          },
+          {
+            "date": "2030-12-07",
+            "cofinancing": 0,
+            "replenishment": 52019.54,
+            "tax_deduction": 0,
+            "total_capital": 14083990.41
+          },
+          {
+            "date": "2031-01-07",
+            "cofinancing": 0,
+            "replenishment": 52268.63,
+            "tax_deduction": 0,
+            "total_capital": 14325798.74
+          },
+          {
+            "date": "2031-02-07",
+            "cofinancing": 0,
+            "replenishment": 52518.92,
+            "tax_deduction": 0,
+            "total_capital": 14571111.57
+          },
+          {
+            "date": "2031-03-07",
+            "cofinancing": 0,
+            "replenishment": 52770.41,
+            "tax_deduction": 0,
+            "total_capital": 14819977.26
+          },
+          {
+            "date": "2031-04-07",
+            "cofinancing": 0,
+            "replenishment": 53023.1,
+            "tax_deduction": 0,
+            "total_capital": 15072444.83
+          }
+        ],
+        "yearly_breakdown": [
+          {
+            "year": 2026,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2027,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2028,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2029,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2030,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2031,
+            "month": 4,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          }
+        ],
+        "initial_instruments": [
+          {
+            "name": "Акции",
+            "share": 45,
+            "yield": 19,
+            "amount": 2205000,
+            "product_type": "STOCK",
+            "short_term_yield": 19
+          },
+          {
+            "name": "Облигации",
+            "share": 25,
+            "yield": 15,
+            "amount": 1225000,
+            "product_type": "BOND",
+            "short_term_yield": 15
+          },
+          {
+            "name": "ДСЖ Рантье",
+            "share": 30,
+            "yield": 17,
+            "amount": 1470000,
+            "product_type": "STOCK",
+            "short_term_yield": 17
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "Акции",
+            "share": 45,
+            "yield": 19,
+            "amount": 18000,
+            "product_type": "STOCK",
+            "short_term_yield": 19
+          },
+          {
+            "name": "Облигации",
+            "share": 25,
+            "yield": 15,
+            "amount": 10000,
+            "product_type": "BOND",
+            "short_term_yield": 15
+          },
+          {
+            "name": "ДСЖ Рантье",
+            "share": 30,
+            "yield": 17,
+            "amount": 12000,
+            "product_type": "STOCK",
+            "short_term_yield": 17
+          }
+        ]
+      },
+      "goal_id": 1160,
+      "summary": {
+        "status": "OK",
+        "target_months": 60,
+        "initial_capital": 4900000,
+        "total_cofinancing": 0,
+        "total_tax_benefit": 0,
+        "monthly_replenishment": 40000,
+        "projected_capital_at_end": 15072444.83,
+        "accumulation_yield_percent": 17.4
+      },
+      "goal_name": "Сохранить и преумножить",
+      "goal_type": "INVESTMENT",
+      "goal_type_id": 3,
+      "risk_profile": "BALANCED",
+      "pdf_metrics": {
+        "goal_type": "INVESTMENT",
+        "portfolio_yield_percent": 17.4,
+        "initial_instruments": [
+          {
+            "name": "Акции",
+            "share": 45,
+            "yield_percent": 19,
+            "short_term_yield_percent": 19
+          },
+          {
+            "name": "Облигации",
+            "share": 25,
+            "yield_percent": 15,
+            "short_term_yield_percent": 15
+          },
+          {
+            "name": "ДСЖ Рантье",
+            "share": 30,
+            "yield_percent": 17,
+            "short_term_yield_percent": 17
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "Акции",
+            "share": 45,
+            "yield_percent": 19,
+            "short_term_yield_percent": 19
+          },
+          {
+            "name": "Облигации",
+            "share": 25,
+            "yield_percent": 15,
+            "short_term_yield_percent": 15
+          },
+          {
+            "name": "ДСЖ Рантье",
+            "share": 30,
+            "yield_percent": 17,
+            "short_term_yield_percent": 17
+          }
+        ],
+        "monthly_contributions": {
+          "rows": [
+            {
+              "date": "2026-04-01",
+              "replenishment": 4900000
+            },
+            {
+              "date": "2026-05-07",
+              "replenishment": 40000
+            },
+            {
+              "date": "2026-06-07",
+              "replenishment": 40191.54
+            },
+            {
+              "date": "2026-07-07",
+              "replenishment": 40384
+            },
+            {
+              "date": "2026-08-07",
+              "replenishment": 40577.38
+            },
+            {
+              "date": "2026-09-07",
+              "replenishment": 40771.68
+            }
+          ],
+          "total_rows": 61
+        }
+      }
+    },
+    {
+      "id": 1161,
+      "details": {
+        "portfolio_id": 73,
+        "portfolio_name": "Финрезерв",
+        "monthly_schedule": [
+          {
+            "date": "2026-05-07",
+            "cofinancing": 0,
+            "replenishment": 50000,
+            "tax_deduction": 0,
+            "total_capital": 150948.88
+          },
+          {
+            "date": "2026-06-07",
+            "cofinancing": 0,
+            "replenishment": 50239.43,
+            "tax_deduction": 0,
+            "total_capital": 202620.63
+          },
+          {
+            "date": "2026-07-07",
+            "cofinancing": 0,
+            "replenishment": 50480,
+            "tax_deduction": 0,
+            "total_capital": 255023.25
+          },
+          {
+            "date": "2026-08-07",
+            "cofinancing": 0,
+            "replenishment": 50721.72,
+            "tax_deduction": 0,
+            "total_capital": 308164.84
+          },
+          {
+            "date": "2026-09-07",
+            "cofinancing": 0,
+            "replenishment": 50964.6,
+            "tax_deduction": 0,
+            "total_capital": 362053.55
+          },
+          {
+            "date": "2026-10-07",
+            "cofinancing": 0,
+            "replenishment": 51208.65,
+            "tax_deduction": 0,
+            "total_capital": 416697.65
+          },
+          {
+            "date": "2026-11-07",
+            "cofinancing": 0,
+            "replenishment": 51453.86,
+            "tax_deduction": 0,
+            "total_capital": 472105.47
+          },
+          {
+            "date": "2026-12-07",
+            "cofinancing": 0,
+            "replenishment": 51700.25,
+            "tax_deduction": 0,
+            "total_capital": 528285.44
+          },
+          {
+            "date": "2027-01-07",
+            "cofinancing": 0,
+            "replenishment": 51947.82,
+            "tax_deduction": 0,
+            "total_capital": 585246.05
+          },
+          {
+            "date": "2027-02-07",
+            "cofinancing": 0,
+            "replenishment": 52196.57,
+            "tax_deduction": 0,
+            "total_capital": 642995.89
+          },
+          {
+            "date": "2027-03-07",
+            "cofinancing": 0,
+            "replenishment": 52446.52,
+            "tax_deduction": 0,
+            "total_capital": 701543.67
+          },
+          {
+            "date": "2027-04-07",
+            "cofinancing": 0,
+            "replenishment": 52697.66,
+            "tax_deduction": 0,
+            "total_capital": 760898.12
+          }
+        ],
+        "yearly_breakdown": [],
+        "initial_instruments": [
+          {
+            "name": "Накопительный счет",
+            "share": 100,
+            "yield": 12,
+            "amount": 100000,
+            "product_type": "DEPOSIT",
+            "short_term_yield": 12
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "Накопительный счет",
+            "share": 100,
+            "yield": 12,
+            "amount": 50000,
+            "product_type": "DEPOSIT",
+            "short_term_yield": 12,
+            "payment_frequency": "monthly"
+          }
+        ]
+      },
+      "goal_id": 1161,
+      "summary": {
+        "status": "OK",
+        "target_months": 12,
+        "initial_capital": 100000,
+        "total_tax_benefit": 0,
+        "target_amount_future": 760898.12,
+        "monthly_replenishment": 50000,
+        "target_amount_initial": 100000,
+        "projected_capital_at_end": 760898.12,
+        "accumulation_yield_percent": 12
+      },
+      "goal_name": "Финансовый резерв",
+      "goal_type": "FIN_RESERVE",
+      "goal_type_id": 7,
+      "risk_profile": "BALANCED",
+      "pdf_metrics": {
+        "goal_type": "FIN_RESERVE",
+        "portfolio_yield_percent": 12,
+        "initial_instruments": [
+          {
+            "name": "Накопительный счет",
+            "share": 100,
+            "yield_percent": 12,
+            "short_term_yield_percent": 12
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "Накопительный счет",
+            "share": 100,
+            "yield_percent": 12,
+            "short_term_yield_percent": 12
+          }
+        ],
+        "monthly_contributions": {
+          "rows": [
+            {
+              "date": "2026-05-07",
+              "replenishment": 50000
+            },
+            {
+              "date": "2026-06-07",
+              "replenishment": 50239.43
+            },
+            {
+              "date": "2026-07-07",
+              "replenishment": 50480
+            },
+            {
+              "date": "2026-08-07",
+              "replenishment": 50721.72
+            },
+            {
+              "date": "2026-09-07",
+              "replenishment": 50964.6
+            },
+            {
+              "date": "2026-10-07",
+              "replenishment": 51208.65
+            }
+          ],
+          "total_rows": 12
+        }
+      }
+    }
+  ],
+  "goal_type_parameter_catalog": {
+    "INVESTMENT": {
+      "summary_fields": [
+        "accumulation_yield_percent",
+        "initial_capital",
+        "monthly_replenishment",
+        "projected_capital_at_end",
+        "status",
+        "target_months",
+        "total_cofinancing",
+        "total_tax_benefit"
+      ],
+      "details_fields": [
+        "initial_instruments",
+        "monthly_instruments",
+        "monthly_schedule",
+        "portfolio_id",
+        "portfolio_name",
+        "yearly_breakdown"
+      ],
+      "template_settings": [
+        "summary_background_url",
+        "summary_background_darkness_percent",
+        "summary_logo_url",
+        "summary_chart_color",
+        "summary_text_color",
+        "summary_line_color"
+      ]
+    },
+    "FIN_RESERVE": {
+      "summary_fields": [
+        "accumulation_yield_percent",
+        "initial_capital",
+        "monthly_replenishment",
+        "projected_capital_at_end",
+        "status",
+        "target_amount_future",
+        "target_amount_initial",
+        "target_months",
+        "total_tax_benefit"
+      ],
+      "details_fields": [
+        "initial_instruments",
+        "monthly_instruments",
+        "monthly_schedule",
+        "portfolio_id",
+        "portfolio_name",
+        "yearly_breakdown"
+      ],
+      "template_settings": [
+        "summary_background_url",
+        "summary_background_darkness_percent",
+        "summary_logo_url",
+        "summary_chart_color",
+        "summary_text_color",
+        "summary_line_color"
+      ]
+    }
+  },
+  "ai_executive_summary": {
+    "summary_text": "Не удалось сгенерировать резюме.",
+    "insurance_protection": []
+  },
+  "pdf_summary_layout": {
+    "version": 1,
+    "goal_card_assets": {
+      "directory_repo_relative": "assets/reports/goal-cards",
+      "r2_key_prefix": "pdf-report-goal-cards",
+      "rule": "Локально: goal_type + расширение, иначе DEFAULT.*. В R2 после seed: ключи pdf-report-goal-cards/{имя_файла}. В API у карточки: public_url (CDN), если задан R2_PUBLIC_* и файлы залиты."
+    },
+    "layout_hints": {
+      "keep_blocks_together": [
+        "capital_distribution"
+      ],
+      "main_goals_on_first_overview_html": 3,
+      "suggested_goals_per_continuation_page": 2
+    },
+    "overview_main_goal_cards": [
+      {
+        "goal_id": 1160,
+        "goal_type": "INVESTMENT",
+        "goal_name": "Сохранить и преумножить",
+        "term_years": 5,
+        "row_right_label": "Стоимость:",
+        "row_right_display": "—",
+        "goal_card_image": {
+          "repo_relative_path": "assets/reports/goal-cards/INVESTMENT.png",
+          "r2_object_key": "pdf-report-goal-cards/INVESTMENT.png",
+          "public_url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/pdf-report-goal-cards/INVESTMENT.png"
+        }
+      }
+    ],
+    "goals_continuation": null,
+    "capital_distribution": {
+      "block_id": "capital_distribution",
+      "title": "Распределение капитала",
+      "initial_capital": {
+        "title": "Распределение начального капитала по целям",
+        "total": 5000000,
+        "total_display": "5 000 000 ₽",
+        "segments": [
+          {
+            "goal_id": 1160,
+            "goal_type": "INVESTMENT",
+            "goal_name": "Сохранить и преумножить",
+            "amount": 4900000,
+            "share_percent": 98
+          },
+          {
+            "goal_id": 1161,
+            "goal_type": "FIN_RESERVE",
+            "goal_name": "Финансовый резерв",
+            "amount": 100000,
+            "share_percent": 2
+          }
+        ]
+      },
+      "monthly_replenishment": {
+        "title": "Распределение ежемесячных пополнений по целям",
+        "total": 90000,
+        "total_display": "90 000 ₽/мес",
+        "segments": [
+          {
+            "goal_id": 1160,
+            "goal_type": "INVESTMENT",
+            "goal_name": "Сохранить и преумножить",
+            "amount": 40000,
+            "share_percent": 44
+          },
+          {
+            "goal_id": 1161,
+            "goal_type": "FIN_RESERVE",
+            "goal_name": "Финансовый резерв",
+            "amount": 50000,
+            "share_percent": 56
+          }
+        ]
+      }
+    }
+  }
+}

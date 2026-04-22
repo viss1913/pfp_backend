@@ -1,0 +1,19 @@
+{
+  "goals": [
+    {
+      "goal_type_id": 4,
+      "name": "Квартира (тест расчёта)",
+      "target_amount": 10000000,
+      "term_months": 240,
+      "initial_capital": 1000000,
+      "risk_profile": "BALANCED"
+    }
+  ],
+  "client": {
+    "sex": "male",
+    "birth_date": "1986-03-28",
+    "avg_monthly_income": 130000,
+    "total_liquid_capital": 1000000,
+    "fio": "Тест квартира API"
+  }
+}

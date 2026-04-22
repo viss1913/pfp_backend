@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Финам — страницы целей (черновик верстальщика)</title>
+  <!--
+    Страницы целей отчёта Финам (тема default, не Ростех).
+    Прод: src/reports/goalPages/buildGoalPagesHtml.js — buildGoalPageHtml по goal_type.
+
+    Ниже в одном файле — секции под типы. Можно дублировать файл на отдельные HTML
+    по желанию команды; для сборки в код всё равно пойдёт по типам.
+  -->
+  <style>
+    html, body { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: inherit; }
+
+    /* Общие стили для всех типов целей (если нужны) */
+  </style>
+</head>
+<body>
+
+  <!-- ========== FIN_RESERVE — финансовая подушка ========== -->
+  <section data-finam-designer-goal="FIN_RESERVE" style="outline: 1px dashed #ccc; margin-bottom: 2rem;">
+    <!-- разметка + <style> этой цели при необходимости -->
+  </section>
+
+  <!-- ========== LIFE — защита жизни ========== -->
+  <section data-finam-designer-goal="LIFE" style="outline: 1px dashed #ccc; margin-bottom: 2rem;">
+    <!-- разметка -->
+  </section>
+
+  <!-- ========== INVESTMENT ========== -->
+  <section data-finam-designer-goal="INVESTMENT" style="outline: 1px dashed #ccc; margin-bottom: 2rem;">
+    <!-- разметка -->
+  </section>
+
+  <!-- ========== OTHER — прочее ========== -->
+  <section data-finam-designer-goal="OTHER" style="outline: 1px dashed #ccc; margin-bottom: 2rem;">
+    <!-- разметка -->
+  </section>
+
+</body>
+</html>

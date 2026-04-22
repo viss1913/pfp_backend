@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @page { size: 595px 842px; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body { font-family: 'DejaVu Sans', sans-serif; color: #212121; }
+    .page {
+      position: relative;
+      width: 595px;
+      height: 842px;
+      overflow: hidden;
+      background: #fff;
+      padding: 30px;
+    }
+    .bg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: #f7f7f7;
+    }
+    .bg img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.16;
+      filter: grayscale(100%);
+    }
+    .inner { position: relative; z-index: 1; }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .h1 { font-size: 26px; line-height: 1.15; font-weight: 700; margin: 0; }
+    .sub { margin-top: 6px; font-size: 14px; color: #4b5563; }
+    .logo { height: 24px; width: auto; object-fit: contain; }
+    .card {
+      border: 1px solid #d7d7d7;
+      border-radius: 12px;
+      background: #fff;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .muted { font-size: 12px; color: #4b5563; }
+    .pill {
+      display: inline-block;
+      border: 1px solid #722257;
+      color: #722257;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-weight: 700;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .footer {
+      position: absolute;
+      left: 30px;
+      right: 30px;
+      bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 16px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .footer__left {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+      max-width: 420px;
+    }
+    .footer__disclaimer {
+      font-size: 10px;
+      line-height: 1.25;
+      color: #212121;
+    }
+    .footer__logo {
+      height: 19px;
+      width: auto;
+      max-width: 120px;
+      object-fit: contain;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="bg"></div>
+    <div class="inner">
+      <div class="top">
+        <div>
+          <h1 class="h1">Ваш финансовый план</h1>
+          
+        </div>
+        <img class="logo" src="file:///C:/Users/User/Desktop/backend%20PFP/assets/reports/rostech/rostech-logo-59-51.webp" alt="" />
+      </div>
+      
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <img src="file:///C:/Users/User/Desktop/backend%20PFP/assets/reports/rostech/pension-avatar-59-31.webp" alt="" style="width:60px;height:68px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
+                <div style="flex:1;min-width:0;background:#fff;border:1px solid #f1f1f1;border-radius:10px;padding:10px;">
+                  <div style="font-size:13px;line-height:14px;color:#212121;">
+                    Я подготовила детальный план для достижения вашей финансовой цели.<br/><br/>
+                    Ваш текущий доход — 110 000 ₽/мес. после вычета НДФЛ.<br/><br/>
+                    Ваша финансовая цель:
+                  </div>
+                  <div style="display:flex;gap:24px;align-items:flex-start;margin-top:12px;">
+                    <img src="file:///C:/Users/User/Desktop/backend%20PFP/assets/reports/rostech/pension-goal-59-32.webp" alt="" style="width:120px;height:70px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
+                    <div style="font-size:13px;line-height:14px;color:#212121;">
+                      <b>1. Достойная пенсия</b><br/><br/>
+                      Старт выплат — 2051 г.<br/>
+                      Желаемая пенсия — 100 000 ₽/мес.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="position:relative;border:1px solid #8a2d69;border-radius:12px;padding:34px 20px 14px;background:#fff;margin-top:28px;">
+                <div style="position:absolute;left:0;right:0;top:-1px;height:1px;">
+                  <div style="position:absolute;left:0;top:0;width:138px;height:1px;background:#8a2d69;"></div>
+                  <div style="position:absolute;right:0;top:0;width:138px;height:1px;background:#8a2d69;"></div>
+                </div>
+                <div style="position:absolute;left:50%;top:-11px;transform:translateX(-50%);background:#fff;padding:0 12px;font-size:16px;font-weight:700;line-height:1.1;">
+                  Рост стоимости цели с учетом инфляции
+                </div>
+
+                <div style="display:flex;justify-content:space-evenly;align-items:flex-end;gap:38px;padding-top:8px;">
+                  <div style="width:190px;text-align:center;">
+                    <div style="font-size:16px;font-weight:400;line-height:18px;">100 000 ₽/мес.</div>
+                    <div style="height:62px;width:53px;background:#8f8f8c;margin:8px auto 0;"></div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Желаемая пенсия<br/>в сегодняшних деньгах</div>
+                  </div>
+                  <div style="width:220px;text-align:center;">
+                    <div style="font-size:16px;font-weight:400;line-height:18px;">412 346 ₽/мес.</div>
+                    <div style="height:104px;width:53px;background:#722257;margin:8px auto 0;"></div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Желаемая пенсия в 2051 г.<br/>с учетом инфляции 5,6% в год</div>
+                  </div>
+                </div>
+              </div>
+            
+    </div>
+    <div class="footer">
+      <div class="footer__left">
+        <div class="footer__disclaimer">Финансовый план не является коммерческим предложением или договором,<br/>носит исключительно информационный характер.</div>
+        <img class="footer__logo" src="file:///C:/Users/User/Desktop/backend%20PFP/assets/reports/rostech/rostech-logo-59-51.webp" alt="" />
+      </div>
+      <div style="white-space:nowrap;">Страница PDF</div>
+    </div>
+  </div>
+</body>
+</html>

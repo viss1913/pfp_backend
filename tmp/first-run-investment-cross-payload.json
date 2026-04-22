@@ -1,0 +1,19 @@
+{
+  "client": {
+    "birth_date": "1996-03-28",
+    "sex": "male",
+    "avg_monthly_income": 260000,
+    "total_liquid_capital": 1200000,
+    "fio": "Кросс-проверка инвест vs пассивный"
+  },
+  "goals": [
+    {
+      "goal_type_id": 3,
+      "name": "Сохранить и приумножить (кросс)",
+      "term_months": 120,
+      "initial_capital": 1200000,
+      "monthly_replenishment": 86530.66,
+      "risk_profile": "BALANCED"
+    }
+  ]
+}

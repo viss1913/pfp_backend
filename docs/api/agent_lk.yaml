@@ -596,6 +596,35 @@ paths:
         '200':
           description: Потоковый ответ SSE
 
+  /pfp/ai/plan-assistant/chat:
+    post:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Чат план-ассистента по конкретному клиенту
+      description: |
+        Специализированный чат для повторного входа в финансовый план после firstRun.
+        Бэкенд на лету подмешивает контекст:
+        - карточка клиента и `goals_summary`;
+        - доступные продукты проекта;
+        - доступные портфели проекта.
+        
+        История изолируется отдельным ассистентом (`ai-plan-assistant`) и не смешивается
+        с обычным CRM-чатом.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiPlanAssistantChatRequest'
+      responses:
+        '200':
+          description: Потоковый ответ SSE
+        '400':
+          description: Нет client_id/message или отсутствует project context
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент не найден
+
   /pfp/crm/briefing:
     get:
       tags: [ "AI CRM (ЛК Агента)" ]
@@ -1596,6 +1625,21 @@ components:
         notes:
           type: string
           nullable: true
+
+    AiPlanAssistantChatRequest:
+      type: object
+      required: [client_id, message]
+      properties:
+        client_id:
+          type: integer
+          description: ID клиента в текущем project_id
+        message:
+          type: string
+          description: Вопрос агента по плану клиента
+        assistant_id:
+          type: integer
+          nullable: true
+          description: Опционально. Если не передан, используется `ai-plan-assistant`
 
     ChatAiMessage:
       type: object

@@ -1,0 +1,68 @@
+{
+  "assets": [
+    {
+      "type": "CASH",
+      "name": "Наличные",
+      "current_value": 400000,
+      "currency": "RUB",
+      "start_date": "2026-04-10",
+      "risk_level": "conservative"
+    }
+  ],
+  "client": {
+    "birth_date": "2000-12-12",
+    "gender": "male",
+    "avg_monthly_income": 150000,
+    "total_liquid_capital": 400000,
+    "external_uuid": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "family_profile": {
+      "marital_status": "married",
+      "children": [],
+      "contacts": [],
+      "spouse": { "monthly_income": 100000 },
+      "family_obligations": [
+        { "type": "loans", "amount_monthly": 10000 },
+        { "type": "mortgage", "amount_monthly": 0 }
+      ],
+      "real_estate": [],
+      "confidentiality": { "allow_spouse_access": false, "allow_family_contact": false }
+    },
+    "first_name": "вапвапваап",
+    "last_name": "Unknown",
+    "middle_name": "",
+    "phone": "+7(424)323-23-23",
+    "project_id": 14,
+    "risk_profile_answers": { "q2": 4, "q3": 3, "q4": 3, "q5": 3, "q6": 3, "q7": 3, "q8": 3, "q9": 3, "q10": 3 }
+  },
+  "expenses": [],
+  "goals": [
+    {
+      "goal_type_id": 1,
+      "name": "Достойная пенсия",
+      "risk_profile": "BALANCED",
+      "inflation_rate": 5.6,
+      "desired_monthly_income": 100000,
+      "target_amount": 100000,
+      "term_months": 120
+    },
+    {
+      "goal_type_id": 4,
+      "name": "Переезд",
+      "risk_profile": "BALANCED",
+      "inflation_rate": 5.6,
+      "target_amount": 3000000,
+      "term_months": 60
+    },
+    {
+      "goal_type_id": 7,
+      "name": "Финансовый резерв",
+      "risk_profile": "CONSERVATIVE",
+      "inflation_rate": 10,
+      "initial_capital": 100000,
+      "monthly_replenishment": 5000,
+      "target_amount": 100000,
+      "term_months": 12
+    }
+  ],
+  "liabilities": []
+}

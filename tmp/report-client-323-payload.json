@@ -1,0 +1,1238 @@
+{
+  "client_info": {
+    "id": 323,
+    "first_name": "TEST1",
+    "last_name": "TEST1",
+    "full_name": "TEST1 TEST1",
+    "avg_monthly_income": 150000,
+    "age": 39,
+    "email": "dkk@kdk.ru",
+    "income_display": "150 000 ₽/мес"
+  },
+  "current_situation": {
+    "assets_total": 0,
+    "liabilities_total": 0,
+    "net_worth": 0,
+    "stock_capital_context": {
+      "stock_initial_capital": 735000,
+      "stock_monthly_replenishment": 30956.13,
+      "stock_total_capital_for_min_sum": 765956.13
+    },
+    "assets_breakdown": []
+  },
+  "overall_plan": {
+    "chart_waterfall": {
+      "invested_by_client": 11836454,
+      "state_support_nominal": 864512,
+      "investment_income": 24320666,
+      "total_projected": 37021632
+    },
+    "consolidated_portfolio": {
+      "assets_allocation": [
+        {
+          "name": "Портфель облигаций (автоследование)",
+          "share": 32,
+          "yield": 23,
+          "amount": 735000,
+          "short_term_yield": 23,
+          "product_type": "BOND"
+        },
+        {
+          "name": "Управляемый портфель акций (автоследование)",
+          "share": 32,
+          "yield": 34,
+          "amount": 735000,
+          "short_term_yield": 34,
+          "product_type": "STOCK"
+        },
+        {
+          "name": "Банковский накопительный счет",
+          "share": 23,
+          "yield": 13,
+          "amount": 530000,
+          "short_term_yield": 13,
+          "product_type": "DEPOSIT"
+        },
+        {
+          "name": "НСЖ Династия",
+          "share": 13,
+          "yield": 5,
+          "amount": 300000,
+          "short_term_yield": 5
+        }
+      ],
+      "cash_flow_allocation": [
+        {
+          "name": "Портфель облигаций (автоследование)",
+          "share": 30,
+          "yield": 23,
+          "amount": 30956.13,
+          "short_term_yield": 23,
+          "payment_frequency": "monthly",
+          "product_type": "BOND"
+        },
+        {
+          "name": "Управляемый портфель акций (автоследование)",
+          "share": 30,
+          "yield": 34,
+          "amount": 30956.13,
+          "short_term_yield": 34,
+          "payment_frequency": "monthly",
+          "product_type": "STOCK"
+        },
+        {
+          "name": "НСЖ Династия",
+          "share": 24,
+          "yield": 5,
+          "amount": 25000,
+          "short_term_yield": 5,
+          "payment_frequency": "monthly"
+        },
+        {
+          "name": "Банковский накопительный счет",
+          "share": 12,
+          "yield": 13,
+          "amount": 12000,
+          "short_term_yield": 13,
+          "payment_frequency": "monthly",
+          "product_type": "DEPOSIT"
+        },
+        {
+          "name": "ПДС НПФ Ренессанс",
+          "share": 4,
+          "yield": 14,
+          "amount": 3925.73,
+          "short_term_yield": 14,
+          "payment_frequency": "monthly",
+          "product_type": "PDS"
+        }
+      ],
+      "total_initial_capital": 2300000,
+      "total_monthly_replenishment": 102837.98
+    },
+    "tax_benefits": {
+      "totals": {
+        "deduction_2026": 24170.41,
+        "cofinancing_2026": 17963,
+        "total_deductions": 570633.25,
+        "total_cofinancing": 293879,
+        "total_state_benefits": 864512.25
+      },
+      "nsj_benefits": {
+        "annual_premium": 300000,
+        "deduction_2026": 19500,
+        "total_deductions": 292500
+      },
+      "pds_benefits": {
+        "deduction_2026": 4670.41,
+        "cofinancing_2026": 17963,
+        "total_deductions": 278133.25,
+        "total_cofinancing": 293879
+      }
+    },
+    "pdf_metrics": {
+      "portfolio": {
+        "total_initial_capital": 2300000,
+        "total_monthly_replenishment": 102837.98,
+        "estimated_portfolio_yield_percent": 18.5,
+        "assets_allocation": [
+          {
+            "name": "Портфель облигаций (автоследование)",
+            "share_percent": 32,
+            "yield_percent": 23,
+            "short_term_yield_percent": 23
+          },
+          {
+            "name": "Управляемый портфель акций (автоследование)",
+            "share_percent": 32,
+            "yield_percent": 34,
+            "short_term_yield_percent": 34
+          },
+          {
+            "name": "Банковский накопительный счет",
+            "share_percent": 23,
+            "yield_percent": 13,
+            "short_term_yield_percent": 13
+          },
+          {
+            "name": "НСЖ Династия",
+            "share_percent": 13,
+            "yield_percent": 5,
+            "short_term_yield_percent": 5
+          }
+        ],
+        "cash_flow_allocation": [
+          {
+            "name": "Портфель облигаций (автоследование)",
+            "share_percent": 30,
+            "yield_percent": 23,
+            "short_term_yield_percent": 23
+          },
+          {
+            "name": "Управляемый портфель акций (автоследование)",
+            "share_percent": 30,
+            "yield_percent": 34,
+            "short_term_yield_percent": 34
+          },
+          {
+            "name": "НСЖ Династия",
+            "share_percent": 24,
+            "yield_percent": 5,
+            "short_term_yield_percent": 5
+          },
+          {
+            "name": "Банковский накопительный счет",
+            "share_percent": 12,
+            "yield_percent": 13,
+            "short_term_yield_percent": 13
+          },
+          {
+            "name": "ПДС НПФ Ренессанс",
+            "share_percent": 4,
+            "yield_percent": 14,
+            "short_term_yield_percent": 14
+          }
+        ]
+      }
+    }
+  },
+  "goals_detailed": [
+    {
+      "id": 954,
+      "details": {
+        "state_pension": {
+          "ipk_total": 230.82,
+          "ipk_current": 79.76,
+          "ipk_forecast": 151.06,
+          "retirement_age": 65,
+          "retirement_year": 2051,
+          "point_cost_today": 156.76,
+          "years_to_pension": 25,
+          "point_cost_future": 530.85,
+          "fixed_payment_today": 9584,
+          "fixed_payment_future": 32454.83
+        },
+        "yearly_breakdown": [
+          {
+            "year": 2026,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2027,
+            "month": 12,
+            "cofinancing_for_year": 17963,
+            "tax_refund_projected": 4670.41
+          },
+          {
+            "year": 2028,
+            "month": 12,
+            "cofinancing_for_year": 25020,
+            "tax_refund_projected": 6505.4
+          },
+          {
+            "year": 2029,
+            "month": 12,
+            "cofinancing_for_year": 26300,
+            "tax_refund_projected": 6838.23
+          },
+          {
+            "year": 2030,
+            "month": 12,
+            "cofinancing_for_year": 27646,
+            "tax_refund_projected": 7188.08
+          },
+          {
+            "year": 2031,
+            "month": 12,
+            "cofinancing_for_year": 29060,
+            "tax_refund_projected": 7555.84
+          },
+          {
+            "year": 2032,
+            "month": 12,
+            "cofinancing_for_year": 30547,
+            "tax_refund_projected": 7942.41
+          },
+          {
+            "year": 2033,
+            "month": 12,
+            "cofinancing_for_year": 32110,
+            "tax_refund_projected": 8348.76
+          },
+          {
+            "year": 2034,
+            "month": 12,
+            "cofinancing_for_year": 33753,
+            "tax_refund_projected": 8775.9
+          },
+          {
+            "year": 2035,
+            "month": 12,
+            "cofinancing_for_year": 35480,
+            "tax_refund_projected": 9224.89
+          },
+          {
+            "year": 2036,
+            "month": 12,
+            "cofinancing_for_year": 36000,
+            "tax_refund_projected": 9696.85
+          },
+          {
+            "year": 2037,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 10192.96
+          },
+          {
+            "year": 2038,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 10714.45
+          },
+          {
+            "year": 2039,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 11262.63
+          },
+          {
+            "year": 2040,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 11838.84
+          },
+          {
+            "year": 2041,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 12444.54
+          },
+          {
+            "year": 2042,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 13081.23
+          },
+          {
+            "year": 2043,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 13750.49
+          },
+          {
+            "year": 2044,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 14453.99
+          },
+          {
+            "year": 2045,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 15193.48
+          },
+          {
+            "year": 2046,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 15970.81
+          },
+          {
+            "year": 2047,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 16787.91
+          },
+          {
+            "year": 2048,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 17646.81
+          },
+          {
+            "year": 2049,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 18549.65
+          },
+          {
+            "year": 2050,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 19498.69
+          },
+          {
+            "year": 2051,
+            "month": 3,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          }
+        ],
+        "initial_instruments": [
+          {
+            "name": "ПДС НПФ Ренессанс",
+            "share": 100,
+            "yield": 14,
+            "short_term_yield": 14,
+            "product_type": "PDS"
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "ПДС НПФ Ренессанс",
+            "share": 100,
+            "yield": 14,
+            "amount": 3925.7303590850606,
+            "short_term_yield": 14,
+            "product_type": "PDS"
+          }
+        ]
+      },
+      "goal_id": 954,
+      "summary": {
+        "status": "OK",
+        "ipk_current": 79.76,
+        "target_months": 300,
+        "inflation_rate": 5,
+        "initial_capital": 0,
+        "total_cofinancing": 293879,
+        "total_tax_benefit": 278133.25,
+        "pension_gap_future": 183653.3,
+        "initial_capital_ops": 0,
+        "payout_yield_percent": 12,
+        "target_amount_future": 338635.49,
+        "monthly_replenishment": 3925.73,
+        "target_amount_initial": 100000,
+        "accumulation_yield_percent": 14,
+        "state_pension_monthly_today": 45766.67,
+        "state_pension_monthly_future": 154982.19,
+        "required_capital_at_retirement": 18365330.41,
+        "projected_capital_at_retirement": 18365330.45,
+        "projected_pension_monthly_future": 338635.49,
+        "projected_pension_monthly_present": 100000
+      },
+      "goal_name": "Достойная пенсия",
+      "goal_type": "PENSION",
+      "goal_type_id": 1,
+      "risk_profile": "BALANCED",
+      "pdf_metrics": {
+        "goal_type": "PENSION",
+        "portfolio_yield_percent": 14,
+        "initial_instruments": [
+          {
+            "name": "ПДС НПФ Ренессанс",
+            "share": 100,
+            "yield_percent": 14,
+            "short_term_yield_percent": 14
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "ПДС НПФ Ренессанс",
+            "share": 100,
+            "yield_percent": 14,
+            "short_term_yield_percent": 14
+          }
+        ],
+        "monthly_contributions": {
+          "rows": [],
+          "total_rows": 0
+        }
+      }
+    },
+    {
+      "id": 955,
+      "details": {
+        "portfolio_id": 65,
+        "portfolio_name": "Основной",
+        "yearly_breakdown": [
+          {
+            "year": 2026,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2027,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2028,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2029,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2030,
+            "month": 12,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          },
+          {
+            "year": 2031,
+            "month": 3,
+            "cofinancing_for_year": 0,
+            "tax_refund_projected": 0
+          }
+        ],
+        "initial_instruments": [
+          {
+            "name": "Портфель облигаций (автоследование)",
+            "share": 50,
+            "yield": 23,
+            "amount": 735000,
+            "product_type": "BOND"
+          },
+          {
+            "name": "Управляемый портфель акций (автоследование)",
+            "share": 50,
+            "yield": 34,
+            "amount": 735000,
+            "product_type": "STOCK"
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "Портфель облигаций (автоследование)",
+            "share": 50,
+            "yield": 23,
+            "amount": 30956.12612486975,
+            "product_type": "BOND"
+          },
+          {
+            "name": "Управляемый портфель акций (автоследование)",
+            "share": 50,
+            "yield": 34,
+            "amount": 30956.12612486975,
+            "product_type": "STOCK"
+          }
+        ]
+      },
+      "goal_id": 955,
+      "summary": {
+        "status": "OK",
+        "target_months": 60,
+        "inflation_rate": 5,
+        "initial_capital": 1470000,
+        "total_cofinancing": 0,
+        "total_tax_benefit": 0,
+        "target_amount_future": 13400956.41,
+        "monthly_replenishment": 61912.25,
+        "target_amount_initial": 10500000,
+        "projected_capital_at_end": 13400956.41,
+        "accumulation_yield_percent": 28.5
+      },
+      "goal_name": "Квартира",
+      "goal_type": "OTHER",
+      "goal_type_id": 4,
+      "risk_profile": "BALANCED",
+      "pdf_metrics": {
+        "goal_type": "OTHER",
+        "portfolio_yield_percent": 28.5,
+        "initial_instruments": [
+          {
+            "name": "Портфель облигаций (автоследование)",
+            "share": 50,
+            "yield_percent": 23,
+            "short_term_yield_percent": null
+          },
+          {
+            "name": "Управляемый портфель акций (автоследование)",
+            "share": 50,
+            "yield_percent": 34,
+            "short_term_yield_percent": null
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "Портфель облигаций (автоследование)",
+            "share": 50,
+            "yield_percent": 23,
+            "short_term_yield_percent": null
+          },
+          {
+            "name": "Управляемый портфель акций (автоследование)",
+            "share": 50,
+            "yield_percent": 34,
+            "short_term_yield_percent": null
+          }
+        ],
+        "monthly_contributions": {
+          "rows": [],
+          "total_rows": 0
+        }
+      }
+    },
+    {
+      "id": 956,
+      "details": {
+        "portfolio_id": 64,
+        "portfolio_name": "Финрезерв",
+        "yearly_breakdown": [],
+        "initial_instruments": [
+          {
+            "name": "Банковский накопительный счет",
+            "share": 100,
+            "yield": 13,
+            "amount": 530000,
+            "short_term_yield": 13,
+            "product_type": "DEPOSIT"
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "Банковский накопительный счет",
+            "share": 100,
+            "yield": 13,
+            "amount": 12000,
+            "short_term_yield": 13,
+            "payment_frequency": "monthly",
+            "product_type": "DEPOSIT"
+          }
+        ]
+      },
+      "goal_id": 956,
+      "summary": {
+        "status": "OK",
+        "target_months": 12,
+        "initial_capital": 530000,
+        "total_tax_benefit": 0,
+        "target_amount_future": 755345.16,
+        "monthly_replenishment": 12000,
+        "target_amount_initial": 530000,
+        "projected_capital_at_end": 755345.16,
+        "accumulation_yield_percent": 13
+      },
+      "goal_name": "Финансовый резерв",
+      "goal_type": "FIN_RESERVE",
+      "goal_type_id": 7,
+      "risk_profile": "BALANCED",
+      "pdf_metrics": {
+        "goal_type": "FIN_RESERVE",
+        "portfolio_yield_percent": 13,
+        "initial_instruments": [
+          {
+            "name": "Банковский накопительный счет",
+            "share": 100,
+            "yield_percent": 13,
+            "short_term_yield_percent": 13
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "Банковский накопительный счет",
+            "share": 100,
+            "yield_percent": 13,
+            "short_term_yield_percent": 13
+          }
+        ],
+        "monthly_contributions": {
+          "rows": [],
+          "total_rows": 0
+        }
+      }
+    },
+    {
+      "id": 957,
+      "details": {
+        "risks": [
+          {
+            "risk_name": "Уход из жизни (любая причина)",
+            "limit_amount": 4500000
+          },
+          {
+            "risk_name": "Инвалидность I-II гр.",
+            "limit_amount": 4500000
+          },
+          {
+            "risk_name": "Критические заболевания",
+            "limit_amount": 22500000
+          }
+        ],
+        "program_name": "НСЖ Династия",
+        "annual_premium": 300000,
+        "tax_deduction_2026": 19500,
+        "initial_instruments": [
+          {
+            "name": "НСЖ Династия",
+            "share": 100,
+            "yield": 5,
+            "amount": 300000
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "НСЖ Династия",
+            "share": 100,
+            "yield": 5,
+            "amount": 25000,
+            "payment_frequency": "monthly"
+          }
+        ],
+        "total_tax_deductions": 292500
+      },
+      "goal_id": 957,
+      "summary": {
+        "status": "OK",
+        "target_months": 180,
+        "initial_capital": 300000,
+        "target_coverage": 4500000,
+        "premium_frequency": "monthly",
+        "total_tax_benefit": 292500,
+        "expected_cash_value": 4500000,
+        "target_amount_future": 4500000,
+        "monthly_replenishment": 25000,
+        "target_amount_initial": 4500000,
+        "investment_yield_percent": 5
+      },
+      "goal_name": "Защита Жизни",
+      "goal_type": "LIFE",
+      "goal_type_id": 5,
+      "risk_profile": "BALANCED",
+      "pdf_metrics": {
+        "goal_type": "LIFE",
+        "portfolio_yield_percent": null,
+        "initial_instruments": [
+          {
+            "name": "НСЖ Династия",
+            "share": 100,
+            "yield_percent": 5,
+            "short_term_yield_percent": null
+          }
+        ],
+        "monthly_instruments": [
+          {
+            "name": "НСЖ Династия",
+            "share": 100,
+            "yield_percent": 5,
+            "short_term_yield_percent": null
+          }
+        ],
+        "monthly_contributions": {
+          "rows": [],
+          "total_rows": 0
+        }
+      }
+    }
+  ],
+  "goal_type_parameter_catalog": {
+    "PENSION": {
+      "summary_fields": [
+        "accumulation_yield_percent",
+        "inflation_rate",
+        "initial_capital",
+        "initial_capital_ops",
+        "ipk_current",
+        "monthly_replenishment",
+        "payout_yield_percent",
+        "pension_gap_future",
+        "projected_capital_at_retirement",
+        "projected_pension_monthly_future",
+        "projected_pension_monthly_present",
+        "required_capital_at_retirement",
+        "state_pension_monthly_future",
+        "state_pension_monthly_today",
+        "status",
+        "target_amount_future",
+        "target_amount_initial",
+        "target_months",
+        "total_cofinancing",
+        "total_tax_benefit"
+      ],
+      "details_fields": [
+        "initial_instruments",
+        "monthly_instruments",
+        "state_pension",
+        "yearly_breakdown"
+      ],
+      "template_settings": [
+        "summary_background_url",
+        "summary_background_darkness_percent",
+        "summary_logo_url",
+        "summary_chart_color",
+        "summary_text_color",
+        "summary_line_color"
+      ]
+    },
+    "OTHER": {
+      "summary_fields": [
+        "accumulation_yield_percent",
+        "inflation_rate",
+        "initial_capital",
+        "monthly_replenishment",
+        "projected_capital_at_end",
+        "status",
+        "target_amount_future",
+        "target_amount_initial",
+        "target_months",
+        "total_cofinancing",
+        "total_tax_benefit"
+      ],
+      "details_fields": [
+        "initial_instruments",
+        "monthly_instruments",
+        "portfolio_id",
+        "portfolio_name",
+        "yearly_breakdown"
+      ],
+      "template_settings": [
+        "summary_background_url",
+        "summary_background_darkness_percent",
+        "summary_logo_url",
+        "summary_chart_color",
+        "summary_text_color",
+        "summary_line_color"
+      ]
+    },
+    "FIN_RESERVE": {
+      "summary_fields": [
+        "accumulation_yield_percent",
+        "initial_capital",
+        "monthly_replenishment",
+        "projected_capital_at_end",
+        "status",
+        "target_amount_future",
+        "target_amount_initial",
+        "target_months",
+        "total_tax_benefit"
+      ],
+      "details_fields": [
+        "initial_instruments",
+        "monthly_instruments",
+        "portfolio_id",
+        "portfolio_name",
+        "yearly_breakdown"
+      ],
+      "template_settings": [
+        "summary_background_url",
+        "summary_background_darkness_percent",
+        "summary_logo_url",
+        "summary_chart_color",
+        "summary_text_color",
+        "summary_line_color"
+      ]
+    },
+    "LIFE": {
+      "summary_fields": [
+        "expected_cash_value",
+        "initial_capital",
+        "investment_yield_percent",
+        "monthly_replenishment",
+        "premium_frequency",
+        "status",
+        "target_amount_future",
+        "target_amount_initial",
+        "target_coverage",
+        "target_months",
+        "total_tax_benefit"
+      ],
+      "details_fields": [
+        "annual_premium",
+        "initial_instruments",
+        "monthly_instruments",
+        "program_name",
+        "risks",
+        "tax_deduction_2026",
+        "total_tax_deductions"
+      ],
+      "template_settings": [
+        "summary_background_url",
+        "summary_background_darkness_percent",
+        "summary_logo_url",
+        "summary_chart_color",
+        "summary_text_color",
+        "summary_line_color"
+      ]
+    }
+  },
+  "ai_executive_summary": {
+    "summary_text": "I need to clearly and concisely explain a complex concept, like quantum entanglement, to a non-scientific audience. Here's what I've drafted so far:\n\n\"Quantum entanglement is when two particles become linked in such a way that they share the same fate, no matter how far apart they are. If you measure a property of one particle, you instantly know the property of the other, even if they’re light-years away. It's not that one particle *causes* the other to change, they were always correlated.  Think of it like having two coins, one hidden in New York and one in Tokyo. You don’t know if either is heads or tails until you look. But, you *know* that if one is heads, the other *must* be tails. That's similar to entanglement – the 'fate' of the particles is decided at the time of entanglement, and revealed when measured.\"\n\nI want to refine this explanation. Specifically, I need to address the following concerns:\n\n*   **The coin analogy is potentially misleading.** While it illustrates correlation, it implies pre-determined states, which isn't quite right in quantum mechanics. The particles don't *have* a defined state until measured.\n*   **The explanation might still sound like faster-than-light communication.**  I need to emphasize that entanglement *cannot* be used to send information faster than light.\n*   **It's a bit abstract.** Can I add a simple, relatable analogy to make grasp the \"linked fate\" aspect more intuitive?\n*   **I want a slightly more engaging opening.**\n\n\n\nHere's what I'm looking for: a revised explanation of quantum entanglement geared towards a non-scientific audience. It should be clear, concise, engaging, and address the concerns above.  I'm open to changes in structure and phrasing.\nHere's a revised explanation of quantum entanglement, aiming for clarity, conciseness, and addressing your concerns:\n\n\"Imagine two gloves – a left and a right – placed in separate boxes and shipped to opposite sides of the world. Once you open one box and see a left-hand glove, you *instantly* know the other box contains a right-hand glove. Quantum entanglement is a bit like that, but far stranger!\n\nInstead of gloves, we're talking about tiny particles. Entanglement links these particles together in a special way, so they become deeply connected, sharing the same fate.  Before we *look* at a particle, it doesn't have a definite property – it's a kind of blur of possibilities. But once we measure a property of one entangled particle, we instantly know the corresponding property of the other, no matter how far apart they are. \n\nThis 'instant knowledge' isn't about information traveling faster than light.  It’s that the particles were linked from the beginning; measuring one simply *reveals* something already determined about the pair, not *changes* the other.  You can’t use this connection to send a message – you can't *choose* what you'll find when you open the box, it's random! Entanglement is a fundamental quirk of the universe, and scientists are still exploring its implications, hoping to use it in exciting new technologies like quantum computing.\"\n\n**Here's a breakdown of the changes and why they were made:**\n\n*   **Engaging Opening:** The glove analogy is more relatable than the coin analogy and draws the reader in.\n*   **Addressing Predetermined States:**  The explanation clearly states the particles don’t have defined properties *until measured*—it’s a “blur of possibilities”. This is crucial for avoiding the misconception that the particles “knew” their states all along.\n*   **Emphasis on No Faster-Than-Light Communication:** The text explicitly states that entanglement cannot be used to send messages.  The phrase \"you can't *choose* what you'll find…\" makes this clearer.\n*   **Linked Fate & Revelation:** The wording focuses on revealing a pre-existing connection rather than causing a change.  \"Measuring one simply *reveals* something already determined about the pair…\"\n*   **Added a Future Outlook:** Mentioning quantum computing adds a little excitement and relevance.\n*   **Simpler Language:** I've tried to use accessible language throughout.\n\n\n\nThis revised explanation strives for a balance between scientific accuracy and understandability for a non-scientific audience.  It uses a relatable analogy and avoids common pitfalls in explaining this complex concept.\n",
+    "insurance_protection": [
+      {
+        "program_name": "НСЖ Династия",
+        "risks": [
+          {
+            "risk_name": "Уход из жизни (любая причина)",
+            "limit_amount": 4500000
+          },
+          {
+            "risk_name": "Инвалидность I-II гр.",
+            "limit_amount": 4500000
+          },
+          {
+            "risk_name": "Критические заболевания",
+            "limit_amount": 22500000
+          }
+        ]
+      }
+    ]
+  },
+  "pdf_summary_layout": {
+    "version": 1,
+    "goal_card_assets": {
+      "directory_repo_relative": "assets/reports/goal-cards",
+      "r2_key_prefix": "pdf-report-goal-cards",
+      "rule": "Локально: goal_type + расширение, иначе DEFAULT.*. В R2 после seed: ключи pdf-report-goal-cards/{имя_файла}. В API у карточки: public_url (CDN), если задан R2_PUBLIC_* и файлы залиты."
+    },
+    "layout_hints": {
+      "keep_blocks_together": [
+        "capital_distribution"
+      ],
+      "main_goals_on_first_overview_html": 3,
+      "suggested_goals_per_continuation_page": 2
+    },
+    "overview_main_goal_cards": [
+      {
+        "goal_id": 954,
+        "goal_type": "PENSION",
+        "goal_name": "Достойная пенсия",
+        "term_years": 25,
+        "row_right_label": "Желаемый доход:",
+        "row_right_display": "100 000 ₽/мес",
+        "goal_card_image": {
+          "repo_relative_path": "assets/reports/summary/goal-default.png",
+          "r2_object_key": "pdf-report-goal-cards/PENSION.png",
+          "public_url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/pdf-report-goal-cards/PENSION.png"
+        }
+      },
+      {
+        "goal_id": 955,
+        "goal_type": "OTHER",
+        "goal_name": "Квартира",
+        "term_years": 5,
+        "row_right_label": "Стоимость:",
+        "row_right_display": "10.5М ₽",
+        "goal_card_image": {
+          "repo_relative_path": "assets/reports/summary/goal-default.png",
+          "r2_object_key": "pdf-report-goal-cards/OTHER.png",
+          "public_url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/pdf-report-goal-cards/OTHER.png"
+        }
+      }
+    ],
+    "goals_continuation": null,
+    "capital_distribution": {
+      "block_id": "capital_distribution",
+      "title": "Распределение капитала",
+      "initial_capital": {
+        "title": "Распределение начального капитала по целям",
+        "total": 2300000,
+        "total_display": "2 300 000 ₽",
+        "segments": [
+          {
+            "goal_id": 954,
+            "goal_type": "PENSION",
+            "goal_name": "Достойная пенсия",
+            "amount": 0,
+            "share_percent": 0
+          },
+          {
+            "goal_id": 955,
+            "goal_type": "OTHER",
+            "goal_name": "Квартира",
+            "amount": 1470000,
+            "share_percent": 64
+          },
+          {
+            "goal_id": 956,
+            "goal_type": "FIN_RESERVE",
+            "goal_name": "Финансовый резерв",
+            "amount": 530000,
+            "share_percent": 23
+          },
+          {
+            "goal_id": 957,
+            "goal_type": "LIFE",
+            "goal_name": "Защита Жизни",
+            "amount": 300000,
+            "share_percent": 13
+          }
+        ]
+      },
+      "monthly_replenishment": {
+        "title": "Распределение ежемесячных пополнений по целям",
+        "total": 102837.98,
+        "total_display": "102 838 ₽/мес",
+        "segments": [
+          {
+            "goal_id": 954,
+            "goal_type": "PENSION",
+            "goal_name": "Достойная пенсия",
+            "amount": 3925.73,
+            "share_percent": 4
+          },
+          {
+            "goal_id": 955,
+            "goal_type": "OTHER",
+            "goal_name": "Квартира",
+            "amount": 61912.25,
+            "share_percent": 60
+          },
+          {
+            "goal_id": 956,
+            "goal_type": "FIN_RESERVE",
+            "goal_name": "Финансовый резерв",
+            "amount": 12000,
+            "share_percent": 12
+          },
+          {
+            "goal_id": 957,
+            "goal_type": "LIFE",
+            "goal_name": "Защита Жизни",
+            "amount": 25000,
+            "share_percent": 24
+          }
+        ]
+      }
+    }
+  },
+  "comon_showcase": {
+    "enabled": true,
+    "generated_at": "2026-04-13T10:08:00.115Z",
+    "disclaimer_ru": "Информация носит ознакомительный характер и не является индивидуальной инвестиционной рекомендацией. Доходность в прошлом не гарантирует доходность в будущем. Условия стратегий на стороне оператора (Comon) могут меняться. Подбор стратегий на экране выполняется автоматически по общим критериям (в т.ч. риск-профиль и минимальная сумма) и не заменяет консультацию.",
+    "client_risk_profile_used": "BALANCED",
+    "items": [
+      {
+        "id": 18969,
+        "name": "Atlant - Oil&Gas",
+        "url": "https://www.comon.ru/strategies/18969",
+        "min_sum": 75000,
+        "risk_level": 3,
+        "profit_365_days_percent": 177.14835051897694,
+        "annual_average_profit_percent": 26.355540547372193,
+        "follower_count": 10,
+        "strategy_rating": 0,
+        "tags": [
+          "certified",
+          "marketplace",
+          "pdbold",
+          "recommended",
+          "pdbbonus"
+        ],
+        "author": "Алексей",
+        "premium": false
+      },
+      {
+        "id": 120733,
+        "name": "Динамичный Инвестор",
+        "url": "https://www.comon.ru/strategies/120733",
+        "min_sum": 30000,
+        "risk_level": 3,
+        "profit_365_days_percent": 110.22448631100366,
+        "annual_average_profit_percent": 132.96095649749523,
+        "follower_count": 266,
+        "strategy_rating": 0,
+        "tags": [
+          "pdbold",
+          "recommended"
+        ],
+        "author": "Динамичный Инвестор",
+        "premium": false
+      },
+      {
+        "id": 16053,
+        "name": "Вечные ценности",
+        "url": "https://www.comon.ru/strategies/16053",
+        "min_sum": 280000,
+        "risk_level": 2,
+        "profit_365_days_percent": 53.0222169922801,
+        "annual_average_profit_percent": 41.602096481606,
+        "follower_count": 63,
+        "strategy_rating": 2,
+        "tags": [
+          "finambonus",
+          "certified",
+          "pdbold",
+          "recommended",
+          "pdbbonus"
+        ],
+        "author": "Космос Капитал",
+        "premium": false
+      },
+      {
+        "id": 116316,
+        "name": "Доходный юань",
+        "url": "https://www.comon.ru/strategies/116316",
+        "min_sum": 50000,
+        "risk_level": 2,
+        "profit_365_days_percent": 46.233191846716856,
+        "annual_average_profit_percent": 46.29977892337423,
+        "follower_count": 113,
+        "strategy_rating": 0,
+        "tags": [
+          "finambonus",
+          "pdbstart",
+          "recommended",
+          "pdbbonus"
+        ],
+        "author": "Ижевск",
+        "premium": false
+      },
+      {
+        "id": 109003,
+        "name": "Демарко new",
+        "url": "https://www.comon.ru/strategies/109003",
+        "min_sum": 695000,
+        "risk_level": 2,
+        "profit_365_days_percent": 44.1672443873215,
+        "annual_average_profit_percent": 39.7135154639686,
+        "follower_count": 188,
+        "strategy_rating": 1,
+        "tags": [
+          "finambonus",
+          "certified",
+          "iis",
+          "pdbold",
+          "pdbtrust",
+          "recommended",
+          "invlab",
+          "pdbbonus"
+        ],
+        "author": "Finam InvestLAB",
+        "premium": false
+      },
+      {
+        "id": 112403,
+        "name": "NZT_Young",
+        "url": "https://www.comon.ru/strategies/112403",
+        "min_sum": 70000,
+        "risk_level": 2,
+        "profit_365_days_percent": 40.92902742044367,
+        "annual_average_profit_percent": 40.47240115491844,
+        "follower_count": 46,
+        "strategy_rating": 0,
+        "tags": [
+          "pdbtrust",
+          "recommended",
+          "pdbbonus"
+        ],
+        "author": "Youngrich32",
+        "premium": false
+      },
+      {
+        "id": 10831,
+        "name": "Бетельгейзе",
+        "url": "https://www.comon.ru/strategies/10831",
+        "min_sum": 120000,
+        "risk_level": 2,
+        "profit_365_days_percent": 38.20695208164342,
+        "annual_average_profit_percent": 24.088222610851883,
+        "follower_count": 188,
+        "strategy_rating": 2,
+        "tags": [
+          "certified",
+          "marketplace",
+          "recommended"
+        ],
+        "author": "Lullaby",
+        "premium": false
+      },
+      {
+        "id": 118415,
+        "name": "Ахиллес на фьючах",
+        "url": "https://www.comon.ru/strategies/118415",
+        "min_sum": 80000,
+        "risk_level": 2,
+        "profit_365_days_percent": 33.761181152714606,
+        "annual_average_profit_percent": 63.41506479729486,
+        "follower_count": 1008,
+        "strategy_rating": 0,
+        "tags": [
+          "pdbold",
+          "recommended",
+          "pdbbonus"
+        ],
+        "author": "voldemort",
+        "premium": false
+      },
+      {
+        "id": 121927,
+        "name": "Иксы неизбежны!!!",
+        "url": "https://www.comon.ru/strategies/121927",
+        "min_sum": 450000,
+        "risk_level": 3,
+        "profit_365_days_percent": 23.00934451141694,
+        "annual_average_profit_percent": 89.62181105289386,
+        "follower_count": 10,
+        "strategy_rating": 0,
+        "tags": [
+          "recommended"
+        ],
+        "author": "Neuroinvest",
+        "premium": false
+      },
+      {
+        "id": 116508,
+        "name": "Двойной размер",
+        "url": "https://www.comon.ru/strategies/116508",
+        "min_sum": 30000,
+        "risk_level": 2,
+        "profit_365_days_percent": 17.481721152094632,
+        "annual_average_profit_percent": 50.97715611681861,
+        "follower_count": 289,
+        "strategy_rating": 0,
+        "tags": [
+          "finambonus",
+          "pdbstart",
+          "recommended",
+          "pdbbonus"
+        ],
+        "author": "voldemort",
+        "premium": false
+      },
+      {
+        "id": 13020,
+        "name": "QuantPro 300th",
+        "url": "https://www.comon.ru/strategies/13020",
+        "min_sum": 500000,
+        "risk_level": 2,
+        "profit_365_days_percent": 15.1457756344049,
+        "annual_average_profit_percent": 35.9012413040295,
+        "follower_count": 21,
+        "strategy_rating": 0,
+        "tags": [
+          "finambonus",
+          "pdbold",
+          "pdbtrust",
+          "recommended",
+          "pdbbonus"
+        ],
+        "author": "QuantPro",
+        "premium": false
+      },
+      {
+        "id": 11564,
+        "name": "Валютная",
+        "url": "https://www.comon.ru/strategies/11564",
+        "min_sum": 290000,
+        "risk_level": 1,
+        "profit_365_days_percent": 14.701173272992497,
+        "annual_average_profit_percent": 33.357399269315266,
+        "follower_count": 53,
+        "strategy_rating": 0,
+        "tags": [
+          "certified",
+          "currency",
+          "pdbtrust",
+          "recommended",
+          "invlab",
+          "pdbbonus"
+        ],
+        "author": "Finam InvestLAB",
+        "premium": false
+      }
+    ],
+    "definitions": {
+      "items": "Карточки стратегий из БД (table comon_recommended_strategies, полный payload из Comon); при пустой таблице — fallback на JSON-файл. Отбор по настройкам проекта и профилю клиента."
+    }
+  }
+}

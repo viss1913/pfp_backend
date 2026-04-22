@@ -1,0 +1,287 @@
+openapi: 3.0.1
+info:
+  title: API Сервис Resolute для ПФП
+  description: Сервис обеспечивает возможность системе ПФП-фронт получить котировки по доступным авторизованному Агенту инвест. продуктам и опубликовать сформированный портфель продуктов в Резолюте.
+  version: 1.0.0
+  contact:
+    name: Демо-стенд
+    url: https://demo.avinfors.ru/pfp/api/pfp/
+servers:
+  - url: https://demo.avinfors.ru/pfp/api/pfp/
+    description: Демо-стенд
+
+paths:
+  /:
+    get:
+      summary: Операции через GET (products)
+      description: Некоторые операции (например, получение продуктов) поддерживают GET-метод с передачей operation в query.
+      parameters:
+        - name: operation
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [products]
+          description: Код операции (только products для GET)
+        - name: Authorization
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: '^Bearer .+$'
+          description: Токен авторизации (не требуется для authorize)
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+    post:
+      summary: Основной метод для всех операций
+      description: Взаимодействие построено на POST-запросах с передачей ключа-токена в заголовке и кода операции в теле.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequest'
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+        '400':
+          description: Ошибка сервиса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Токен, полученный через операцию authorize. Передавать в заголовок Authorization: Bearer <token>'
+
+  schemas:
+    # --- Базовые схемы ---
+    GenericRequest:
+      type: object
+      required:
+        - operation
+      properties:
+        operation:
+          type: string
+          enum:
+            - authorize
+            - products
+            - quote
+            - portfolio
+            - client
+            - link
+          description: Код операции
+        data:
+          type: object
+          description: Параметры операции, зависят от значения operation
+          additionalProperties: true
+
+    GenericResponse:
+      type: object
+      properties:
+        operation:
+          type: string
+          description: Код выполненной операции
+        data:
+          type: object
+          description: Данные ответа (зависят от операции)
+        err:
+          type: object
+          description: Объект ошибки (если есть)
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+      example:
+        operation: "products"
+        data: { "products": [{ "pfpCode": "PROD_001", "name": "НСЖ Классик" }] }
+
+    ErrorResponse:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [invalidKey, noKey, noOperation, operationNotFound, invalidJSON, operationNotFoundJSD]
+            message:
+              type: string
+      examples:
+        invalidKey:
+          value: { "err": { "code": "invalidKey", "message": "Неверный ключ оператора" } }
+        noOperation:
+          value: { "err": { "code": "noOperation", "message": "Не указана операция" } }
+
+    # --- Операция: Authorize ---
+    AuthorizeRequestData:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          type: string
+          description: Логин пользователя в Резолют
+        password:
+          type: string
+          description: Пароль
+        type:
+          type: string
+          default: "ПользовательРезолют"
+          description: Тип авторизации (по умолчанию ПользовательРезолют)
+
+    AuthorizeResponseData:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Постоянный ключ-токен для последующих запросов
+      example:
+        key: "f1acfe67-5f88-47db-af0b-bd5fed8d00a1"
+
+    # --- Операция: Products ---
+    ProductsResponseData:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            type: object
+            properties:
+              pfpCode:
+                type: string
+                description: ИД-код продукта в системе ПФП
+              name:
+                type: string
+                description: Название продукта
+      example:
+        products: [{ "pfpCode": "NSZH_01", "name": "Накопительное страхование жизни" }]
+
+    # --- Операция: Quote (НСЖ) ---
+    QuoteRequestData:
+      type: object
+      required:
+        - code
+        - parameters
+      properties:
+        code:
+          type: string
+          description: Код продукта ПФП (из products)
+        parameters:
+          $ref: '#/components/schemas/QuoteParametersNSG'
+
+    QuoteParametersNSG:
+      type: object
+      required:
+        - currency
+        - term
+        - pType
+        - calcData
+        - insuredPerson
+      properties:
+        currency:
+          type: object
+          properties:
+            code: { type: string, enum: [RUR, USD, EUR] }
+            name: { type: string }
+          default: { "code": "RUR", "name": "Рубль РФ" }
+        term:
+          type: integer
+          minimum: 1
+          maximum: 20
+          description: Срок страхования, лет
+        pType:
+          type: object
+          description: Порядок оплаты
+          properties:
+            code: { type: integer, enum: [0, 1, 2, 4, 12] }
+            name: { type: string }
+        calcData:
+          type: object
+          required:
+            - valuationType
+          properties:
+            valuationType:
+              type: string
+              enum: [byPremium, byLimit]
+              default: byLimit
+            premium:
+              type: number
+              description: Страховой взнос (обязателен, если valuationType = byPremium)
+            limit:
+              type: number
+              description: Страховая сумма (обязателен, если valuationType = byLimit)
+        insuredPerson:
+          type: object
+          required:
+            - dob
+            - sex
+          properties:
+            dob:
+              type: string
+              format: date
+              description: Дата рождения (дд.мм.гггг)
+            sex:
+              type: string
+              enum: [male, female]
+
+    QuoteResponseData:
+      type: object
+      properties:
+        premium:
+          type: number
+          description: Рассчитанный взнос
+        limit:
+          type: number
+          description: Страховая сумма
+
+    # --- Операции в разработке (заглушки) ---
+    PortfolioRequestData:
+      type: object
+      properties: {}
+      description: Операция в разработке
+
+    ClientRequestData:
+      type: object
+      properties: {}
+      description: Операция в разработке
+
+    LinkResponseData:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Ссылка для бесшовного перехода в Резолют
+      description: Операция в разработке
+
+    # --- Специфичные ошибки операций ---
+    QuoteErrors:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [programNotFound, invalidByJSD, emptyProduct, emptyDistrib, keyError, salesError, emptySales, insConditionsError, insConditionsNull, calcError]
+            message:
+              type: string
+
+security:
+  - BearerAuth: []

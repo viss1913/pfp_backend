@@ -1,0 +1,234 @@
+/* Общие стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Proxima Nova', 'DejaVu Sans', 'Inter', sans-serif;
+    background-color: #e8e8e8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+}
+
+/* PDF страница A4 портрет: 595x842 px */
+.pdf-page {
+    position: relative;
+    width: 595px;
+    height: 842px;
+    background-color: white;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Блок с аватаром и фразой */
+.header-block {
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    display: flex;
+    gap: 10px;
+    width: 535px;
+}
+
+.avatar-wrapper {
+    position: relative;
+    width: 60px;
+    height: 68px;
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.avatar-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(152.116deg, rgb(252, 237, 242) 0%, rgb(229, 239, 248) 120.41%);
+    border-radius: 8px;
+}
+
+.avatar-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.message-box {
+    flex: 1;
+    border: 1px solid #f1f1f1;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.message-box p {
+    font-size: 13px;
+    line-height: 14px;
+    color: #212121;
+}
+
+/* Строка "Ваш доход" */
+.income-text {
+    position: absolute;
+    left: 30px;
+    top: 110px;
+    font-size: 13px;
+    line-height: 14px;
+    color: black;
+}
+
+/* Абзацы описаний */
+.description-text {
+    position: absolute;
+    left: 30px;
+    top: 136px;
+    width: 456px;
+    font-size: 13px;
+    line-height: 14px;
+    color: black;
+}
+
+.description-text-taxes {
+    top: 360px;
+    width: 499px;
+}
+
+/* Карточки */
+.card {
+    position: absolute;
+    left: 30px;
+    width: 535px;
+}
+
+.card-cofinancing {
+    top: 230px;
+}
+
+.card-taxes {
+    top: 422px;
+}
+
+.card-title {
+    position: absolute;
+    left: calc(50% - 109.5px);
+    top: 20px;
+    font-size: 16px;
+    line-height: 14px;
+    font-weight: bold;
+    color: #722257;
+}
+
+.card-content {
+    position: absolute;
+    left: 20px;
+    top: 54px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 14px;
+    line-height: 14px;
+    color: black;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: #f3f3f4;
+    border-radius: 8px;
+    height: 110px;
+}
+
+/* Карточка Резюме */
+.card-resume {
+    top: 552px;
+}
+
+.card-resume::before {
+    content: none;
+}
+
+.card-header {
+    background-color: #722257;
+    border-radius: 8px 8px 0 0;
+    height: 33px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-title-white {
+    font-size: 16px;
+    line-height: 14px;
+    font-weight: 600;
+    color: white;
+}
+
+.card-content-resume {
+    background-color: #f3f3f4;
+    border-radius: 0 0 8px 8px;
+    height: 205px;
+    padding: 12px 20px 20px;
+}
+
+.card-content-resume p {
+    font-size: 14px;
+    line-height: 14px;
+    color: black;
+    margin-bottom: 8px;
+}
+
+.resume-goal {
+    font-weight: 600;
+}
+
+.divider {
+    width: 495px;
+    height: 1px;
+    background-color: #722257;
+    margin: 12px 0;
+}
+
+.total-capital {
+    font-size: 15px;
+    line-height: 16px;
+    font-weight: bold;
+    color: black;
+}
+
+/* Логотип */
+.logo {
+    position: absolute;
+    left: 30px;
+    bottom: 12px;
+    width: 70px;
+    height: 19px;
+}
+
+.logo svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Медиазапросы для печати */
+@media print {
+    body {
+        background-color: white;
+        padding: 0;
+    }
+
+    .pdf-page {
+        box-shadow: none;
+        margin: 0;
+    }
+
+    @page {
+        size: A4 portrait;
+        margin: 0;
+    }
+}

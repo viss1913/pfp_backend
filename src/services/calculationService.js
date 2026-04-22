@@ -35,6 +35,8 @@ const PENSION_SHARE_AGE_LOW = 30;
 const PENSION_SHARE_AGE_HIGH = 55;
 
 class CalculationService {
+    static LONG_TERM_SAVINGS_LIMIT = 400000;
+
     /**
      * Рассчитать прогнозную государственную пенсию
      * @param {Object} client - Данные клиента (ClientData)
@@ -533,6 +535,63 @@ class CalculationService {
         return takenTotal;
     }
 
+    _extractLongTermRefundFromYearBreakdown(yearData) {
+        const breakdown = yearData?.tax_refund_breakdown;
+        if (breakdown && typeof breakdown === 'object') {
+            const pds = Number(breakdown.pds || 0);
+            const iis = Number(breakdown.iis || 0);
+            return Math.max(0, pds + iis);
+        }
+        return 0;
+    }
+
+    async _estimateUsedTaxBaseFromRefund({
+        year,
+        refundAmount,
+        context,
+        annualIncome
+    }) {
+        const safeRefund = Number(refundAmount || 0);
+        const safeIncome = Number(annualIncome || 0);
+        if (!Number.isFinite(safeRefund) || safeRefund <= 0) return 0;
+        if (!Number.isFinite(safeIncome) || safeIncome <= 0) return 0;
+
+        const alreadyUsed = Math.max(0, Number(context.usedTaxBasePerYear[year] || 0));
+        const remainingBase = Math.max(0, CalculationService.LONG_TERM_SAVINGS_LIMIT - alreadyUsed);
+        if (remainingBase <= 0) return 0;
+
+        const taxBefore = await TaxService.calculateNdfl(
+            Math.max(0, safeIncome - alreadyUsed),
+            year,
+            context.cachedData ? context.cachedData.taxBrackets : null,
+            context.projectId
+        );
+        const maxRefundPossible = Math.max(0, Number(taxBefore.taxAmount || 0));
+        if (maxRefundPossible <= 0) return 0;
+
+        const targetRefund = Math.min(safeRefund, maxRefundPossible);
+        let low = 0;
+        let high = remainingBase;
+
+        for (let i = 0; i < 28; i++) {
+            const mid = (low + high) / 2;
+            const taxAfter = await TaxService.calculateNdfl(
+                Math.max(0, safeIncome - alreadyUsed - mid),
+                year,
+                context.cachedData ? context.cachedData.taxBrackets : null,
+                context.projectId
+            );
+            const refundAtMid = Math.max(0, Number(taxBefore.taxAmount || 0) - Number(taxAfter.taxAmount || 0));
+            if (refundAtMid < targetRefund) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+
+        return Math.max(0, Math.min(remainingBase, Math.round(high * 100) / 100));
+    }
+
     /**
      * Perform First Run calculation for a client request
      * @param {Object} data - CalculationRequest data
@@ -717,16 +776,35 @@ class CalculationService {
 
                         // Update PDS limits if they were used by this goal previously
                         if (prevResult.details && prevResult.details.yearly_breakdown) {
-                            prevResult.details.yearly_breakdown.forEach(yearData => {
+                            for (const yearData of prevResult.details.yearly_breakdown) {
                                 const year = yearData.year;
                                 if (yearData.cofinancing_for_year > 0) {
                                     // We approximate the contribution year as year - 1
                                     const contribYear = year - 1;
                                     context.usedCofinancingPerYear[contribYear] = (context.usedCofinancingPerYear[contribYear] || 0) + yearData.cofinancing_for_year;
                                 }
-                                // Note: Tax base is harder to restore exactly without internal simulation state, 
-                                // but usually it's tied to contributions. For now, we restore cofinancing which is more critical.
-                            });
+                                // Restore long-term savings tax base for frozen goals to avoid reusing the same yearly 400k limit.
+                                const numericYear = Number(year);
+                                const contribYear = numericYear - 1;
+                                const longTermRefund = this._extractLongTermRefundFromYearBreakdown(yearData);
+                                if (Number.isFinite(contribYear) && longTermRefund > 0) {
+                                    const estimatedBaseUsed = await this._estimateUsedTaxBaseFromRefund({
+                                        year: contribYear,
+                                        refundAmount: longTermRefund,
+                                        context,
+                                        annualIncome: (clientData.avg_monthly_income || 0) * 12
+                                    });
+                                    if (estimatedBaseUsed > 0) {
+                                        context.usedTaxBasePerYear[contribYear] = (context.usedTaxBasePerYear[contribYear] || 0) + estimatedBaseUsed;
+                                        if (context.usedTaxBasePerYear[contribYear] > CalculationService.LONG_TERM_SAVINGS_LIMIT + 1) {
+                                            logger.warn(
+                                                `[CalculationService] Restored tax base exceeds yearly limit: year=${contribYear}, ` +
+                                                `used=${context.usedTaxBasePerYear[contribYear]}, goal=${goal.name || goal.id || currentGoalId}`
+                                            );
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         // Ensure goal_id and goal_name exist in the frozen result

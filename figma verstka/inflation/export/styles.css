@@ -1,0 +1,389 @@
+/* ========================================
+   Базовые настройки и сброс
+   ======================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    font-family: 'DejaVu Sans', 'Inter', Arial, sans-serif;
+    color: #212121;
+    background: white;
+}
+
+/* ========================================
+   Фиксированный холст A4 (595x842px)
+   ======================================== */
+.page-container {
+    width: 595px;
+    height: 842px;
+    background: white;
+    position: relative;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* ========================================
+   Заголовок страницы
+   ======================================== */
+.page-title {
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 20px;
+    white-space: nowrap;
+}
+
+/* ========================================
+   Карточка с аватаром и текстом
+   ======================================== */
+.info-card {
+    position: absolute;
+    left: 30px;
+    top: 80px;
+    width: 535px;
+    display: flex;
+    gap: 17px;
+    align-items: flex-start;
+}
+
+.avatar-wrapper {
+    flex-shrink: 0;
+    width: 60px;
+    height: 68px;
+}
+
+.avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+    background: linear-gradient(152.116deg, rgb(252, 237, 242) 0%, rgb(229, 239, 248) 120.41%);
+    border: 1px solid #f1f1f1;
+}
+
+.info-text {
+    flex: 1;
+    border: 1px solid #f1f1f1;
+    border-radius: 8px;
+    padding: 10px 27px 10px 10px;
+}
+
+.info-text p {
+    font-size: 13px;
+    line-height: 14px;
+    font-weight: 400;
+    color: #212121;
+    text-align: left;
+    white-space: pre-wrap;
+}
+
+/* ========================================
+   Заголовок графика
+   ======================================== */
+.chart-title {
+    position: absolute;
+    left: 50%;
+    top: 235px;
+    transform: translateX(-50%);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 18px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* ========================================
+   График
+   ======================================== */
+.chart-container {
+    position: absolute;
+    left: 30px;
+    top: 273px;
+    width: 524px;
+    height: 170px;
+    display: flex;
+    gap: 4px;
+}
+
+/* Ось Y (вертикальная) */
+.chart-y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 34px;
+    height: 170px;
+    padding-right: 4px;
+}
+
+.chart-y-axis span {
+    font-size: 8px;
+    line-height: 13px;
+    color: #212121;
+    white-space: nowrap;
+}
+
+/* Область графика */
+.chart-area {
+    position: relative;
+    flex: 1;
+    height: 170px;
+}
+
+/* Сетка */
+.chart-grid {
+    position: absolute;
+    top: 6px;
+    left: 0;
+    width: 100%;
+    height: 154px;
+    background-image: 
+        repeating-linear-gradient(
+            to top,
+            #c4c4c4 0px,
+            #c4c4c4 1px,
+            transparent 1px,
+            transparent 17px
+        );
+}
+
+/* SVG графики */
+.chart-svg {
+    position: absolute;
+    top: 14px;
+    left: 2px;
+    width: 460px;
+    height: 140px;
+}
+
+.chart-line-inflation {
+    stroke: #722257;
+    stroke-width: 1.5;
+}
+
+.chart-line-deposits {
+    stroke: #21282B;
+    stroke-width: 1.5;
+}
+
+.chart-line-inflation-forecast {
+    stroke: #722257;
+    stroke-width: 1.5;
+    stroke-dasharray: 3 3;
+}
+
+.chart-line-deposits-forecast {
+    stroke: #21282B;
+    stroke-width: 1.5;
+    stroke-dasharray: 3 3;
+}
+
+/* Ось X (горизонтальная) */
+.chart-x-axis {
+    position: absolute;
+    bottom: 0;
+    left: 27px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.chart-x-axis span {
+    font-size: 8px;
+    line-height: 13px;
+    color: #212121;
+    white-space: nowrap;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-align: right;
+    width: 13px;
+}
+
+/* ========================================
+   Легенда графика
+   ======================================== */
+.chart-legend {
+    position: absolute;
+    left: 30px;
+    top: 495px;
+    display: flex;
+    gap: 60px;
+}
+
+.legend-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+}
+
+.legend-item {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    min-height: 14px;
+}
+
+.legend-line {
+    width: 28.5px;
+    height: 1px;
+    flex-shrink: 0;
+}
+
+.legend-line-inflation {
+    background: #722257;
+}
+
+.legend-line-deposits {
+    background: #21282B;
+}
+
+.legend-line-inflation-forecast {
+    background: repeating-linear-gradient(
+        to right,
+        #722257 0px,
+        #722257 2px,
+        transparent 2px,
+        transparent 4px
+    );
+}
+
+.legend-line-deposits-forecast {
+    background: repeating-linear-gradient(
+        to right,
+        #21282B 0px,
+        #21282B 2px,
+        transparent 2px,
+        transparent 4px
+    );
+}
+
+.legend-text {
+    font-size: 8px;
+    line-height: 14px;
+    color: #212121;
+}
+
+/* ========================================
+   Рекомендация (текст перед таблицей)
+   ======================================== */
+.recommendation-text {
+    position: absolute;
+    left: 30px;
+    top: 553px;
+    font-size: 12px;
+    line-height: 15px;
+    font-weight: 400;
+    color: #212121;
+}
+
+/* ========================================
+   Таблица рекомендаций
+   ======================================== */
+.table-recommendations {
+    position: absolute;
+    left: 30px;
+    top: 588px;
+    width: 535px;
+}
+
+.table-recommendations table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #F3F3F4;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table-recommendations thead {
+    background: #F3F3F4;
+}
+
+.table-recommendations th {
+    font-size: 10px;
+    line-height: 20px;
+    font-weight: 400;
+    color: #212121;
+    text-align: left;
+    padding: 10px 10px;
+    border-bottom: 1px solid white;
+}
+
+.table-recommendations th:first-child {
+    padding-left: 20px;
+}
+
+.table-recommendations tbody tr {
+    border-bottom: 1px solid white;
+}
+
+.table-recommendations tbody tr:last-child {
+    border-bottom: none;
+}
+
+.table-recommendations td {
+    font-size: 8px;
+    line-height: 14px;
+    font-weight: 400;
+    color: #212121;
+    padding: 10px 10px;
+}
+
+.table-recommendations td:first-child {
+    padding-left: 20px;
+}
+
+.table-recommendations td:nth-child(3) {
+    font-size: 7px;
+}
+
+/* ========================================
+   Футер (логотип)
+   ======================================== */
+.footer-logo {
+    position: absolute;
+    left: 50%;
+    top: 811px;
+    transform: translateX(-50%);
+    width: 70px;
+    height: 19px;
+}
+
+.footer-logo svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* ========================================
+   Режим печати
+   ======================================== */
+@media print {
+    html, body {
+        width: 595px;
+        height: 842px;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .page-container {
+        margin: 0;
+        padding: 0;
+        page-break-after: avoid;
+    }
+    
+    @page {
+        size: 595px 842px;
+        margin: 0;
+    }
+}

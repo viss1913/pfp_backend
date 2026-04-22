@@ -1308,7 +1308,7 @@ function buildRepleneshmentRows(report = {}) {
 }
 
 /** Строк таблицы на лист A4; с запасом (перенос в ячейках иначе обрезает хвост чанка в iframe 842px). */
-const FINAM_REPLENISHMENT_ROWS_PER_PAGE = 13;
+const FINAM_REPLENISHMENT_ROWS_PER_PAGE = 11;
 
 function buildRepleneshmentTableTbodyHtml(rows) {
     if (!rows.length) {
@@ -1358,6 +1358,11 @@ function buildRepleneshmentPageHtml(report = {}) {
                     : '';
             return `<article class="page">
   <div class="rep-content">
+    <header class="rep-header">
+      <div class="logo-mark"><div class="logo-dot"></div><span class="logo-text">Финансовый план</span></div>
+      <div class="doc-label">Сводный график</div>
+    </header>
+    <div class="rep-divider"></div>
     <h1>Сводный график пополнений</h1>
     ${paging}
     <table class="rep-table">
@@ -1366,6 +1371,11 @@ function buildRepleneshmentPageHtml(report = {}) {
 ${buildRepleneshmentTableTbodyHtml(chunk)}
       </tbody>
     </table>
+    <div class="rep-spacer"></div>
+    <footer class="rep-footer">
+      <div class="rep-footer-left">Персональный финансовый план · Конфиденциально<br>Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ</div>
+      <div class="rep-footer-right">Информация не является индивидуальной<br>инвестиционной рекомендацией</div>
+    </footer>
   </div>
 </article>`;
         })
@@ -1414,7 +1424,17 @@ ${buildRepleneshmentTableTbodyHtml(chunk)}
       z-index: 0;
     }
     .rep-content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
-    h1 { font-size: 18px; line-height: 1.2; margin-bottom: 8px; font-weight: 700; flex-shrink: 0; }
+    .rep-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-shrink: 0; }
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #000; }
+    .doc-label { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #000; padding: 3px 10px; border: 1px solid #000; border-radius: 4px; }
+    .rep-divider { height: 1px; background: #000; margin-bottom: 12px; flex-shrink: 0; }
+    .rep-spacer { flex: 1; }
+    .rep-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 5px; border-top: 1px solid #ccc; flex-shrink: 0; }
+    .rep-footer-left { font-size: 10px; color: #555; line-height: 1.4; }
+    .rep-footer-right { font-size: 10px; color: #555; text-align: right; line-height: 1.4; }
+    h1 { font-size: 18px; line-height: 1.2; margin-bottom: 8px; font-weight: 700; flex-shrink: 0; color: #000; }
     .rep-paging {
       font-size: 11px;
       color: #4b5563;
@@ -1426,8 +1446,7 @@ ${buildRepleneshmentTableTbodyHtml(chunk)}
       border-collapse: collapse;
       table-layout: fixed;
       background: rgba(255,255,255,0.95);
-      flex: 1;
-      min-height: 0;
+      flex-shrink: 0;
     }
     .rep-table th,
     .rep-table td {

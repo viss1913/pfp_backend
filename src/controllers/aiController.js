@@ -2,6 +2,14 @@ const aiAssistantService = require('../services/aiAssistantService');
 const aiHistoryService = require('../services/aiHistoryService');
 const aiService = require('../services/aiService');
 const crmService = require('../services/crmService');
+const clientService = require('../services/clientService');
+const productService = require('../services/productService');
+const portfolioService = require('../services/portfolioService');
+const fs = require('fs');
+const path = require('path');
+
+const PLAN_ASSISTANT_SLUG = 'ai-plan-assistant';
+const PLAN_ASSISTANT_PROMPT_PATH = path.join(__dirname, '..', '..', 'data', 'prompts', 'aiPlanAssistantPrompt.txt');
 
 function getAssistantShortDescription(assistant) {
     const descriptionsBySlug = {
@@ -19,6 +27,79 @@ function getAssistantShortDescription(assistant) {
 
     const compactTemplate = assistant.context_template.replace(/\s+/g, ' ').trim();
     return compactTemplate.slice(0, 140);
+}
+
+function stringifySafe(value) {
+    return JSON.stringify(value, null, 2);
+}
+
+function trimText(value, fallback = '—') {
+    const text = String(value == null ? '' : value).trim();
+    return text || fallback;
+}
+
+function summarizeProducts(products) {
+    const active = (products || []).filter((p) => p.is_active !== false);
+    return active.slice(0, 40).map((p) => ({
+        id: p.id,
+        name: p.name,
+        product_type: p.product_type || null,
+        description: trimText(p.description, ''),
+        currency: p.currency || 'RUB',
+        is_default: !!p.is_default
+    }));
+}
+
+function summarizePortfolios(portfolios) {
+    const active = (portfolios || []).filter((p) => p.is_active !== false);
+    return active.slice(0, 30).map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: trimText(p.description, ''),
+        classes: Array.isArray(p.classes) ? p.classes.map((c) => c?.name || c?.code || c?.id).filter(Boolean) : [],
+        risk_profiles: Array.isArray(p.riskProfiles) ? p.riskProfiles.map((rp) => rp?.profile_type).filter(Boolean) : [],
+        is_default: !!p.is_default
+    }));
+}
+
+function buildPlanAssistantRuntimeContext({ client, products, portfolios }) {
+    const goalsSummary = client?.goals_summary || null;
+    const goals = Array.isArray(client?.goals) ? client.goals : [];
+    const compactClient = {
+        id: client?.id,
+        first_name: client?.first_name,
+        last_name: client?.last_name,
+        phone: client?.phone,
+        email: client?.email,
+        avg_monthly_income: client?.avg_monthly_income,
+        spouse_avg_monthly_income: client?.spouse_avg_monthly_income,
+        net_worth: client?.net_worth,
+        assets_total: client?.assets_total,
+        liabilities_total: client?.liabilities_total,
+        goals_count: goals.length
+    };
+
+    return [
+        '### КАРТОЧКА КЛИЕНТА',
+        stringifySafe(compactClient),
+        '### ЦЕЛИ КЛИЕНТА',
+        stringifySafe(goals),
+        '### GOALS_SUMMARY',
+        stringifySafe(goalsSummary),
+        '### ДОСТУПНЫЕ ПРОДУКТЫ ПРОЕКТА',
+        stringifySafe(summarizeProducts(products)),
+        '### ДОСТУПНЫЕ ПОРТФЕЛИ ПРОЕКТА',
+        stringifySafe(summarizePortfolios(portfolios))
+    ].join('\n\n');
+}
+
+function loadPlanAssistantPromptTemplate() {
+    try {
+        return fs.readFileSync(PLAN_ASSISTANT_PROMPT_PATH, 'utf8').trim();
+    } catch (e) {
+        console.warn('[AiController] Failed to read aiPlanAssistantPrompt.txt:', e.message);
+        return 'Ты — AI-помощник финансового консультанта. Помогай агенту разбирать план клиента и объяснять варианты продуктов и портфелей только на основе переданного контекста.';
+    }
 }
 
 class AiController {
@@ -192,6 +273,91 @@ class AiController {
                 res.write(`data: {"error": "Internal Error"}\n\n`);
                 res.end();
             }
+        }
+    }
+
+    async planAssistantChatStream(req, res) {
+        try {
+            const { client_id, message, assistant_id } = req.body || {};
+            const agent = req.user || {};
+            const resolvedAgentId = agent.agentId || agent.id;
+            const projectId = req.projectId || agent.projectId;
+
+            if (!client_id || !message) {
+                return res.status(400).json({ error: 'client_id and message are required' });
+            }
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context is missing' });
+            }
+
+            let assistant = null;
+            if (assistant_id) {
+                assistant = await aiAssistantService.getById(assistant_id);
+            }
+            if (!assistant) {
+                assistant = await aiAssistantService.getBySlug(PLAN_ASSISTANT_SLUG);
+            }
+            if (!assistant) {
+                const template = loadPlanAssistantPromptTemplate();
+                assistant = await aiAssistantService.create({
+                    name: 'AI Plan Assistant',
+                    slug: PLAN_ASSISTANT_SLUG,
+                    context_template: template,
+                    model: (process.env.OPENROUTER_MODEL || '').trim() || 'Qwen/Qwen2.5-14B-Instruct',
+                    is_active: true
+                });
+            }
+
+            const client = await clientService.getFullClient(client_id, projectId);
+            if (!client) {
+                return res.status(404).json({ error: 'Client not found in current project' });
+            }
+            if (client.agent_id && Number(client.agent_id) !== Number(resolvedAgentId)) {
+                return res.status(403).json({ error: 'Access denied to this client' });
+            }
+
+            const [products, portfolios] = await Promise.all([
+                productService.getAllProducts(projectId, { includeDefaults: 'true', is_active: 'true' }),
+                portfolioService.getAllPortfolios(projectId, { includeDefaults: 'true' })
+            ]);
+
+            const promptTemplate = loadPlanAssistantPromptTemplate();
+            const runtimeContext = buildPlanAssistantRuntimeContext({ client, products, portfolios });
+            const systemPrompt = aiService.injectContext(
+                `${promptTemplate}\n\n${runtimeContext}`,
+                agent
+            );
+
+            const history = await aiHistoryService.getHistory(resolvedAgentId, assistant.id);
+            const messages = [];
+            if (systemPrompt) {
+                messages.push({ role: 'system', content: systemPrompt });
+            }
+            history.forEach((msg) => {
+                messages.push({ role: msg.role, content: msg.content });
+            });
+            messages.push({ role: 'user', content: message });
+
+            await aiHistoryService.addMessage(resolvedAgentId, assistant.id, 'user', message);
+
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+
+            const selectedModel = (process.env.OPENROUTER_MODEL || '').trim() || assistant.model;
+            console.log(`[AiController] plan-assistant model: ${selectedModel}`);
+            const fullAiResponse = await aiService.streamCompletion(messages, selectedModel, res);
+
+            if (fullAiResponse) {
+                await aiHistoryService.addMessage(resolvedAgentId, assistant.id, 'assistant', fullAiResponse);
+            }
+        } catch (err) {
+            console.error('[AiController] planAssistantChatStream error:', err.message);
+            if (!res.headersSent) {
+                return res.status(500).json({ error: 'Plan assistant chat failed', details: err.message });
+            }
+            res.write(`data: {"error": "Internal Error"}\n\n`);
+            res.end();
         }
     }
 }

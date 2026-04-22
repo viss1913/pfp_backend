@@ -1,0 +1,342 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Proxima Nova', 'DejaVu Sans', Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Page Container - A4 Format */
+.page-container {
+    width: 595px;
+    height: 842px;
+    background: #ffffff;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Header Block */
+.header-block {
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    width: 535px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.avatar-wrapper {
+    width: 60px;
+    height: 68px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: linear-gradient(152.116deg, rgb(252, 237, 242) 0%, rgb(229, 239, 248) 120.41%);
+    overflow: hidden;
+}
+
+.avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.header-card {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid #f1f1f1;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.card-title {
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 13px;
+    line-height: 14px;
+    color: #212121;
+    margin-bottom: 12px;
+}
+
+.card-content {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+
+.card-image-wrapper {
+    width: 120px;
+    height: 70px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.card-text {
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 13px;
+    line-height: 14px;
+    color: #212121;
+    flex: 1;
+}
+
+/* Section Title */
+.section-title {
+    position: absolute;
+    left: 30px;
+    top: 166px;
+    font-family: 'Proxima Nova', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 14px;
+    color: #000000;
+}
+
+/* Section Subtitle */
+.section-subtitle {
+    position: absolute;
+    left: 30px;
+    top: 188px;
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 13px;
+    line-height: 14px;
+    color: #212121;
+}
+
+/* Formula Blocks */
+.formula-block {
+    position: absolute;
+    left: 30px;
+    background: #722257;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.formula-block:first-of-type {
+    top: 214px;
+}
+
+.formula-block:nth-of-type(2) {
+    top: 561px;
+}
+
+.formula-text {
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 14px;
+    line-height: 13px;
+    color: #ffffff;
+    white-space: nowrap;
+}
+
+/* Content Block */
+.content-block {
+    position: absolute;
+    left: 30px;
+    top: 259px;
+    width: 535px;
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 13px;
+    line-height: 14px;
+    color: #212121;
+}
+
+.content-paragraph {
+    margin-bottom: 3px;
+    white-space: pre-wrap;
+}
+
+.content-paragraph.space-top {
+    margin-top: 3px;
+}
+
+.content-paragraph strong {
+    font-weight: 600;
+}
+
+.content-list {
+    margin-left: 19.5px;
+    margin-bottom: 3px;
+    list-style-type: disc;
+}
+
+.content-list li {
+    margin-bottom: 0;
+    line-height: 14px;
+}
+
+/* Section Text */
+.section-text {
+    position: absolute;
+    left: 30px;
+    top: 535px;
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 13px;
+    line-height: 14px;
+    color: #212121;
+    white-space: nowrap;
+}
+
+/* Inflation Text */
+.inflation-text {
+    position: absolute;
+    left: 30px;
+    top: 606px;
+    width: 535px;
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 13px;
+    line-height: 14px;
+    color: #212121;
+}
+
+.inflation-text p {
+    white-space: pre-wrap;
+}
+
+/* Chart Block */
+.chart-block {
+    position: absolute;
+    left: 30px;
+    top: 659px;
+    width: 535px;
+    height: 137px;
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.chart-border {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.chart-bar {
+    position: absolute;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.chart-bar-1 {
+    left: 100px;
+}
+
+.chart-bar-2 {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.chart-bar-3 {
+    left: 325px;
+}
+
+.bar-fill {
+    width: 49px;
+    border-radius: 4px 4px 0 0;
+}
+
+.bar-fill-black {
+    height: 61px;
+    background: #000000;
+}
+
+.bar-fill-purple {
+    height: 21px;
+    background: #722257;
+}
+
+.bar-fill-gray {
+    height: 43px;
+    background: #8f8f8c;
+}
+
+.bar-label {
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 12px;
+    line-height: 13px;
+    color: #212121;
+    text-align: center;
+    max-width: 130px;
+}
+
+.bar-value {
+    position: absolute;
+    font-family: 'Proxima Nova', sans-serif;
+    font-size: 12px;
+    line-height: 13px;
+    color: #212121;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.bar-value-1 {
+    top: -39px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.bar-value-2 {
+    top: -19px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.bar-value-3 {
+    top: -61px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Logo Block */
+.logo-block {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 811px;
+    width: 70px;
+    height: 19px;
+}
+
+.logo-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Print Styles */
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .page-container {
+        width: 595px;
+        height: 842px;
+        page-break-after: always;
+    }
+}

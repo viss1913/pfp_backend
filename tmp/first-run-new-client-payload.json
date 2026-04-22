@@ -1,0 +1,22 @@
+{
+  "client": {
+    "birth_date": "1985-11-05",
+    "sex": "male",
+    "avg_monthly_income": 300000,
+    "total_liquid_capital": 500000,
+    "fio": "Тест PDF отчёт v5 (НСЖ)"
+  },
+  "goals": [
+    {
+      "goal_type_id": 5,
+      "name": "Защита жизни (новый клиент PDF)",
+      "target_amount": 5000000,
+      "term_months": 240,
+      "initial_capital": 0,
+      "monthly_replenishment": 15000,
+      "payment_variant": 12,
+      "program": "base",
+      "risk_profile": "BALANCED"
+    }
+  ]
+}
