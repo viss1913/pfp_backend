@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    article.page {
+      width: 595px;
+      height: 842px;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      padding: 30px 36px 26px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #212121;
+      background-color: #fafbfc;
+    }
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .rep-content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+    .rep-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-shrink: 0; }
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #000; }
+    .doc-label { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #000; padding: 3px 10px; border: 1px solid #000; border-radius: 4px; }
+    .rep-divider { height: 1px; background: #000; margin-bottom: 12px; flex-shrink: 0; }
+    .rep-spacer { flex: 1; }
+    .rep-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 5px; border-top: 1px solid #ccc; flex-shrink: 0; }
+    .rep-footer-left { font-size: 10px; color: #555; line-height: 1.4; }
+    .rep-footer-right { font-size: 10px; color: #555; text-align: right; line-height: 1.4; }
+    h1 { font-size: 18px; line-height: 1.2; margin-bottom: 8px; font-weight: 700; flex-shrink: 0; color: #000; }
+    .rep-paging {
+      font-size: 11px;
+      color: #4b5563;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+    table.rep-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      background: rgba(255,255,255,0.95);
+      flex-shrink: 0;
+    }
+    .rep-table th,
+    .rep-table td {
+      border: 1px solid #d1d5db;
+      padding: 3px 5px;
+      text-align: left;
+      font-size: 9px;
+      line-height: 1.2;
+      vertical-align: top;
+      word-break: normal;
+    }
+    .rep-table th { background: #f3f4f6; font-weight: 700; font-size: 9px; }
+    .rep-table td.rep-col-date { white-space: nowrap; width: 14%; }
+    .rep-table td.rep-col-num { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .rep-table thead th:nth-child(1) { width: 14%; }
+    .rep-table tbody tr:nth-child(even) { background: rgba(249,250,251,0.85); }
+    @media print {
+      body { margin: 0; padding: 0; }
+      article.page { page-break-after: always; }
+      article.page:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+<article class="page">
+  <div class="rep-content">
+    <header class="rep-header">
+      <div class="logo-mark"><div class="logo-dot"></div><span class="logo-text">Финансовый план</span></div>
+      <div class="doc-label">Сводный график</div>
+    </header>
+    <div class="rep-divider"></div>
+    <h1>Сводный график пополнений</h1>
+    <p class="rep-paging">Страница 1 из 2 · сводный график пополнений</p>
+    <table class="rep-table">
+      
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Пополнение</th>
+        <th>Налоговый вычет</th>
+        <th>Софинансирование</th>
+        <th>Итоговый капитал</th>
+      </tr>
+    </thead>
+      <tbody>
+
+          <tr>
+            <td class="rep-col-date">2026-04-01</td>
+            <td class="rep-col-num">13 000 000 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-01-01</td>
+            <td class="rep-col-num">393 600 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">36 000 руб.</td>
+            <td class="rep-col-num">49 800 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-02-01</td>
+            <td class="rep-col-num">393 900 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">50 700 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-03-01</td>
+            <td class="rep-col-num">394 200 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">51 600 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-04-01</td>
+            <td class="rep-col-num">394 500 руб.</td>
+            <td class="rep-col-num">420 000 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">52 500 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-05-01</td>
+            <td class="rep-col-num">394 800 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">53 400 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-06-01</td>
+            <td class="rep-col-num">395 100 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">54 300 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-07-01</td>
+            <td class="rep-col-num">395 400 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">36 000 руб.</td>
+            <td class="rep-col-num">55 200 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-08-01</td>
+            <td class="rep-col-num">395 700 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">56 100 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-09-01</td>
+            <td class="rep-col-num">396 000 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">36 000 руб.</td>
+            <td class="rep-col-num">57 000 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-10-01</td>
+            <td class="rep-col-num">396 300 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">57 900 000 руб.</td>
+          </tr>
+      </tbody>
+    </table>
+    <div class="rep-spacer"></div>
+    <footer class="rep-footer">
+      <div class="rep-footer-left">Персональный финансовый план · Конфиденциально<br>Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ</div>
+      <div class="rep-footer-right">Информация не является индивидуальной<br>инвестиционной рекомендацией</div>
+    </footer>
+  </div>
+</article>
+
+<article class="page">
+  <div class="rep-content">
+    <header class="rep-header">
+      <div class="logo-mark"><div class="logo-dot"></div><span class="logo-text">Финансовый план</span></div>
+      <div class="doc-label">Сводный график</div>
+    </header>
+    <div class="rep-divider"></div>
+    <h1>Сводный график пополнений</h1>
+    <p class="rep-paging">Страница 2 из 2 · сводный график пополнений</p>
+    <table class="rep-table">
+      
+    <thead>
+      <tr>
+        <th>Дата</th>
+        <th>Пополнение</th>
+        <th>Налоговый вычет</th>
+        <th>Софинансирование</th>
+        <th>Итоговый капитал</th>
+      </tr>
+    </thead>
+      <tbody>
+
+          <tr>
+            <td class="rep-col-date">2030-11-01</td>
+            <td class="rep-col-num">396 600 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">36 000 руб.</td>
+            <td class="rep-col-num">58 800 000 руб.</td>
+          </tr>
+
+          <tr>
+            <td class="rep-col-date">2030-12-01</td>
+            <td class="rep-col-num">263 400 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">0 руб.</td>
+            <td class="rep-col-num">36 200 000 руб.</td>
+          </tr>
+      </tbody>
+    </table>
+    <div class="rep-spacer"></div>
+    <footer class="rep-footer">
+      <div class="rep-footer-left">Персональный финансовый план · Конфиденциально<br>Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ</div>
+      <div class="rep-footer-right">Информация не является индивидуальной<br>инвестиционной рекомендацией</div>
+    </footer>
+  </div>
+</article>
+</body>
+</html>

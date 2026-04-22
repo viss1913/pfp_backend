@@ -1308,7 +1308,7 @@ function buildRepleneshmentRows(report = {}) {
 }
 
 /** Строк таблицы на лист A4; с запасом (перенос в ячейках иначе обрезает хвост чанка в iframe 842px). */
-const FINAM_REPLENISHMENT_ROWS_PER_PAGE = 11;
+const FINAM_REPLENISHMENT_ROWS_PER_PAGE = 22;
 
 function buildRepleneshmentTableTbodyHtml(rows) {
     if (!rows.length) {
