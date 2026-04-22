@@ -1252,6 +1252,31 @@ components:
           type: string
           format: date
 
+    ClientCredit:
+      type: object
+      required:
+        - type
+        - balance
+        - monthlyPayment
+        - rate
+      description: Удобный алиас для кредита. На бэке сохраняется в liabilities.
+      properties:
+        type:
+          type: string
+          enum: [MORTGAGE, CONSUMER_LOAN, CREDIT_CARD, AUTO_LOAN, OTHER]
+        name:
+          type: string
+          description: Опциональное название кредита
+        balance:
+          type: number
+          description: Остаток по кредиту
+        monthlyPayment:
+          type: number
+          description: Ежемесячный платеж
+        rate:
+          type: number
+          description: Процентная ставка
+
     ClientExpense:
       type: object
       required:
@@ -1313,6 +1338,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClientLiability'
+        credits:
+          type: array
+          description: Алиас для liabilities. Используйте для передачи кредитов в формате фронта.
+          items:
+            $ref: '#/components/schemas/ClientCredit'
         expenses:
           type: array
           items:
@@ -1321,6 +1351,20 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClientGoal'
+      example:
+        client:
+          first_name: Иван
+          last_name: Иванов
+          email: ivan@example.com
+        credits:
+          - type: MORTGAGE
+            balance: 4200000
+            monthlyPayment: 43000
+            rate: 12.5
+          - type: CREDIT_CARD
+            balance: 150000
+            monthlyPayment: 12000
+            rate: 29.9
 
     FullClientResponse:
       allOf:

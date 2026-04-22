@@ -135,7 +135,15 @@ const calculationRequestSchema = Joi.object({
         tax_children: Joi.array().items(taxChildSchema).optional()
             .description('Дети для налогового расчета (если не передано, может использоваться family_profile.children)')
     }).optional()
-        .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ и Пенсии)')
+        .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ и Пенсии)'),
+    credits: Joi.array().items(Joi.object({
+        type: Joi.string().trim().required(),
+        balance: Joi.number().min(0).required(),
+        monthlyPayment: Joi.number().min(0).required(),
+        rate: Joi.number().min(0).required(),
+        name: Joi.string().trim().optional()
+    })).optional()
+        .description('Алиас для liabilities: кредиты клиента (будут сохранены как liabilities)')
 });
 const taxPlanningRequestSchema = Joi.object({
     client: Joi.object({

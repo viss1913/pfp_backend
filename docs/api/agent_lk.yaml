@@ -21,6 +21,7 @@ info:
     - **`POST /client/calculate`** — stateless-расчёт по массиву целей; в ответе в т.ч. агрегаты налоговых льгот (`summary.tax_benefits_summary`). Контекст проекта: заголовок **`x-project-key`** и/или опционально **`Authorization: Bearer`** (из JWT берётся `projectId`).
     - **`POST /client/tax-planning/calculate`** — только расширенное налоговое планирование (имущественный вычет, %% ипотеки, соцвычет до 150k, дети); **без** массива `goals`. Требуется JWT агента (как у `first-run`).
     Полные схемы тел: **`openapi/pfp-api.yaml`** (`CalculationRequest`, `TaxPlanningRequest`). В этой спеке — тег **«Расчёт ПФП и налоги»**.
+    Для карточки клиента кредиты передаются как `liabilities` (основной контракт) либо как алиас `credits` (`type`, `balance`, `monthlyPayment`, `rate`) с серверным маппингом в `liabilities`.
   version: 1.0.0
 servers:
   - url: /api

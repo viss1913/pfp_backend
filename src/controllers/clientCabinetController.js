@@ -98,7 +98,14 @@ const calculationRequestSchema = Joi.object({
         family_profile: familyProfileSchema,
         enable_children_tax_deduction: Joi.boolean().optional(),
         tax_children: Joi.array().items(taxChildSchema).optional()
-    }).optional()
+    }).optional(),
+    credits: Joi.array().items(Joi.object({
+        type: Joi.string().trim().required(),
+        balance: Joi.number().min(0).required(),
+        monthlyPayment: Joi.number().min(0).required(),
+        rate: Joi.number().min(0).required(),
+        name: Joi.string().trim().optional()
+    })).optional()
 }).options({ allowUnknown: true });
 
 /**

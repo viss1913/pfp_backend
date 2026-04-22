@@ -49,6 +49,44 @@ function ownerLabel(client) {
     return `Агент #${client.agent_id}`;
 }
 
+function mapCreditToLiabilityRow(credit) {
+    if (!credit || typeof credit !== 'object') return null;
+    const type = String(credit.type || 'OTHER').slice(0, 50);
+    const remainingAmount = Number(credit.balance ?? 0);
+    const monthlyPayment = Number(credit.monthlyPayment ?? 0);
+    const interestRate = Number(credit.rate ?? 0);
+
+    return {
+        type,
+        name: String(credit.name || credit.type || 'Кредит').slice(0, 255),
+        remaining_amount: Number.isFinite(remainingAmount) ? remainingAmount : 0,
+        monthly_payment: Number.isFinite(monthlyPayment) ? monthlyPayment : 0,
+        interest_rate: Number.isFinite(interestRate) ? interestRate : 0
+    };
+}
+
+function mergeLiabilitiesWithCredits(payload) {
+    const directLiabilities = Array.isArray(payload?.liabilities) ? payload.liabilities : [];
+    const credits = Array.isArray(payload?.credits) ? payload.credits : [];
+    if (credits.length === 0) return directLiabilities;
+
+    const creditLiabilities = credits
+        .map(mapCreditToLiabilityRow)
+        .filter(Boolean);
+
+    return [...directLiabilities, ...creditLiabilities];
+}
+
+function mapLiabilityToCredit(liability) {
+    if (!liability || typeof liability !== 'object') return null;
+    return {
+        type: liability.type || 'OTHER',
+        balance: Number(liability.remaining_amount ?? 0),
+        monthlyPayment: Number(liability.monthly_payment ?? 0),
+        rate: Number(liability.interest_rate ?? 0)
+    };
+}
+
 class ClientService {
     async createFullClient(data) {
         // data structure: { client: {...}, assets: [], liabilities: [], expenses: [], goals: [] }
@@ -138,8 +176,9 @@ class ClientService {
                 await clientRepository.addAssets(assets, trx);
             }
 
-            if (data.liabilities && data.liabilities.length > 0) {
-                const liabilities = data.liabilities.map(l => ({ ...l, client_id: clientId }));
+            const normalizedLiabilities = mergeLiabilitiesWithCredits(data);
+            if (normalizedLiabilities.length > 0) {
+                const liabilities = normalizedLiabilities.map(l => ({ ...l, client_id: clientId }));
                 await clientRepository.addLiabilities(liabilities, trx);
             }
 
@@ -198,7 +237,8 @@ class ClientService {
             assets,
             liabilities,
             expenses,
-            goals
+            goals,
+            credits: liabilities.map(mapLiabilityToCredit).filter(Boolean)
         };
 
         if (typeof clientObj.goals_summary === 'string') {
@@ -301,10 +341,13 @@ class ClientService {
                 }
             }
 
-            if (data.liabilities) {
+            const hasLiabilitiesPayload = Object.prototype.hasOwnProperty.call(data, 'liabilities');
+            const hasCreditsPayload = Object.prototype.hasOwnProperty.call(data, 'credits');
+            if (hasLiabilitiesPayload || hasCreditsPayload) {
+                const normalizedLiabilities = mergeLiabilitiesWithCredits(data);
                 await clientRepository.deleteLiabilities(clientId, trx);
-                if (data.liabilities.length > 0) {
-                    const liabilities = data.liabilities.map(l => ({ ...l, client_id: clientId }));
+                if (normalizedLiabilities.length > 0) {
+                    const liabilities = normalizedLiabilities.map(l => ({ ...l, client_id: clientId }));
                     await clientRepository.addLiabilities(liabilities, trx);
                 }
             }
