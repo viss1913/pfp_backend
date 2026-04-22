@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>План действий — Финансовый план</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DejaVu Sans', 'Liberation Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      display: flex;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    article.page {
+      font-size: 14px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #000000;
+    }
+
+    .doc-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #000000;
+      padding: 3px 10px;
+      border: 1px solid #000000;
+      border-radius: 4px;
+      line-height: 1.2;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 15px; }
+
+    .title {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #000000;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      color: #4b5563;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+
+    .steps-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .step-card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 36px 1fr 100px;
+      gap: 12px;
+      align-items: start;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+      position: relative;
+    }
+
+    .step-number {
+      width: 36px;
+      height: 36px;
+      background: #6366f1;
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .step-body {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .step-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #111827;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    .step-desc {
+      font-size: 11px;
+      line-height: 1.5;
+      color: #4b5563;
+    }
+
+    .step-action {
+      margin-top: 8px;
+    }
+
+    .btn {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      color: #6366f1;
+      text-decoration: none;
+      padding: 5px 12px;
+      border: 1.5px solid #6366f1;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: #6366f1;
+      color: #ffffff;
+    }
+
+    .step-image {
+      width: 100px;
+      height: 100px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px dashed #d1d5db;
+    }
+
+    .step-image img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .image-placeholder {
+      font-size: 9px;
+      color: #9ca3af;
+      text-align: center;
+      padding: 5px;
+    }
+
+    .spacer { flex: 1; }
+
+    .footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 6px;
+      border-top: 1px solid #cccccc;
+    }
+
+    .footer-left, .footer-right {
+      font-size: 10px;
+      color: #555555;
+      line-height: 1.4;
+    }
+
+    .footer-right { text-align: right; }
+
+  </style>
+</head>
+<body>
+
+<article class="page">
+  <div class="content">
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">План действий</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <h1 class="title">Ваш путь к финансовым целям</h1>
+    <p class="subtitle">
+      Мы проанализировали ваши цели и возможности. Теперь пора переходить к реализации. 
+      Следуйте этим шагам, чтобы построить надежный фундамент и выйти на траекторию роста.
+    </p>
+
+    <div class="steps-container">
+      <!-- Шаг 1 -->
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <div class="step-body">
+          <h2 class="step-title">Сформировать ликвидный резерв</h2>
+          <p class="step-desc">
+            Ваша «подушка безопасности». Рекомендую держать 3-6 месячных расходов на накопительном счете. 
+            Это обеспечит защиту при любых форс-мажорах без необходимости трогать инвестиции.
+          </p>
+          <div class="step-action">
+            <span style="font-size: 10px; color: #9ca3af;">Совет: Откройте накопительный счет в банке</span>
+          </div>
+        </div>
+        <div class="step-image">
+          <div class="image-placeholder">Изображение 1<br>(Сейф/Защита)</div>
+        </div>
+      </div>
+
+      <!-- Шаг 2 -->
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <div class="step-body">
+          <h2 class="step-title">Оформить накопительное страхование</h2>
+          <p class="step-desc">
+            НСЖ — это фундамент вашего финансового здоровья. Оно защищает вас и вашу семью, 
+            гарантируя целевые накопления даже в самых сложных жизненных ситуациях.
+          </p>
+          <div class="step-action">
+            <a href="#" class="btn">Консультация по НСЖ</a>
+          </div>
+        </div>
+        <div class="step-image">
+          <div class="image-placeholder">Изображение 2<br>(Щит/Семья)</div>
+        </div>
+      </div>
+
+      <!-- Шаг 3 -->
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <div class="step-body">
+          <h2 class="step-title">Открыть ПДС</h2>
+          <p class="step-desc">
+            Программа долгосрочных сбережений с господдержкой. Получайте до 52 000 ₽ налоговых вычетов 
+            и прямое софинансирование от государства ежегодно. Начните копить на будущее эффективно.
+          </p>
+          <div class="step-action">
+            <a href="https://www.finam.ru/products/pds/" target="_blank" class="btn">Открыть ПДС</a>
+          </div>
+        </div>
+        <div class="step-image">
+          <div class="image-placeholder">Изображение 3<br>(Рост/Капитал)</div>
+        </div>
+      </div>
+
+      <!-- Шаг 4 -->
+      <div class="step-card">
+        <div class="step-number">4</div>
+        <div class="step-body">
+          <h2 class="step-title">Открыть брокерский счет</h2>
+          <p class="step-desc">
+            Основной инструмент для приумножения капитала. Получите доступ к рынку акций, 
+            облигаций и профессиональным стратегиям автоследования. Позвольте деньгам работать на вас.
+          </p>
+          <div class="step-action">
+            <a href="https://www.finam.ru/open/order/russia/" target="_blank" class="btn">Открыть счет</a>
+          </div>
+        </div>
+        <div class="step-image">
+          <div class="image-placeholder">Изображение 4<br>(Инвестиции)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+  </div>
+</article>
+
+</body>
+</html>

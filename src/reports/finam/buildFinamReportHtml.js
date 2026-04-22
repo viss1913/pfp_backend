@@ -161,6 +161,12 @@ function buildFinamComonAutofollowCardsHtml(report) {
         .join('\n');
 }
 
+function applyFinamActionPlanPage(html, report) {
+    if (!html || typeof html !== 'string') return html;
+    // Пока что страница статичная, но тут можно будет подставлять динамические ссылки
+    return html;
+}
+
 function applyFinamComonAutofollowPage(html, report) {
     if (!html || typeof html !== 'string') return html;
     let out = html;
@@ -2088,6 +2094,10 @@ async function buildFinamFullPageHtmlList({
     for (const portfolioPart of splitFinamPage4IntoStandalonePages(portfolioFinal)) {
         pages.push(withInline(portfolioPart));
     }
+
+    let actionPlan = await readTemplate('action-plan-finam.html');
+    actionPlan = applyFinamActionPlanPage(actionPlan, report);
+    pages.push(withInline(actionPlan));
 
     let taxPlanning = await readTemplate('tax-planning-block-finam.html');
     taxPlanning = applyFinamTaxPlanningPage(taxPlanning, report);
