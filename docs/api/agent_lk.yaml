@@ -626,6 +626,80 @@ paths:
         '404':
           description: Клиент не найден
 
+  /pfp/ai/agent-client/chat/stream:
+    post:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Потоковый чат ассистента по конкретному клиенту (изолированная история)
+      description: |
+        Специализированный поток для ЛК агента.
+        На каждом запросе бэкенд:
+        - загружает полный профиль клиента (`getFullClient`);
+        - собирает runtime-контекст (профиль, family profile, цели, goals_summary, активы, обязательства, расходы);
+        - отправляет запрос в OpenRouter;
+        - возвращает ответ стримом (SSE);
+        - сохраняет историю по ключу `agent_id + assistant_id + client_id`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiAgentClientChatRequest'
+      responses:
+        '200':
+          description: Потоковый ответ SSE
+        '400':
+          description: Нет client_id/message или отсутствует project context
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент не найден
+
+  /pfp/ai/agent-client/history/{client_id}:
+    get:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: История агентского AI-чата по клиенту
+      description: |
+        Возвращает историю только в рамках конкретного клиента и ассистента.
+        `assistant_id` передаётся query-параметром.
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: assistant_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: История сообщений
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AiAssistantChatMessage'
+        '400':
+          description: Не передан client_id или assistant_id
+
+    delete:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Очистить историю агентского AI-чата по клиенту
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: assistant_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: История очищена
+        '400':
+          description: Не передан client_id или assistant_id
+
   /pfp/crm/briefing:
     get:
       tags: [ "AI CRM (ЛК Агента)" ]
@@ -1641,6 +1715,23 @@ components:
           type: integer
           nullable: true
           description: Опционально. Если не передан, используется `ai-plan-assistant`
+
+    AiAgentClientChatRequest:
+      type: object
+      required: [client_id, message]
+      properties:
+        client_id:
+          type: integer
+          description: ID клиента в текущем project_id
+        message:
+          type: string
+          description: Вопрос агента по финансовому плану клиента
+        assistant_id:
+          type: integer
+          nullable: true
+          description: |
+            Опционально. Если не передан, backend создаёт/использует ассистента
+            со slug `ai-agent-client-lk`.
 
     ChatAiMessage:
       type: object

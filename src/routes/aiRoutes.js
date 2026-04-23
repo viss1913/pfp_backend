@@ -10,5 +10,8 @@ router.get('/history/:assistant_id', aiController.getHistory.bind(aiController))
 router.post('/chat', aiController.chatStream.bind(aiController));
 router.post('/chat/stream', aiController.chatStream.bind(aiController));
 router.post('/plan-assistant/chat', aiController.planAssistantChatStream.bind(aiController));
+router.post('/agent-client/chat/stream', aiController.agentClientChatStream.bind(aiController));
+router.get('/agent-client/history/:client_id', aiController.agentClientHistory.bind(aiController));
+router.delete('/agent-client/history/:client_id', aiController.clearAgentClientHistory.bind(aiController));
 
 module.exports = router;
