@@ -397,10 +397,16 @@ class AiController {
             const agent = req.user || {};
             const resolvedAgentId = agent.agentId || agent.id;
             const clientId = Number(req.params.client_id || req.query.client_id);
-            const assistantId = Number(req.query.assistant_id);
+            const requestedAssistantId = Number(req.query.assistant_id);
 
-            if (!clientId || !assistantId) {
-                return res.status(400).json({ error: 'client_id and assistant_id are required' });
+            if (!clientId) {
+                return res.status(400).json({ error: 'client_id is required' });
+            }
+
+            let assistantId = requestedAssistantId;
+            if (!assistantId) {
+                const assistant = await aiAgentClientService.getOrCreateAssistant();
+                assistantId = assistant.id;
             }
 
             const history = await aiAgentClientService.getHistory(resolvedAgentId, assistantId, clientId);
@@ -415,10 +421,16 @@ class AiController {
             const agent = req.user || {};
             const resolvedAgentId = agent.agentId || agent.id;
             const clientId = Number(req.params.client_id || req.query.client_id);
-            const assistantId = Number(req.query.assistant_id);
+            const requestedAssistantId = Number(req.query.assistant_id);
 
-            if (!clientId || !assistantId) {
-                return res.status(400).json({ error: 'client_id and assistant_id are required' });
+            if (!clientId) {
+                return res.status(400).json({ error: 'client_id is required' });
+            }
+
+            let assistantId = requestedAssistantId;
+            if (!assistantId) {
+                const assistant = await aiAgentClientService.getOrCreateAssistant();
+                assistantId = assistant.id;
             }
 
             await aiAgentClientService.clearHistory(resolvedAgentId, assistantId, clientId);

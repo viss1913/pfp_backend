@@ -660,7 +660,7 @@ paths:
       summary: История агентского AI-чата по клиенту
       description: |
         Возвращает историю только в рамках конкретного клиента и ассистента.
-        `assistant_id` передаётся query-параметром.
+        Если `assistant_id` не передан, backend автоматически использует ассистента `ai-agent-client-lk`.
       parameters:
         - name: client_id
           in: path
@@ -668,7 +668,7 @@ paths:
           schema: { type: integer }
         - name: assistant_id
           in: query
-          required: true
+          required: false
           schema: { type: integer }
       responses:
         '200':
@@ -680,7 +680,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/AiAssistantChatMessage'
         '400':
-          description: Не передан client_id или assistant_id
+          description: Не передан client_id
 
     delete:
       tags: [ "AI CRM (ЛК Агента)" ]
@@ -692,13 +692,13 @@ paths:
           schema: { type: integer }
         - name: assistant_id
           in: query
-          required: true
+          required: false
           schema: { type: integer }
       responses:
         '200':
           description: История очищена
         '400':
-          description: Не передан client_id или assistant_id
+          description: Не передан client_id
 
   /pfp/crm/briefing:
     get:
