@@ -5,6 +5,7 @@ const crmService = require('../services/crmService');
 const clientService = require('../services/clientService');
 const productService = require('../services/productService');
 const portfolioService = require('../services/portfolioService');
+const aiAgentClientService = require('../services/aiAgentClientService');
 const fs = require('fs');
 const path = require('path');
 
@@ -147,7 +148,7 @@ class AiController {
                     console.log(`[AiController] CRM Context Check: Empty=${history.length === 0}, LastMsgAge=${lastMessage ? ((new Date() - new Date(lastMessage.created_at)) / 3600000).toFixed(1) + 'h' : 'N/A'}. Generating Brief...`);
 
                     try {
-                        const brief = await crmService.generateDailyBriefing(agentId);
+                        const brief = await crmService.generateDailyBriefing(agentId, req.user || null);
                         if (brief) {
                             // Save to DB
                             await aiHistoryService.addMessage(agentId, assistant_id, 'assistant', brief);
@@ -174,6 +175,7 @@ class AiController {
             console.log('[AiController] chatStream called. Body:', JSON.stringify(req.body, null, 2));
             const { assistant_id, message } = req.body;
             const agent = req.user;
+            const promptAgent = { ...agent };
             const resolvedAgentId = agent.agentId || agent.id;
 
             // 1. Get Assistant
@@ -184,6 +186,7 @@ class AiController {
             // If this is the CRM Assistant (ID 1) or slug 'ai-crm', inject rich client data
             if (assistant.id == 1 || assistant.slug === 'ai-crm') {
                 try {
+                    promptAgent.name = await crmService.resolveAgentDisplayName(resolvedAgentId, agent);
                     console.log(`[AiController] DEBUG AUTH: User ID (agent.id): ${agent.id}, Agent ID Field (agent.agentId): ${agent.agentId}, Final Used ID: ${resolvedAgentId}`);
 
                     // Fetch DEEP Summary for all clients
@@ -226,7 +229,7 @@ class AiController {
             }
 
             // 2. Prepare Context (System Prompt)
-            const systemPrompt = aiService.injectContext(assistant.context_template, agent);
+            const systemPrompt = aiService.injectContext(assistant.context_template, promptAgent);
 
             // 3. Get History
             const history = await aiHistoryService.getHistory(resolvedAgentId, assistant_id);
@@ -358,6 +361,70 @@ class AiController {
             }
             res.write(`data: {"error": "Internal Error"}\n\n`);
             res.end();
+        }
+    }
+
+    async agentClientChatStream(req, res) {
+        try {
+            const { client_id, message, assistant_id } = req.body || {};
+            const agent = req.user || {};
+            const projectId = req.projectId || agent.projectId;
+
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+
+            await aiAgentClientService.chatStream({
+                agent,
+                projectId,
+                clientId: Number(client_id),
+                message,
+                assistantId: assistant_id ? Number(assistant_id) : null,
+                res
+            });
+        } catch (err) {
+            const status = err.statusCode || 500;
+            if (!res.headersSent) {
+                return res.status(status).json({ error: err.message || 'Agent client chat failed' });
+            }
+            res.write(`data: {"error": "${(err.message || 'Internal Error').replace(/"/g, '\\"')}"}\n\n`);
+            res.end();
+        }
+    }
+
+    async agentClientHistory(req, res) {
+        try {
+            const agent = req.user || {};
+            const resolvedAgentId = agent.agentId || agent.id;
+            const clientId = Number(req.params.client_id || req.query.client_id);
+            const assistantId = Number(req.query.assistant_id);
+
+            if (!clientId || !assistantId) {
+                return res.status(400).json({ error: 'client_id and assistant_id are required' });
+            }
+
+            const history = await aiAgentClientService.getHistory(resolvedAgentId, assistantId, clientId);
+            res.json(history);
+        } catch (err) {
+            res.status(err.statusCode || 500).json({ error: err.message || 'Failed to get history' });
+        }
+    }
+
+    async clearAgentClientHistory(req, res) {
+        try {
+            const agent = req.user || {};
+            const resolvedAgentId = agent.agentId || agent.id;
+            const clientId = Number(req.params.client_id || req.query.client_id);
+            const assistantId = Number(req.query.assistant_id);
+
+            if (!clientId || !assistantId) {
+                return res.status(400).json({ error: 'client_id and assistant_id are required' });
+            }
+
+            await aiAgentClientService.clearHistory(resolvedAgentId, assistantId, clientId);
+            res.json({ success: true });
+        } catch (err) {
+            res.status(err.statusCode || 500).json({ error: err.message || 'Failed to clear history' });
         }
     }
 }

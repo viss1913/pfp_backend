@@ -26,7 +26,12 @@ class AiService {
 
     injectContext(template, agent) {
         if (!template) return '';
-        return template.replace('{{agent_name}}', agent.name || 'Agent');
+        const fallbackName = [agent?.first_name, agent?.last_name]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+        const resolvedName = agent?.name || fallbackName || agent?.email || 'Agent';
+        return template.replace(/\{\{agent_name\}\}/g, resolvedName);
     }
 
     /**

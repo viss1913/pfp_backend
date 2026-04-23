@@ -1,7 +1,111 @@
 const db = require('../config/database');
 const aiService = require('./aiService');
 
+function safeParseJson(value) {
+    if (!value) return null;
+    if (typeof value === 'object') return value;
+    if (typeof value !== 'string') return null;
+    try {
+        return JSON.parse(value);
+    } catch (_) {
+        return null;
+    }
+}
+
+function formatIsoDate(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toISOString().slice(0, 10);
+}
+
+function formatDateRu(value) {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('ru-RU');
+}
+
+function toNumber(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function extractGoalsMeta(goalsSummary) {
+    const parsed = safeParseJson(goalsSummary) || {};
+    const calc = parsed.calculation || parsed;
+    const goals = Array.isArray(calc?.goals) ? calc.goals : [];
+    const consolidated = calc?.summary?.consolidated_portfolio || parsed?.summary?.consolidated_portfolio || {};
+
+    let totalInitial = toNumber(consolidated.total_initial_capital);
+    let totalMonthly = toNumber(consolidated.total_monthly_replenishment);
+
+    if (!totalInitial && goals.length > 0) {
+        totalInitial = goals.reduce((sum, g) => sum + toNumber(g?.summary?.initial_capital ?? g?.smart_initial_capital), 0);
+    }
+    if (!totalMonthly && goals.length > 0) {
+        totalMonthly = goals.reduce((sum, g) => sum + toNumber(g?.summary?.monthly_replenishment), 0);
+    }
+
+    const goalTypes = Array.from(
+        new Set(
+            goals
+                .map((g) => g?.goal_type_id ?? g?.goal_type)
+                .filter((v) => v !== null && v !== undefined && v !== '')
+                .map((v) => String(v))
+        )
+    );
+
+    const lastPfpDate =
+        formatIsoDate(parsed.generated_at) ||
+        formatIsoDate(calc.generated_at) ||
+        formatIsoDate(calc.updated_at) ||
+        formatIsoDate(calc.created_at) ||
+        formatIsoDate(parsed.updated_at) ||
+        null;
+
+    const topGoal = goals[0]?.goal_name || goals[0]?.name || 'Нет целей';
+    const targetAmount = toNumber(goals[0]?.summary?.total_target_amount_future ?? goals[0]?.summary?.target_amount_future);
+    const strategy = calc?.summary?.consolidated_portfolio?.assets_allocation?.[0]?.name || 'Не сформирован';
+
+    return {
+        goalsCount: goals.length,
+        goalTypes,
+        totalInitialCapital: Math.round(totalInitial),
+        totalMonthlyReplenishment: Math.round(totalMonthly),
+        topGoal,
+        targetAmount: Math.round(targetAmount),
+        strategy,
+        lastPfpDate
+    };
+}
+
 class CrmService {
+    async resolveAgentDisplayName(agentId, fallbackAgent = null) {
+        const inlineName = [fallbackAgent?.first_name, fallbackAgent?.last_name]
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+        if (fallbackAgent?.name) return fallbackAgent.name;
+        if (inlineName) return inlineName;
+
+        const row = await db('agents')
+            .leftJoin('users', function () {
+                this.on('users.agent_id', '=', 'agents.id').andOn('users.role', '=', db.raw('?', ['agent']));
+            })
+            .where('agents.id', agentId)
+            .select(
+                'agents.first_name as agent_first_name',
+                'agents.last_name as agent_last_name',
+                'users.name as user_name',
+                'users.email as user_email'
+            )
+            .first();
+
+        const agentName = [row?.agent_first_name, row?.agent_last_name].filter(Boolean).join(' ').trim();
+        return row?.user_name || agentName || row?.user_email || fallbackAgent?.email || 'Агент';
+    }
+
     /**
      * Retrieves specific clients that need attention (Thinking or Renewal)
      */
@@ -42,27 +146,19 @@ class CrmService {
         for (const client of clients) {
             let financials = {};
             try {
-                // Determine financial health
-                const goalsSum = typeof client.goals_summary === 'string' ? JSON.parse(client.goals_summary) : (client.goals_summary || {});
-
-                // Extract key metrics
                 const netWorth = client.net_worth || 0;
-                const assets = client.assets_total || 0;
-                const goalsCount = goalsSum.summary?.goals_count || 0;
-
-                // Find top priority goal
-                const topGoal = goalsSum.calculation?.goals?.[0]?.goal_name || 'Нет целей';
-                const targetAmount = goalsSum.calculation?.goals?.[0]?.summary?.total_target_amount_future || 0;
-
-                // Portfolio Strategy (from Consolidated)
-                const strategy = goalsSum.summary?.consolidated_portfolio?.assets_allocation?.[0]?.name || 'Не сформирован';
+                const goalsMeta = extractGoalsMeta(client.goals_summary);
 
                 financials = {
                     net_worth: Math.round(netWorth),
-                    goals_count: goalsCount,
-                    top_goal: topGoal,
-                    target: Math.round(targetAmount),
-                    main_asset: strategy
+                    goals_count: goalsMeta.goalsCount,
+                    top_goal: goalsMeta.topGoal,
+                    target: goalsMeta.targetAmount,
+                    main_asset: goalsMeta.strategy,
+                    total_initial_capital: goalsMeta.totalInitialCapital,
+                    total_monthly_replenishment: goalsMeta.totalMonthlyReplenishment,
+                    goal_types: goalsMeta.goalTypes,
+                    last_pfp_date: goalsMeta.lastPfpDate || formatIsoDate(client.updated_at)
                 };
 
             } catch (e) {
@@ -74,8 +170,9 @@ class CrmService {
                 name: `${client.last_name} ${client.first_name}`,
                 phone: client.phone,
                 email: client.email,
+                created_at: formatIsoDate(client.created_at),
                 status: client.crm_status, // THINKING, BOUGHT, etc.
-                next_action: client.next_action_date ? new Date(client.next_action_date).toLocaleDateString() : 'N/A',
+                next_action: formatDateRu(client.next_action_date),
                 finance: financials
             });
         }
@@ -86,11 +183,12 @@ class CrmService {
     /**
      * Generates the daily briefing text using AI
      */
-    async generateDailyBriefing(agentId) {
+    async generateDailyBriefing(agentId, agentContext = null) {
         const allClients = await this.getDetailedAgentClientsSummary(agentId);
+        const agentName = await this.resolveAgentDisplayName(agentId, agentContext || {});
 
         if (allClients.length === 0) {
-            return "Доброе утро! В вашей базе пока нет клиентов. Как только вы их добавите, я смогу подготовить для вас аналитическую сводку.";
+            return `Доброе утро, ${agentName}! В вашей базе пока нет клиентов. Как только вы их добавите, я смогу подготовить для вас аналитическую сводку.`;
         }
 
         const thinking = allClients.filter(c => c.status === 'THINKING');
@@ -109,10 +207,16 @@ class CrmService {
             contextData += `- [${c.status}] ${c.name} (ID: ${c.id}). `;
             if (c.phone) contextData += `Тел: ${c.phone}. `;
             if (c.email) contextData += `Email: ${c.email}. `;
+            if (c.created_at) contextData += `Создан: ${c.created_at}. `;
             if (c.finance.error) {
                 contextData += "Финансовые данные не заполнены. ";
             } else {
-                contextData += `Капитал: ${c.finance.net_worth.toLocaleString()}₽. Цель: ${c.finance.top_goal}. `;
+                contextData += `Капитал: ${c.finance.net_worth.toLocaleString()}₽. `;
+                contextData += `Цель: ${c.finance.top_goal}. `;
+                contextData += `Стартовый капитал: ${(c.finance.total_initial_capital || 0).toLocaleString()}₽. `;
+                contextData += `Итог. пополнение: ${(c.finance.total_monthly_replenishment || 0).toLocaleString()}₽/мес. `;
+                contextData += `Типы целей: ${(c.finance.goal_types || []).join(', ') || 'нет'}. `;
+                contextData += `Последний PFP: ${c.finance.last_pfp_date || 'N/A'}. `;
             }
             contextData += `След. шаг: ${c.next_action}\n`;
         });
@@ -139,7 +243,8 @@ class CrmService {
         `;
 
         // Execute AI call using OPENROUTER_MODEL from env when available
-        const messages = [{ role: 'system', content: systemPrompt }];
+        const injectedPrompt = aiService.injectContext(systemPrompt, { ...(agentContext || {}), name: agentName });
+        const messages = [{ role: 'system', content: injectedPrompt }];
         const selectedModel = (process.env.OPENROUTER_MODEL || '').trim() || 'Qwen/Qwen2.5-14B-Instruct';
         return await aiService.getCompletion(messages, selectedModel);
     }
