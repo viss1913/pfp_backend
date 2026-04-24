@@ -569,6 +569,28 @@ class ClientController {
 
             if (identifiedTargetId && !identifiedTargetId.startsWith('temp_')) {
                 const updatedGoalData = goalsMap.get(identifiedTargetId);
+                const calculatedGoals = calculation?.goals || [];
+                const calculatedTargetGoal = calculatedGoals.find((goalResult) =>
+                    String(goalResult?.goal_id || goalResult?.id || '') === String(identifiedTargetId)
+                );
+
+                if (calculatedTargetGoal?.summary) {
+                    const summary = calculatedTargetGoal.summary;
+                    const goalTypeId = Number(updatedGoalData?.goal_type_id);
+                    const isForwardMode = Number(updatedGoalData?.monthly_replenishment) > 0;
+
+                    if (isForwardMode) {
+                        if (summary.target_amount_initial != null) {
+                            updatedGoalData.target_amount = Number(summary.target_amount_initial);
+                        }
+
+                        // Keep dual fields in sync for monthly-income goals in forward mode.
+                        if (goalTypeId === 1 || goalTypeId === 2) {
+                            updatedGoalData.desired_monthly_income = Number(summary.target_amount_initial || 0);
+                        }
+                    }
+                }
+
                 await clientService.updateGoal(clientId, identifiedTargetId, updatedGoalData);
                 console.log(`[ClientController] Persisted changes to goal ${identifiedTargetId}`);
             } else if (!req.body.goals || req.body.goals.length > 0) {

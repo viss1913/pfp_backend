@@ -271,14 +271,18 @@ class OtherGoalCalculator extends BaseCalculator {
             });
         }
 
+        const isForwardMode = Number(goal.monthly_replenishment) > 0;
+        const achievedTargetFuture = simResult.totalCapital;
+        const achievedTargetInitial = achievedTargetFuture / Math.pow(1 + inflationMonthly, termMonths);
+
         return {
             goal_id: goal.id,
             goal_type_id: goal.goal_type_id || 4,
             goal_type: goal.goal_type || 'OTHER',
             summary: {
                 status: (simResult.totalCapital >= targetAmountFuture * 0.999) ? 'OK' : 'GAP',
-                target_amount_initial: Math.round((goal.target_amount || 0) * 100) / 100,
-                target_amount_future: Math.round(targetAmountFuture * 100) / 100,
+                target_amount_initial: Math.round((isForwardMode ? achievedTargetInitial : (goal.target_amount || 0)) * 100) / 100,
+                target_amount_future: Math.round((isForwardMode ? achievedTargetFuture : targetAmountFuture) * 100) / 100,
                 inflation_rate: Math.round(inflationRate * 100) / 100,
 
                 initial_capital: Math.round(effectiveInitialCapital * 100) / 100,

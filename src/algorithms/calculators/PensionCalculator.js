@@ -325,6 +325,13 @@ class PensionCalculator extends BaseCalculator {
         // Discount to Present Value (Today's buying power)
         const inflationFactor = Math.pow(1 + (inflationAnnualUsed / 100), statePensionResult.years_to_pension);
         const totalPensionMonthlyPresent = totalPensionMonthlyFuture / inflationFactor;
+        const isForwardMode = Number(goal.monthly_replenishment) > 0;
+        const targetAmountInitial = isForwardMode
+            ? totalPensionMonthlyPresent
+            : (goal.target_amount || totalPensionMonthlyPresent);
+        const targetAmountFuture = isForwardMode
+            ? totalPensionMonthlyFuture
+            : (desiredPensionMonthlyFuture || totalPensionMonthlyFuture);
 
         if (initial_instruments && initial_instruments.length > 0 && initialCapital > 0) {
             initial_instruments.forEach(inst => {
@@ -346,8 +353,8 @@ class PensionCalculator extends BaseCalculator {
             goal_type: 'PENSION',
             summary: {
                 status: (recommendedReplenishment <= (client.avg_monthly_income * 0.2)) ? 'OK' : 'GAP',
-                target_amount_initial: Math.round((goal.target_amount || totalPensionMonthlyPresent) * 100) / 100,
-                target_amount_future: Math.round((desiredPensionMonthlyFuture || totalPensionMonthlyFuture) * 100) / 100,
+                target_amount_initial: Math.round(targetAmountInitial * 100) / 100,
+                target_amount_future: Math.round(targetAmountFuture * 100) / 100,
 
                 projected_pension_monthly_future: Math.round(totalPensionMonthlyFuture * 100) / 100,
                 projected_pension_monthly_present: Math.round(totalPensionMonthlyPresent * 100) / 100,
