@@ -25,6 +25,31 @@ function stripClientOwnershipFields(obj) {
     delete obj.user_id;
 }
 
+async function warmupClientPdfInBackgroundForCabinet({
+    clientId,
+    projectId,
+    brandingAgentId = null,
+    forceRegenerate = false,
+}) {
+    if (!clientId || !projectId) return;
+    setImmediate(() => {
+        void ensureClientReportPdfReady({
+            clientId: Number(clientId),
+            projectId: Number(projectId),
+            agentId: null,
+            brandingAgentId: brandingAgentId != null ? Number(brandingAgentId) : null,
+            includeCover: true,
+            includeSummary: true,
+            goalTypes: null,
+            fileNamePrefix: 'report',
+            forceRegenerate,
+            waitForResult: false,
+        }).catch((err) => {
+            console.warn('[ClientCabinet] PDF warmup failed:', err?.message || err);
+        });
+    });
+}
+
 const familyProfileSchema = Joi.object({
     marital_status: Joi.string().valid('single', 'married', 'divorced', 'widowed', 'civil_union').optional(),
     children: Joi.array().items(Joi.object({
@@ -542,6 +567,26 @@ class ClientCabinetController {
             // Persist
             const calculation = calculationResponse.calculation || calculationResponse;
             const updatedGoalData = goalsMap.get(identifiedTargetId);
+            const calculatedGoals = calculation?.goals || [];
+            const calculatedTargetGoal = calculatedGoals.find((goalResult) =>
+                String(goalResult?.goal_id || goalResult?.id || '') === String(identifiedTargetId)
+            );
+
+            if (calculatedTargetGoal?.summary) {
+                const summary = calculatedTargetGoal.summary;
+                const goalTypeId = Number(updatedGoalData?.goal_type_id);
+                const isForwardMode = Number(updatedGoalData?.monthly_replenishment) > 0;
+
+                if (isForwardMode) {
+                    if (summary.target_amount_initial != null) {
+                        updatedGoalData.target_amount = Number(summary.target_amount_initial);
+                    }
+                    if (goalTypeId === 1 || goalTypeId === 2) {
+                        updatedGoalData.desired_monthly_income = Number(summary.target_amount_initial || 0);
+                    }
+                }
+            }
+
             await clientService.updateGoal(clientId, identifiedTargetId, updatedGoalData);
 
             // Also update client profile if new data (like answers) was provided
@@ -558,6 +603,13 @@ class ClientCabinetController {
 
             await clientService.updateClient(clientId, {
                 goals_summary: JSON.stringify(calculationResponse)
+            });
+
+            warmupClientPdfInBackgroundForCabinet({
+                clientId,
+                projectId,
+                brandingAgentId: existingClient?.agent_id || null,
+                forceRegenerate: true,
             });
 
             res.json(calculationService.simplify(calculationResponse));
