@@ -621,6 +621,62 @@ function applyPassiveIncomePortfolioStructure(html, goal, facts) {
     return out;
 }
 
+function applyGoalHeroImageIntoAvatarSpeech(html, goal) {
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
+    const isPassive = goalType === 'PASSIVE_INCOME' || goalType === 'RENT' || goalTypeId === 2 || goalTypeId === 8;
+    const isOtherOrInvestment = goalType === 'OTHER' || goalType === 'INVESTMENT' || goalTypeId === 4 || goalTypeId === 3;
+    if ((!isPassive && !isOtherOrInvestment) || !html.includes('class="avatar-section"')) return html;
+
+    const heroMatch = html.match(/<div class="[a-z-]+-hero">[\s\S]*?<\/div>\s*/i);
+    if (!heroMatch) return html;
+    const heroBlock = heroMatch[0];
+    const imgMatch = heroBlock.match(/<img[\s\S]*?>/i);
+    if (!imgMatch) return html;
+    const imageTag = imgMatch[0];
+
+    let out = html.replace(heroMatch[0], '');
+    out = out.replace(/<div class="avatar-section">/, '<div class="avatar-section avatar-section--with-goal-image">');
+    out = out.replace(
+        /(<div class="speech">[\s\S]*?<\/div>)(\s*<\/div>)/,
+        `$1\n      <div class="speech-goal-image">${imageTag}</div>$2`
+    );
+
+    if (!out.includes('.speech-goal-image')) {
+        out = out.replace(
+            /<\/style>/,
+            `
+    .avatar-section--with-goal-image {
+      align-items: stretch;
+      gap: 10px;
+    }
+    .avatar-section--with-goal-image .speech {
+      flex: 1;
+      min-width: 0;
+    }
+    .speech-goal-image {
+      width: 96px;
+      min-width: 96px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #86efac;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .speech-goal-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  </style>`
+        );
+    }
+    return out;
+}
+
 function formatThousandShort(value) {
     const n = Math.max(0, toNum(value));
     return `${Math.round(n / 1000).toLocaleString('ru-RU')}к`;
@@ -1024,6 +1080,7 @@ function applyGoalFactsToTemplate(html, goal) {
     out = applyPensionGapMetrics(out, goal);
     out = stripPensionChartSection(out, goal);
     out = applyOtherGoalTemplateAdjustments(out, goal, facts);
+    out = applyGoalHeroImageIntoAvatarSpeech(out, goal);
     out = applyPassiveIncomePortfolioStructure(out, goal, facts);
 
     out = out.replace(/(Налоговый вычет за )\d{4}( год)/g, `$1${facts.yearTax}$2`);
