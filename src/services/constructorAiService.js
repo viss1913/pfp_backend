@@ -184,6 +184,45 @@ function trimText(v) {
     return String(v).trim();
 }
 
+function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function userExplicitlyChangedMonthlyReplenishment(userMessage, goalPatch, existingGoal = null) {
+    if (hasOwn(goalPatch, 'monthly_replenishment')) {
+        const next = Number(goalPatch.monthly_replenishment);
+        const prev = Number(existingGoal?.monthly_replenishment);
+        const bothFinite = Number.isFinite(next) && Number.isFinite(prev);
+        if (!bothFinite) return true;
+        if (Math.abs(next - prev) > 0.000001) return true;
+    }
+    const text = String(userMessage || '').toLowerCase();
+    if (!text) return false;
+    const monthlyKeywords = [
+        'пополн',
+        'платеж',
+        'платёж',
+        'взнос',
+        'вносить',
+        'в месяц',
+        '/мес',
+        'ежемесяч',
+        'каждый месяц',
+    ];
+    return monthlyKeywords.some((kw) => text.includes(kw));
+}
+
+function shouldUseReverseModeByGoalPatch(goalPatch) {
+    const reverseTriggerKeys = [
+        'initial_capital',
+        'inflation_rate',
+        'target_amount',
+        'desired_monthly_income',
+        'term_months',
+    ];
+    return reverseTriggerKeys.some((key) => hasOwn(goalPatch, key));
+}
+
 /** Дефолтный system-промпт экстракции JSON (first run): data/prompts/financialExtractionFirstRun.txt */
 function loadDefaultFinancialExtractionSystemPrompt() {
     const promptPath = path.join(__dirname, '..', '..', 'data', 'prompts', 'financialExtractionFirstRun.txt');
@@ -2160,6 +2199,20 @@ class ConstructorAiService {
         delete goalPatch.id;
         delete goalPatch.goal_id;
 
+        const reverseCandidateGoalTypes = new Set([1, 2, 4]);
+        const goalTypeIdForMode = Number(existingGoal?.goal_type_id);
+        const hasReverseTriggerChange = shouldUseReverseModeByGoalPatch(goalPatch);
+        const hasExplicitMonthlyChange = userExplicitlyChangedMonthlyReplenishment(userMessage, goalPatch, existingGoal);
+        const shouldForceReverseMode =
+            reverseCandidateGoalTypes.has(goalTypeIdForMode) &&
+            hasReverseTriggerChange &&
+            !hasExplicitMonthlyChange;
+
+        if (shouldForceReverseMode) {
+            // Reverse mode must not inherit stale monthly_replenishment from DB via prepare(existing, patch).
+            goalPatch.monthly_replenishment = null;
+        }
+
         const clientPatch = { ...(patchPayload.client_patch || {}) };
         // У clients нет колонки ops_capital — только у цели; иначе updateClient падает на SQL.
         if (
@@ -2206,6 +2259,10 @@ class ConstructorAiService {
             const summary = calculatedTargetGoal.summary;
             const goalTypeId = Number(persistedGoalData?.goal_type_id);
             const isForwardMode = Number(persistedGoalData?.monthly_replenishment) > 0;
+
+            if (summary.monthly_replenishment != null && Number.isFinite(Number(summary.monthly_replenishment))) {
+                persistedGoalData.monthly_replenishment = Number(summary.monthly_replenishment);
+            }
 
             if (isForwardMode) {
                 if (summary.target_amount_initial != null) {
