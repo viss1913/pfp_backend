@@ -467,6 +467,155 @@ function finamInstrumentTypeLabel(productTypeRaw) {
     return type;
 }
 
+const PASSIVE_PIE_COLORS = ['#d8b4fe', '#2563eb', '#7c3aed', '#10b981', '#f59e0b'];
+
+function buildPassivePieSegments(instruments, totalFallback = 0) {
+    const rows = Array.isArray(instruments) ? instruments : [];
+    if (!rows.length) return [];
+    const prepared = rows.map((item) => {
+        const share = Math.max(0, toNum(item?.share));
+        const amount = Math.max(0, toNum(item?.amount));
+        const yieldPct = toNum(item?.short_term_yield ?? item?.yield);
+        return {
+            name: String(item?.name || 'Инструмент').trim() || 'Инструмент',
+            share,
+            amount,
+            yieldPct,
+        };
+    });
+    const sumAmounts = prepared.reduce((sum, item) => sum + item.amount, 0);
+    const sumShares = prepared.reduce((sum, item) => sum + item.share, 0);
+    const total = sumAmounts > 0 ? sumAmounts : Math.max(0, toNum(totalFallback));
+
+    return prepared
+        .map((item, idx) => {
+            let pct = 0;
+            if (sumAmounts > 0) pct = (item.amount / sumAmounts) * 100;
+            else if (sumShares > 0) pct = (item.share / sumShares) * 100;
+            else if (prepared.length > 0) pct = 100 / prepared.length;
+            const amountFromPct = total > 0 ? (total * pct) / 100 : 0;
+            return {
+                name: item.name,
+                pct,
+                amount: item.amount > 0 ? item.amount : amountFromPct,
+                yieldPct: item.yieldPct,
+                color: PASSIVE_PIE_COLORS[idx % PASSIVE_PIE_COLORS.length],
+            };
+        })
+        .filter((item) => item.pct > 0.001);
+}
+
+function buildPassivePieSvg(segments, filterId) {
+    if (!Array.isArray(segments) || segments.length === 0) {
+        return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="50" cy="50" r="38" fill="#e5e7eb" />
+          </svg>`;
+    }
+    if (segments.length === 1) {
+        return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="50" cy="50" r="38" fill="${segments[0].color}" />
+          </svg>`;
+    }
+    const cx = 50;
+    const cy = 50;
+    const r = 38;
+    let angle = -Math.PI / 2;
+    const paths = [];
+    const totalPct = segments.reduce((sum, seg) => sum + seg.pct, 0) || 1;
+    segments.forEach((seg) => {
+        const frac = seg.pct / totalPct;
+        if (frac <= 0) return;
+        const sweep = frac * Math.PI * 2;
+        const start = angle;
+        const end = angle + sweep;
+        angle = end;
+        const x1 = cx + r * Math.cos(start);
+        const y1 = cy + r * Math.sin(start);
+        const x2 = cx + r * Math.cos(end);
+        const y2 = cy + r * Math.sin(end);
+        const largeArc = sweep > Math.PI ? 1 : 0;
+        paths.push(
+            `<path d="M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z" fill="${seg.color}"/>`
+        );
+    });
+    const filter = filterId
+        ? `<defs>
+              <filter id="${filterId}" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-opacity="0.16"/>
+              </filter>
+            </defs>`
+        : '';
+    const groupOpen = filterId ? `<g filter="url(#${filterId})">` : '<g>';
+    return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        ${filter}
+        ${groupOpen}
+          ${paths.join('\n          ')}
+        </g>
+      </svg>`;
+}
+
+function buildPassiveLegendHtml(segments, isMonthly) {
+    if (!segments.length) {
+        return `<div class="pie-legend-row"><span class="pie-dot" style="background:#d1d5db" aria-hidden="true"></span><span><span class="pie-legend-name">Нет данных из расчёта</span></span></div>`;
+    }
+    return segments
+        .map((seg) => {
+            const pctText = `${(Math.round(seg.pct * 10) / 10).toLocaleString('ru-RU')}%`;
+            const amountRounded = Math.round(Math.max(0, seg.amount)).toLocaleString('ru-RU');
+            const amountText = isMonthly ? `${amountRounded} ₽/мес` : `${amountRounded} ₽`;
+            const yieldText =
+                seg.yieldPct > 0
+                    ? ` · ${seg.yieldPct.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`
+                    : '';
+            return `<div class="pie-legend-row">
+            <span class="pie-dot" style="background:${seg.color}" aria-hidden="true"></span>
+            <span><span class="pie-legend-name">${escapeHtml(seg.name)}</span> — <span class="pie-legend-meta">${pctText} · ${amountText}${yieldText}</span></span>
+          </div>`;
+        })
+        .join('\n');
+}
+
+function applyPassiveIncomePortfolioStructure(html, goal, facts) {
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
+    const isPassiveGoal = goalType === 'PASSIVE_INCOME' || goalType === 'RENT' || goalTypeId === 2 || goalTypeId === 8;
+    if (!isPassiveGoal) return html;
+
+    const details = goal?.details || {};
+    const initialSegments = buildPassivePieSegments(details.initial_instruments, facts.initial);
+    const monthlySegments = buildPassivePieSegments(details.monthly_instruments, facts.monthly);
+
+    let out = html;
+    out = replaceNthMatch(
+        out,
+        /<div class="pie-svg-wrap">[\s\S]*?<\/div>/g,
+        `<div class="pie-svg-wrap">${buildPassivePieSvg(initialSegments, 'pie-sh-p1a')}</div>`,
+        1
+    );
+    out = replaceNthMatch(
+        out,
+        /<div class="pie-svg-wrap">[\s\S]*?<\/div>/g,
+        `<div class="pie-svg-wrap">${buildPassivePieSvg(monthlySegments, 'pie-sh-p1b')}</div>`,
+        2
+    );
+    out = replaceNthMatch(
+        out,
+        /<div class="pie-legend">[\s\S]*?<\/div>/g,
+        `<div class="pie-legend">\n${buildPassiveLegendHtml(initialSegments, false)}\n        </div>`,
+        1
+    );
+    out = replaceNthMatch(
+        out,
+        /<div class="pie-legend">[\s\S]*?<\/div>/g,
+        `<div class="pie-legend">\n${buildPassiveLegendHtml(monthlySegments, true)}\n        </div>`,
+        2
+    );
+    if (!initialSegments.length && !monthlySegments.length) {
+        console.warn('[buildFinamReportHtml] PASSIVE_INCOME: no portfolio instruments for pie blocks');
+    }
+    return out;
+}
+
 function formatThousandShort(value) {
     const n = Math.max(0, toNum(value));
     return `${Math.round(n / 1000).toLocaleString('ru-RU')}к`;
@@ -870,6 +1019,7 @@ function applyGoalFactsToTemplate(html, goal) {
     out = applyPensionGapMetrics(out, goal);
     out = stripPensionChartSection(out, goal);
     out = applyOtherGoalTemplateAdjustments(out, goal, facts);
+    out = applyPassiveIncomePortfolioStructure(out, goal, facts);
 
     out = out.replace(/(Налоговый вычет за )\d{4}( год)/g, `$1${facts.yearTax}$2`);
     out = out.replace(/(Софинансирование за )\d{4}( год)/g, `$1${facts.yearCofin}$2`);

@@ -661,68 +661,25 @@ function buildPortfolioContribInject(segments, totalMo, uid) {
       </div>`;
 }
 
-function buildPortfolioTableInitial(segments, totalInit) {
-    const rows = segments
-        .map(
-            (s) => `
-        <tr>
-          <td>${escapeHtml(s.name)}</td>
-          <td class="pct">${Math.round(s.pct * 10) / 10}%</td>
-          <td class="num">${escapeHtml(Math.round(s.amount).toLocaleString('ru-RU'))}</td>
-        </tr>`
-        )
-        .join('');
+function buildPortfolioNoDataInject(label) {
     return `
-    <p class="pct-table-caption">Начальный капитал</p>
-    <table class="pct-table" aria-label="Доли начального капитала по классам активов">
-      <thead>
-        <tr>
-          <th>Класс актива</th>
-          <th class="pct">Доля, %</th>
-          <th class="num">Сумма, ₽</th>
-        </tr>
-      </thead>
-      <tbody>
-${rows}
-        <tr class="total-row">
-          <td>Итого</td>
-          <td class="pct">100%</td>
-          <td class="num">${escapeHtml(Math.round(totalInit).toLocaleString('ru-RU'))}</td>
-        </tr>
-      </tbody>
-    </table>`;
-}
-
-function buildPortfolioTableContrib(segments, totalMo) {
-    const rows = segments
-        .map(
-            (s) => `
-        <tr>
-          <td>${escapeHtml(s.name)}</td>
-          <td class="pct">${Math.round(s.pct * 10) / 10}%</td>
-          <td class="num">${escapeHtml(Math.round(s.amount).toLocaleString('ru-RU'))}</td>
-        </tr>`
-        )
-        .join('');
-    return `
-    <p class="pct-table-caption">Портфель пополнений</p>
-    <table class="pct-table" aria-label="Доли пополнений по инструментам">
-      <thead>
-        <tr>
-          <th>Инструмент</th>
-          <th class="pct">Доля, %</th>
-          <th class="num">Сумма, ₽/мес</th>
-        </tr>
-      </thead>
-      <tbody>
-${rows}
-        <tr class="total-row">
-          <td>Итого взнос</td>
-          <td class="pct">100%</td>
-          <td class="num">${escapeHtml(Math.round(totalMo).toLocaleString('ru-RU'))}</td>
-        </tr>
-      </tbody>
-    </table>`;
+      <div class="total-layout">
+        <div class="donut-wrap">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="50" cy="50" r="42" fill="#e5e7eb"></circle>
+            <circle cx="50" cy="50" r="24" fill="#ffffff"></circle>
+          </svg>
+          <div class="donut-center">
+            <span class="donut-center-sum">—</span>
+          </div>
+        </div>
+        <div class="total-legend">
+          <div class="total-legend-row">
+            <span class="total-dot" style="background:#d1d5db" aria-hidden="true"></span>
+            <span><span class="total-name">${escapeHtml(label)}</span> — <span class="total-meta">данные расчёта недоступны</span></span>
+          </div>
+        </div>
+      </div>`;
 }
 
 function applyFinamPortfolioFinalPage(html, report) {
@@ -739,21 +696,18 @@ function applyFinamPortfolioFinalPage(html, report) {
 
     let out = html;
     const iniInject = init.segments.length > 0 && totalInit > 0 ? buildPortfolioInitialInject(init.segments, totalInit, uid) : null;
-    if (iniInject) {
-        out = out.replace(/<!-- @finam-portfolio-initial -->[\s\S]*?<!-- \/@finam-portfolio-initial -->/, iniInject);
-        out = out.replace(
-            /<!-- @finam-portfolio-table-initial -->[\s\S]*?<!-- \/@finam-portfolio-table-initial -->/,
-            `<!-- @finam-portfolio-table-initial -->${buildPortfolioTableInitial(init.segments, totalInit)}<!-- /@finam-portfolio-table-initial -->`
-        );
-    }
-
     const cfInject = flow.segments.length > 0 && totalMo > 0 ? buildPortfolioContribInject(flow.segments, totalMo, uid) : null;
-    if (cfInject) {
-        out = out.replace(/<!-- @finam-portfolio-contrib -->[\s\S]*?<!-- \/@finam-portfolio-contrib -->/, cfInject);
-        out = out.replace(
-            /<!-- @finam-portfolio-table-contrib -->[\s\S]*?<!-- \/@finam-portfolio-table-contrib -->/,
-            `<!-- @finam-portfolio-table-contrib -->${buildPortfolioTableContrib(flow.segments, totalMo)}<!-- /@finam-portfolio-table-contrib -->`
-        );
+    out = out.replace(
+        /<!-- @finam-portfolio-initial -->[\s\S]*?<!-- \/@finam-portfolio-initial -->/,
+        iniInject || buildPortfolioNoDataInject('Начальный капитал')
+    );
+    out = out.replace(
+        /<!-- @finam-portfolio-contrib -->[\s\S]*?<!-- \/@finam-portfolio-contrib -->/,
+        cfInject || buildPortfolioNoDataInject('Портфель пополнений')
+    );
+
+    if (!iniInject || !cfInject) {
+        console.warn('[finamPdfPageAppliers] PORTFOLIO_FINAL: missing or empty portfolio pdf_metrics, used fallback');
     }
 
     return out;
