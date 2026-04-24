@@ -2196,7 +2196,28 @@ class ConstructorAiService {
         );
         const calculation = calculationResponse.calculation || calculationResponse;
 
-        await clientService.updateGoal(pfpClientId, targetGoalId, goalsMap.get(targetGoalId));
+        const calculatedGoals = calculation?.goals || [];
+        const calculatedTargetGoal = calculatedGoals.find((goalResult) =>
+            String(goalResult?.goal_id || goalResult?.id || '') === String(targetGoalId)
+        );
+        const persistedGoalData = goalsMap.get(targetGoalId);
+
+        if (calculatedTargetGoal?.summary && persistedGoalData) {
+            const summary = calculatedTargetGoal.summary;
+            const goalTypeId = Number(persistedGoalData?.goal_type_id);
+            const isForwardMode = Number(persistedGoalData?.monthly_replenishment) > 0;
+
+            if (isForwardMode) {
+                if (summary.target_amount_initial != null) {
+                    persistedGoalData.target_amount = Number(summary.target_amount_initial);
+                }
+                if (goalTypeId === 1 || goalTypeId === 2) {
+                    persistedGoalData.desired_monthly_income = Number(summary.target_amount_initial || 0);
+                }
+            }
+        }
+
+        await clientService.updateGoal(pfpClientId, targetGoalId, persistedGoalData);
         if (Object.keys(clientPatch).length > 0) {
             await clientService.updateClient(pfpClientId, clientPatch, bot.project_id);
         }
