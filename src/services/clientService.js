@@ -87,6 +87,32 @@ function mapLiabilityToCredit(liability) {
     };
 }
 
+function normalizeGoalRow(goal) {
+    if (!goal || typeof goal !== 'object') return goal;
+
+    let paramsObj = null;
+    if (typeof goal.params === 'string' && goal.params.trim()) {
+        try {
+            paramsObj = JSON.parse(goal.params);
+        } catch (_) {
+            paramsObj = null;
+        }
+    } else if (goal.params && typeof goal.params === 'object') {
+        paramsObj = goal.params;
+    }
+
+    const normalized = { ...goal };
+    if (
+        normalized.monthly_replenishment === undefined &&
+        paramsObj &&
+        paramsObj.monthly_replenishment !== undefined
+    ) {
+        normalized.monthly_replenishment = paramsObj.monthly_replenishment;
+    }
+
+    return normalized;
+}
+
 class ClientService {
     async createFullClient(data) {
         // data structure: { client: {...}, assets: [], liabilities: [], expenses: [], goals: [] }
@@ -190,7 +216,7 @@ class ClientService {
             if (data.goals && data.goals.length > 0) {
                 const goalColumns = [
                     'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
-                    'term_months', 'end_date', 'initial_capital', 'inflation_rate', 'risk_profile'
+                    'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile'
                 ];
 
                 const goals = data.goals.map(g => {
@@ -237,7 +263,7 @@ class ClientService {
             assets,
             liabilities,
             expenses,
-            goals,
+            goals: (goals || []).map(normalizeGoalRow),
             credits: liabilities.map(mapLiabilityToCredit).filter(Boolean)
         };
 
@@ -365,7 +391,7 @@ class ClientService {
                 if (data.goals.length > 0) {
                     const goalColumns = [
                         'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
-                        'term_months', 'end_date', 'initial_capital', 'inflation_rate', 'risk_profile'
+                        'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile'
                     ];
 
                     const goals = data.goals.map(g => {
@@ -420,7 +446,7 @@ class ClientService {
     async addGoal(clientId, goalData) {
         const goalColumns = [
             'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
-            'term_months', 'end_date', 'initial_capital', 'inflation_rate', 'risk_profile'
+            'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile'
         ];
 
         const goalRecord = { client_id: clientId };
@@ -446,7 +472,7 @@ class ClientService {
     async updateGoal(clientId, goalId, goalData) {
         const goalColumns = [
             'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
-            'term_months', 'end_date', 'initial_capital', 'inflation_rate', 'risk_profile'
+            'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile'
         ];
 
         const goalRecord = {};
