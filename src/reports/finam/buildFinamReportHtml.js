@@ -579,7 +579,9 @@ function applyPassiveIncomePortfolioStructure(html, goal, facts) {
     const goalType = String(goal?.goal_type || '').toUpperCase();
     const goalTypeId = Number(goal?.goal_type_id);
     const isPassiveGoal = goalType === 'PASSIVE_INCOME' || goalType === 'RENT' || goalTypeId === 2 || goalTypeId === 8;
-    if (!isPassiveGoal) return html;
+    const isOtherLikeGoal = goalType === 'OTHER' || goalType === 'INVESTMENT' || goalTypeId === 4 || goalTypeId === 3;
+    const isSupportedGoal = isPassiveGoal || isOtherLikeGoal;
+    if (!isSupportedGoal || !html.includes('class="pie-row"')) return html;
 
     const details = goal?.details || {};
     const initialSegments = buildPassivePieSegments(details.initial_instruments, facts.initial);
@@ -611,7 +613,7 @@ function applyPassiveIncomePortfolioStructure(html, goal, facts) {
         2
     );
     if (!initialSegments.length && !monthlySegments.length) {
-        console.warn('[buildFinamReportHtml] PASSIVE_INCOME: no portfolio instruments for pie blocks');
+        console.warn(`[buildFinamReportHtml] ${goalType || 'GOAL'}: no portfolio instruments for pie blocks`);
     }
     return out;
 }
