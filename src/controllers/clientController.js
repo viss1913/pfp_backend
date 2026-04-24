@@ -606,6 +606,15 @@ class ClientController {
                 goals_summary: JSON.stringify(calculationResponse)
             });
 
+            // Recalculate changes goal numbers used by PDF pages.
+            // Force background regeneration to avoid returning stale cached PDF URL/content.
+            warmupClientPdfInBackground({
+                clientId,
+                projectId,
+                agentId: req.user?.agentId || existingClient.agent_id || null,
+                forceRegenerate: true,
+            });
+
             res.json(calculationService.simplify(calculationResponse));
 
         } catch (err) {
