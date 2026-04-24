@@ -2184,6 +2184,12 @@ class ConstructorAiService {
             if (byTypeAndName?.id != null) targetGoalId = String(byTypeAndName.id);
         }
 
+        // Current chat product constraint: a session contains exactly one active goal.
+        // If LLM did not resolve goal id explicitly, safely fallback to the only goal.
+        if (!targetGoalId && existingGoals.length === 1 && existingGoals[0]?.id != null) {
+            targetGoalId = String(existingGoals[0].id);
+        }
+
         if (!targetGoalId || !goalsMap.has(targetGoalId)) {
             return {
                 calculationResult: null,

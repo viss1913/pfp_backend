@@ -168,6 +168,22 @@ const taxPlanningService = require('../services/taxPlanningService');
 const { ensureClientReportPdfReady } = require('../services/reportPdfStorageService');
 const pdfWarmupScheduleByClient = new Map();
 
+function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function shouldForceReverseModeForPatch(existingGoal, patch) {
+    const goalTypeId = Number(existingGoal?.goal_type_id);
+    const reverseTypes = new Set([1, 2, 4]);
+    if (!reverseTypes.has(goalTypeId)) return false;
+
+    const reverseTriggerFields = ['initial_capital', 'inflation_rate', 'target_amount', 'desired_monthly_income', 'term_months'];
+    const hasReverseTrigger = reverseTriggerFields.some((key) => hasOwn(patch, key));
+    const hasExplicitMonthlyChange = hasOwn(patch, 'monthly_replenishment');
+
+    return hasReverseTrigger && !hasExplicitMonthlyChange;
+}
+
 async function warmupClientPdfInBackground({ clientId, projectId, agentId, forceRegenerate = false }) {
     if (!clientId || !projectId) return;
     const now = Date.now();
@@ -500,7 +516,11 @@ class ClientController {
                 if (singleGoalId && goalsMap.has(String(singleGoalId))) {
                     console.log(`[ClientController] Using GoalRecalculator for single goal: ${singleGoalId}`);
                     const existing = goalsMap.get(String(singleGoalId));
-                    const updated = goalRecalculator.prepare(existing, req.body);
+                    const preparedPatch = { ...req.body };
+                    if (shouldForceReverseModeForPatch(existing, preparedPatch)) {
+                        preparedPatch.monthly_replenishment = null;
+                    }
+                    const updated = goalRecalculator.prepare(existing, preparedPatch);
 
                     goalsMap.set(String(singleGoalId), updated);
                     identifiedTargetId = String(singleGoalId);
@@ -516,7 +536,11 @@ class ClientController {
 
                     if (matchKey && goalsMap.has(matchKey)) {
                         const existing = goalsMap.get(matchKey);
-                        const updated = goalRecalculator.prepare(existing, patch);
+                        const preparedPatch = { ...patch };
+                        if (shouldForceReverseModeForPatch(existing, preparedPatch)) {
+                            preparedPatch.monthly_replenishment = null;
+                        }
+                        const updated = goalRecalculator.prepare(existing, preparedPatch);
                         goalsMap.set(matchKey, updated);
                         if (req.body.goals.length === 1) identifiedTargetId = matchKey;
                     } else {

@@ -25,6 +25,22 @@ function stripClientOwnershipFields(obj) {
     delete obj.user_id;
 }
 
+function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj || {}, key);
+}
+
+function shouldForceReverseModeForPatch(existingGoal, patch) {
+    const goalTypeId = Number(existingGoal?.goal_type_id);
+    const reverseTypes = new Set([1, 2, 4]);
+    if (!reverseTypes.has(goalTypeId)) return false;
+
+    const reverseTriggerFields = ['initial_capital', 'inflation_rate', 'target_amount', 'desired_monthly_income', 'term_months'];
+    const hasReverseTrigger = reverseTriggerFields.some((key) => hasOwn(patch, key));
+    const hasExplicitMonthlyChange = hasOwn(patch, 'monthly_replenishment');
+
+    return hasReverseTrigger && !hasExplicitMonthlyChange;
+}
+
 async function warmupClientPdfInBackgroundForCabinet({
     clientId,
     projectId,
@@ -529,7 +545,11 @@ class ClientCabinetController {
             // Apply updates to target goal
             if (goalId && goalsMap.has(String(goalId))) {
                 const existing = goalsMap.get(String(goalId));
-                const updated = goalRecalculator.prepare(existing, req.body);
+                const preparedPatch = { ...req.body };
+                if (shouldForceReverseModeForPatch(existing, preparedPatch)) {
+                    preparedPatch.monthly_replenishment = null;
+                }
+                const updated = goalRecalculator.prepare(existing, preparedPatch);
                 goalsMap.set(String(goalId), updated);
                 identifiedTargetId = String(goalId);
             } else {
