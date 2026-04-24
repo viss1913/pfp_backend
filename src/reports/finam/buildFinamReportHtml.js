@@ -575,6 +575,15 @@ function buildPassiveLegendHtml(segments, isMonthly) {
         .join('\n');
 }
 
+function replacePassivePieCardBlock(html, cardTitle, svgHtml, legendHtml) {
+    const titleEsc = cardTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(
+        `(<div class="pie-card-title">${titleEsc}<\\/div>\\s*)(<div class="pie-svg-wrap">[\\s\\S]*?<\\/div>\\s*<div class="pie-legend">[\\s\\S]*?<\\/div>\\s*)`,
+        'i'
+    );
+    return html.replace(re, `$1<div class="pie-svg-wrap">${svgHtml}</div>\n        <div class="pie-legend">\n${legendHtml}\n        </div>\n`);
+}
+
 function applyPassiveIncomePortfolioStructure(html, goal, facts) {
     const goalType = String(goal?.goal_type || '').toUpperCase();
     const goalTypeId = Number(goal?.goal_type_id);
@@ -588,29 +597,23 @@ function applyPassiveIncomePortfolioStructure(html, goal, facts) {
     const monthlySegments = buildPassivePieSegments(details.monthly_instruments, facts.monthly);
 
     let out = html;
-    out = replaceNthMatch(
+    out = replacePassivePieCardBlock(
         out,
-        /<div class="pie-svg-wrap">[\s\S]*?<\/div>/g,
-        `<div class="pie-svg-wrap">${buildPassivePieSvg(initialSegments, 'pie-sh-p1a')}</div>`,
-        1
+        'Портфель начального капитала',
+        buildPassivePieSvg(initialSegments, 'pie-sh-p1a'),
+        buildPassiveLegendHtml(initialSegments, false)
     );
-    out = replaceNthMatch(
+    out = replacePassivePieCardBlock(
         out,
-        /<div class="pie-svg-wrap">[\s\S]*?<\/div>/g,
-        `<div class="pie-svg-wrap">${buildPassivePieSvg(monthlySegments, 'pie-sh-p1b')}</div>`,
-        2
+        'Портфель пополнений',
+        buildPassivePieSvg(monthlySegments, 'pie-sh-p1b'),
+        buildPassiveLegendHtml(monthlySegments, true)
     );
-    out = replaceNthMatch(
-        out,
-        /<div class="pie-legend">[\s\S]*?<\/div>/g,
-        `<div class="pie-legend">\n${buildPassiveLegendHtml(initialSegments, false)}\n        </div>`,
-        1
-    );
-    out = replaceNthMatch(
-        out,
-        /<div class="pie-legend">[\s\S]*?<\/div>/g,
-        `<div class="pie-legend">\n${buildPassiveLegendHtml(monthlySegments, true)}\n        </div>`,
-        2
+    // Удаляем статичные legacy-строки легенд из шаблонов (pie-dot--dep/bond/stock),
+    // которые могут остаться после частичных замен во вложенной разметке.
+    out = out.replace(
+        /<div class="pie-legend-row">\s*<span class="pie-dot pie-dot--(?:dep|bond|stock)"[\s\S]*?<\/div>\s*/g,
+        ''
     );
     if (!initialSegments.length && !monthlySegments.length) {
         console.warn(`[buildFinamReportHtml] ${goalType || 'GOAL'}: no portfolio instruments for pie blocks`);
