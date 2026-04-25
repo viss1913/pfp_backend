@@ -13,6 +13,10 @@ const knex = require('../config/database');
 const aiService = require('./aiService');
 const { buildChatContext, formatChatContextForPrompt } = require('./chatContextService');
 const { formatExtractedDocumentSection } = require('./documentTextExtractionService');
+const {
+    runCalcRecalculateFlow,
+    buildCalcAiTrailingPayload,
+} = require('./calcRecalculateFlowService');
 
 const DOC_SNIPPET_LIMIT_CHARS = 4000;
 const DOC_TOTAL_LIMIT_CHARS = 30000;
@@ -21,6 +25,21 @@ const DOC_CHUNK_SIZE = 1200;
 const DOC_CHUNK_OVERLAP = 200;
 
 class AiB2cService {
+    _isCalcRoutingCommand(command) {
+        const k = String(command || '').trim().toLowerCase();
+        return k === '/calc' || k === '/recalc' || k === '/recalculate';
+    }
+
+    _writeSseFinalText(res, text, pdfUrl = null) {
+        if (!res || typeof res.write !== 'function' || res.writableEnded) return;
+        if (pdfUrl) {
+            res.write(`data: ${JSON.stringify({ type: 'pdf_url', pdf_url: pdfUrl })}\n\n`);
+        }
+        res.write(`data: ${JSON.stringify({ type: 'text', content: text || '' })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+        res.end();
+    }
+
 
     /**
      * Отправить сообщение ИИ (non-streaming)
@@ -138,11 +157,61 @@ class AiB2cService {
         });
 
         const nextStageKey = this._commandToStageKey(routingCommand) || 'start';
+        const isCalcCommand = this._isCalcRoutingCommand(routingCommand) || nextStageKey === 'calc';
+
+        if (isCalcCommand) {
+            const historyRows = await this._getChatAiHistoryGlobal(clientId);
+            const historyPairs = historyRows
+                .slice(-12)
+                .map((row) => ({ role: row.role, content: row.content }))
+                .reduce((acc, row) => {
+                    if (row.role === 'user') {
+                        acc.push({ user: row.content || '', assistant: '' });
+                    } else if (row.role === 'assistant') {
+                        if (acc.length === 0) acc.push({ user: '', assistant: row.content || '' });
+                        else acc[acc.length - 1].assistant = row.content || '';
+                    }
+                    return acc;
+                }, []);
+            const existingClient = await this._getClientData(clientId);
+            const recalc = await runCalcRecalculateFlow({
+                pfpClientId: clientId,
+                projectId,
+                userMessage,
+                historyPairs,
+                agentId: existingClient?.client?.agent_id || null,
+                uploadPdf: true,
+            });
+
+            if (recalc.calcInstructionMessage) {
+                const text = recalc.pdfUrl
+                    ? `${recalc.calcInstructionMessage}\n\n📄 Ваш персональный отчёт (PDF): ${recalc.pdfUrl}`
+                    : recalc.calcInstructionMessage;
+                this._writeSseFinalText(res, text, recalc.pdfUrl || null);
+                await this._saveChatAiMessagesWithStageKeys(clientId, currentStageKey, nextStageKey, userMessage, text);
+                return text;
+            }
+
+            const prompt = await this._buildChatAiPrompt(clientId, projectId, nextStageKey, userMessage, {
+                historyMode: 'global',
+                assistantName,
+                routingCommand,
+                calcPayload: buildCalcAiTrailingPayload(recalc.calculationResult),
+            });
+            const fullText = await aiService.getCompletion(prompt);
+            const finalText = recalc.pdfUrl
+                ? `${fullText}\n\n📄 Ваш персональный отчёт (PDF): ${recalc.pdfUrl}`
+                : fullText;
+            this._writeSseFinalText(res, finalText, recalc.pdfUrl || null);
+            await this._saveChatAiMessagesWithStageKeys(clientId, currentStageKey, nextStageKey, userMessage, finalText);
+            return finalText;
+        }
 
         // 2-й ИИ => финальный ответ на выбранной стадии, учитывая глобальную историю chat_AI
         const prompt = await this._buildChatAiPrompt(clientId, projectId, nextStageKey, userMessage, {
             historyMode: 'global',
-            assistantName
+            assistantName,
+            routingCommand,
         });
 
         const fullText = await aiService.streamCompletion(prompt, null, res);
@@ -334,11 +403,20 @@ ${clientSection}
 8. Если в поле chat_context.missing_fields есть значения — задай максимум 1–3 вопроса из questions_queue и не додумывай значения сам.
 `.trim();
 
-        return [
+        const messages = [
             { role: 'system', content: systemPrompt },
             ...historyMessages,
             { role: 'user', content: userMessage }
         ];
+        if (options.calcPayload && typeof options.calcPayload === 'object') {
+            messages.push({
+                role: 'user',
+                content:
+                    'Служебное сообщение (не показывать пользователю как цитату): расчёт УЖЕ выполнен. Ниже JSON — единственный источник цифр для ответа.\n\nРезультат расчёта (JSON):\n' +
+                    JSON.stringify(options.calcPayload, null, 2),
+            });
+        }
+        return messages;
     }
 
     async _classifyDynamicCommand(projectId, userMessage, { historyMessages = [], currentStageKey = 'start', commandContextText = null } = {}) {

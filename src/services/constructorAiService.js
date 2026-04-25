@@ -8,6 +8,10 @@ const constructorPfpPersistService = require('./constructorPfpPersistService');
 const clientService = require('./clientService');
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('./clientGoalSyncService');
+const {
+    runCalcRecalculateFlow: runSharedCalcRecalculateFlow,
+    extractRecalculatePatch: extractSharedRecalculatePatch,
+} = require('./calcRecalculateFlowService');
 const path = require('path');
 const fs = require('fs');
 
@@ -2078,11 +2082,14 @@ class ConstructorAiService {
     }
 
     async extractRecalculatePatch(session, userMessage, planContext = {}) {
-        const history = await knex('constructor_logs').where('session_id', session.id).orderBy('created_at', 'desc').limit(12);
-        const historyText = history
-            .reverse()
-            .map((log) => `User: ${log.input_text}\nAssistant: ${log.response_generated}`)
-            .join('\n');
+        const history = await knex('constructor_logs')
+            .where('session_id', session.id)
+            .orderBy('created_at', 'desc')
+            .limit(12);
+        const historyPairs = history.reverse().map((log) => ({
+            user: log.input_text,
+            assistant: log.response_generated,
+        }));
         const goalsForPrompt = Array.isArray(planContext.goals)
             ? planContext.goals.map((g) => ({
                   id: g.id,
@@ -2100,215 +2107,38 @@ class ConstructorAiService {
                   ops_capital: g.ops_capital,
               }))
             : [];
-        const prompt = [
-            { role: 'system', content: DEFAULT_RECALCULATE_EXTRACTION_SYSTEM_PROMPT },
-            {
-                role: 'user',
-                content:
-                    `Текущие цели клиента (обязательно используй их id):\n${JSON.stringify(goalsForPrompt, null, 2)}\n\n` +
-                    `История:\n${historyText}\nUser: ${userMessage}`,
-            },
-        ];
-        try {
-            const raw = await aiService.getCompletion(prompt);
-            const parsed = parseFinancialPlanJsonFromLlmText(raw);
-            return normalizeRecalculatePatch(parsed);
-        } catch (err) {
-            console.error('[AI] Error extracting /calc recalculate patch:', err.message || err);
-            return {
-                target_goal: {},
-                goal_patch: {},
-                client_patch: {},
-                needs_clarification: true,
-                clarification_question: 'Уточните, какую цель пересчитать и какие параметры поменялись.',
-            };
-        }
+        const historyText = historyPairs
+            .map((row) => `User: ${row.user || ''}\nAssistant: ${row.assistant || ''}`.trim())
+            .join('\n');
+        return extractSharedRecalculatePatch({
+            userMessage,
+            goalsForPrompt,
+            historyText,
+        });
     }
 
     async runCalcRecalculateFlow({ session, bot, client, userMessage }) {
-        if (!client?.pfp_client_id) {
-            return {
-                calculationResult: null,
-                pdfUrl: null,
-                firstRunExtraction: null,
-                calcInstructionMessage:
-                    'Для пересчёта сначала нужен стартовый план. Давайте сначала сделаем /firstRunAIB2C, потом вернёмся к /calc.',
-            };
-        }
-
-        const pfpClientId = Number(client.pfp_client_id);
-        const existingClient = await clientService.getFullClient(pfpClientId, bot.project_id);
-        if (!existingClient || !Array.isArray(existingClient.goals) || existingClient.goals.length === 0) {
-            return {
-                calculationResult: null,
-                pdfUrl: null,
-                firstRunExtraction: null,
-                calcInstructionMessage: 'Не нашёл сохранённый план для пересчёта. Давайте сначала пересоберём first run.',
-            };
-        }
-
-        const existingGoals = existingClient.goals.map(normalizeDbGoalForRecalculate);
-        const patchPayload = await this.extractRecalculatePatch(session, userMessage, { goals: existingGoals });
-
-        if (patchPayload.needs_clarification) {
-            return {
-                calculationResult: null,
-                pdfUrl: null,
-                firstRunExtraction: null,
-                calcInstructionMessage:
-                    patchPayload.clarification_question ||
-                    'Уточните, какую цель пересчитать и что именно меняем (сумма, срок, пополнение и т.д.).',
-            };
-        }
-
-        const goalsMap = new Map();
-        existingGoals.forEach((g) => {
-            if (g.id != null) goalsMap.set(String(g.id), g);
+        const history = await knex('constructor_logs')
+            .where('session_id', session.id)
+            .orderBy('created_at', 'desc')
+            .limit(12);
+        const historyPairs = history.reverse().map((log) => ({
+            user: log.input_text,
+            assistant: log.response_generated,
+        }));
+        const recalc = await runSharedCalcRecalculateFlow({
+            pfpClientId: client?.pfp_client_id,
+            projectId: bot.project_id,
+            userMessage,
+            historyPairs,
+            agentId: bot.agent_id,
+            uploadPdf: true,
         });
-
-        const requestedGoalId = pickFirstNonEmpty(
-            patchPayload.target_goal?.id,
-            patchPayload.goal_patch?.id,
-            patchPayload.goal_patch?.goal_id
-        );
-        let targetGoalId = requestedGoalId ? String(requestedGoalId) : null;
-        if (!targetGoalId) {
-            const byTypeAndName = existingGoals.find((g) => {
-                const typeOk =
-                    patchPayload.target_goal?.goal_type_id == null ||
-                    Number(g.goal_type_id) === Number(patchPayload.target_goal.goal_type_id);
-                const nameFilter = trimText(patchPayload.target_goal?.name).toLowerCase();
-                const nameOk = !nameFilter || trimText(g.name).toLowerCase() === nameFilter;
-                return typeOk && nameOk;
-            });
-            if (byTypeAndName?.id != null) targetGoalId = String(byTypeAndName.id);
-        }
-
-        // Current chat product constraint: a session contains exactly one active goal.
-        // If LLM did not resolve goal id explicitly, safely fallback to the only goal.
-        if (!targetGoalId && existingGoals.length === 1 && existingGoals[0]?.id != null) {
-            targetGoalId = String(existingGoals[0].id);
-        }
-
-        if (!targetGoalId || !goalsMap.has(targetGoalId)) {
-            return {
-                calculationResult: null,
-                pdfUrl: null,
-                firstRunExtraction: null,
-                calcInstructionMessage:
-                    'Не смогла однозначно определить цель для пересчёта. Напишите точнее: какая цель и что меняем.',
-            };
-        }
-
-        const existingGoal = goalsMap.get(targetGoalId);
-        const goalPatch = { ...patchPayload.goal_patch };
-        delete goalPatch.id;
-        delete goalPatch.goal_id;
-
-        const reverseCandidateGoalTypes = new Set([1, 2, 4]);
-        const goalTypeIdForMode = Number(existingGoal?.goal_type_id);
-        const hasReverseTriggerChange = shouldUseReverseModeByGoalPatch(goalPatch);
-        const hasExplicitMonthlyChange = userExplicitlyChangedMonthlyReplenishment(userMessage, goalPatch, existingGoal);
-        const shouldForceReverseMode =
-            reverseCandidateGoalTypes.has(goalTypeIdForMode) &&
-            hasReverseTriggerChange &&
-            !hasExplicitMonthlyChange;
-
-        if (shouldForceReverseMode) {
-            // Reverse mode must not inherit stale monthly_replenishment from DB via prepare(existing, patch).
-            goalPatch.monthly_replenishment = null;
-        }
-
-        const clientPatch = { ...(patchPayload.client_patch || {}) };
-        // У clients нет колонки ops_capital — только у цели; иначе updateClient падает на SQL.
-        if (
-            clientPatch.ops_capital !== undefined &&
-            clientPatch.ops_capital !== null &&
-            clientPatch.ops_capital !== '' &&
-            (goalPatch.ops_capital === undefined || goalPatch.ops_capital === null || goalPatch.ops_capital === '')
-        ) {
-            const o = Number(clientPatch.ops_capital);
-            if (Number.isFinite(o)) goalPatch.ops_capital = o;
-        }
-        delete clientPatch.ops_capital;
-
-        const updatedGoal = goalRecalculator.prepare(existingGoal, goalPatch);
-        goalsMap.set(targetGoalId, updatedGoal);
-
-        const clientForCalc = {
-            ...existingClient,
-            ...clientPatch,
-            assets: clientPatch.assets || existingClient.assets || [],
-            total_liquid_capital:
-                clientPatch.total_liquid_capital !== undefined
-                    ? clientPatch.total_liquid_capital
-                    : existingClient.total_liquid_capital,
-            project_id: bot.project_id,
-        };
-        const calcRequest = { client: clientForCalc, goals: Array.from(goalsMap.values()) };
-        const previousCalculation = existingClient.goals_summary || null;
-        const calculationResponse = await calculationService.calculateFirstRun(
-            calcRequest,
-            targetGoalId,
-            previousCalculation,
-            { isFirstRun: false, usePool: false }
-        );
-        const calculation = calculationResponse.calculation || calculationResponse;
-
-        const calculatedGoals = calculation?.goals || [];
-        const calculatedTargetGoal = calculatedGoals.find((goalResult) =>
-            String(goalResult?.goal_id || goalResult?.id || '') === String(targetGoalId)
-        );
-        const persistedGoalData = goalsMap.get(targetGoalId);
-
-        if (calculatedTargetGoal?.summary && persistedGoalData) {
-            const summary = calculatedTargetGoal.summary;
-            const goalTypeId = Number(persistedGoalData?.goal_type_id);
-            const isForwardMode = Number(persistedGoalData?.monthly_replenishment) > 0;
-
-            if (summary.monthly_replenishment != null && Number.isFinite(Number(summary.monthly_replenishment))) {
-                persistedGoalData.monthly_replenishment = Number(summary.monthly_replenishment);
-            }
-
-            if (isForwardMode) {
-                if (summary.target_amount_initial != null) {
-                    persistedGoalData.target_amount = Number(summary.target_amount_initial);
-                }
-                if (goalTypeId === 1 || goalTypeId === 2) {
-                    persistedGoalData.desired_monthly_income = Number(summary.target_amount_initial || 0);
-                }
-            }
-        }
-
-        await clientService.updateGoal(pfpClientId, targetGoalId, persistedGoalData);
-        if (Object.keys(clientPatch).length > 0) {
-            await clientService.updateClient(pfpClientId, clientPatch, bot.project_id);
-        }
-        await syncCalculationGoalsWithDatabase(pfpClientId, calculation);
-        await clientService.updateClient(
-            pfpClientId,
-            {
-                goals_summary: JSON.stringify(calculationResponse),
-            },
-            bot.project_id
-        );
-
-        let pdfUrl = null;
-        try {
-            pdfUrl = await constructorPfpPersistService.uploadConstructorClientReportPdf({
-                clientId: pfpClientId,
-                agentId: bot.agent_id,
-                projectId: bot.project_id,
-            });
-        } catch (e) {
-            console.warn('[ConstructorAI] /calc pdf upload failed:', e.message || e);
-        }
-
         return {
-            calculationResult: calculationResponse,
-            pdfUrl: pdfUrl || null,
+            calculationResult: recalc.calculationResult,
+            pdfUrl: recalc.pdfUrl || null,
             firstRunExtraction: null,
-            calcInstructionMessage: null,
+            calcInstructionMessage: recalc.calcInstructionMessage || null,
         };
     }
 

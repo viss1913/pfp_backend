@@ -231,6 +231,24 @@ paths:
                 message: { type: string }
                 stage: { type: string }
 
+  /my/ai-b2c/chat_AI/stream:
+    post:
+      tags: [ "AI B2C" ]
+      summary: Отправить сообщение в отдельный chat_AI поток (Стриминг SSE)
+      description: |
+        Отдельный 2-шаговый поток chat_AI с собственной историей/контекстами.
+        Если классификатор выбрал `/calc` (или `/recalc`, `/recalculate`), сервер выполняет реальный пересчёт цели:
+        extraction patch -> recalculate -> persist -> goals_summary -> PDF URL.
+        SSE-события в этом кейсе: `pdf_url` (опционально), затем `text`, затем `done`.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ message ]
+              properties:
+                message: { type: string }
+
   /my/ai-b2c/history:
     get:
       tags: [ "AI B2C" ]
