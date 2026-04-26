@@ -33,6 +33,11 @@ async function quoteLifeAsNsjShape(params, projectId, userId) {
 
     const termYears = Math.max(1, Math.floor(Number(term_months || 120) / 12));
     const limit = parseFloat(Number(target_amount).toFixed(2));
+    if (!Number.isFinite(limit) || limit <= 0) {
+        throw new Error('Resolut quote requires positive target_amount (insurance limit)');
+    }
+    const pv = Number.isFinite(Number(payment_variant)) ? Number(payment_variant) : 12;
+    const pType = Number.isFinite(parseInt(String(pv), 10)) ? parseInt(String(pv), 10) : 12;
     const dob = client.birth_date
         ? formatDobDdMmYyyy(client.birth_date)
         : formatDobDdMmYyyy(new Date('1985-01-01'));
@@ -41,7 +46,7 @@ async function quoteLifeAsNsjShape(params, projectId, userId) {
         code: RESOLUT_ASSET_CODE,
         parameters: {
             currency: 'RUR',
-            pType: parseInt(payment_variant, 10),
+            pType,
             term: termYears,
             insuredPerson: { dob, sex: normalizeSex(client) },
             calcData: { valuationType: 'byLimit', limit }
@@ -55,6 +60,9 @@ async function quoteLifeAsNsjShape(params, projectId, userId) {
     }
     const d = norm.data || {};
     const premium = d.premiumFull != null ? d.premiumFull : d.premium;
+    if (!Number.isFinite(Number(premium))) {
+        throw new Error('Resolut quote returned no premium; check product parameters and upstream errors');
+    }
 
     return {
         success: true,

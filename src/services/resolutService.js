@@ -54,14 +54,24 @@ class ResolutService {
     }
 
     getNormalizedResponse(status, operation, payload = {}) {
-        const data = payload && payload.data !== undefined ? payload.data : payload;
-        const err = payload && payload.err ? payload.err : null;
+        if (!payload || typeof payload !== 'object') {
+            return { ok: true, status, operation, data: payload ?? null, err: null };
+        }
+        let err = payload.err || null;
+        if (!err && payload.success === false) {
+            const e = payload.error || {};
+            err = {
+                code: e.code || 'upstreamError',
+                message: e.name || e.message || e.code || 'Resolut operation failed'
+            };
+        }
+        const data = payload.data !== undefined ? payload.data : (err ? null : payload);
         return {
             ok: !err,
             status,
             operation,
-            data: data || null,
-            err: err || null
+            data: data ?? null,
+            err
         };
     }
 
@@ -157,15 +167,31 @@ class ResolutService {
             if (options.userId != null) {
                 bearerKey = resolutSessionStore.get(options.userId);
             }
+            let credentials = null;
             if (!bearerKey) {
-                const credentials = await this.getCredentials(projectId);
+                credentials = await this.getCredentials(projectId);
                 bearerKey = credentials.key;
             }
             if (!bearerKey) {
-                throw {
-                    status: 400,
-                    message: 'Resolut bearer token missing: log in as agent (project caches session) or set resolut_static_key / RESOLUT_STATIC_KEY.'
-                };
+                if (!credentials) credentials = await this.getCredentials(projectId);
+                const authNorm = await this.callOperation(
+                    projectId,
+                    'authorize',
+                    {
+                        login: credentials.login,
+                        password: credentials.password,
+                        type: this.authType
+                    },
+                    { useBearer: false }
+                );
+                if (!authNorm.ok || !authNorm.data || !authNorm.data.key) {
+                    throw {
+                        status: 502,
+                        message: 'Resolut bearer missing: authorize with project credentials did not return a key. Set RESOLUT_STATIC_KEY or check resolut_agent_login/password.',
+                        details: { operation: 'authorize', err: authNorm.err }
+                    };
+                }
+                bearerKey = authNorm.data.key;
             }
             headers.Authorization = `Bearer ${bearerKey}`;
         }
@@ -179,7 +205,9 @@ class ResolutService {
         } catch (error) {
             if (error.response) {
                 const upstreamData = this.sanitizeUpstreamData(error.response.data);
-                const errObj = upstreamData && upstreamData.err ? upstreamData.err : null;
+                const errObj = upstreamData && upstreamData.err
+                    ? upstreamData.err
+                    : (upstreamData && upstreamData.error ? upstreamData.error : null);
                 throw {
                     status: 502,
                     error: 'ResolutUpstreamError',

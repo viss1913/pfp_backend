@@ -28,7 +28,9 @@ All endpoints require authenticated agent/admin and are mounted under:
 
 ## Agent login → Resolut session (PFP backend)
 
-For `projectId === RESOLUT_PROJECT_ID`, after successful `POST /login` (agent), the backend calls Resolut `authorize` with the same email/password as in the login request and stores the returned `key` in an in-memory cache keyed by `users.id` (`src/services/resolutSessionStore.js`, TTL `RESOLUT_SESSION_TTL_MS`). Subsequent `products`/`quote` from that agent use this bearer first; if missing/expired, `resolut_static_key` is used. For background jobs without a user session, keep `RESOLUT_STATIC_KEY` configured.
+For `projectId === RESOLUT_PROJECT_ID`, after successful `POST /login` (agent), the backend calls Resolut `authorize` with the same email/password as in the login request and stores the returned `key` in an in-memory cache keyed by `users.id` (`src/services/resolutSessionStore.js`, TTL `RESOLUT_SESSION_TTL_MS`). Subsequent `products`/`quote` from that agent use this bearer first; if missing/expired, `resolut_static_key` is used.
+
+If there is no cached session and no static key, `quote`/`products` perform a **one-shot `authorize`** using `resolut_agent_login` / `resolut_agent_password` from project settings (or env). This keeps server-side LIFE calculations working on multi-instance hosts where in-memory login cache is not shared. For background jobs without user context, prefer configuring `RESOLUT_STATIC_KEY` or rely on that authorize fallback when login/password are set.
 
 ## LIFE goal (NSJ) via Resolut for RESOLUT_PROJECT_ID
 

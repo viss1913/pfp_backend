@@ -23,7 +23,10 @@ async function fetchLifeNsjResult(goal, context) {
     };
 
     const resolutPid = Number(process.env.RESOLUT_PROJECT_ID || 0);
-    const ctxProjectId = context?.projectId != null ? Number(context.projectId) : null;
+    const ctxProjectId =
+        context?.projectId != null
+            ? Number(context.projectId)
+            : (context?.client?.project_id != null ? Number(context.client.project_id) : null);
     const agentUserId = context?.agentUserId != null ? Number(context.agentUserId) : null;
 
     try {
@@ -39,6 +42,8 @@ async function fetchLifeNsjResult(goal, context) {
         const nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
         return { nsjResult, apiError: null };
     } catch (err) {
+        const msg = err && (err.message || err.details?.upstream_err_message || err.error) ? String(err.message || err.details?.upstream_err_message || err.error) : String(err);
+        console.warn('[fetchLifeNsjResult] NSJ/Resolut failed, fallback premium:', msg);
         const termY = Math.ceil(termMonths / 12);
         const fallbackAnnualPremium = termMonths > 0 ? (targetAmount * 12) / termMonths : targetAmount;
         const nsjResult = {
