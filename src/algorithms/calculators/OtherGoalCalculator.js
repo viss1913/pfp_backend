@@ -139,7 +139,7 @@ class OtherGoalCalculator extends BaseCalculator {
                 const allocatedAmount = Math.max(calcInitial * (item.share_percent / 100), 1);
                 const { productYield } = await this.resolveInstrumentYieldsForWeightedPortfolio(
                     product,
-                    { ...goal, term_months },
+                    { ...goal, term_months: termMonths },
                     allocatedAmount,
                     context.projectId,
                     context
