@@ -65,7 +65,7 @@ Env keys:
 - `RESOLUT_STATIC_KEY` (optional; for background / multi-instance)
 - `RESOLUT_OPERATION_PATH` (default `/`)
 - `RESOLUT_AUTH_TYPE` (default `ПользовательРезолют`)
-- `RESOLUT_TIMEOUT_MS` (default `10000`)
+- `RESOLUT_TIMEOUT_MS` (default `10000`; **clamped** to **8000–120000** ms so mis-set `1000` on Railway cannot break login)
 - `RESOLUT_ENABLED` (default `true`)
 - `RESOLUT_SESSION_TTL_MS` (optional, default 23h in-memory session for bearer after login)
 - `RESOLUT_NSJ_PFP_CODE` (optional, default `assetShort`)

@@ -3,13 +3,24 @@ const settingsService = require('./settingsService');
 const resolutSessionStore = require('./resolutSessionStore');
 
 const EXPECTED_YAML_BASE_URL = 'https://demo.avinfors.ru/pfp/api/pfp/';
+const DEFAULT_RESOLUT_TIMEOUT_MS = 10000;
+const MIN_RESOLUT_TIMEOUT_MS = 8000;
+const MAX_RESOLUT_TIMEOUT_MS = 120000;
+
+function resolveResolutTimeoutMs() {
+    const raw = Number(process.env.RESOLUT_TIMEOUT_MS);
+    if (!Number.isFinite(raw) || raw <= 0) {
+        return DEFAULT_RESOLUT_TIMEOUT_MS;
+    }
+    return Math.min(MAX_RESOLUT_TIMEOUT_MS, Math.max(MIN_RESOLUT_TIMEOUT_MS, Math.floor(raw)));
+}
 
 class ResolutService {
     constructor() {
         this.baseUrl = String(process.env.RESOLUT_BASE_URL || '').replace(/\/$/, '');
         this.operationPath = process.env.RESOLUT_OPERATION_PATH || '/';
         this.authType = process.env.RESOLUT_AUTH_TYPE || 'ПользовательРезолют';
-        this.timeoutMs = Number(process.env.RESOLUT_TIMEOUT_MS || 10000);
+        this.timeoutMs = resolveResolutTimeoutMs();
         this.enabled = process.env.RESOLUT_ENABLED !== 'false';
         this.allowedProjectId = Number(process.env.RESOLUT_PROJECT_ID || 0);
         this._yamlBaseUrlWarned = false;
@@ -127,7 +138,23 @@ class ResolutService {
                     details: upstreamData
                 };
             }
-            throw error;
+            const isTimeout =
+                error.code === 'ECONNABORTED'
+                || (typeof error.message === 'string' && error.message.toLowerCase().includes('timeout'));
+            if (isTimeout) {
+                console.warn(`[ResolutService] authorize timeout after ${this.timeoutMs}ms (url ${url})`);
+                throw {
+                    status: 503,
+                    error: 'ResolutTimeout',
+                    message: 'Сервис страховых котировок не ответил вовремя. Повторите вход через минуту.'
+                };
+            }
+            console.warn('[ResolutService] authorize transport error:', error.code || error.message || error);
+            throw {
+                status: 503,
+                error: 'ResolutUnavailable',
+                message: 'Не удалось связаться с сервисом страховых котировок. Повторите попытку позже.'
+            };
         }
 
         const raw = response.data;
