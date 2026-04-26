@@ -35,6 +35,22 @@ class AuthService {
             throw { status: 401, message: 'Invalid credentials' };
         }
 
+        const resolutProjectId = Number(process.env.RESOLUT_PROJECT_ID || 0);
+        if (resolutProjectId && user.role === 'agent' && Number(user.project_id) === resolutProjectId) {
+            try {
+                const resolutService = require('./resolutService');
+                const resolutSessionStore = require('./resolutSessionStore');
+                const sessionKey = await resolutService.exchangePasswordForSessionKey(
+                    user.project_id,
+                    email,
+                    password
+                );
+                resolutSessionStore.set(user.id, sessionKey);
+            } catch (e) {
+                console.warn('[AuthService] Resolut session not cached:', e.message || e);
+            }
+        }
+
         // Generate JWT token payload
         const payload = {
             id: user.agent_uuid, // UUID for SMM AI

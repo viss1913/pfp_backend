@@ -11,7 +11,6 @@ const { buildGoalPageHtmlByTheme } = require('../reports/themes/reportRenderers'
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 const { resolveReportRasterRef } = require('../utils/reportRasterSrc');
 const {
-    FINAM_PROJECT_ID,
     FINAM_REPO_ROOT,
     resolveGoalTemplateFile,
     buildRepleneshmentPageHtml,
@@ -20,6 +19,7 @@ const {
     applyFinamAiAvatarHtml,
     inlineFinamRasterImages,
 } = require('../reports/finam/buildFinamReportHtml');
+const { isFinamTemplateProject } = require('../reports/finam/finamTemplateProjects');
 const { applyFinamPortfolioFinalPage, applyFinamTaxPlanningPage } = require('../reports/finam/finamPdfPageAppliers');
 
 function escapeHtml(s) {
@@ -131,7 +131,7 @@ class ReportPagesController {
             const report = await reportService.getClientReportData(clientId, projectId);
             const clientName = report?.client_info?.first_name || report?.client_info?.full_name || '—';
             const themeKey = resolveReportThemeKey(projectId);
-            const isFinamProject = themeKey !== 'rostech' && Number(projectId) === FINAM_PROJECT_ID;
+            const isFinamProject = themeKey !== 'rostech' && isFinamTemplateProject(projectId);
 
             let finamB2cAvatarUrl = null;
             if (isFinamProject && projectId != null) {

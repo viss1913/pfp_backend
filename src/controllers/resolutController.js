@@ -57,7 +57,7 @@ class ResolutController {
 
             const projectId = this.resolveProjectId(req);
             const data = (req.body && req.body.data) ? req.body.data : {};
-            const result = await resolutService.products(projectId, data);
+            const result = await resolutService.products(projectId, data, { userId: req.user?.id });
             res.json(result);
         } catch (err) {
             this.handleResolutError(err, res, next);
@@ -75,7 +75,7 @@ class ResolutController {
             }
 
             const projectId = this.resolveProjectId(req);
-            const result = await resolutService.quote(projectId, req.body);
+            const result = await resolutService.quote(projectId, req.body, { userId: req.user?.id });
             res.json(result);
         } catch (err) {
             this.handleResolutError(err, res, next);

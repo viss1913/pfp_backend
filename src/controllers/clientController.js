@@ -235,7 +235,9 @@ class ClientController {
 
             console.log(`[ClientController] calculateFirstRun for project: ${req.body.client.project_id}`);
 
-            const result = await calculationService.calculateFirstRun(req.body);
+            const result = await calculationService.calculateFirstRun(req.body, null, null, {
+                agentUserId: req.user?.id
+            });
             res.json(calculationService.simplify(result));
         } catch (err) {
             next(err);
@@ -268,7 +270,11 @@ class ClientController {
             console.log(`[ClientController] firstRun for project: ${req.body.client.project_id}`);
 
             // 2. Perform Calculation
-            const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, { isFirstRun: true, usePool: true });
+            const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, {
+                isFirstRun: true,
+                usePool: true,
+                agentUserId: req.user?.id
+            });
             const calculation = calculationResponse.calculation || calculationResponse;
 
             // 3. Inject Agent ID
@@ -584,7 +590,7 @@ class ClientController {
                 calcRequest,
                 identifiedTargetId,
                 previousCalculation,
-                { isFirstRun: false, usePool: false }
+                { isFirstRun: false, usePool: false, agentUserId: req.user?.id }
             );
 
             // 6. Persistence

@@ -24,7 +24,19 @@ All endpoints require authenticated agent/admin and are mounted under:
   - header: `Authorization: Bearer <resolut_static_key>`.
 - `quote`:
   - `POST /` with body `{ operation: "quote", data: { code, parameters } }`.
-  - header: `Authorization: Bearer <resolut_static_key>`.
+  - header: `Authorization: Bearer <token>` where token is either the cached session key (after agent login, see below) or `resolut_static_key`.
+
+## Agent login → Resolut session (PFP backend)
+
+For `projectId === RESOLUT_PROJECT_ID`, after successful `POST /login` (agent), the backend calls Resolut `authorize` with the same email/password as in the login request and stores the returned `key` in an in-memory cache keyed by `users.id` (`src/services/resolutSessionStore.js`, TTL `RESOLUT_SESSION_TTL_MS`). Subsequent `products`/`quote` from that agent use this bearer first; if missing/expired, `resolut_static_key` is used. For background jobs without a user session, keep `RESOLUT_STATIC_KEY` configured.
+
+## LIFE goal (NSJ) via Resolut for RESOLUT_PROJECT_ID
+
+When `client.project_id` matches `RESOLUT_PROJECT_ID`, LIFE calculations use Resolut `quote` with PFP product code `assetShort` (override via `RESOLUT_NSJ_PFP_CODE`), mapping parameters from the goal/client into the partner’s `quote` shape. Implementation: `src/services/resolutNsjQuoteService.js`, branch in `src/algorithms/calculators/lifeUpfrontAmount.js`. Other projects still use `nsjApiService` / `api-life`.
+
+## PDF: same Finam HTML templates for project 23
+
+Report HTML pipeline from `src/reports/finam/` is enabled for project ids listed in `FINAM_REPORT_PROJECT_IDS` (default `14,23`). This reuses templates only; it does not change Finam tenant (14) product logic. See `src/reports/finam/finamTemplateProjects.js`.
 
 ## Credentials source
 
@@ -48,6 +60,9 @@ Env fallback keys:
 - `RESOLUT_AUTH_TYPE` (default `ПользовательРезолют`)
 - `RESOLUT_TIMEOUT_MS` (default `10000`)
 - `RESOLUT_ENABLED` (default `true`)
+- `RESOLUT_SESSION_TTL_MS` (optional, default 23h in-memory session for bearer after login)
+- `RESOLUT_NSJ_PFP_CODE` (optional, default `assetShort`)
+- `FINAM_REPORT_PROJECT_IDS` (optional, default `14,23` for Finam-style PDF HTML)
 
 ## Request validation
 

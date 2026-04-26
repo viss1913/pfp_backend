@@ -352,8 +352,14 @@ class CalculationService {
             logger.error('[CalculationService] Error pre-fetching settings:', e);
         }
 
+        const agentUserId =
+            options.agentUserId != null && Number.isFinite(Number(options.agentUserId))
+                ? Number(options.agentUserId)
+                : null;
+
         return {
             projectId,
+            agentUserId,
             poolBalance,
             sharedPoolEvents,
             usedCofinancingPerYear: {},

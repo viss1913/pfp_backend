@@ -8,10 +8,8 @@ const macroService = require('./macroService');
 const { buildReportCoverHtml } = require('../reports/cover/buildCoverHtml');
 const { buildComonAutofollowPageHtml } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildInflationPageFinamHtml } = require('../reports/finam/buildInflationPageFinamHtml');
-const {
-    FINAM_PROJECT_ID,
-    buildFinamFullPageHtmlList,
-} = require('../reports/finam/buildFinamReportHtml');
+const { buildFinamFullPageHtmlList } = require('../reports/finam/buildFinamReportHtml');
+const { isFinamTemplateProject } = require('../reports/finam/finamTemplateProjects');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('../reports/themes/reportRenderers');
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 
@@ -272,7 +270,7 @@ class ReportPdfService {
     }) {
         const report = await reportService.getClientReportData(clientId, projectId);
         const themeKey = resolveReportThemeKey(projectId);
-        const isFinamProject = themeKey !== 'rostech' && Number(projectId) === FINAM_PROJECT_ID;
+        const isFinamProject = themeKey !== 'rostech' && isFinamTemplateProject(projectId);
 
         let pdfSettings;
         if (brandingAgentId !== undefined) {

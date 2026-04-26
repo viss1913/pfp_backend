@@ -22,7 +22,20 @@ async function fetchLifeNsjResult(goal, context) {
         program: goal.program || process.env.NSJ_DEFAULT_PROGRAM || 'test'
     };
 
+    const resolutPid = Number(process.env.RESOLUT_PROJECT_ID || 0);
+    const ctxProjectId = context?.projectId != null ? Number(context.projectId) : null;
+    const agentUserId = context?.agentUserId != null ? Number(context.agentUserId) : null;
+
     try {
+        if (resolutPid && ctxProjectId === resolutPid) {
+            const { quoteLifeAsNsjShape } = require('../../services/resolutNsjQuoteService');
+            const nsjResult = await quoteLifeAsNsjShape(
+                nsjParams,
+                ctxProjectId,
+                Number.isFinite(agentUserId) ? agentUserId : null
+            );
+            return { nsjResult, apiError: null };
+        }
         const nsjResult = await nsjApiService.calculateLifeInsurance(nsjParams);
         return { nsjResult, apiError: null };
     } catch (err) {

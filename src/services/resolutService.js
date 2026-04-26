@@ -1,5 +1,6 @@
 const axios = require('axios');
 const settingsService = require('./settingsService');
+const resolutSessionStore = require('./resolutSessionStore');
 
 const EXPECTED_YAML_BASE_URL = 'https://demo.avinfors.ru/pfp/api/pfp/';
 
@@ -31,6 +32,9 @@ class ResolutService {
         }
     }
 
+    /**
+     * Логин/пароль обязательны; static key опционален, если Bearer берётся из сессии после логина (см. resolutSessionStore).
+     */
     async getCredentials(projectId) {
         const login = await settingsService.getValue('resolut_agent_login', projectId) || process.env.RESOLUT_AGENT_LOGIN || null;
         const password = await settingsService.getValue('resolut_agent_password', projectId) || process.env.RESOLUT_AGENT_PASSWORD || null;
@@ -39,10 +43,10 @@ class ResolutService {
         if (!this.baseUrl) {
             throw { status: 500, message: 'RESOLUT_BASE_URL is not configured' };
         }
-        if (!login || !password || !key) {
+        if (!login || !password) {
             throw {
                 status: 400,
-                message: 'Resolut credentials are incomplete. Set resolut_agent_login/resolut_agent_password/resolut_static_key in project settings or env.'
+                message: 'Resolut credentials are incomplete. Set resolut_agent_login and resolut_agent_password in project settings or env (and resolut_static_key or agent login to cache bearer).'
             };
         }
 
@@ -88,17 +92,82 @@ class ResolutService {
         }
     }
 
+    /**
+     * Authorize с логином/паролем агента (например пароль из POST /login). Не требует static key.
+     */
+    async exchangePasswordForSessionKey(projectId, login, password) {
+        this.assertProjectAllowed(projectId);
+        this.warnIfYamlBaseUrlMismatch();
+        if (!this.baseUrl) {
+            throw { status: 500, message: 'RESOLUT_BASE_URL is not configured' };
+        }
+        if (!login || !password) {
+            throw { status: 400, message: 'Resolut authorize requires login and password' };
+        }
+        const url = this.buildUrl(this.operationPath);
+        const payload = {
+            operation: 'authorize',
+            data: { login, password, type: this.authType }
+        };
+        let response;
+        try {
+            response = await axios.post(url, payload, {
+                timeout: this.timeoutMs,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch (error) {
+            if (error.response) {
+                const upstreamData = this.sanitizeUpstreamData(error.response.data);
+                const errObj = upstreamData && upstreamData.error ? upstreamData.error : (upstreamData && upstreamData.err ? upstreamData.err : null);
+                throw {
+                    status: error.response.status === 401 || error.response.status === 400 ? 401 : 502,
+                    message: errObj ? (errObj.name || errObj.message || 'Resolut authorize failed') : 'Resolut authorize failed',
+                    details: upstreamData
+                };
+            }
+            throw error;
+        }
+
+        const raw = response.data;
+        if (raw && raw.success === false) {
+            const msg = (raw.error && (raw.error.name || raw.error.message)) || 'Resolut authorize failed';
+            throw { status: 401, message: msg };
+        }
+        const norm = this.getNormalizedResponse(response.status, 'authorize', raw);
+        if (norm.err) {
+            throw { status: 502, message: norm.err.message || 'Resolut authorize failed', details: norm.err };
+        }
+        const key = norm.data && norm.data.key ? norm.data.key : null;
+        if (!key) {
+            throw { status: 502, message: 'Resolut authorize response missing key' };
+        }
+        return key;
+    }
+
     async callOperation(projectId, operation, data = {}, options = {}) {
         this.assertProjectAllowed(projectId);
         this.warnIfYamlBaseUrlMismatch();
-        const credentials = await this.getCredentials(projectId);
         const useBearer = options.useBearer === true;
         const url = this.buildUrl(this.operationPath);
         const body = { operation, data };
         const headers = { 'Content-Type': 'application/json' };
 
         if (useBearer) {
-            headers.Authorization = `Bearer ${credentials.key}`;
+            let bearerKey = null;
+            if (options.userId != null) {
+                bearerKey = resolutSessionStore.get(options.userId);
+            }
+            if (!bearerKey) {
+                const credentials = await this.getCredentials(projectId);
+                bearerKey = credentials.key;
+            }
+            if (!bearerKey) {
+                throw {
+                    status: 400,
+                    message: 'Resolut bearer token missing: log in as agent (project caches session) or set resolut_static_key / RESOLUT_STATIC_KEY.'
+                };
+            }
+            headers.Authorization = `Bearer ${bearerKey}`;
         }
 
         try {
@@ -143,6 +212,9 @@ class ResolutService {
         this.assertProjectAllowed(projectId);
         this.warnIfYamlBaseUrlMismatch();
         const credentials = await this.getCredentials(projectId);
+        if (!credentials.key) {
+            throw { status: 500, message: 'resolut_static_key required for legacy Resolut authorize path' };
+        }
         const url = this.buildUrl(this.authPath);
         const payload = {
             login: credentials.login,
@@ -170,7 +242,6 @@ class ResolutService {
                 { useBearer: false }
             );
         } catch (error) {
-            // Hybrid: keep legacy auth path as fallback for partner environments
             if (error.details && error.details.upstream_err_code === 'operationNotFound') {
                 try {
                     return await this.authorizeLegacy(projectId);
@@ -182,12 +253,12 @@ class ResolutService {
         }
     }
 
-    async products(projectId, data = {}) {
-        return this.callOperation(projectId, 'products', data, { useBearer: true });
+    async products(projectId, data = {}, options = {}) {
+        return this.callOperation(projectId, 'products', data, { useBearer: true, userId: options.userId });
     }
 
-    async quote(projectId, data) {
-        return this.callOperation(projectId, 'quote', data, { useBearer: true });
+    async quote(projectId, data, options = {}) {
+        return this.callOperation(projectId, 'quote', data, { useBearer: true, userId: options.userId });
     }
 }
 
