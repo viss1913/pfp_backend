@@ -1,5 +1,6 @@
 const TaxService = require('../TaxService');
 const settingsService = require('../../services/settingsService');
+const resolutPortfolioQuoteYieldService = require('../../services/resolutPortfolioQuoteYieldService');
 
 /** @param {Date} d */
 function formatScheduleDate(d) {
@@ -451,14 +452,70 @@ class BaseCalculator {
 
 
     /**
+     * Доходность инструмента для взвешенного портфеля: котировка Resolut (только project RESOLUT_PROJECT_ID + resolut_pfp_code)
+     * или матрица lines/yields.
+     * @returns {Promise<{ productYield: number, shortTermYield: number }>}
+     */
+    async resolveInstrumentYieldsForWeightedPortfolio(product, goal, allocatedAmount, projectId, context) {
+        const termMonths = Number(goal.term_months || 0);
+        const yields = product.yields || [];
+        let usedResolut = false;
+        let productYield = null;
+
+        if (context && projectId != null) {
+            const ry = await resolutPortfolioQuoteYieldService.getImpliedAnnualYieldPercentFromQuote({
+                product,
+                termMonths,
+                allocatedAmount,
+                projectId,
+                userId: context.agentUserId != null ? context.agentUserId : null,
+                client: context.client || {}
+            });
+            if (Number.isFinite(ry)) {
+                productYield = ry;
+                usedResolut = true;
+            }
+        }
+
+        if (!usedResolut) {
+            const line = yields.find(l =>
+                termMonths >= l.term_from_months &&
+                termMonths <= l.term_to_months &&
+                allocatedAmount >= parseFloat(l.amount_from) &&
+                allocatedAmount <= parseFloat(l.amount_to)
+            ) || yields[0];
+            productYield = line ? parseFloat(line.yield_percent) : 0;
+        }
+
+        let shortTermYield;
+        if (usedResolut) {
+            shortTermYield = productYield;
+        } else {
+            const matchingAmountRows = yields.filter(l =>
+                allocatedAmount >= parseFloat(l.amount_from) &&
+                allocatedAmount <= parseFloat(l.amount_to)
+            );
+            const shortTermLine = matchingAmountRows.length > 0
+                ? matchingAmountRows.reduce((min, l) =>
+                    (parseFloat(l.term_to_months) || 999) < (parseFloat(min.term_to_months) || 999) ? l : min
+                    , matchingAmountRows[0])
+                : null;
+            shortTermYield = shortTermLine ? parseFloat(shortTermLine.yield_percent) : productYield;
+        }
+
+        return { productYield, shortTermYield };
+    }
+
+    /**
      * Calculates the weighted annual yield of a portfolio based on goal duration and capital.
      * Shared logic for Investment, FinReserve, and Rent.
      * @param {Object} portfolio - The portfolio object with riskProfiles.
      * @param {Object} goal - The goal object (needs initial_capital and term_months).
      * @param {Object} productRepository - Repository to fetch products.
+     * @param {Object|null} context - Расчётный контекст (client, agentUserId) для котировки Resolut в портфеле.
      * @returns {Promise<number>} Weighted annual yield percentage (e.g. 0.15 for 15%).
      */
-    async calculateWeightedYield(portfolio, goal, productRepository, projectId = null) {
+    async calculateWeightedYield(portfolio, goal, productRepository, projectId = null, context = null) {
         let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles || [];
 
         if (typeof riskProfiles === 'string') {
@@ -521,27 +578,13 @@ class BaseCalculator {
 
             const calcInitial = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
             const allocatedAmount = Math.max(calcInitial * (item.share_percent / 100), 1);
-            const yields = product.yields || [];
-            const line = yields.find(l =>
-                goal.term_months >= l.term_from_months &&
-                goal.term_months <= l.term_to_months &&
-                allocatedAmount >= parseFloat(l.amount_from) &&
-                allocatedAmount <= parseFloat(l.amount_to)
-            ) || yields[0];
-
-            const productYield = line ? parseFloat(line.yield_percent) : 0;
-
-            // Short-term yield: ищем доходность с минимальным сроком для ЭТОЙ суммы
-            const matchingAmountRows = yields.filter(l =>
-                allocatedAmount >= parseFloat(l.amount_from) &&
-                allocatedAmount <= parseFloat(l.amount_to)
+            const { productYield, shortTermYield } = await this.resolveInstrumentYieldsForWeightedPortfolio(
+                product,
+                goal,
+                allocatedAmount,
+                projectId,
+                context
             );
-            const shortTermLine = matchingAmountRows.length > 0
-                ? matchingAmountRows.reduce((min, l) =>
-                    (parseFloat(l.term_to_months) || 999) < (parseFloat(min.term_to_months) || 999) ? l : min
-                    , matchingAmountRows[0])
-                : null;
-            const shortTermYield = shortTermLine ? parseFloat(shortTermLine.yield_percent) : productYield;
 
             const instrumentData = {
                 name: product.name,

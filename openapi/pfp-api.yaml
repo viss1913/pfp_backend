@@ -62,6 +62,16 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductYield'
+        resolut_pfp_code:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: Код продукта PFP в API Резолюта (см. OPENAPI_SPEC Product).
+        resolut_quote_p_type:
+          type: integer
+          nullable: true
+          enum: [0, 1, 2, 4, 12]
+          description: Периодичность взноса для котировки Резолюта (см. OPENAPI_SPEC Product).
     ProductYield:
       type: object
       properties:

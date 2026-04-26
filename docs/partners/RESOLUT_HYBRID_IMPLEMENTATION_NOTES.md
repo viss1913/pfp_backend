@@ -43,6 +43,21 @@ When `client.project_id` matches `RESOLUT_PROJECT_ID`, LIFE calculations use Res
 
 **Background / B2C paths** (e.g. `reportService.calculateFirstRun` without `agentUserId`, client cabinet) do not have an agent bearer; for project 23 they rely on **`RESOLUT_STATIC_KEY`** if configured, otherwise Resolut quote fails and LIFE uses the **local fallback premium** (`_fallback: true` in `lifeUpfrontAmount.js`).
 
+## Portfolio-weighted yield (INVESTMENT, OTHER, etc.) for `RESOLUT_PROJECT_ID`
+
+Products may include optional columns:
+
+- `resolut_pfp_code` — PFP code from upstream `products` (e.g. `assetShort`, `cashback`).
+- `resolut_quote_p_type` — payment cadence for `quote` (`0`, `1`, `2`, `4`, `12`); if null, use env `RESOLUT_PORTFOLIO_QUOTE_PTYPE` or `0`.
+
+**Gating:** implied annual yield from Resolut is computed **only** when `client.project_id === RESOLUT_PROJECT_ID` **and** `resolut_pfp_code` is non-empty. Otherwise the existing **`lines` / `yields`** matrix is used (no extra HTTP).
+
+**Implementation:** [`src/services/resolutPortfolioQuoteYieldService.js`](../../src/services/resolutPortfolioQuoteYieldService.js); integration in [`src/algorithms/calculators/BaseCalculator.js`](../../src/algorithms/calculators/BaseCalculator.js) (`resolveInstrumentYieldsForWeightedPortfolio`, passed `context` from calculators) and [`OtherGoalCalculator.js`](../../src/algorithms/calculators/OtherGoalCalculator.js).
+
+**v1 limitation:** implied yield from quote is implemented for **lump-sum** payment (`pType === 0`): PV = `premium`/`premiumFull`, FV = survival benefit from `risks[]` (or top-level `limit`). Other `pType` values fall back to static `lines` if present.
+
+**Caveat:** downstream simulation still uses a single compound monthly rate; this is an approximation for end-of-term insurance cash flows.
+
 ## PDF: same Finam HTML templates for project 23
 
 Report HTML pipeline from `src/reports/finam/` is enabled for project ids listed in `FINAM_REPORT_PROJECT_IDS` (default `14,23`). This reuses templates only; it does not change Finam tenant (14) product logic. See `src/reports/finam/finamTemplateProjects.js`.
@@ -69,6 +84,7 @@ Env keys:
 - `RESOLUT_ENABLED` (default `true`)
 - `RESOLUT_SESSION_TTL_MS` (optional, default 23h in-memory session for bearer after login)
 - `RESOLUT_NSJ_PFP_CODE` (optional, default `assetShort`)
+- `RESOLUT_PORTFOLIO_QUOTE_PTYPE` (optional; default payment type for portfolio quote yield when `products.resolut_quote_p_type` is null)
 - `FINAM_REPORT_PROJECT_IDS` (optional, default `14,23` for Finam-style PDF HTML)
 
 ## Request validation

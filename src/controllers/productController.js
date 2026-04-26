@@ -32,7 +32,11 @@ const productSchema = Joi.object({
         })),
         Joi.string(),
         Joi.object()
-    ).optional()
+    ).optional(),
+    resolut_pfp_code: Joi.string().max(64).allow(null, '').optional()
+        .description('Код продукта PFP Resolut (products), только для проекта RESOLUT_PROJECT_ID'),
+    resolut_quote_p_type: Joi.number().integer().valid(0, 1, 2, 4, 12).allow(null).optional()
+        .description('Периодичность взноса для quote; null — из env RESOLUT_PORTFOLIO_QUOTE_PTYPE или 0')
 }).unknown(true);
 
 class ProductController {

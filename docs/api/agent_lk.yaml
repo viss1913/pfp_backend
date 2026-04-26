@@ -53,6 +53,8 @@ paths:
     post:
       tags: [ "Продукты Агента" ]
       summary: Создать новый продукт в своем проекте
+      description: |
+        Тело — схема `ProductCreate` в `openapi/OPENAPI_SPEC.yaml`. Для проекта AV/Резолют опционально передайте `resolut_pfp_code` и `resolut_quote_p_type` (см. описание полей в схеме); затем этот продукт можно добавить в портфель как обычный инструмент (`product_id` + доля).
       requestBody:
         required: true
         content:
@@ -75,7 +77,9 @@ paths:
     put:
       tags: [ "Продукты Агента" ]
       summary: Редактировать свой продукт
-      description: Ошибка 403, если попытка изменить системный дефолтный продукт
+      description: |
+        Ошибка 403, если попытка изменить системный дефолтный продукт.
+        Поля `resolut_pfp_code` / `resolut_quote_p_type` — см. `ProductCreate` в `openapi/OPENAPI_SPEC.yaml`.
       parameters:
         - name: id
           in: path

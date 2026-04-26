@@ -54,7 +54,7 @@ class PassiveIncomeCalculator extends BaseCalculator {
             initial_instruments,
             monthly_instruments,
             pdsProductId
-        } = await this.calculateWeightedYield(portfolio, goal, productRepository, context.projectId);
+        } = await this.calculateWeightedYield(portfolio, goal, productRepository, context.projectId, context);
 
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
         const { iisEligibleInitialCapital, iisEligibleMonthlyShare } = this.getIisContributionParams(

@@ -137,15 +137,13 @@ class OtherGoalCalculator extends BaseCalculator {
 
                 const calcInitial = (goal.smart_initial_capital !== undefined) ? Number(goal.smart_initial_capital) : Number(goal.initial_capital || 0);
                 const allocatedAmount = Math.max(calcInitial * (item.share_percent / 100), 1);
-                const yields = product.yields || [];
-                const line = yields.find(l =>
-                    termMonths >= l.term_from_months &&
-                    termMonths <= l.term_to_months &&
-                    allocatedAmount >= parseFloat(l.amount_from) &&
-                    allocatedAmount <= parseFloat(l.amount_to)
-                ) || yields[0];
-
-                const productYield = line ? parseFloat(line.yield_percent) : 0;
+                const { productYield } = await this.resolveInstrumentYieldsForWeightedPortfolio(
+                    product,
+                    { ...goal, term_months },
+                    allocatedAmount,
+                    context.projectId,
+                    context
+                );
 
                 const instrumentData = {
                     name: product.name,

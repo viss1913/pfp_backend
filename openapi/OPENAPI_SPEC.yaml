@@ -63,6 +63,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductYield'
+        resolut_pfp_code:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: |
+            Код продукта PFP в API Резолюта (ответ операции `products`), например `assetShort`, `cashback`.
+            Если задан и `project_id` клиента совпадает с `RESOLUT_PROJECT_ID`, при расчёте взвешенной доходности портфеля может вызываться `quote` (см. `resolut_quote_p_type`).
+            Для остальных проектов поле игнорируется.
+          example: assetShort
+        resolut_quote_p_type:
+          type: integer
+          nullable: true
+          enum: [0, 1, 2, 4, 12]
+          description: |
+            Периодичность взноса для котировки Резолюта: 0 — единовременно, 1 — ежегодно, 2 — раз в полгода, 4 — ежеквартально, 12 — ежемесячно.
+            Имплицитная годовая доходность из ответа `quote` в расчётах портфеля сейчас поддерживается для `0`; иначе используется матрица `lines`/`yields`, если заполнена.
     ProductYield:
       type: object
       properties:
@@ -108,6 +124,19 @@ components:
           description: Массив линий доходности продукта
           items:
             $ref: '#/components/schemas/ProductLine'
+        resolut_pfp_code:
+          type: string
+          nullable: true
+          maxLength: 64
+          description: |
+            Опционально: интеграция с Резолют (проект AV, `RESOLUT_PROJECT_ID`). Код из `GET …/resolut/products` (`pfpCode`).
+          example: assetShort
+        resolut_quote_p_type:
+          type: integer
+          nullable: true
+          enum: [0, 1, 2, 4, 12]
+          description: |
+            Периодичность для `quote`; для расчёта доходности из котировки в портфеле — задайте `0` или оставьте пустым (дефолт 0 / env `RESOLUT_PORTFOLIO_QUOTE_PTYPE`).
     ProductLine:
       type: object
       description: Линия доходности продукта

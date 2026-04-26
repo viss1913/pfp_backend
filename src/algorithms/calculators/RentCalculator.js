@@ -26,7 +26,7 @@ class RentCalculator extends BaseCalculator {
             throw new Error(`Rent portfolio not found for class ${goal.goal_type_id} and amount ${goal.initial_capital}`);
         }
 
-        const { weightedYieldAnnual } = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository, context.projectId);
+        const { weightedYieldAnnual } = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository, context.projectId, context);
 
         // 2. Calculate Monthly Income
         // Use smart_initial_capital if allocated by CalculationService (Burden-Based), otherwise use input or 0

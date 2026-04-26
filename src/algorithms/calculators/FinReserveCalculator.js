@@ -36,7 +36,7 @@ class FinReserveCalculator extends BaseCalculator {
             throw new Error(`FinReserve portfolio not found for class ${goal.goal_type_id} and amount ${goal.initial_capital}`);
         }
 
-        const yieldResult = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository, context.projectId);
+        const yieldResult = await this.calculateWeightedYield(portfolio, { ...goal, term_months: 12 }, productRepository, context.projectId, context);
         const weightedYieldAnnual = yieldResult.weightedYieldAnnual;
         const yieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
 

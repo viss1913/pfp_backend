@@ -6,6 +6,10 @@
  * node scripts/test_resolut_quote.js --key=<bearer после authorize>
  * node scripts/test_resolut_quote.js --key=... --code=assetShort --variant=flat
  * node scripts/test_resolut_quote.js --key=... --variant=openapi
+ *
+ * Свои цифры (flat/openapi):
+ *   --limit=2000000 --term=15 --dob=26.04.1981 --sex=male --p-type=12
+ *   --monthly-income=200000  (опционально, в calcData.monthlyIncome — если партнёр поддержит)
  */
 const axios = require('axios');
 
@@ -16,50 +20,112 @@ function getArg(name, fallback = null) {
     return hit.slice(prefix.length);
 }
 
+function parseNumberArg(name, fallback) {
+    const raw = getArg(name, null);
+    if (raw == null || raw === '') return fallback;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+/** ДД.ММ.ГГГГ для «возраст на сегодня» (локальная дата). */
+function dobFromAge(ageYears) {
+    const a = parseInt(String(ageYears), 10);
+    if (!Number.isFinite(a) || a < 1 || a > 120) return null;
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - a);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
+}
+
 function buildParameters(variant) {
+    const limit = parseNumberArg('limit', 1000000);
+    const term = parseNumberArg('term', 5);
+    const pTypeFlat = parseInt(String(getArg('p-type', '0')), 10);
+    const sex = (getArg('sex', 'male') || 'male').toLowerCase();
+    const dob =
+        getArg('dob', null) ||
+        dobFromAge(getArg('age', null)) ||
+        '01.01.1985';
+    const monthlyIncomeRaw = getArg('monthly-income', null);
+    const monthlyIncome =
+        monthlyIncomeRaw != null && monthlyIncomeRaw !== '' ? Number(monthlyIncomeRaw) : null;
+
+    const calcData = {
+        valuationType: 'byLimit',
+        limit
+    };
+    if (Number.isFinite(monthlyIncome) && monthlyIncome > 0) {
+        calcData.monthlyIncome = monthlyIncome;
+    }
+
     if (variant === 'openapi') {
+        const pName =
+            pTypeFlat === 12
+                ? 'ежемесячно'
+                : pTypeFlat === 0
+                  ? 'единовременно'
+                  : `код_${pTypeFlat}`;
         return {
             currency: { code: 'RUR', name: 'Рубль РФ' },
-            pType: { code: 0, name: 'ежемесячно' },
-            term: 5,
+            pType: { code: pTypeFlat, name: pName },
+            term,
             insuredPerson: {
-                dob: '01.01.1985',
-                sex: 'male'
+                dob,
+                sex: sex === 'female' || sex === 'f' ? 'female' : 'male'
             },
-            calcData: {
-                valuationType: 'byLimit',
-                limit: 1000000
-            }
+            calcData
         };
     }
-    // как в docs/partners/report-first-integration.md
+    // как в docs/partners/report-first-integration.md (плоский вид)
     return {
         currency: 'RUR',
-        pType: 0,
-        term: 5,
+        pType: pTypeFlat,
+        term,
         insuredPerson: {
-            dob: '01.01.1985',
-            sex: 'male'
+            dob,
+            sex: sex === 'female' || sex === 'f' ? 'female' : 'male'
         },
-        calcData: {
-            valuationType: 'byLimit',
-            limit: 1000000
-        }
+        calcData
     };
 }
 
 async function main() {
     const baseUrl = (getArg('base-url', process.env.RESOLUT_BASE_URL || 'https://demo.avinfors.ru/pfp/api/pfp/') || '').replace(/\/$/, '');
-    const key = getArg('key', process.env.RESOLUT_STATIC_KEY || '');
+    const timeoutMs = Number(getArg('timeout-ms', process.env.RESOLUT_TIMEOUT_MS || '10000'));
+    let key = getArg('key', process.env.RESOLUT_STATIC_KEY || '');
+    const login = getArg('login', null);
+    const password = getArg('password', null);
     const code = getArg('code', 'assetShort');
     const variant = (getArg('variant', 'flat') || 'flat').toLowerCase();
-    const timeoutMs = Number(getArg('timeout-ms', process.env.RESOLUT_TIMEOUT_MS || '10000'));
 
     if (!baseUrl) {
         throw new Error('Missing base URL. Set --base-url or RESOLUT_BASE_URL');
     }
+    if (!key && login && password) {
+        const authRes = await axios.post(
+            `${baseUrl}/`,
+            {
+                operation: 'authorize',
+                data: {
+                    login,
+                    password,
+                    type: getArg('auth-type', 'ПользовательРезолют')
+                }
+            },
+            { timeout: timeoutMs, validateStatus: () => true }
+        );
+        if (authRes.status !== 200 || !authRes.data?.data?.key) {
+            console.error('authorize failed:', authRes.status, JSON.stringify(authRes.data, null, 2));
+            process.exitCode = 1;
+            return;
+        }
+        key = authRes.data.data.key;
+        console.log('authorize: ok (bearer получен)\n');
+    }
     if (!key) {
-        throw new Error('Missing bearer key. Set --key or RESOLUT_STATIC_KEY (или ключ из ответа authorize).');
+        throw new Error('Missing bearer: --key / RESOLUT_STATIC_KEY или пара --login / --password');
     }
 
     const parameters = buildParameters(variant === 'openapi' ? 'openapi' : 'flat');

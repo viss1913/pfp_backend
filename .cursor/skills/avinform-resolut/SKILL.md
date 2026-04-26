@@ -10,6 +10,7 @@
 - синхронизация каталога продуктов (`products`);
 - получение котировок (`quote`);
 - расчёт НСЖ LIFE через Резолют (`resolutNsjQuoteService`, `assetShort`);
+- доходность инструмента в портфеле из котировки (`resolutPortfolioQuoteYieldService`, поля `products.resolut_pfp_code` / `resolut_quote_p_type`, только `RESOLUT_PROJECT_ID`);
 - PDF: те же Finam-шаблоны для `projectId` из `FINAM_REPORT_PROJECT_IDS` (в т.ч. 23);
 - подготовка этапа 2: `portfolio`, `client`, `link`;
 - сверка маппинга `projectId` и продуктовых кодов между PFP и AV/Resolut.

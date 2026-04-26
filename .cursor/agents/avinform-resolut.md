@@ -14,11 +14,28 @@ agent@agent.ru
 - НСЖ в расчёте цели **LIFE** для этого проекта идёт в Резолют **`quote`** с продуктом **`assetShort`** («Надежный актив»), см. [`src/services/resolutNsjQuoteService.js`](../../src/services/resolutNsjQuoteService.js) и ветку в [`src/algorithms/calculators/lifeUpfrontAmount.js`](../../src/algorithms/calculators/lifeUpfrontAmount.js). Код продукта переопределяется env **`RESOLUT_NSJ_PFP_CODE`** (по умолчанию `assetShort`).
 - Остальные проекты по-прежнему используют legacy **`nsjApiService`** / `api-life`.
 
+## Портфель (INVESTMENT / OTHER / FinReserve / Rent / PassiveIncome): доходность из `quote`
+
+- Только при **`project_id === RESOLUT_PROJECT_ID`** и если у строки **`products`** задано **`resolut_pfp_code`** (код из ответа Resolut `products`, например `assetShort`): при расчёте взвешенной доходности вызывается [`src/services/resolutPortfolioQuoteYieldService.js`](../../src/services/resolutPortfolioQuoteYieldService.js) → `resolutService.quote` → **имплицитная годовая %** из взноса (`premium`/`premiumFull`) и FV по риску **«Дожитие»** в `risks[]` (при **`resolut_quote_p_type = 0`** или дефолте **0**; иные `pType` — fallback на матрицу **`lines`**).
+- Другие проекты и продукты **без** `resolut_pfp_code` ведут себя как раньше (**только `lines`/`yields`**), HTTP к Резолюту не идёт.
+- Поля продукта: миграция **`resolut_pfp_code`**, **`resolut_quote_p_type`**; API создания/обновления продукта — [`productController`](../../src/controllers/productController.js). Общая логика ветвления: [`BaseCalculator.resolveInstrumentYieldsForWeightedPortfolio`](../../src/algorithms/calculators/BaseCalculator.js) и тот же хелпер в [`OtherGoalCalculator`](../../src/algorithms/calculators/OtherGoalCalculator.js).
+- Опционально env **`RESOLUT_PORTFOLIO_QUOTE_PTYPE`** — если у продукта не задан `resolut_quote_p_type`.
+
 ## Bearer-токен Резолюта (только бэкенд)
 
 - Логин/пароль для Resolut **не** хранятся в env. Они приходят **только** с фронта в теле **`POST /api/pfp/auth/login`**: после проверки bcrypt для агента с `project_id === RESOLUT_PROJECT_ID` бэкенд вызывает **`exchangePasswordForSessionKey`** и кладёт ключ в in-memory [**`resolutSessionStore`**](../../src/services/resolutSessionStore.js) по **`users.id`**. TTL: **`RESOLUT_SESSION_TTL_MS`** (по умолчанию 23 ч). Если Resolut отклонил пару — логин **401**, JWT не выдаётся.
 - Вызовы **`products` / `quote`** (из [`resolutController`](../../src/controllers/resolutController.js) и из расчёта LIFE) передают **`userId`** агента: сначала кэш, иначе **`resolut_static_key`** / **`RESOLUT_STATIC_KEY`**. Если ни кэша, ни static key — **401** `ResolutSessionRequired` (перелогиниться).
 - Для фоновых расчётов без агента (отчёт, B2C кабинет без `agentUserId`) на проекте 23: **`RESOLUT_STATIC_KEY`** или локальный fallback премии в [`lifeUpfrontAmount.js`](../../src/algorithms/calculators/lifeUpfrontAmount.js).
+- **Статус (2026-04):** цепочка авторизации на проде (Railway) проверена: **`POST /api/auth/login`** для агента проекта 23 → Resolut `authorize` → кэш; **`POST /api/pfp/resolut/products`** → 200. Роуты Resolut в [`resolutRoutes.js`](../../src/routes/resolutRoutes.js) обязаны с **`resolutController.*.bind(resolutController)`** — иначе `this` в контроллере `undefined`.
+- **Логи:** успех кэша — `[AuthService] Resolut bearer cached …` (email замаскирован); нет сессии/static — `[ResolutService] ResolutSessionRequired …`.
+- **`quote`:** до Resolut запросы доходят; ответы **`calcError`** (напр. выкупные суммы) — не проблема логина, нужен полный контракт `parameters`/`calcData` от партнёра для `assetShort` (см. [`resolutNsjQuoteService.js`](../../src/services/resolutNsjQuoteService.js)).
+
+## Прод (Railway): env
+
+- **`RESOLUT_BASE_URL`** — URL PFP API Резолюта со стороны АВ (без лишнего слэша в конце; в коде он нормализуется). Неверный хост давал таймауты/ошибки authorize.
+- **`RESOLUT_TIMEOUT_MS`** — рекомендуется **15000–20000**; в коде значение **зажато в диапазоне 8000–120000** мс, чтобы случайные **1000** не рвали логин.
+- **`RESOLUT_PROJECT_ID`** — **23** для AV Информ.
+- Опционально фон: **`RESOLUT_STATIC_KEY`** / `resolut_static_key` в настройках проекта.
 
 ## PDF (шаблоны Finam для проекта 23)
 

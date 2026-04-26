@@ -30,7 +30,7 @@ class InvestmentCalculator extends BaseCalculator {
             initial_instruments,
             monthly_instruments,
             pdsProductId
-        } = await this.calculateWeightedYield(portfolio, goal, productRepository, context.projectId);
+        } = await this.calculateWeightedYield(portfolio, goal, productRepository, context.projectId, context);
 
         const portfolioYieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
         const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;

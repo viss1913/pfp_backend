@@ -82,5 +82,7 @@ async function quoteLifeAsNsjShape(params, projectId, userId) {
 
 module.exports = {
     quoteLifeAsNsjShape,
-    RESOLUT_ASSET_CODE
+    RESOLUT_ASSET_CODE,
+    formatDobDdMmYyyy,
+    normalizeSex
 };
