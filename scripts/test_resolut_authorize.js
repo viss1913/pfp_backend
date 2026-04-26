@@ -11,8 +11,8 @@ function getArg(name, fallback = null) {
 
 async function main() {
     const baseUrl = (getArg('base-url', process.env.RESOLUT_BASE_URL || 'https://demo.avinfors.ru/pfp/api/pfp/') || '').replace(/\/$/, '');
-    const login = getArg('login', process.env.RESOLUT_AGENT_LOGIN || 'agent@agent.ru');
-    const password = getArg('password', process.env.RESOLUT_AGENT_PASSWORD || '1234');
+    const login = getArg('login', null);
+    const password = getArg('password', null);
     const type = getArg('type', process.env.RESOLUT_AUTH_TYPE || 'ПользовательРезолют');
     const timeoutMs = Number(getArg('timeout-ms', process.env.RESOLUT_TIMEOUT_MS || '10000'));
 
@@ -20,7 +20,7 @@ async function main() {
         throw new Error('Missing base URL. Set --base-url or RESOLUT_BASE_URL');
     }
     if (!login || !password) {
-        throw new Error('Missing login/password. Set args or env vars.');
+        throw new Error('Missing login/password. Pass --login=... and --password=... (no env defaults).');
     }
 
     const payload = {

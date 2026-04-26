@@ -29,19 +29,9 @@ isProject: false
 
 ## 1. Авторизация: «те же логины/пароли», агент из project 23
 
-**Как сейчас:** логин/пароль/`static_key` берутся из настроек проекта (`resolut_agent_login`, `resolut_agent_password`, `resolut_static_key`) или env — см. [`getCredentials`](../../src/services/resolutService.js). **Не** из записи агента в JWT.
+**Как сейчас (реализовано):** при `POST /api/pfp/auth/login` для агента с `project_id === RESOLUT_PROJECT_ID` бэкенд вызывает Resolut `authorize` с **теми же** `email` и `password`, что пришли в теле логина ([`authService.login`](../../src/services/authService.js) → [`exchangePasswordForSessionKey`](../../src/services/resolutService.js)), и кладёт `key` в [`resolutSessionStore`](../../src/services/resolutSessionStore.js) по `users.id`. Отдельного маршрута `POST /api/pfp/resolut/authorize` нет; при ошибке Resolut логин **не** проходит (401).
 
-**Ваш выбор — автопривязка к агенту:** логин разумно брать из **`req.user.email`** (или аналог из `pfpMiddleware`). **Но:** в БД у пользователя только **`password_hash`** ([`agentService.js`](../../src/services/agentService.js)), восстановить исходный пароль для вызова Резолюта **невозможно**.
-
-**Рекомендуемая реализация (совместима с «тот же пароль», что в ЛК):**
-
-- **Логин:** всегда `req.user.email` для проекта 23 (если партнёр завёл того же пользователя в Резолюте).
-- **Пароль Резолюта:** один из путей (выбрать один на MVP):
-  - **A (практично):** при первом заходе в сценарий «Резолют» агент один раз вводит пароль; сохраняем **зашифрованно** в настройках **на агента** (новый ключ в `settingsService`, например `resolut_password_encrypted` + `projectId`/agent scope) — по смыслу тот же пароль, что и от ЛК, но не из хэша.
-  - **B:** оставить пароль только в проектных настройках (как сейчас), но **логин** подставлять с агента — полуавто.
-  - **C (идеал на потом):** SSO / обмен токеном от партнёра — отдельный эпик.
-
-**Задачи:** расширить `resolutService`/контроллер: для `projectId === RESOLUT_PROJECT_ID` резолвить логин с пользователя; пароль — по выбранной схеме A/B; не ломать остальные проекты. Задокументировать угрозы (хранение секрета, ротация).
+**Статический ключ:** только `resolut_static_key` / `RESOLUT_STATIC_KEY` — для фоновых вызовов без живой сессии агента (см. [`getCredentials`](../../src/services/resolutService.js)). Отдельные `resolut_agent_login` / `RESOLUT_AGENT_LOGIN` не используются.
 
 ```mermaid
 sequenceDiagram
@@ -50,12 +40,14 @@ sequenceDiagram
   participant RS as resolutService
   participant AV as AV_Resolut
 
-  Agent->>PFP: POST /api/pfp/resolut/authorize JWT
-  PFP->>PFP: projectId=23, email from JWT
-  PFP->>RS: authorize with login+secret
+  Agent->>PFP: POST /api/pfp/auth/login email+password
+  PFP->>PFP: bcrypt OK, project 23 agent
+  PFP->>RS: exchangePasswordForSessionKey
   RS->>AV: operation authorize
-  AV-->>RS: key/session
-  RS-->>PFP: normalized response
+  AV-->>RS: key
+  RS-->>PFP: key
+  PFP->>PFP: resolutSessionStore.set user.id
+  PFP-->>Agent: JWT
 ```
 
 ---

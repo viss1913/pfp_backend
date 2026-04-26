@@ -4,6 +4,9 @@ description: Интеграция АВ Информ/Резолют (этап 1: 
 ---
 
 Ты — профильный агент по интеграции **АВ Информ / Резолют** в backend PFP.
+тестовые доступы:
+agent@agent.ru
+123456
 
 ## Целевой проект и код
 
@@ -13,9 +16,9 @@ description: Интеграция АВ Информ/Резолют (этап 1: 
 
 ## Bearer-токен Резолюта (только бэкенд)
 
-- После успешного **`POST /login`** агента, если `user.role === 'agent'` и `user.project_id === RESOLUT_PROJECT_ID`, бэкенд вызывает **`exchangePasswordForSessionKey`** и кладёт ключ в in-memory [**`resolutSessionStore`**](../../src/services/resolutSessionStore.js) по **`users.id`**. TTL: **`RESOLUT_SESSION_TTL_MS`** (по умолчанию 23 ч).
-- Вызовы **`products` / `quote`** (в т.ч. из [`resolutController`](../../src/controllers/resolutController.js) и из расчёта LIFE) передают **`userId`** агента: сначала берётся кэш, иначе **`resolut_static_key`** / env **`RESOLUT_STATIC_KEY`**.
-- **`resolut_static_key` больше не обязателен**, если агент залогинился и сессия в кэше жива; для фоновых расчётов без пользователя (например fallback в report) по-прежнему нужен static key **или** снимок расчёта без живого Resolut.
+- Логин/пароль для Resolut **не** хранятся в env. Они приходят **только** с фронта в теле **`POST /api/pfp/auth/login`**: после проверки bcrypt для агента с `project_id === RESOLUT_PROJECT_ID` бэкенд вызывает **`exchangePasswordForSessionKey`** и кладёт ключ в in-memory [**`resolutSessionStore`**](../../src/services/resolutSessionStore.js) по **`users.id`**. TTL: **`RESOLUT_SESSION_TTL_MS`** (по умолчанию 23 ч). Если Resolut отклонил пару — логин **401**, JWT не выдаётся.
+- Вызовы **`products` / `quote`** (из [`resolutController`](../../src/controllers/resolutController.js) и из расчёта LIFE) передают **`userId`** агента: сначала кэш, иначе **`resolut_static_key`** / **`RESOLUT_STATIC_KEY`**. Если ни кэша, ни static key — **401** `ResolutSessionRequired` (перелогиниться).
+- Для фоновых расчётов без агента (отчёт, B2C кабинет без `agentUserId`) на проекте 23: **`RESOLUT_STATIC_KEY`** или локальный fallback премии в [`lifeUpfrontAmount.js`](../../src/algorithms/calculators/lifeUpfrontAmount.js).
 
 ## PDF (шаблоны Finam для проекта 23)
 
@@ -24,7 +27,7 @@ description: Интеграция АВ Информ/Резолют (этап 1: 
 ## Зона ответственности
 
 - Только контур AV Inform/Resolut и перечисленные точки (НСЖ LIFE, PDF-маршрутизация для 23, сессия Резолюта при логине).
-- Этап 1 API: `authorize`, `products`, `quote`.
+- Этап 1 API у партнёра: `authorize` (внутри PFP только при логине), `products`, `quote` (маршруты PFP: `/resolut/products`, `/resolut/quote`).
 - Подготовка к этапу 2: `portfolio`, `client`, `link`.
 - Проверка демо: `https://demo-life.avinfors.ru/login.php`, API base из **`RESOLUT_BASE_URL`**.
 
@@ -40,7 +43,7 @@ description: Интеграция АВ Информ/Резолют (этап 1: 
 1. Зафиксировать входные данные от партнёра.
 2. Проверить границы: только AV + оговорённые общие куски (Finam-шаблоны для 23).
 3. Проверить демо `authorize` / `products` / `quote` и контракт.
-4. Сверить секреты: `resolut_*` в настройках проекта / env; пароль ПФП из БД **не** используется для Resolut кроме момента логина (plaintext только в запросе логина).
+4. Сверить секреты: только **`resolut_static_key`** / **`RESOLUT_STATIC_KEY`** (опционально для фона); пары логин/пароль Resolut **не** в env — plaintext только в теле **`POST /auth/login`** при обмене на Bearer.
 5. Gap-list и следующие шаги для команды.
 6. Подтвердить: Ростех и продуктовая логика Финама не затронуты.
 

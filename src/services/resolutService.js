@@ -7,7 +7,6 @@ const EXPECTED_YAML_BASE_URL = 'https://demo.avinfors.ru/pfp/api/pfp/';
 class ResolutService {
     constructor() {
         this.baseUrl = String(process.env.RESOLUT_BASE_URL || '').replace(/\/$/, '');
-        this.authPath = process.env.RESOLUT_AUTH_PATH || '/authorize';
         this.operationPath = process.env.RESOLUT_OPERATION_PATH || '/';
         this.authType = process.env.RESOLUT_AUTH_TYPE || 'ПользовательРезолют';
         this.timeoutMs = Number(process.env.RESOLUT_TIMEOUT_MS || 10000);
@@ -33,24 +32,17 @@ class ResolutService {
     }
 
     /**
-     * Логин/пароль обязательны; static key опционален, если Bearer берётся из сессии после логина (см. resolutSessionStore).
+     * Только static key для фоновых вызовов без живой сессии агента (см. resolutSessionStore).
+     * Логин/пароль Resolut не хранятся в env — Bearer получается при POST /auth/login через exchangePasswordForSessionKey.
      */
     async getCredentials(projectId) {
-        const login = await settingsService.getValue('resolut_agent_login', projectId) || process.env.RESOLUT_AGENT_LOGIN || null;
-        const password = await settingsService.getValue('resolut_agent_password', projectId) || process.env.RESOLUT_AGENT_PASSWORD || null;
         const key = await settingsService.getValue('resolut_static_key', projectId) || process.env.RESOLUT_STATIC_KEY || null;
 
         if (!this.baseUrl) {
             throw { status: 500, message: 'RESOLUT_BASE_URL is not configured' };
         }
-        if (!login || !password) {
-            throw {
-                status: 400,
-                message: 'Resolut credentials are incomplete. Set resolut_agent_login and resolut_agent_password in project settings or env (and resolut_static_key or agent login to cache bearer).'
-            };
-        }
 
-        return { login, password, key };
+        return { key };
     }
 
     getNormalizedResponse(status, operation, payload = {}) {
@@ -167,31 +159,19 @@ class ResolutService {
             if (options.userId != null) {
                 bearerKey = resolutSessionStore.get(options.userId);
             }
-            let credentials = null;
             if (!bearerKey) {
-                credentials = await this.getCredentials(projectId);
-                bearerKey = credentials.key;
+                const { key } = await this.getCredentials(projectId);
+                bearerKey = key;
             }
             if (!bearerKey) {
-                if (!credentials) credentials = await this.getCredentials(projectId);
-                const authNorm = await this.callOperation(
-                    projectId,
-                    'authorize',
-                    {
-                        login: credentials.login,
-                        password: credentials.password,
-                        type: this.authType
-                    },
-                    { useBearer: false }
+                console.warn(
+                    `[ResolutService] ResolutSessionRequired operation=${operation} projectId=${projectId} userId=${options.userId != null ? options.userId : 'none'}`
                 );
-                if (!authNorm.ok || !authNorm.data || !authNorm.data.key) {
-                    throw {
-                        status: 502,
-                        message: 'Resolut bearer missing: authorize with project credentials did not return a key. Set RESOLUT_STATIC_KEY or check resolut_agent_login/password.',
-                        details: { operation: 'authorize', err: authNorm.err }
-                    };
-                }
-                bearerKey = authNorm.data.key;
+                throw {
+                    status: 401,
+                    error: 'ResolutSessionRequired',
+                    message: 'Resolut session required: agent must re-login (no cached bearer and no resolut_static_key for background flow).'
+                };
             }
             headers.Authorization = `Bearer ${bearerKey}`;
         }
@@ -233,51 +213,6 @@ class ResolutService {
                 error: 'ResolutTransportError',
                 message: `Resolut ${operation} transport error: ${error.message}`
             };
-        }
-    }
-
-    async authorizeLegacy(projectId) {
-        this.assertProjectAllowed(projectId);
-        this.warnIfYamlBaseUrlMismatch();
-        const credentials = await this.getCredentials(projectId);
-        if (!credentials.key) {
-            throw { status: 500, message: 'resolut_static_key required for legacy Resolut authorize path' };
-        }
-        const url = this.buildUrl(this.authPath);
-        const payload = {
-            login: credentials.login,
-            password: credentials.password,
-            key: credentials.key
-        };
-        const response = await axios.post(url, payload, {
-            timeout: this.timeoutMs,
-            headers: { 'Content-Type': 'application/json' }
-        });
-        return this.getNormalizedResponse(response.status, 'authorize', response.data);
-    }
-
-    async authorize(projectId) {
-        try {
-            const credentials = await this.getCredentials(projectId);
-            return await this.callOperation(
-                projectId,
-                'authorize',
-                {
-                    login: credentials.login,
-                    password: credentials.password,
-                    type: this.authType
-                },
-                { useBearer: false }
-            );
-        } catch (error) {
-            if (error.details && error.details.upstream_err_code === 'operationNotFound') {
-                try {
-                    return await this.authorizeLegacy(projectId);
-                } catch (legacyError) {
-                    throw legacyError;
-                }
-            }
-            throw error;
         }
     }
 

@@ -13,6 +13,16 @@ const JWT_SECRET = process.env.JWT_SECRET; // Must be provided via environment
 const JWT_EXPIRES_IN = '24h';
 const VERIFICATION_CODE_TTL_MINUTES = 10;
 
+function maskEmailForLog(email) {
+    if (!email || typeof email !== 'string') return '[unknown]';
+    const at = email.indexOf('@');
+    if (at <= 0) return '***';
+    const local = email.slice(0, at);
+    const domain = email.slice(at);
+    const prefix = local.length <= 2 ? '*' : `${local.slice(0, 2)}***`;
+    return `${prefix}${domain}`;
+}
+
 class AuthService {
     /**
      * Login user and return JWT token
@@ -37,18 +47,17 @@ class AuthService {
 
         const resolutProjectId = Number(process.env.RESOLUT_PROJECT_ID || 0);
         if (resolutProjectId && user.role === 'agent' && Number(user.project_id) === resolutProjectId) {
-            try {
-                const resolutService = require('./resolutService');
-                const resolutSessionStore = require('./resolutSessionStore');
-                const sessionKey = await resolutService.exchangePasswordForSessionKey(
-                    user.project_id,
-                    email,
-                    password
-                );
-                resolutSessionStore.set(user.id, sessionKey);
-            } catch (e) {
-                console.warn('[AuthService] Resolut session not cached:', e.message || e);
-            }
+            const resolutService = require('./resolutService');
+            const resolutSessionStore = require('./resolutSessionStore');
+            const sessionKey = await resolutService.exchangePasswordForSessionKey(
+                user.project_id,
+                email,
+                password
+            );
+            resolutSessionStore.set(user.id, sessionKey);
+            console.info(
+                `[AuthService] Resolut bearer cached user_id=${user.id} project_id=${user.project_id} email=${maskEmailForLog(email)}`
+            );
         }
 
         // Generate JWT token payload

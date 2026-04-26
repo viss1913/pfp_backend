@@ -11,6 +11,8 @@ const nsjApiServiceSingleton = require('../../services/nsjApiService');
  * @returns {Promise<{ nsjResult: Object, apiError: Error|null }>}
  */
 async function fetchLifeNsjResult(goal, context) {
+    // Resolut (project RESOLUT_PROJECT_ID): needs context.agentUserId (agent JWT → calculationService)
+    // or RESOLUT_STATIC_KEY on server. Report/cabinet flows without both → catch below + _fallback premium.
     const nsjApiService = context?.services?.nsjApiService || nsjApiServiceSingleton;
     const termMonths = Number(goal.term_months || 120);
     const targetAmount = Number(goal.target_amount || 0);

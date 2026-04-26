@@ -35,16 +35,6 @@ class ResolutController {
         });
     }
 
-    async authorize(req, res, next) {
-        try {
-            const projectId = this.resolveProjectId(req);
-            const result = await resolutService.authorize(projectId);
-            res.json(result);
-        } catch (err) {
-            this.handleResolutError(err, res, next);
-        }
-    }
-
     async products(req, res, next) {
         try {
             const validation = productsSchema.validate(req.body || {});
