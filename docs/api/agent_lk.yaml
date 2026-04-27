@@ -517,6 +517,65 @@ paths:
         '404':
           description: Клиент или план не найдены
 
+  /my/risk-profile/questionnaire:
+    get:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Анкета риск-профиля для фронта (backend-driven)
+      description: |
+        Возвращает активную версию анкеты с вопросами, пояснениями и вариантами ответов.
+        Фронт не должен хардкодить тексты/баллы.
+      responses:
+        '200':
+          description: Активная анкета
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questionnaire:
+                    $ref: '../../openapi/pfpB2C.yaml#/components/schemas/RiskQuestionnaire'
+
+  /my/risk-profile/answers:
+    get:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Текущие ответы и рассчитанный risk result клиента
+      responses:
+        '200':
+          description: Ответы и результат скоринга
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskProfileAnswersResponse'
+    post:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Сохранить ответы риск-анкеты клиента
+      description: |
+        Сохраняет ответы анкеты (question_code -> option_code/score).
+        Рекомендуется вызывать до `/my/plan/first-run` или `/my/plan/{goalId}/recalculate`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskProfileAnswersRequest'
+      responses:
+        '200':
+          description: Ответы сохранены
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  risk_profile_answers:
+                    type: object
+                    additionalProperties:
+                      oneOf:
+                        - type: string
+                        - type: integer
+                  risk_questionnaire_version_id:
+                    type: integer
+
   # ==================== AI CRM В ЛК АГЕНТА ====================
   /pfp/ai/assistants:
     get:
@@ -1805,9 +1864,9 @@ components:
           nullable: true
           description: Версия анкеты, по которой собраны ответы
         risk_profile_result:
-          type: object
+          allOf:
+            - $ref: '#/components/schemas/RiskProfileResult'
           nullable: true
-          additionalProperties: true
           description: Последний рассчитанный explainable результат риск-профиля
         chat_ai_messages:
           type: array
@@ -1853,6 +1912,79 @@ components:
       allOf:
         - $ref: '#/components/schemas/AgentClientB2CRow'
       description: Полная карточка клиента (те же поля, что в списке, плюс goals, assets, liabilities, expenses и т.д.)
+
+    RiskProfileAnswersRequest:
+      type: object
+      properties:
+        risk_profile_answers:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+        risk_questionnaire_version_id:
+          type: integer
+      required: [risk_profile_answers]
+
+    RiskProfileAnswersResponse:
+      type: object
+      properties:
+        risk_profile_answers:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+        risk_questionnaire_version_id:
+          type: integer
+          nullable: true
+        risk_profile_result:
+          $ref: '#/components/schemas/RiskProfileResult'
+
+    RiskProfileResult:
+      type: object
+      description: |
+        Explainable результат скоринга.
+        `risk_profile` — 3 уровня для обратной совместимости с текущими портфелями.
+        `risk_profile_extended` — 5 уровней для расширенного UI.
+      properties:
+        risk_profile:
+          type: string
+          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+        risk_profile_extended:
+          type: string
+          enum: [CONSERVATIVE, MODERATELY_CONSERVATIVE, BALANCED, MODERATELY_AGGRESSIVE, AGGRESSIVE]
+          nullable: true
+        questionnaire_version_id:
+          type: integer
+          nullable: true
+        questionnaire_version_code:
+          type: string
+          nullable: true
+        base_score:
+          type: number
+          nullable: true
+        behavior_score:
+          type: number
+          nullable: true
+        behavior_coefficient:
+          type: number
+          nullable: true
+        final_score:
+          type: number
+          nullable: true
+        max_final_score_by_capacity:
+          type: number
+          nullable: true
+        answers:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+        explanation:
+          type: object
+          additionalProperties: true
 
     ComonResolveBody:
       type: object
