@@ -16,6 +16,9 @@ router.get('/plan/report/pdf-url', clientCabinetController.getMyReportPdfUrl.bin
 router.get('/plan/report/html', clientCabinetController.getMyReportHtml.bind(clientCabinetController));
 router.get('/plan/report', clientCabinetController.getMyReport.bind(clientCabinetController));
 router.get('/plan/comon-showcase', clientCabinetController.getMyComonShowcase.bind(clientCabinetController));
+router.get('/risk-profile/questionnaire', clientCabinetController.getRiskProfileQuestionnaire.bind(clientCabinetController));
+router.get('/risk-profile/answers', clientCabinetController.getRiskProfileAnswers.bind(clientCabinetController));
+router.post('/risk-profile/answers', clientCabinetController.saveRiskProfileAnswers.bind(clientCabinetController));
 
 // Стратегии Comon закреплённого за клиентом агента (информация для клиента)
 router.get('/comon-strategies', clientComonStrategyController.list);

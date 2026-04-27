@@ -707,7 +707,7 @@ class CalculationService {
                 const currentGoalId = String(goal.id || goal.goal_id);
                 const isTarget = !targetGoalId || currentGoalId === String(targetGoalId);
 
-                // [RISK PROFILE] Auto-calculate risk profile based on Dengina methodology
+                // [RISK PROFILE] Auto-calculate risk profile from questionnaire + objective constraints.
                 if (isTarget && clientData.risk_profile_answers) {
                     let answers = clientData.risk_profile_answers;
                     if (typeof answers === 'string') {
@@ -717,19 +717,27 @@ class CalculationService {
                     if (answers && typeof answers === 'object') {
                         // Front может присылать `{}` (нет ответов). Тогда не должны затирать `goal.risk_profile`,
                         // потому что авто-методика использует ответы Q2-Q10 + баллы за горизонт (Q1).
-                        const hasAnyQ2toQ10Answer = ['q2', 'q3', 'q4', 'q5', 'q6', 'q7', 'q8', 'q9', 'q10']
-                            .some(k => answers[k] !== undefined && answers[k] !== null && answers[k] !== '');
+                        const hasAnyQuestionnaireAnswer = Object.keys(answers)
+                            .some((k) => answers[k] !== undefined && answers[k] !== null && answers[k] !== '');
 
-                        if (!hasAnyQ2toQ10Answer) {
-                            // Nothing to auto-calculate; keep risk_profile coming from the goal (front).
+                        if (!hasAnyQuestionnaireAnswer) {
+                            // Nothing to auto-calculate; keep risk_profile coming from the goal.
                         } else {
-                        const term = goal.term_months || 0;
-                        const calculatedProfile = riskProfileService.calculateGoalProfile(answers, term);
+                            const calculatedProfile = await riskProfileService.calculateGoalProfile({
+                                answers,
+                                goal,
+                                client: clientData,
+                                projectId: context.projectId
+                            });
 
-                        if (calculatedProfile) {
-                            logger.info(`[CalculationService] Auto-calculated risk profile for ${goal.name}: ${calculatedProfile} (term: ${term}mo)`);
-                            goal.risk_profile = calculatedProfile;
-                        }
+                            if (calculatedProfile?.risk_profile) {
+                                logger.info(
+                                    `[CalculationService] Auto risk-profile for ${goal.name}: ${calculatedProfile.risk_profile} ` +
+                                    `(final_score=${calculatedProfile.final_score})`
+                                );
+                                goal.risk_profile = calculatedProfile.risk_profile;
+                                goal.risk_profile_details = calculatedProfile;
+                            }
                         }
                     }
                 }

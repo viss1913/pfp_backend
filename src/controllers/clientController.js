@@ -52,6 +52,14 @@ const taxChildSchema = Joi.object({
     is_disabled: Joi.boolean().optional()
 });
 
+const riskProfileAnswersSchema = Joi.object().pattern(
+    Joi.string().trim().min(1),
+    Joi.alternatives().try(
+        Joi.string().trim().min(1),
+        Joi.number().integer().min(1).max(10)
+    )
+).optional();
+
 // Схема валидации для запроса расчета
 const calculationRequestSchema = Joi.object({
     goals: Joi.array().items(Joi.object({
@@ -133,7 +141,11 @@ const calculationRequestSchema = Joi.object({
         enable_children_tax_deduction: Joi.boolean().optional()
             .description('Включить расчет стандартного вычета на детей в firstRun'),
         tax_children: Joi.array().items(taxChildSchema).optional()
-            .description('Дети для налогового расчета (если не передано, может использоваться family_profile.children)')
+            .description('Дети для налогового расчета (если не передано, может использоваться family_profile.children)'),
+        risk_profile_answers: riskProfileAnswersSchema
+            .description('Ответы на вопросы risk questionnaire (код вопроса -> код/score варианта)'),
+        risk_questionnaire_version_id: Joi.number().integer().positive().optional()
+            .description('Версия анкеты риск-профиля, по которой собраны ответы')
     }).optional()
         .description('Данные клиента (опционально, но рекомендуется для расчета НСЖ и Пенсии)'),
     credits: Joi.array().items(Joi.object({

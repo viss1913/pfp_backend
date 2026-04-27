@@ -13,6 +13,57 @@ security:
   - bearerAuth: []
 
 paths:
+  /my/risk-profile/questionnaire:
+    get:
+      tags: [ClientPlan]
+      summary: Get active risk-profile questionnaire
+      responses:
+        '200':
+          description: Questionnaire metadata and answer options
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questionnaire:
+                    $ref: '#/components/schemas/RiskQuestionnaire'
+
+  /my/risk-profile/answers:
+    get:
+      tags: [ClientPlan]
+      summary: Get saved risk-profile answers for current client
+      responses:
+        '200':
+          description: Saved answers and latest risk-profile result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskProfileAnswersPayload'
+    post:
+      tags: [ClientPlan]
+      summary: Save risk-profile answers for current client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RiskProfileAnswersPayload'
+      responses:
+        '200':
+          description: Answers saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  risk_profile_answers:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  risk_questionnaire_version_id:
+                    type: integer
+
   /my/plan/first-run:
     post:
       tags: [ClientPlan]
@@ -243,19 +294,67 @@ components:
           format: email
         risk_profile_answers:
           type: object
-          description: Answers to risk profiling questionnaire (Dengina method). Q1 is calculated automatically.
-          properties:
-            q2: { type: integer, minimum: 1, maximum: 5 }
-            q3: { type: integer, minimum: 1, maximum: 5 }
-            q4: { type: integer, minimum: 1, maximum: 5 }
-            q5: { type: integer, minimum: 1, maximum: 5 }
-            q6: { type: integer, minimum: 1, maximum: 5 }
-            q7: { type: integer, minimum: 1, maximum: 5 }
-            q8: { type: integer, minimum: 1, maximum: 5 }
-            q9: { type: integer, minimum: 1, maximum: 5 }
-            q10: { type: integer, minimum: 1, maximum: 5 }
+          description: Answers map (question code -> selected option code/legacy score)
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+        risk_questionnaire_version_id:
+          type: integer
+          description: Questionnaire version used to collect answers
         family_profile:
           $ref: '#/components/schemas/FamilyProfile'
+
+    RiskProfileAnswersPayload:
+      type: object
+      properties:
+        risk_profile_answers:
+          type: object
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+        risk_questionnaire_version_id:
+          type: integer
+        risk_profile_result:
+          type: object
+          additionalProperties: true
+
+    RiskQuestionnaire:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        questions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RiskQuestionnaireQuestion'
+
+    RiskQuestionnaireQuestion:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        help_text: { type: string, nullable: true }
+        category: { type: string }
+        sort_order: { type: integer }
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/RiskQuestionnaireOption'
+
+    RiskQuestionnaireOption:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        label: { type: string }
+        score: { type: number }
+        sort_order: { type: integer }
 
     FamilyProfile:
       type: object

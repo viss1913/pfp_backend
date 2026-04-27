@@ -10,6 +10,7 @@ const {
 } = require('../services/reportPdfStorageService');
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
+const riskQuestionnaireService = require('../services/riskQuestionnaireService');
 const Joi = require('joi');
 
 function wantsReportHtmlDocument(req) {
@@ -39,6 +40,13 @@ function shouldForceReverseModeForPatch(existingGoal, patch) {
     const hasExplicitMonthlyChange = hasOwn(patch, 'monthly_replenishment');
 
     return hasReverseTrigger && !hasExplicitMonthlyChange;
+}
+
+function pickRiskProfileResult(calculationResponse) {
+    const calculation = calculationResponse?.calculation || calculationResponse;
+    const goals = Array.isArray(calculation?.goals) ? calculation.goals : [];
+    const firstWithDetails = goals.find((goal) => goal?.risk_profile_details);
+    return firstWithDetails?.risk_profile_details || null;
 }
 
 async function warmupClientPdfInBackgroundForCabinet({
@@ -112,6 +120,16 @@ const taxChildSchema = Joi.object({
     is_disabled: Joi.boolean().optional()
 });
 
+const riskProfileAnswersSchema = Joi.object()
+    .pattern(
+        Joi.string().trim().min(1),
+        Joi.alternatives().try(
+            Joi.string().trim().min(1),
+            Joi.number().integer().min(1).max(10)
+        )
+    )
+    .optional();
+
 // Reuse the same validation schema as clientController
 const calculationRequestSchema = Joi.object({
     goals: Joi.array().items(Joi.object({
@@ -132,10 +150,8 @@ const calculationRequestSchema = Joi.object({
         priority: Joi.number().integer().min(1).max(10).optional()
     })).min(1).required(),
     client: Joi.object({
-        risk_profile_answers: Joi.object().pattern(
-            Joi.string().regex(/^q[2-9]|q10$/),
-            Joi.number().integer().min(1).max(5)
-        ).optional(),
+        risk_profile_answers: riskProfileAnswersSchema,
+        risk_questionnaire_version_id: Joi.number().integer().positive().optional(),
         family_profile: familyProfileSchema,
         enable_children_tax_deduction: Joi.boolean().optional(),
         tax_children: Joi.array().items(taxChildSchema).optional()
@@ -157,6 +173,98 @@ const calculationRequestSchema = Joi.object({
  * No access to other clients' data.
  */
 class ClientCabinetController {
+    /**
+     * GET /my/risk-profile/questionnaire — questionnaire metadata for frontend rendering
+     */
+    async getRiskProfileQuestionnaire(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user.projectId || null;
+            const questionnaire = await riskQuestionnaireService.getActiveQuestionnaire(projectId);
+            if (!questionnaire) {
+                return res.status(404).json({ error: 'Risk questionnaire is not configured' });
+            }
+            res.json({ questionnaire });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /my/risk-profile/answers — current answers and scoring snapshot
+     */
+    async getRiskProfileAnswers(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+            const client = await clientService.getFullClient(clientId, projectId);
+            if (!client) {
+                return res.status(404).json({ error: 'Client profile not found' });
+            }
+
+            res.json({
+                risk_profile_answers: client.risk_profile_answers || {},
+                risk_questionnaire_version_id: client.risk_questionnaire_version_id || null,
+                risk_profile_result: client.risk_profile_result || null
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /my/risk-profile/answers — save questionnaire answers without recalculation
+     */
+    async saveRiskProfileAnswers(req, res, next) {
+        try {
+            const clientId = req.user.clientId;
+            if (!clientId) {
+                return res.status(400).json({ error: 'Client profile not found in token' });
+            }
+
+            const schema = Joi.object({
+                risk_profile_answers: riskProfileAnswersSchema.required(),
+                risk_questionnaire_version_id: Joi.number().integer().positive().optional()
+            });
+            const validation = schema.validate(req.body, { abortEarly: false, allowUnknown: false });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map((d) => ({
+                        field: d.path.join('.'),
+                        message: d.message
+                    }))
+                });
+            }
+
+            const projectId = req.projectId || req.user.projectId;
+            const questionnaire = await riskQuestionnaireService.getActiveQuestionnaire(projectId);
+            if (!questionnaire) {
+                return res.status(404).json({ error: 'Risk questionnaire is not configured' });
+            }
+            const normalizedAnswers = riskQuestionnaireService.normalizeAnswerMap(
+                validation.value.risk_profile_answers,
+                questionnaire
+            );
+
+            await clientService.updateClient(clientId, {
+                risk_profile_answers: JSON.stringify(normalizedAnswers),
+                risk_questionnaire_version_id: validation.value.risk_questionnaire_version_id || questionnaire.id
+            }, projectId);
+
+            res.json({
+                success: true,
+                risk_profile_answers: normalizedAnswers,
+                risk_questionnaire_version_id: validation.value.risk_questionnaire_version_id || questionnaire.id
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
 
     /**
      * GET /my/plan — Get the client's own financial plan
@@ -461,6 +569,10 @@ class ClientCabinetController {
                     id: clientId,
                     risk_profile_answers: req.body.client?.risk_profile_answers
                         ? JSON.stringify(req.body.client.risk_profile_answers)
+                        : undefined,
+                    risk_questionnaire_version_id: req.body.client?.risk_questionnaire_version_id || undefined,
+                    risk_profile_result: pickRiskProfileResult(calculationResponse)
+                        ? JSON.stringify(pickRiskProfileResult(calculationResponse))
                         : undefined
                 },
                 goals: req.body.goals
@@ -615,6 +727,10 @@ class ClientCabinetController {
                 stripClientOwnershipFields(clientUpdate);
                 if (clientUpdate.risk_profile_answers) {
                     clientUpdate.risk_profile_answers = JSON.stringify(clientUpdate.risk_profile_answers);
+                }
+                const riskProfileResult = pickRiskProfileResult(calculationResponse);
+                if (riskProfileResult) {
+                    clientUpdate.risk_profile_result = JSON.stringify(riskProfileResult);
                 }
                 await clientService.updateClient(clientId, clientUpdate, projectId);
             }

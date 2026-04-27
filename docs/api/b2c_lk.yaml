@@ -117,6 +117,49 @@ paths:
         Тот же отбор и дисклеймер, что в `comon_showcase` внутри `GET /my/plan/report`.
         Если витрина для проекта выключена — `{ "enabled": false }`.
 
+  /my/risk-profile/questionnaire:
+    get:
+      tags: [ "Финансовый План" ]
+      summary: Получить активную анкету риск-профиля
+      description: |
+        Возвращает структуру анкеты для frontend rendering:
+        вопросы, пояснения, варианты, баллы и версию анкеты.
+        Фронт не должен хардкодить тексты и score-логику.
+      responses:
+        '200':
+          description: Метаданные анкеты
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questionnaire:
+                    $ref: '../../openapi/pfpB2C.yaml#/components/schemas/RiskQuestionnaire'
+
+  /my/risk-profile/answers:
+    get:
+      tags: [ "Финансовый План" ]
+      summary: Получить сохраненные ответы риск-анкеты
+      responses:
+        '200':
+          description: Ответы и последний расчет риск-профиля
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfpB2C.yaml#/components/schemas/RiskProfileAnswersPayload'
+    post:
+      tags: [ "Финансовый План" ]
+      summary: Сохранить ответы риск-анкеты
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/pfpB2C.yaml#/components/schemas/RiskProfileAnswersPayload'
+      responses:
+        '200':
+          description: Ответы сохранены
+
   /my/plan/first-run:
     post:
       tags: [ "Финансовый План" ]

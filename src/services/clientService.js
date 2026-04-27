@@ -153,6 +153,8 @@ class ClientService {
             delete clientData.uuid;
             delete clientData.insured_person;
             clientData.family_profile = serializeJsonField(normalizeJsonField(clientData.family_profile));
+            clientData.risk_profile_answers = serializeJsonField(normalizeJsonField(clientData.risk_profile_answers));
+            clientData.risk_profile_result = serializeJsonField(normalizeJsonField(clientData.risk_profile_result));
 
             if (clientData.tax_children !== undefined) {
                 clientData.tax_children = serializeJsonField(
@@ -276,6 +278,8 @@ class ClientService {
         }
         clientObj.family_profile = normalizeJsonField(clientObj.family_profile);
         clientObj.tax_children = normalizeJsonField(clientObj.tax_children);
+        clientObj.risk_profile_answers = normalizeJsonField(clientObj.risk_profile_answers);
+        clientObj.risk_profile_result = normalizeJsonField(clientObj.risk_profile_result);
 
         mergeGoalsWithSnapshot(clientObj);
 
@@ -350,6 +354,8 @@ class ClientService {
             delete clientData.uuid;
             delete clientData.id;
             clientData.family_profile = serializeJsonField(normalizeJsonField(clientData.family_profile));
+            clientData.risk_profile_answers = serializeJsonField(normalizeJsonField(clientData.risk_profile_answers));
+            clientData.risk_profile_result = serializeJsonField(normalizeJsonField(clientData.risk_profile_result));
 
             // Как в createFullClient: в БД first_name/last_name NOT NULL — экстракция/LLM часто шлёт null
             clientData.first_name = clientData.first_name || ' ';

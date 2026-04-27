@@ -457,6 +457,9 @@ paths:
       description: |
         **Фактическое поведение бэка:** возвращается **полная карточка клиента** (профиль, цели, активы, `goals_summary` в упрощённом виде),
         а не отдельный массив «планов». Используйте `goals` и агрегаты для выбора сценария работы.
+        Для риск-профиля также возвращаются поля:
+        `risk_profile_answers`, `risk_questionnaire_version_id`, `risk_profile_result`
+        (результат новой методики BaseScore + BehaviorScore).
 
         Истории чатов по умолчанию **не** подмешиваются (чтобы не дублировать тяжёлый запрос при открытии этого URL).
         Чтобы получить **`chat_ai_messages`** и **`b2c_site_chat_messages`** — передайте `include_chat_ai=true` (или откройте `GET /client/{clientId}` с теми же query).
@@ -1789,6 +1792,23 @@ components:
           type: object
           nullable: true
           description: Сводка по целям и портфелю (упрощённая)
+        risk_profile_answers:
+          type: object
+          nullable: true
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: integer
+          description: Ответы клиента на риск-анкету (question_code -> option_code/score)
+        risk_questionnaire_version_id:
+          type: integer
+          nullable: true
+          description: Версия анкеты, по которой собраны ответы
+        risk_profile_result:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Последний рассчитанный explainable результат риск-профиля
         chat_ai_messages:
           type: array
           items:
