@@ -5,9 +5,34 @@
  * @param { import("knex").Knex } knex
  */
 exports.up = async function (knex) {
+    const isIgnorableCreateError = (err) => {
+        const code = err?.code || err?.errno;
+        return code === 'ER_TABLE_EXISTS_ERROR' || code === 1050;
+    };
+    const isIgnorableAddColumnError = (err) => {
+        const code = err?.code || err?.errno;
+        return code === 'ER_DUP_FIELDNAME' || code === 1060;
+    };
+
+    const safeCreateTable = async (name, builder) => {
+        try {
+            await knex.schema.createTable(name, builder);
+        } catch (err) {
+            if (!isIgnorableCreateError(err)) throw err;
+        }
+    };
+
+    const safeAddColumn = async (tableName, callback) => {
+        try {
+            await knex.schema.table(tableName, callback);
+        } catch (err) {
+            if (!isIgnorableAddColumnError(err)) throw err;
+        }
+    };
+
     const hasVersions = await knex.schema.hasTable('risk_questionnaire_versions');
     if (!hasVersions) {
-        await knex.schema.createTable('risk_questionnaire_versions', (table) => {
+        await safeCreateTable('risk_questionnaire_versions', (table) => {
             table.bigIncrements('id').primary();
             table.string('code', 64).notNullable();
             table.string('name', 255).notNullable();
@@ -22,7 +47,7 @@ exports.up = async function (knex) {
 
     const hasQuestions = await knex.schema.hasTable('risk_questions');
     if (!hasQuestions) {
-        await knex.schema.createTable('risk_questions', (table) => {
+        await safeCreateTable('risk_questions', (table) => {
             table.bigIncrements('id').primary();
             table.bigInteger('questionnaire_version_id').unsigned().notNullable()
                 .references('id').inTable('risk_questionnaire_versions').onDelete('CASCADE');
@@ -40,7 +65,7 @@ exports.up = async function (knex) {
 
     const hasOptions = await knex.schema.hasTable('risk_answer_options');
     if (!hasOptions) {
-        await knex.schema.createTable('risk_answer_options', (table) => {
+        await safeCreateTable('risk_answer_options', (table) => {
             table.bigIncrements('id').primary();
             table.bigInteger('question_id').unsigned().notNullable()
                 .references('id').inTable('risk_questions').onDelete('CASCADE');
@@ -56,7 +81,7 @@ exports.up = async function (knex) {
 
     const hasRules = await knex.schema.hasTable('risk_scoring_rules');
     if (!hasRules) {
-        await knex.schema.createTable('risk_scoring_rules', (table) => {
+        await safeCreateTable('risk_scoring_rules', (table) => {
             table.bigIncrements('id').primary();
             table.bigInteger('questionnaire_version_id').unsigned().notNullable()
                 .references('id').inTable('risk_questionnaire_versions').onDelete('CASCADE');
@@ -70,7 +95,7 @@ exports.up = async function (knex) {
 
     const hasColVersion = await knex.schema.hasColumn('clients', 'risk_questionnaire_version_id');
     if (!hasColVersion) {
-        await knex.schema.table('clients', (table) => {
+        await safeAddColumn('clients', (table) => {
             table.bigInteger('risk_questionnaire_version_id').unsigned().nullable()
                 .references('id').inTable('risk_questionnaire_versions').onDelete('SET NULL');
         });
@@ -78,7 +103,7 @@ exports.up = async function (knex) {
 
     const hasColResult = await knex.schema.hasColumn('clients', 'risk_profile_result');
     if (!hasColResult) {
-        await knex.schema.table('clients', (table) => {
+        await safeAddColumn('clients', (table) => {
             table.json('risk_profile_result').nullable();
         });
     }
