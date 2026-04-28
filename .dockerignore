@@ -10,9 +10,14 @@ tmp
 max-sdk-temp
 AV Inform
 AI constructor
+figma verstka
 Новая папка
 # assets/ нужны для PDF (шрифты, goal-cards, stock-изображения)
 *.md
+*.pdf
+*.zip
+*.ppt
+*.pptx
 database.sqlite
 debug*.js
 test*.js
