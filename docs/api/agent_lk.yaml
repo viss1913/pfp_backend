@@ -535,6 +535,62 @@ paths:
                   questionnaire:
                     $ref: '../../openapi/pfpB2C.yaml#/components/schemas/RiskQuestionnaire'
 
+  /my/risk-profile/questionnaire-v2:
+    get:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Человекочитаемая анкета риск-профиля (v2)
+      description: |
+        Возвращает активную версию анкеты в формате для прямого UI-рендера:
+        вопросы/подсказки/варианты без score и без технических id.
+      responses:
+        '200':
+          description: Активная анкета v2
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questionnaire:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      questions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            code:
+                              type: string
+                            title:
+                              type: string
+                            description:
+                              type: string
+                              nullable: true
+                            help_text:
+                              type: string
+                              nullable: true
+                            sort_order:
+                              type: integer
+                            options:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  code:
+                                    type: string
+                                  label:
+                                    type: string
+                                  sort_order:
+                                    type: integer
+
   /my/risk-profile/answers:
     get:
       tags: [ "Клиенты B2C в ЛК Агента" ]

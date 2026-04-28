@@ -136,6 +136,62 @@ paths:
                   questionnaire:
                     $ref: '../../openapi/pfpB2C.yaml#/components/schemas/RiskQuestionnaire'
 
+  /my/risk-profile/questionnaire-v2:
+    get:
+      tags: [ "Финансовый План" ]
+      summary: Получить человекочитаемую анкету риск-профиля (v2)
+      description: |
+        Возвращает активную анкету в client-friendly формате для прямого рендера на фронте:
+        только человекочитаемые вопросы/варианты, без score и технических id.
+      responses:
+        '200':
+          description: Метаданные анкеты v2
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questionnaire:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      code:
+                        type: string
+                      name:
+                        type: string
+                      description:
+                        type: string
+                        nullable: true
+                      questions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            code:
+                              type: string
+                            title:
+                              type: string
+                            description:
+                              type: string
+                              nullable: true
+                            help_text:
+                              type: string
+                              nullable: true
+                            sort_order:
+                              type: integer
+                            options:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  code:
+                                    type: string
+                                  label:
+                                    type: string
+                                  sort_order:
+                                    type: integer
+
   /my/risk-profile/answers:
     get:
       tags: [ "Финансовый План" ]

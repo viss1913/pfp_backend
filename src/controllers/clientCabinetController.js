@@ -190,6 +190,22 @@ class ClientCabinetController {
     }
 
     /**
+     * GET /my/risk-profile/questionnaire-v2 — client-friendly questionnaire without score fields
+     */
+    async getRiskProfileQuestionnaireV2(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user.projectId || null;
+            const questionnaire = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId);
+            if (!questionnaire) {
+                return res.status(404).json({ error: 'Risk questionnaire is not configured' });
+            }
+            res.json({ questionnaire });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
      * GET /my/risk-profile/answers — current answers and scoring snapshot
      */
     async getRiskProfileAnswers(req, res, next) {

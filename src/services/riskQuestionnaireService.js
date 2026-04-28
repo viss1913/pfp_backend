@@ -4,28 +4,9 @@ const DEFAULT_INCOME_STABILITY_SCORE = 3;
 
 class RiskQuestionnaireService {
     async getActiveQuestionnaire(projectId = null) {
-        const version = await this._findActiveVersion(projectId);
-        if (!version) return null;
-
-        const questions = await knex('risk_questions')
-            .where({ questionnaire_version_id: version.id, is_active: true })
-            .orderBy('sort_order', 'asc')
-            .orderBy('id', 'asc');
-
-        const questionIds = questions.map((q) => q.id);
-        const options = questionIds.length
-            ? await knex('risk_answer_options')
-                .whereIn('question_id', questionIds)
-                .orderBy('sort_order', 'asc')
-                .orderBy('id', 'asc')
-            : [];
-
-        const optionsByQuestion = new Map();
-        options.forEach((opt) => {
-            const arr = optionsByQuestion.get(opt.question_id) || [];
-            arr.push(opt);
-            optionsByQuestion.set(opt.question_id, arr);
-        });
+        const data = await this._loadQuestionnaireData(projectId);
+        if (!data) return null;
+        const { version, questions, optionsByQuestion } = data;
 
         const formattedQuestions = questions.map((q) => ({
             id: q.id,
@@ -50,6 +31,33 @@ class RiskQuestionnaireService {
             name: version.name,
             description: version.description,
             project_id: version.project_id,
+            questions: formattedQuestions
+        };
+    }
+
+    async getActiveQuestionnaireV2(projectId = null) {
+        const data = await this._loadQuestionnaireData(projectId);
+        if (!data) return null;
+        const { version, questions, optionsByQuestion } = data;
+
+        const formattedQuestions = questions.map((q) => ({
+            code: q.code,
+            title: q.title,
+            description: q.description,
+            help_text: q.help_text,
+            sort_order: q.sort_order,
+            options: (optionsByQuestion.get(q.id) || []).map((opt) => ({
+                code: opt.code,
+                label: opt.label,
+                sort_order: opt.sort_order
+            }))
+        }));
+
+        return {
+            id: version.id,
+            code: version.code,
+            name: version.name,
+            description: version.description,
             questions: formattedQuestions
         };
     }
@@ -141,6 +149,33 @@ class RiskQuestionnaireService {
             .andWhere({ is_active: true })
             .orderBy('id', 'desc')
             .first();
+    }
+
+    async _loadQuestionnaireData(projectId) {
+        const version = await this._findActiveVersion(projectId);
+        if (!version) return null;
+
+        const questions = await knex('risk_questions')
+            .where({ questionnaire_version_id: version.id, is_active: true })
+            .orderBy('sort_order', 'asc')
+            .orderBy('id', 'asc');
+
+        const questionIds = questions.map((q) => q.id);
+        const options = questionIds.length
+            ? await knex('risk_answer_options')
+                .whereIn('question_id', questionIds)
+                .orderBy('sort_order', 'asc')
+                .orderBy('id', 'asc')
+            : [];
+
+        const optionsByQuestion = new Map();
+        options.forEach((opt) => {
+            const arr = optionsByQuestion.get(opt.question_id) || [];
+            arr.push(opt);
+            optionsByQuestion.set(opt.question_id, arr);
+        });
+
+        return { version, questions, optionsByQuestion };
     }
 
     _findOption(options, rawSubmitted) {

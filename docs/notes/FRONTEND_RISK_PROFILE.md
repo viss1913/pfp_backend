@@ -6,7 +6,7 @@
 ## 1) Новый клиентский поток
 
 1. Фронт запрашивает активную анкету:
-   - `GET /api/my/risk-profile/questionnaire`
+   - `GET /api/my/risk-profile/questionnaire-v2`
 2. Рендерит вопросы/пояснения/варианты как пришли.
 3. Сохраняет ответы:
    - `POST /api/my/risk-profile/answers`
@@ -15,12 +15,14 @@
 
 ## 2) Формат анкеты
 
-В `GET /my/risk-profile/questionnaire` приходит:
+В `GET /my/risk-profile/questionnaire-v2` приходит:
 
 - `questionnaire.id / code / name / description`
 - `questions[]`:
-  - `code`, `title`, `description`, `help_text`, `category`, `sort_order`
-  - `options[]`: `code`, `label`, `score`, `sort_order`
+  - `code`, `title`, `description`, `help_text`, `sort_order`
+  - `options[]`: `code`, `label`, `sort_order`
+
+`GET /my/risk-profile/questionnaire` остается как legacy-контракт (с `score` и техполями) для обратной совместимости.
 
 Сохраняем и отправляем ответы в формате:
 

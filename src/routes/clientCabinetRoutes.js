@@ -17,6 +17,7 @@ router.get('/plan/report/html', clientCabinetController.getMyReportHtml.bind(cli
 router.get('/plan/report', clientCabinetController.getMyReport.bind(clientCabinetController));
 router.get('/plan/comon-showcase', clientCabinetController.getMyComonShowcase.bind(clientCabinetController));
 router.get('/risk-profile/questionnaire', clientCabinetController.getRiskProfileQuestionnaire.bind(clientCabinetController));
+router.get('/risk-profile/questionnaire-v2', clientCabinetController.getRiskProfileQuestionnaireV2.bind(clientCabinetController));
 router.get('/risk-profile/answers', clientCabinetController.getRiskProfileAnswers.bind(clientCabinetController));
 router.post('/risk-profile/answers', clientCabinetController.saveRiskProfileAnswers.bind(clientCabinetController));
 
