@@ -31,6 +31,20 @@ function hasOwn(obj, key) {
     return Object.prototype.hasOwnProperty.call(obj || {}, key);
 }
 
+function resolveCabinetClientId(req) {
+    if (req?.user?.clientId) return Number(req.user.clientId);
+
+    const role = String(req?.user?.role || '').toLowerCase();
+    const isAgentScope = role === 'agent' || role === 'admin' || role === 'super_admin';
+    if (!isAgentScope) return null;
+
+    const raw = req?.query?.client_id ?? req?.body?.client_id ?? req?.params?.clientId;
+    if (raw == null || raw === '') return null;
+    const clientId = Number(raw);
+    if (!Number.isFinite(clientId) || clientId <= 0) return null;
+    return clientId;
+}
+
 function shouldForceReverseModeForPatch(existingGoal, patch) {
     const goalTypeId = Number(existingGoal?.goal_type_id);
     const reverseTypes = new Set([1, 2, 4]);
@@ -211,9 +225,11 @@ class ClientCabinetController {
      */
     async getRiskProfileAnswers(req, res, next) {
         try {
-            const clientId = req.user.clientId;
+            const clientId = resolveCabinetClientId(req);
             if (!clientId) {
-                return res.status(400).json({ error: 'Client profile not found in token' });
+                return res.status(400).json({
+                    error: 'Client profile not found in token (for agent/admin pass client_id)'
+                });
             }
 
             const projectId = req.projectId || req.user.projectId;
