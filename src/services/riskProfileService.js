@@ -144,7 +144,11 @@ class RiskProfileService {
 
         const normalizedAnswers = riskQuestionnaireService.normalizeAnswerMap(answers, questionnaire);
         const behavior = riskQuestionnaireService.computeBehaviorScore(normalizedAnswers, questionnaire);
-        if (!behavior) return null;
+        if (!behavior) {
+            // Safety fallback: if new questionnaire mapping cannot be scored,
+            // return non-null legacy profile to keep API contract stable for frontend.
+            return this._calculateLegacyProfile(answers, goal.term_months || 0);
+        }
 
         const weights = {
             term: 0.30,
