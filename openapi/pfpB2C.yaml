@@ -319,6 +319,37 @@ components:
         risk_profile_result:
           type: object
           additionalProperties: true
+        risk_profile_explanation:
+          $ref: '#/components/schemas/RiskProfileExplanation'
+
+    RiskProfileExplanation:
+      type: object
+      properties:
+        version:
+          type: string
+          example: v1
+        generated_at:
+          type: string
+          format: date-time
+        source_hash:
+          type: string
+          example: sha256:9b7e...
+        title:
+          type: string
+        summary:
+          type: string
+        key_factors:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        caution:
+          type: string
+        agent_note:
+          type: string
 
     RiskQuestionnaire:
       type: object

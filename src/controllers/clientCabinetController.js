@@ -11,6 +11,7 @@ const {
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const riskQuestionnaireService = require('../services/riskQuestionnaireService');
+const riskProfileExplanationService = require('../services/riskProfileExplanationService');
 const Joi = require('joi');
 
 function wantsReportHtmlDocument(req) {
@@ -221,10 +222,22 @@ class ClientCabinetController {
                 return res.status(404).json({ error: 'Client profile not found' });
             }
 
+            let riskProfileExplanation = null;
+            if (client.risk_profile_result) {
+                const questionnaire = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId || null);
+                riskProfileExplanation = await riskProfileExplanationService.build({
+                    riskProfileResult: client.risk_profile_result,
+                    answerMap: client.risk_profile_answers || {},
+                    questionnaire,
+                    projectId
+                });
+            }
+
             res.json({
                 risk_profile_answers: client.risk_profile_answers || {},
                 risk_questionnaire_version_id: client.risk_questionnaire_version_id || null,
-                risk_profile_result: client.risk_profile_result || null
+                risk_profile_result: client.risk_profile_result || null,
+                risk_profile_explanation: riskProfileExplanation
             });
         } catch (err) {
             next(err);
