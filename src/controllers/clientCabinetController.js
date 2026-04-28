@@ -12,6 +12,7 @@ const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const riskQuestionnaireService = require('../services/riskQuestionnaireService');
 const riskProfileExplanationService = require('../services/riskProfileExplanationService');
+const riskProfileService = require('../services/riskProfileService');
 const Joi = require('joi');
 
 function wantsReportHtmlDocument(req) {
@@ -43,6 +44,41 @@ function resolveCabinetClientId(req) {
     const clientId = Number(raw);
     if (!Number.isFinite(clientId) || clientId <= 0) return null;
     return clientId;
+}
+
+async function computeAndPersistRiskProfileResultIfPossible({ clientId, projectId }) {
+    const fullClient = await clientService.getFullClient(clientId, projectId);
+    if (!fullClient) return { client: null, riskProfileResult: null };
+
+    let answers = fullClient.risk_profile_answers;
+    if (typeof answers === 'string') {
+        try { answers = JSON.parse(answers); } catch (_) { answers = null; }
+    }
+    if (!answers || typeof answers !== 'object' || Object.keys(answers).length === 0) {
+        return { client: fullClient, riskProfileResult: null };
+    }
+
+    const goals = Array.isArray(fullClient.goals) ? fullClient.goals : [];
+    const goalForRisk = goals.find((g) => Number(g?.term_months || 0) > 0) || { term_months: 120 };
+
+    const riskProfileResult = await riskProfileService.calculateGoalProfile({
+        answers,
+        goal: goalForRisk,
+        client: fullClient,
+        projectId
+    });
+
+    if (riskProfileResult) {
+        await clientService.updateClient(clientId, {
+            risk_profile_result: JSON.stringify(riskProfileResult),
+            risk_questionnaire_version_id: riskProfileResult.questionnaire_version_id || fullClient.risk_questionnaire_version_id || null
+        }, projectId);
+        fullClient.risk_profile_result = riskProfileResult;
+        fullClient.risk_questionnaire_version_id =
+            riskProfileResult.questionnaire_version_id || fullClient.risk_questionnaire_version_id || null;
+    }
+
+    return { client: fullClient, riskProfileResult: riskProfileResult || null };
 }
 
 function shouldForceReverseModeForPatch(existingGoal, patch) {
@@ -238,11 +274,19 @@ class ClientCabinetController {
                 return res.status(404).json({ error: 'Client profile not found' });
             }
 
+            let riskProfileResult = client.risk_profile_result || null;
+            if (!riskProfileResult && client.risk_profile_answers && Object.keys(client.risk_profile_answers || {}).length > 0) {
+                const computed = await computeAndPersistRiskProfileResultIfPossible({ clientId, projectId });
+                if (computed.client) {
+                    riskProfileResult = computed.client.risk_profile_result || computed.riskProfileResult || null;
+                }
+            }
+
             let riskProfileExplanation = null;
-            if (client.risk_profile_result) {
+            if (riskProfileResult) {
                 const questionnaire = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId || null);
                 riskProfileExplanation = await riskProfileExplanationService.build({
-                    riskProfileResult: client.risk_profile_result,
+                    riskProfileResult,
                     answerMap: client.risk_profile_answers || {},
                     questionnaire,
                     projectId
@@ -252,7 +296,7 @@ class ClientCabinetController {
             res.json({
                 risk_profile_answers: client.risk_profile_answers || {},
                 risk_questionnaire_version_id: client.risk_questionnaire_version_id || null,
-                risk_profile_result: client.risk_profile_result || null,
+                risk_profile_result: riskProfileResult,
                 risk_profile_explanation: riskProfileExplanation
             });
         } catch (err) {
@@ -265,9 +309,11 @@ class ClientCabinetController {
      */
     async saveRiskProfileAnswers(req, res, next) {
         try {
-            const clientId = req.user.clientId;
+            const clientId = resolveCabinetClientId(req);
             if (!clientId) {
-                return res.status(400).json({ error: 'Client profile not found in token' });
+                return res.status(400).json({
+                    error: 'Client profile not found in token (for agent/admin pass client_id)'
+                });
             }
 
             const schema = Joi.object({
@@ -300,10 +346,28 @@ class ClientCabinetController {
                 risk_questionnaire_version_id: validation.value.risk_questionnaire_version_id || questionnaire.id
             }, projectId);
 
+            const computed = await computeAndPersistRiskProfileResultIfPossible({ clientId, projectId });
+            const riskProfileResult = computed.riskProfileResult || computed.client?.risk_profile_result || null;
+            let riskProfileExplanation = null;
+            if (riskProfileResult) {
+                const questionnaireV2 = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId || null);
+                riskProfileExplanation = await riskProfileExplanationService.build({
+                    riskProfileResult,
+                    answerMap: normalizedAnswers,
+                    questionnaire: questionnaireV2,
+                    projectId
+                });
+            }
+
             res.json({
                 success: true,
                 risk_profile_answers: normalizedAnswers,
-                risk_questionnaire_version_id: validation.value.risk_questionnaire_version_id || questionnaire.id
+                risk_questionnaire_version_id:
+                    (riskProfileResult && riskProfileResult.questionnaire_version_id)
+                    || validation.value.risk_questionnaire_version_id
+                    || questionnaire.id,
+                risk_profile_result: riskProfileResult,
+                risk_profile_explanation: riskProfileExplanation
             });
         } catch (err) {
             next(err);
