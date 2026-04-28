@@ -1,4 +1,5 @@
 const resolutService = require('../services/resolutService');
+const resolutPublishService = require('../services/resolutPublishService');
 const Joi = require('joi');
 
 const productsSchema = Joi.object({
@@ -8,6 +9,72 @@ const productsSchema = Joi.object({
 const quoteSchema = Joi.object({
     code: Joi.string().required(),
     parameters: Joi.object().required()
+});
+
+const portfolioSchema = Joi.object({
+    quotes: Joi.array()
+        .items(
+            Joi.object({
+                code: Joi.string().required(),
+                parameters: Joi.object().required()
+            })
+        )
+        .min(1)
+        .required(),
+    client: Joi.object().required()
+});
+
+const clientPostSchema = Joi.object({
+    code: Joi.alternatives().try(Joi.string(), Joi.number()).optional(),
+    lastName: Joi.string().min(2).max(40).optional(),
+    firstName: Joi.string().min(2).max(40).optional(),
+    middleName: Joi.string().min(2).max(40).allow('').optional(),
+    dob: Joi.string().optional(),
+    sex: Joi.string().valid('male', 'female').optional(),
+    phone: Joi.string().optional(),
+    email: Joi.string().email().optional()
+}).custom((value, helpers) => {
+    const hasCode = value.code !== undefined && value.code !== null && String(value.code).trim().length > 0;
+    const requiredCreate = ['lastName', 'firstName', 'dob', 'sex', 'phone', 'email'];
+    if (!hasCode) {
+        for (const k of requiredCreate) {
+            if (value[k] === undefined || value[k] === null || value[k] === '') {
+                return helpers.message(`"${k}" is required for client create`);
+            }
+        }
+    } else {
+        const extraKeys = Object.keys(value).filter((k) => k !== 'code');
+        if (extraKeys.length === 0) {
+            return helpers.message('Provide fields to update with code, or use GET /api/pfp/resolut/client?code= for fetch');
+        }
+    }
+    return value;
+});
+
+const publishLineSchema = Joi.object({
+    line_id: Joi.string().optional(),
+    product_id: Joi.number().integer().positive().optional(),
+    code: Joi.string().optional(),
+    parameters: Joi.object().required()
+});
+
+const publishPreviewSchema = Joi.object({
+    client_id: Joi.number().integer().positive().required(),
+    quotes: Joi.array().items(publishLineSchema).required()
+});
+
+const publishSchema = Joi.object({
+    client_id: Joi.number().integer().positive().required(),
+    quotes: Joi.array().items(publishLineSchema).required(),
+    resolut_client: Joi.object({
+        lastName: Joi.string().min(2).max(40).optional(),
+        firstName: Joi.string().min(2).max(40).optional(),
+        middleName: Joi.string().allow('').optional(),
+        dob: Joi.string().optional(),
+        sex: Joi.string().valid('male', 'female').optional(),
+        phone: Joi.string().optional(),
+        email: Joi.string().email().optional()
+    }).allow(null).optional()
 });
 
 class ResolutController {
@@ -33,6 +100,22 @@ class ResolutController {
                 upstream_status: details.upstream_status || null
             }
         });
+    }
+
+    handlePublishError(err, res, next) {
+        if (!err) return next(err);
+        if (err.status || err.error) {
+            const status = err.status || 400;
+            return res.status(status).json({
+                success: false,
+                error: {
+                    code: err.error || 'RESOLUT_PUBLISH_ERROR',
+                    message: err.message || 'Resolut publish failed'
+                },
+                details: err.details || null
+            });
+        }
+        return next(err);
     }
 
     async products(req, res, next) {
@@ -69,6 +152,147 @@ class ResolutController {
             res.json(result);
         } catch (err) {
             this.handleResolutError(err, res, next);
+        }
+    }
+
+    async portfolio(req, res, next) {
+        try {
+            const validation = portfolioSchema.validate(req.body || {});
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'ValidationError',
+                    message: validation.error.details[0].message
+                });
+            }
+
+            const projectId = this.resolveProjectId(req);
+            const result = await resolutService.portfolio(projectId, validation.value, { userId: req.user?.id });
+            res.json(result);
+        } catch (err) {
+            this.handleResolutError(err, res, next);
+        }
+    }
+
+    async client(req, res, next) {
+        try {
+            const validation = clientPostSchema.validate(req.body || {});
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'ValidationError',
+                    message: validation.error.details[0].message
+                });
+            }
+
+            const projectId = this.resolveProjectId(req);
+            const result = await resolutService.client(projectId, validation.value, { userId: req.user?.id });
+            res.json(result);
+        } catch (err) {
+            this.handleResolutError(err, res, next);
+        }
+    }
+
+    async clientFetch(req, res, next) {
+        try {
+            const code = req.query.code;
+            if (code === undefined || code === null || String(code).trim() === '') {
+                return res.status(400).json({
+                    error: 'ValidationError',
+                    message: '"code" query parameter is required'
+                });
+            }
+
+            const projectId = this.resolveProjectId(req);
+            const result = await resolutService.clientFetch(projectId, String(code).trim(), { userId: req.user?.id });
+            res.json(result);
+        } catch (err) {
+            this.handleResolutError(err, res, next);
+        }
+    }
+
+    async link(req, res, next) {
+        try {
+            const projectId = this.resolveProjectId(req);
+            const result = await resolutService.link(projectId, { userId: req.user?.id });
+            res.json(result);
+        } catch (err) {
+            this.handleResolutError(err, res, next);
+        }
+    }
+
+    async publishPreview(req, res, next) {
+        try {
+            const validation = publishPreviewSchema.validate(req.body || {});
+            if (validation.error) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: validation.error.details[0].message
+                    }
+                });
+            }
+            const projectId = this.resolveProjectId(req);
+            const result = await resolutPublishService.preview({
+                projectId,
+                clientId: validation.value.client_id,
+                quotes: validation.value.quotes,
+                userId: req.user?.id
+            });
+            return res.json(result);
+        } catch (err) {
+            return this.handlePublishError(err, res, next);
+        }
+    }
+
+    async publish(req, res, next) {
+        try {
+            const validation = publishSchema.validate(req.body || {});
+            if (validation.error) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: validation.error.details[0].message
+                    }
+                });
+            }
+            const projectId = this.resolveProjectId(req);
+            const result = await resolutPublishService.publish({
+                projectId,
+                clientId: validation.value.client_id,
+                quotes: validation.value.quotes,
+                resolutClient: validation.value.resolut_client || null,
+                userId: req.user?.id,
+                agentId: req.user?.agentId || null
+            });
+            return res.json(result);
+        } catch (err) {
+            return this.handlePublishError(err, res, next);
+        }
+    }
+
+    async publications(req, res, next) {
+        try {
+            const clientId = Number(req.query.client_id || req.query.clientId);
+            if (!Number.isFinite(clientId) || clientId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: '"client_id" query parameter is required'
+                    }
+                });
+            }
+            const projectId = this.resolveProjectId(req);
+            const limit = Number(req.query.limit || 50);
+            const result = await resolutPublishService.listPublications({
+                projectId,
+                clientId,
+                limit
+            });
+            return res.json(result);
+        } catch (err) {
+            return this.handlePublishError(err, res, next);
         }
     }
 }

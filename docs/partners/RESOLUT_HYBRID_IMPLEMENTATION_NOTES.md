@@ -12,6 +12,13 @@ All endpoints require authenticated agent/admin and are mounted under:
 
 - `POST /api/pfp/resolut/products`
 - `POST /api/pfp/resolut/quote`
+- `POST /api/pfp/resolut/portfolio` — публикация портфеля котировок в Resolut (оформление)
+- `POST /api/pfp/resolut/client` — создание / изменение клиента в Resolut
+- `GET /api/pfp/resolut/client?code=<Resolut client id>` — получение клиента (upstream GET `operation=client`)
+- `GET /api/pfp/resolut/link` — одноразовая ссылка перехода в Resolut (upstream GET `operation=link`; **TTL ~20 с** у партнёра — вызывать по клику)
+- `POST /api/pfp/resolut/publish-preview` — фильтр/предпросмотр публикации (eligible/skipped) для mixed-портфелей
+- `POST /api/pfp/resolut/publish` — оркестрация оформления: клиент Resolut (create/update) + `portfolio` + сохранение истории в БД
+- `GET /api/pfp/resolut/publications?client_id=` — история публикаций клиента (для ЛК)
 
 Resolut `authorize` is **not** exposed as a separate PFP route: it runs inside `POST /api/pfp/auth/login` for agents on the Resolut project (same email/password as the login body), and the returned bearer is stored in [`src/services/resolutSessionStore.js`](../../src/services/resolutSessionStore.js).
 
@@ -26,14 +33,22 @@ Resolut `authorize` is **not** exposed as a separate PFP route: it runs inside `
 - `quote`:
   - `POST /` with body `{ operation: "quote", data: { code, parameters } }`.
   - header: same bearer resolution as `products`.
+- `portfolio`:
+  - `POST /` with body `{ operation: "portfolio", data: { quotes: [...], client: {...} } }`.
+  - header: same bearer as `products`.
+- `client`:
+  - `POST /` with body `{ operation: "client", data: { ... } }` (create/update по логике партнёра).
+  - `GET /?operation=client&code=<id>` — получение клиента (реализовано в [`src/services/resolutService.js`](../../src/services/resolutService.js) как `callOperationGet`).
+- `link`:
+  - `GET /?operation=link` — строка URL для перехода в Resolut.
 
 ## Agent login → Resolut session (PFP backend)
 
 For `projectId === RESOLUT_PROJECT_ID`, after successful PFP credential check on `POST /login` (agent), the backend **must** call Resolut `authorize` with the same email/password as in the login request and store the returned `key` in an in-memory cache keyed by `users.id` (`resolutSessionStore`, TTL `RESOLUT_SESSION_TTL_MS`). If Resolut rejects the pair, login fails with **401** (no silent success + broken quote later).
 
-Subsequent `products`/`quote` from that agent use this bearer first. If the cache entry is missing or expired, **`resolut_static_key`** (project setting or `RESOLUT_STATIC_KEY`) is used for background/server flows.
+Subsequent `products`/`quote`/`portfolio`/`client`/`link` from that agent use this bearer first. If the cache entry is missing or expired, **`resolut_static_key`** (project setting or `RESOLUT_STATIC_KEY`) is used for background/server flows.
 
-If there is **no** cached session and **no** static key, `quote`/`products` return **401** with `ResolutSessionRequired` — agents must re-login; there is **no** env/project login+password fallback (`RESOLUT_AGENT_LOGIN` / `resolut_agent_login` removed).
+If there is **no** cached session and **no** static key, those operations return **401** with `ResolutSessionRequired` — agents must re-login; there is **no** env/project login+password fallback (`RESOLUT_AGENT_LOGIN` / `resolut_agent_login` removed).
 
 **Multi-instance:** in-memory cache is per process. Use `RESOLUT_STATIC_KEY` on each instance for server-side LIFE/report paths that cannot attach to a logged-in agent, or accept LIFE fallback formula when Resolut is unavailable (see `lifeUpfrontAmount.js`).
 
@@ -91,6 +106,9 @@ Env keys:
 
 - `products`: optional payload `{ data?: object }`.
 - `quote`: required payload `{ code: string, parameters: object }`.
+- `portfolio`: required payload `{ quotes: Array<{ code, parameters }>, client: object }`.
+- `client` (POST): create requires `lastName`, `firstName`, `dob`, `sex`, `phone`, `email`; with `code` — update (must include fields besides `code`). Fetch only: use `GET /api/pfp/resolut/client?code=`.
+- `link`: no body; `GET /api/pfp/resolut/link`.
 
 ## Response normalization
 
@@ -125,7 +143,8 @@ Sensitive fields (`login`, `password`, `key`) are sanitized before attaching ups
 5. Quote upstream error passthrough:
    - invalid product/parameters return normalized `err.code`/`err.message`.
 6. Session required:
-   - call `quote`/`products` without prior login and without `RESOLUT_STATIC_KEY` → **401** `ResolutSessionRequired`.
+   - call `quote`/`products`/`portfolio`/`client`/`link` without prior login and without `RESOLUT_STATIC_KEY` → **401** `ResolutSessionRequired`.
+7. Stage 2 smoke (demo): `POST /portfolio` after valid quotes + client payload returns portfolio/contract identifiers; `GET /link` returns a URL string (open immediately; short TTL).
 
 ## Diagnostics (demo, 2026-04)
 

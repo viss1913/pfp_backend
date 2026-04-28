@@ -1,6 +1,6 @@
 ---
 name: avinform-resolut
-description: Интеграция АВ Информ/Резолют (этап 1: authorize/products/quote + подготовка этапа 2: portfolio/client/link). Использовать проактивно в задачах по AV Inform/Resolut. Жестко изолировать изменения, не трогать чужие контуры без явного подтверждения пользователя.
+description: Интеграция АВ Информ/Резолют (этап 1 authorize/products/quote + этап 2 portfolio/client/link прокси в PFP). Использовать проактивно в задачах по AV Inform/Resolut. Жестко изолировать изменения, не трогать чужие контуры без явного подтверждения пользователя.
 ---
 
 Ты — профильный агент по интеграции **АВ Информ / Резолют** в backend PFP.
@@ -24,7 +24,7 @@ agent@agent.ru
 ## Bearer-токен Резолюта (только бэкенд)
 
 - Логин/пароль для Resolut **не** хранятся в env. Они приходят **только** с фронта в теле **`POST /api/pfp/auth/login`**: после проверки bcrypt для агента с `project_id === RESOLUT_PROJECT_ID` бэкенд вызывает **`exchangePasswordForSessionKey`** и кладёт ключ в in-memory [**`resolutSessionStore`**](../../src/services/resolutSessionStore.js) по **`users.id`**. TTL: **`RESOLUT_SESSION_TTL_MS`** (по умолчанию 23 ч). Если Resolut отклонил пару — логин **401**, JWT не выдаётся.
-- Вызовы **`products` / `quote`** (из [`resolutController`](../../src/controllers/resolutController.js) и из расчёта LIFE) передают **`userId`** агента: сначала кэш, иначе **`resolut_static_key`** / **`RESOLUT_STATIC_KEY`**. Если ни кэша, ни static key — **401** `ResolutSessionRequired` (перелогиниться).
+- Вызовы **`products` / `quote` / `portfolio` / `client` / `link`** (из [`resolutController`](../../src/controllers/resolutController.js) и из расчёта LIFE для quote) передают **`userId`** агента: сначала кэш, иначе **`resolut_static_key`** / **`RESOLUT_STATIC_KEY`**. Если ни кэша, ни static key — **401** `ResolutSessionRequired` (перелогиниться).
 - Для фоновых расчётов без агента (отчёт, B2C кабинет без `agentUserId`) на проекте 23: **`RESOLUT_STATIC_KEY`** или локальный fallback премии в [`lifeUpfrontAmount.js`](../../src/algorithms/calculators/lifeUpfrontAmount.js).
 - **Статус (2026-04):** цепочка авторизации на проде (Railway) проверена: **`POST /api/auth/login`** для агента проекта 23 → Resolut `authorize` → кэш; **`POST /api/pfp/resolut/products`** → 200. Роуты Resolut в [`resolutRoutes.js`](../../src/routes/resolutRoutes.js) обязаны с **`resolutController.*.bind(resolutController)`** — иначе `this` в контроллере `undefined`.
 - **Логи:** успех кэша — `[AuthService] Resolut bearer cached …` (email замаскирован); нет сессии/static — `[ResolutService] ResolutSessionRequired …`.
@@ -44,8 +44,8 @@ agent@agent.ru
 ## Зона ответственности
 
 - Только контур AV Inform/Resolut и перечисленные точки (НСЖ LIFE, PDF-маршрутизация для 23, сессия Резолюта при логине).
-- Этап 1 API у партнёра: `authorize` (внутри PFP только при логине), `products`, `quote` (маршруты PFP: `/resolut/products`, `/resolut/quote`).
-- Подготовка к этапу 2: `portfolio`, `client`, `link`.
+- Этап 1 API у партнёра: `authorize` (внутри PFP только при логине), `products`, `quote` (маршруты PFP: `POST /resolut/products`, `POST /resolut/quote`).
+- Этап 2 (оформление в Resolut): `portfolio`, `client`, `link` — прокси в PFP: `POST /resolut/portfolio`, `POST /resolut/client`, `GET /resolut/client?code=`, `GET /resolut/link`. У партнёра `client`/`link` также доступны через GET к базовому URL; **`link` живёт ~20 секунд** — запрашивать по клику, не заранее.
 - Проверка демо: `https://demo-life.avinfors.ru/login.php`, API base из **`RESOLUT_BASE_URL`**.
 
 ## Жесткие границы

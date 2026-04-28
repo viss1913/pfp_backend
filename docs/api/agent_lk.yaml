@@ -9,6 +9,8 @@ info:
 
     **Настройки PDF-отчёта** (обложка, сводная, `goal_card_assets` для превью карточек целей): отдельная спека **`openapi/PDFsettings.yaml`**, Swagger UI: `/api-docs-pdf-settings`, префикс путей `/api/pfp/pdf-settings`.
 
+    **Resolut (AV Inform) для ЛК:** отдельная спека **`docs/api/pfp_resolut.yaml`** (прокси `products/quote/client/portfolio/link` и сценарий оформления `publish-preview/publish/publications`).
+
     **AI B2C в ЛК агента — два независимых набора контекстов:**
     - **Site** — `/pfp/ai-b2c/brain-contexts`, `/pfp/ai-b2c/stages` (клиентский сайт: обычный чат и dynamic-flow).
     - **chat_AI** — `/pfp/ai-b2c-chat/brain-contexts`, `/pfp/ai-b2c-chat/stages` (отдельный endpoint клиента `POST /my/ai-b2c/chat_AI/stream`, своя история в БД).
@@ -116,6 +118,259 @@ paths:
     get:
       tags: [ "Продукты Агента (Справочники)" ]
       summary: Получить список типов продуктов
+
+  # ==================== RESOLUT (AV Inform, project 23) ====================
+  /pfp/resolut/products:
+    post:
+      tags: [ "Resolut (оформление)" ]
+      summary: Получить список доступных Resolut-продуктов для агента
+      description: |
+        Проксирует upstream `operation=products`.
+        Требует JWT и контекст проекта `RESOLUT_PROJECT_ID` (обычно 23).
+        Bearer в Resolut берется из in-memory сессии после `/api/pfp/auth/login`,
+        fallback: `resolut_static_key` / `RESOLUT_STATIC_KEY`.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Нормализованный ответ Resolut
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: integer }
+                  operation: { type: string, example: products }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  err:
+                    type: object
+                    nullable: true
+                    properties:
+                      code: { type: string, nullable: true }
+                      message: { type: string, nullable: true }
+                      upstream_status: { type: integer, nullable: true }
+
+  /pfp/resolut/quote:
+    post:
+      tags: [ "Resolut (оформление)" ]
+      summary: Котировка продукта Resolut
+      description: |
+        Проксирует upstream `operation=quote`.
+        Для портфельного сценария AV используйте продукт `assetShort`,
+        обычно `pType=0` (единовременный взнос).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ code, parameters ]
+              properties:
+                code:
+                  type: string
+                  example: assetShort
+                parameters:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Нормализованный ответ Resolut
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: integer }
+                  operation: { type: string, example: quote }
+                  data:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                  err:
+                    type: object
+                    nullable: true
+                    properties:
+                      code: { type: string, nullable: true }
+                      message: { type: string, nullable: true }
+                      upstream_status: { type: integer, nullable: true }
+
+  /pfp/resolut/client:
+    post:
+      tags: [ "Resolut (оформление)" ]
+      summary: Создать/обновить клиента в Resolut
+      description: |
+        Проксирует upstream `operation=client` (POST).
+        Режимы:
+        - create: без `code` (обязательны `lastName`, `firstName`, `dob`, `sex`, `phone`, `email`);
+        - update: с `code` и минимум одним дополнительным полем.
+
+        Практика для фронта: брать данные из карточки клиента PFP и доспрашивать только
+        недостающие поля для Resolut. Маппинг:
+        - `clients.last_name` -> `lastName`
+        - `clients.first_name` -> `firstName`
+        - `clients.middle_name` -> `middleName`
+        - `clients.birth_date` -> `dob` (формат `DD.MM.YYYY`)
+        - `clients.gender`/`sex` -> `sex` (`male`/`female`)
+        - `clients.phone` -> `phone`
+        - `clients.email` -> `email`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  oneOf:
+                    - type: string
+                    - type: integer
+                lastName: { type: string }
+                firstName: { type: string }
+                middleName: { type: string, nullable: true }
+                dob:
+                  type: string
+                  description: Дата рождения в формате DD.MM.YYYY
+                  example: "01.01.1985"
+                sex:
+                  type: string
+                  enum: [ male, female ]
+                phone: { type: string }
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Нормализованный ответ Resolut
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: integer }
+                  operation: { type: string, example: client }
+                  data:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                  err:
+                    type: object
+                    nullable: true
+                    properties:
+                      code: { type: string, nullable: true }
+                      message: { type: string, nullable: true }
+                      upstream_status: { type: integer, nullable: true }
+    get:
+      tags: [ "Resolut (оформление)" ]
+      summary: Получить клиента в Resolut по code
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            oneOf:
+              - type: string
+              - type: integer
+          description: ID клиента в Resolut
+      responses:
+        '200':
+          description: Нормализованный ответ Resolut
+
+  /pfp/resolut/portfolio:
+    post:
+      tags: [ "Resolut (оформление)" ]
+      summary: Опубликовать портфель в Resolut (создать заявки/договоры)
+      description: |
+        Проксирует upstream `operation=portfolio`.
+        Resolut пересчитывает котировки на своей стороне при публикации.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ quotes, client ]
+              properties:
+                quotes:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [ code, parameters ]
+                    properties:
+                      code: { type: string }
+                      parameters:
+                        type: object
+                        additionalProperties: true
+                client:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Нормализованный ответ Resolut
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: integer }
+                  operation: { type: string, example: portfolio }
+                  data:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                  err:
+                    type: object
+                    nullable: true
+                    properties:
+                      code: { type: string, nullable: true }
+                      message: { type: string, nullable: true }
+                      upstream_status: { type: integer, nullable: true }
+
+  /pfp/resolut/link:
+    get:
+      tags: [ "Resolut (оформление)" ]
+      summary: Получить одноразовую ссылку перехода в Resolut
+      description: |
+        Проксирует upstream `operation=link` (GET).
+        Ссылка короткоживущая (~20 секунд), запрашивайте по клику в UI.
+      responses:
+        '200':
+          description: Нормализованный ответ Resolut
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  status: { type: integer }
+                  operation: { type: string, example: link }
+                  data:
+                    type: string
+                    nullable: true
+                    example: https://demo.avinfors.ru/pfp/?pfp=abc123
+                  err:
+                    type: object
+                    nullable: true
+                    properties:
+                      code: { type: string, nullable: true }
+                      message: { type: string, nullable: true }
+                      upstream_status: { type: integer, nullable: true }
 
   # ==================== ПОРТФЕЛИ ====================
   /pfp/portfolios:

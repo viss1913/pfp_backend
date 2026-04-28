@@ -243,12 +243,129 @@ class ResolutService {
         }
     }
 
+    /**
+     * GET к upstream (operation + query): client (fetch по code), link.
+     */
+    async callOperationGet(projectId, operation, queryParams = {}, options = {}) {
+        this.assertProjectAllowed(projectId);
+        this.warnIfYamlBaseUrlMismatch();
+        const useBearer = options.useBearer === true;
+        const url = this.buildUrl(this.operationPath);
+        const headers = {};
+        const params = { operation, ...queryParams };
+
+        if (useBearer) {
+            let bearerKey = null;
+            if (options.userId != null) {
+                bearerKey = resolutSessionStore.get(options.userId);
+            }
+            if (!bearerKey) {
+                const { key } = await this.getCredentials(projectId);
+                bearerKey = key;
+            }
+            if (!bearerKey) {
+                console.warn(
+                    `[ResolutService] ResolutSessionRequired operation=${operation} (GET) projectId=${projectId} userId=${options.userId != null ? options.userId : 'none'}`
+                );
+                throw {
+                    status: 401,
+                    error: 'ResolutSessionRequired',
+                    message: 'Resolut session required: agent must re-login (no cached bearer and no resolut_static_key for background flow).'
+                };
+            }
+            headers.Authorization = `Bearer ${bearerKey}`;
+        }
+
+        try {
+            const response = await axios.get(url, {
+                timeout: this.timeoutMs,
+                headers,
+                params,
+                validateStatus: () => true
+            });
+            const norm = this.getNormalizedResponse(response.status, operation, response.data);
+            if (norm.err || response.status >= 400 || !norm.ok) {
+                const upstreamData = this.sanitizeUpstreamData(response.data);
+                const errObj = upstreamData && upstreamData.err
+                    ? upstreamData.err
+                    : (upstreamData && upstreamData.error ? upstreamData.error : norm.err);
+                throw {
+                    status: response.status >= 400 ? (response.status === 401 ? 401 : 502) : 502,
+                    error: 'ResolutUpstreamError',
+                    message: norm.err ? norm.err.message : `Resolut ${operation} failed`,
+                    details: {
+                        operation,
+                        upstream_status: response.status,
+                        upstream_err_code: errObj ? errObj.code : (norm.err ? norm.err.code : null),
+                        upstream_err_message: errObj ? (errObj.name || errObj.message) : (norm.err ? norm.err.message : null),
+                        upstream_data: upstreamData
+                    }
+                };
+            }
+            return norm;
+        } catch (error) {
+            if (error.details) {
+                throw error;
+            }
+            if (error.response) {
+                const upstreamData = this.sanitizeUpstreamData(error.response.data);
+                const errObj = upstreamData && upstreamData.err
+                    ? upstreamData.err
+                    : (upstreamData && upstreamData.error ? upstreamData.error : null);
+                throw {
+                    status: error.response.status === 401 ? 401 : 502,
+                    error: 'ResolutUpstreamError',
+                    message: `Resolut ${operation} failed`,
+                    details: {
+                        operation,
+                        upstream_status: error.response.status,
+                        upstream_err_code: errObj ? errObj.code : null,
+                        upstream_err_message: errObj ? (errObj.name || errObj.message) : null,
+                        upstream_data: upstreamData
+                    }
+                };
+            }
+            if (error.code === 'ECONNABORTED') {
+                throw {
+                    status: 504,
+                    error: 'ResolutTimeout',
+                    message: `Resolut ${operation} timeout`
+                };
+            }
+            throw {
+                status: 502,
+                error: 'ResolutTransportError',
+                message: `Resolut ${operation} transport error: ${error.message}`
+            };
+        }
+    }
+
     async products(projectId, data = {}, options = {}) {
         return this.callOperation(projectId, 'products', data, { useBearer: true, userId: options.userId });
     }
 
     async quote(projectId, data, options = {}) {
         return this.callOperation(projectId, 'quote', data, { useBearer: true, userId: options.userId });
+    }
+
+    /** Публикация портфеля котировок в Resolut (оформление). */
+    async portfolio(projectId, data, options = {}) {
+        return this.callOperation(projectId, 'portfolio', data, { useBearer: true, userId: options.userId });
+    }
+
+    /** Создание / изменение клиента в Resolut (POST). */
+    async client(projectId, data, options = {}) {
+        return this.callOperation(projectId, 'client', data, { useBearer: true, userId: options.userId });
+    }
+
+    /** Получение клиента по code (GET operation=client&code=). */
+    async clientFetch(projectId, code, options = {}) {
+        return this.callOperationGet(projectId, 'client', { code: String(code) }, { useBearer: true, userId: options.userId });
+    }
+
+    /** Одноразовая ссылка перехода в Resolut (GET operation=link), TTL ~20 с у партнёра. */
+    async link(projectId, options = {}) {
+        return this.callOperationGet(projectId, 'link', {}, { useBearer: true, userId: options.userId });
     }
 }
 

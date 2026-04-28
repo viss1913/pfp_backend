@@ -1,0 +1,415 @@
+openapi: 3.0.0
+info:
+  title: PFP Resolut API
+  description: |
+    Отдельная спека по интеграции AV Inform / Resolut для ЛК агента.
+    Префикс путей: `/api/pfp/resolut`.
+  version: 1.0.0
+servers:
+  - url: /api
+    description: Main API server
+security:
+  - bearerAuth: []
+
+paths:
+  /pfp/resolut/products:
+    post:
+      tags: [ "Resolut Proxies" ]
+      summary: Получить список Resolut-продуктов агента
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Нормализованный ответ прокси
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutNormalizedResponse'
+
+  /pfp/resolut/quote:
+    post:
+      tags: [ "Resolut Proxies" ]
+      summary: Котировка Resolut-продукта
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ code, parameters ]
+              properties:
+                code:
+                  type: string
+                  example: assetShort
+                parameters:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Нормализованный ответ прокси
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutNormalizedResponse'
+
+  /pfp/resolut/client:
+    post:
+      tags: [ "Resolut Proxies" ]
+      summary: Создание/обновление клиента в Resolut
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolutClientPayload'
+      responses:
+        '200':
+          description: Нормализованный ответ прокси
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutNormalizedResponse'
+    get:
+      tags: [ "Resolut Proxies" ]
+      summary: Получение клиента в Resolut по code
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            oneOf:
+              - type: string
+              - type: integer
+      responses:
+        '200':
+          description: Нормализованный ответ прокси
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutNormalizedResponse'
+
+  /pfp/resolut/portfolio:
+    post:
+      tags: [ "Resolut Proxies" ]
+      summary: Публикация портфеля в Resolut (прямой прокси)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ quotes, client ]
+              properties:
+                quotes:
+                  type: array
+                  items:
+                    type: object
+                    required: [ code, parameters ]
+                    properties:
+                      code: { type: string }
+                      parameters:
+                        type: object
+                        additionalProperties: true
+                client:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: Нормализованный ответ прокси
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutNormalizedResponse'
+
+  /pfp/resolut/link:
+    get:
+      tags: [ "Resolut Proxies" ]
+      summary: Одноразовая ссылка в Resolut
+      description: TTL у партнёра около 20 секунд.
+      responses:
+        '200':
+          description: Нормализованный ответ прокси
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolutNormalizedResponse'
+
+  /pfp/resolut/publish-preview:
+    post:
+      tags: [ "Resolut Publish" ]
+      summary: Предпросмотр публикации (фильтр eligible/skipped)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishPreviewRequest'
+      responses:
+        '200':
+          description: Предпросмотр
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishPreviewResponse'
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishErrorResponse'
+
+  /pfp/resolut/publish:
+    post:
+      tags: [ "Resolut Publish" ]
+      summary: Публикация в Resolut с записью истории
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishRequest'
+      responses:
+        '200':
+          description: Успешная публикация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishResponse'
+        '400':
+          description: Ошибка данных/валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishErrorResponse'
+
+  /pfp/resolut/publications:
+    get:
+      tags: [ "Resolut Publish" ]
+      summary: История публикаций по клиенту
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        '200':
+          description: История публикаций
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PublicationRow'
+        '400':
+          description: Ошибка запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishErrorResponse'
+
+components:
+  schemas:
+    ResolutNormalizedResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        status: { type: integer }
+        operation: { type: string, nullable: true }
+        data:
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+          nullable: true
+        err:
+          type: object
+          nullable: true
+          properties:
+            code: { type: string, nullable: true }
+            message: { type: string, nullable: true }
+            upstream_status: { type: integer, nullable: true }
+
+    ResolutClientPayload:
+      type: object
+      properties:
+        code:
+          oneOf:
+            - type: string
+            - type: integer
+        lastName: { type: string }
+        firstName: { type: string }
+        middleName: { type: string, nullable: true }
+        dob:
+          type: string
+          description: DD.MM.YYYY
+          example: "01.01.1985"
+        sex:
+          type: string
+          enum: [ male, female ]
+        phone: { type: string }
+        email: { type: string, format: email }
+
+    PublishQuoteLine:
+      type: object
+      required: [ parameters ]
+      properties:
+        line_id:
+          type: string
+          description: Стабильный идентификатор строки на фронте
+        product_id:
+          type: integer
+          description: Рекомендуется для строгой фильтрации по resolut_pfp_code
+        code:
+          type: string
+          description: pfpCode для upstream Resolut
+        parameters:
+          type: object
+          additionalProperties: true
+
+    PublishPreviewRequest:
+      type: object
+      required: [ client_id, quotes ]
+      properties:
+        client_id: { type: integer }
+        quotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublishQuoteLine'
+
+    PublishRequest:
+      type: object
+      required: [ client_id, quotes ]
+      properties:
+        client_id: { type: integer }
+        quotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublishQuoteLine'
+        resolut_client:
+          allOf:
+            - $ref: '#/components/schemas/ResolutClientPayload'
+          nullable: true
+          description: Опционально — поля, которые фронт дозапросил у пользователя
+
+    SkippedLine:
+      type: object
+      properties:
+        line_id: { type: string, nullable: true }
+        product_id: { type: integer, nullable: true }
+        code: { type: string, nullable: true }
+        reason: { type: string }
+        product_name: { type: string, nullable: true }
+        expected_code: { type: string, nullable: true }
+
+    EligibleLine:
+      type: object
+      properties:
+        line_id: { type: string, nullable: true }
+        product_id: { type: integer, nullable: true }
+        code: { type: string }
+        parameters:
+          type: object
+          additionalProperties: true
+
+    PublishPreviewResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            client_id: { type: integer }
+            resolut_client_code: { type: string, nullable: true }
+            eligible:
+              type: array
+              items:
+                $ref: '#/components/schemas/EligibleLine'
+            skipped:
+              type: array
+              items:
+                $ref: '#/components/schemas/SkippedLine'
+
+    PublishResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            client_id: { type: integer }
+            resolut_client_code: { type: string, nullable: true }
+            publication_id: { type: integer }
+            skipped:
+              type: array
+              items:
+                $ref: '#/components/schemas/SkippedLine'
+            resolut:
+              $ref: '#/components/schemas/ResolutNormalizedResponse'
+
+    PublicationRow:
+      type: object
+      properties:
+        id: { type: integer }
+        client_id: { type: integer }
+        project_id: { type: integer, nullable: true }
+        agent_id: { type: integer, nullable: true }
+        resolut_client_code: { type: string, nullable: true }
+        resolut_portfolio_code: { type: string, nullable: true }
+        resolut_portfolio_number: { type: string, nullable: true }
+        contracts_json:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        quotes_submitted_json:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        skipped_json:
+          type: array
+          items:
+            $ref: '#/components/schemas/SkippedLine'
+        created_at:
+          type: string
+          format: date-time
+
+    PublishErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string, example: RESOLUT_NOTHING_TO_PUBLISH }
+            message: { type: string }
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
