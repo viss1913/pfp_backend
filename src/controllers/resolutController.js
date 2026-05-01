@@ -1,6 +1,7 @@
 const resolutService = require('../services/resolutService');
 const resolutPublishService = require('../services/resolutPublishService');
 const resolutQuoteLineSuggestService = require('../services/resolutQuoteLineSuggestService');
+const resolutPlanQuotesService = require('../services/resolutPlanQuotesService');
 const Joi = require('joi');
 
 const productsSchema = Joi.object({
@@ -85,6 +86,31 @@ const suggestQuoteLineSchema = Joi.object({
     valuation_type: Joi.string().valid('byLimit', 'byPremium').default('byLimit'),
     amount: Joi.number().positive().required(),
     p_type: Joi.number().integer().valid(0, 1, 2, 4, 12).optional()
+});
+
+const resolutClientPatchSchema = Joi.object({
+    lastName: Joi.string().min(2).max(40).optional(),
+    firstName: Joi.string().min(2).max(40).optional(),
+    middleName: Joi.string().allow('').optional(),
+    dob: Joi.string().optional(),
+    sex: Joi.string().valid('male', 'female').optional(),
+    phone: Joi.string().optional(),
+    email: Joi.string().email().optional()
+}).allow(null);
+
+const planQuotesBodySchema = Joi.object({
+    client_id: Joi.number().integer().positive().required(),
+    term_months: Joi.number().integer().min(1).optional(),
+    include_monthly_flow: Joi.boolean().optional(),
+    quote_patches: Joi.array().items(Joi.object({
+        product_id: Joi.number().integer().positive().required(),
+        code: Joi.string().optional(),
+        parameters: Joi.object().optional()
+    })).optional()
+});
+
+const publishFromPlanSchema = planQuotesBodySchema.keys({
+    resolut_client: resolutClientPatchSchema.optional()
 });
 
 class ResolutController {
@@ -306,6 +332,128 @@ class ResolutController {
                 userId: req.user?.id
             });
             return res.json(result);
+        } catch (err) {
+            return this.handlePublishError(err, res, next);
+        }
+    }
+
+    async planQuotes(req, res, next) {
+        try {
+            const validation = planQuotesBodySchema.validate(req.body || {});
+            if (validation.error) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: validation.error.details[0].message
+                    }
+                });
+            }
+            const projectId = this.resolveProjectId(req);
+            const v = validation.value;
+            const result = await resolutPlanQuotesService.buildQuotes({
+                projectId,
+                clientId: v.client_id,
+                termMonths: v.term_months != null ? v.term_months : null,
+                includeMonthlyFlow: Boolean(v.include_monthly_flow),
+                quotePatches: v.quote_patches || null
+            });
+            return res.json(result);
+        } catch (err) {
+            return this.handlePublishError(err, res, next);
+        }
+    }
+
+    async planPublishPreview(req, res, next) {
+        try {
+            const validation = planQuotesBodySchema.validate(req.body || {});
+            if (validation.error) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: validation.error.details[0].message
+                    }
+                });
+            }
+            const projectId = this.resolveProjectId(req);
+            const v = validation.value;
+            const built = await resolutPlanQuotesService.buildQuotes({
+                projectId,
+                clientId: v.client_id,
+                termMonths: v.term_months != null ? v.term_months : null,
+                includeMonthlyFlow: Boolean(v.include_monthly_flow),
+                quotePatches: v.quote_patches || null
+            });
+            const preview = await resolutPublishService.preview({
+                projectId,
+                clientId: v.client_id,
+                quotes: built.data.quotes,
+                userId: req.user?.id
+            });
+            return res.json({
+                success: true,
+                data: {
+                    ...preview.data,
+                    quotes_built: built.data.quotes,
+                    plan_skipped: built.data.skipped,
+                    plan_meta: built.data.meta,
+                    term_months_used: built.data.term_months_used
+                }
+            });
+        } catch (err) {
+            return this.handlePublishError(err, res, next);
+        }
+    }
+
+    async publishFromPlan(req, res, next) {
+        try {
+            const validation = publishFromPlanSchema.validate(req.body || {});
+            if (validation.error) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: validation.error.details[0].message
+                    }
+                });
+            }
+            const projectId = this.resolveProjectId(req);
+            const v = validation.value;
+            const built = await resolutPlanQuotesService.buildQuotes({
+                projectId,
+                clientId: v.client_id,
+                termMonths: v.term_months != null ? v.term_months : null,
+                includeMonthlyFlow: Boolean(v.include_monthly_flow),
+                quotePatches: v.quote_patches || null
+            });
+            if (!built.data.quotes || built.data.quotes.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'RESOLUT_PLAN_NO_QUOTES',
+                        message: 'No Resolut quote lines could be built from client calculation snapshot'
+                    },
+                    details: { skipped: built.data.skipped || [], meta: built.data.meta || null }
+                });
+            }
+            const result = await resolutPublishService.publish({
+                projectId,
+                clientId: v.client_id,
+                quotes: built.data.quotes,
+                resolutClient: v.resolut_client || null,
+                userId: req.user?.id,
+                agentId: req.user?.agentId || null
+            });
+            return res.json({
+                ...result,
+                data: {
+                    ...result.data,
+                    plan_skipped: built.data.skipped,
+                    plan_meta: built.data.meta,
+                    term_months_used: built.data.term_months_used
+                }
+            });
         } catch (err) {
             return this.handlePublishError(err, res, next);
         }

@@ -18,6 +18,9 @@ All endpoints require authenticated agent/admin and are mounted under:
 - `GET /api/pfp/resolut/link` — одноразовая ссылка перехода в Resolut (upstream GET `operation=link`; **TTL ~20 с** у партнёра — вызывать по клику)
 - `POST /api/pfp/resolut/publish-preview` — фильтр/предпросмотр публикации (eligible/skipped) для mixed-портфелей
 - `POST /api/pfp/resolut/suggest-quote-line` — черновик `{ code, parameters }` для продуктов со схемой как у НСЖ/накоп (`byLimit` / `byPremium`); иные продукты — вручную на фронте
+- `POST /api/pfp/resolut/plan-quotes` — сборка массива `quotes` из последнего `clients.goals_summary` (сводный портфель + fallback по целям); опционально `quote_patches`, `include_monthly_flow`
+- `POST /api/pfp/resolut/plan-publish-preview` — то же + фильтр eligible/skipped как у `publish-preview`
+- `POST /api/pfp/resolut/publish-from-plan` — автосборка `quotes` + публикация (оркестрация на бэке; фронт только дозаполняет `resolut_client` / patches при необходимости)
 - `POST /api/pfp/resolut/publish` — оркестрация оформления: клиент Resolut (create/update) + `portfolio` + сохранение истории в БД; в ответе `data.portfolio` — нормализованные `portfolio_code` / `portfolio_number` / `contracts` (учтены плоский ответ партнёра и вложенный `content`)
 - `GET /api/pfp/resolut/publications?client_id=` — история публикаций клиента (для ЛК)
 

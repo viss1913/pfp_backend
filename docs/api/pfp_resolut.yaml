@@ -5,13 +5,14 @@ info:
     Отдельная спека по интеграции AV Inform / Resolut для ЛК агента.
     Префикс путей: `/api/pfp/resolut`.
 
-    **Рекомендуемый порядок (мультипродуктовый портфель):**
-    1. `POST /pfp/resolut/products` — витрина pfpCode.
-    2. Опционально `POST /pfp/resolut/suggest-quote-line` — черновик `{ code, parameters }` для продуктов со схемой как у НСЖ/накоп (иначе parameters собирает фронт вручную).
-    3. `POST /pfp/resolut/quote` по каждой строке портфеля (те же `code`/`parameters`, что пойдут в публикацию).
-    4. `POST /pfp/resolut/publish-preview` — eligible / skipped.
-    5. `POST /pfp/resolut/publish` — одна операция `portfolio` на весь набор; при `RESOLUT_CLIENT_INCOMPLETE` дозаполнить контактные данные и повторить с `resolut_client`.
-    6. Сразу после успеха: `GET /pfp/resolut/link` — одноразовая ссылка (TTL у партнёра ~20 с).
+    **Рекомендуемый порядок (ЛК агента, из последнего расчёта клиента):**
+    1. У клиента сохранён `goals_summary` после пересчёта.
+    2. `POST /pfp/resolut/plan-quotes` — бэкенд собирает `quotes[]` из `summary.consolidated_portfolio` (и fallback по целям); опционально `include_monthly_flow`, `quote_patches` для недостающих полей.
+    3. `POST /pfp/resolut/plan-publish-preview` — то же + `eligible`/`skipped` как у ручного preview.
+    4. `POST /pfp/resolut/publish-from-plan` — сборка + публикация + история; тело как у `plan-quotes` + опционально `resolut_client`.
+    5. `GET /pfp/resolut/link` сразу после успеха.
+
+    **Альтернатива (ручная сборка quotes на фронте):** `products` → `suggest-quote-line` / `quote` → `publish-preview` → `publish`.
 
     Ошибки публикации смотри в теле ответа (`skipped`, `error.details`). Сырой прокси: `POST /pfp/resolut/portfolio`.
   version: 1.0.0
@@ -210,6 +211,85 @@ paths:
               schema:
                 $ref: '#/components/schemas/PublishErrorResponse'
 
+  /pfp/resolut/plan-quotes:
+    post:
+      tags: [ "Resolut Publish" ]
+      summary: Собрать quotes из последнего расчёта клиента (goals_summary)
+      description: |
+        Источник: `clients.goals_summary` → `summary.consolidated_portfolio.assets_allocation` (суммы по `product_id`),
+        при пустом своде — инструменты из целей. Схема параметров nszh_like (`byLimit` для lump). Потоки из
+        `cash_flow_allocation` по умолчанию в `skipped` (`monthly_flow_skipped`); включите `include_monthly_flow: true`
+        для отдельных строк `byPremium` / pType 12 (экспериментально).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanQuotesRequest'
+      responses:
+        '200':
+          description: Собранные quotes и пропуски
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanQuotesResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishErrorResponse'
+
+  /pfp/resolut/plan-publish-preview:
+    post:
+      tags: [ "Resolut Publish" ]
+      summary: План-quotes + publish-preview (eligible/skipped)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanQuotesRequest'
+      responses:
+        '200':
+          description: Как publish-preview плюс quotes_built, plan_skipped, plan_meta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    additionalProperties: true
+
+  /pfp/resolut/publish-from-plan:
+    post:
+      tags: [ "Resolut Publish" ]
+      summary: Сборка quotes из расчёта + публикация в Resolut
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishFromPlanRequest'
+      responses:
+        '200':
+          description: Как PublishResponse + plan_skipped, plan_meta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    additionalProperties: true
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishErrorResponse'
+
   /pfp/resolut/publish:
     post:
       tags: [ "Resolut Publish" ]
@@ -376,6 +456,64 @@ components:
               properties:
                 schema: { type: string, example: nszh_like }
                 note: { type: string }
+
+    PlanQuotesRequest:
+      type: object
+      required: [ client_id ]
+      properties:
+        client_id: { type: integer }
+        term_months:
+          type: integer
+          minimum: 1
+          description: Иначе — максимум из целей расчёта или 120
+        include_monthly_flow:
+          type: boolean
+          default: false
+          description: Включить строки из cash_flow_allocation (byPremium, pType 12)
+        quote_patches:
+          type: array
+          description: Доп. слияние в parameters/code по product_id после автосборки
+          items:
+            type: object
+            required: [ product_id ]
+            properties:
+              product_id: { type: integer }
+              code: { type: string }
+              parameters:
+                type: object
+                additionalProperties: true
+
+    PlanQuotesResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            client_id: { type: integer }
+            term_months_used: { type: integer }
+            include_monthly_flow: { type: boolean }
+            quotes:
+              type: array
+              items:
+                $ref: '#/components/schemas/EligibleLine'
+            skipped:
+              type: array
+              items:
+                $ref: '#/components/schemas/SkippedLine'
+            meta:
+              type: object
+              additionalProperties: true
+
+    PublishFromPlanRequest:
+      allOf:
+        - $ref: '#/components/schemas/PlanQuotesRequest'
+        - type: object
+          properties:
+            resolut_client:
+              allOf:
+                - $ref: '#/components/schemas/ResolutClientPayload'
+              nullable: true
 
     PublishRequest:
       type: object
