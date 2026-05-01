@@ -7,6 +7,26 @@ const DEFAULT_RESOLUT_TIMEOUT_MS = 10000;
 const MIN_RESOLUT_TIMEOUT_MS = 8000;
 const MAX_RESOLUT_TIMEOUT_MS = 120000;
 
+/** Текст ошибки партнёра: у них часто сообщение в `name`, код в `code`. */
+function pickResolutUpstreamMessage(errObj) {
+    if (!errObj || typeof errObj !== 'object') return null;
+    const name = errObj.name != null ? String(errObj.name).trim() : '';
+    const msg = errObj.message != null ? String(errObj.message).trim() : '';
+    const code = errObj.code != null ? String(errObj.code).trim() : '';
+    if (name) return name;
+    if (msg) return msg;
+    if (code) return code;
+    return null;
+}
+
+function mapUpstreamHttpStatusToApiStatus(status) {
+    const st = Number(status);
+    if (!Number.isFinite(st)) return 502;
+    if (st === 401) return 401;
+    if (st >= 400 && st < 500) return st;
+    return 502;
+}
+
 function resolveResolutTimeoutMs() {
     const raw = Number(process.env.RESOLUT_TIMEOUT_MS);
     if (!Number.isFinite(raw) || raw <= 0) {
@@ -208,22 +228,47 @@ class ResolutService {
                 timeout: this.timeoutMs,
                 headers
             });
-            return this.getNormalizedResponse(response.status, operation, response.data);
+            const norm = this.getNormalizedResponse(response.status, operation, response.data);
+            // HTTP 200, но в теле success: false / err — иначе publish считает успехом и пишет пустой портфель в БД.
+            if (norm.err) {
+                const upstreamData = this.sanitizeUpstreamData(response.data);
+                const errObj = upstreamData && upstreamData.err
+                    ? upstreamData.err
+                    : (upstreamData && upstreamData.error ? upstreamData.error : norm.err);
+                const human = pickResolutUpstreamMessage(errObj) || norm.err.message || `Resolut ${operation} failed`;
+                throw {
+                    status: mapUpstreamHttpStatusToApiStatus(response.status),
+                    error: 'ResolutUpstreamError',
+                    message: human,
+                    details: {
+                        operation,
+                        upstream_status: response.status,
+                        upstream_err_code: errObj && errObj.code != null ? errObj.code : (norm.err.code || null),
+                        upstream_err_message: pickResolutUpstreamMessage(errObj) || norm.err.message || null,
+                        upstream_data: upstreamData
+                    }
+                };
+            }
+            return norm;
         } catch (error) {
+            if (error.details) {
+                throw error;
+            }
             if (error.response) {
                 const upstreamData = this.sanitizeUpstreamData(error.response.data);
                 const errObj = upstreamData && upstreamData.err
                     ? upstreamData.err
                     : (upstreamData && upstreamData.error ? upstreamData.error : null);
+                const human = pickResolutUpstreamMessage(errObj);
                 throw {
-                    status: 502,
+                    status: mapUpstreamHttpStatusToApiStatus(error.response.status),
                     error: 'ResolutUpstreamError',
-                    message: `Resolut ${operation} failed`,
+                    message: human || `Resolut ${operation} failed`,
                     details: {
                         operation,
                         upstream_status: error.response.status,
                         upstream_err_code: errObj ? errObj.code : null,
-                        upstream_err_message: errObj ? errObj.message : null,
+                        upstream_err_message: pickResolutUpstreamMessage(errObj),
                         upstream_data: upstreamData
                     }
                 };
