@@ -1,7 +1,6 @@
 'use strict';
 
 const resolutService = require('./resolutService');
-const { formatDobDdMmYyyy, normalizeSex } = require('./resolutNsjQuoteService');
 
 function resolveResolutProjectId() {
     const n = Number(process.env.RESOLUT_PROJECT_ID || 0);
@@ -83,21 +82,21 @@ async function getImpliedAnnualYieldPercentFromQuote({
     const limit = parseFloat(Number(allocatedAmount).toFixed(2));
     if (!Number.isFinite(limit) || limit <= 0) return null;
 
-    const dob = client && client.birth_date
-        ? formatDobDdMmYyyy(client.birth_date)
-        : formatDobDdMmYyyy(new Date('1985-01-01'));
-    const sex = normalizeSex(client || {});
-
-    const body = {
-        code: String(product.resolut_pfp_code).trim(),
-        parameters: {
-            currency: 'RUR',
-            pType,
-            term: termYears,
-            insuredPerson: { dob, sex },
-            calcData: { valuationType: 'byLimit', limit }
-        }
-    };
+    const { buildNszhLikeParameters } = require('./resolutQuoteLineSuggestService');
+    let body;
+    try {
+        body = buildNszhLikeParameters({
+            projectId,
+            product,
+            clientRow: client || {},
+            termMonths,
+            amount: limit,
+            valuationType: 'byLimit'
+        });
+    } catch (e) {
+        console.warn('[ResolutPortfolioQuoteYield] build parameters failed:', e && (e.message || e.error) ? String(e.message || e.error) : String(e));
+        return null;
+    }
 
     let norm;
     try {

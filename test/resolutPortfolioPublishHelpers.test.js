@@ -40,9 +40,40 @@ test('extractPortfolioOutcome: content.contracts wins over empty flat contracts'
     assert.strictEqual(r.contracts.length, 1);
 });
 
-test('buildNszhLikeParameters: byLimit uses client and product resolut code', () => {
-    const prev = process.env.RESOLUT_PROJECT_ID;
+test('buildNszhLikeParameters: byLimit OpenAPI shape (default)', () => {
+    const prevPid = process.env.RESOLUT_PROJECT_ID;
+    const prevShape = process.env.RESOLUT_NSZH_PARAMETERS_SHAPE;
     process.env.RESOLUT_PROJECT_ID = '23';
+    delete process.env.RESOLUT_NSZH_PARAMETERS_SHAPE;
+    try {
+        const line = buildNszhLikeParameters({
+            projectId: 23,
+            product: { id: 1, resolut_pfp_code: 'assetShort', resolut_quote_p_type: 0 },
+            clientRow: { birth_date: '1990-06-15', gender: 'male', avg_monthly_income: 200000 },
+            termMonths: 60,
+            amount: 1_000_000,
+            valuationType: 'byLimit'
+        });
+        assert.strictEqual(line.code, 'assetShort');
+        assert.deepStrictEqual(line.parameters.pType, { code: 0, name: 'единовременно' });
+        assert.deepStrictEqual(line.parameters.currency, { code: 'RUR', name: 'Рубль РФ' });
+        assert.strictEqual(line.parameters.term, 5);
+        assert.strictEqual(line.parameters.calcData.valuationType, 'byLimit');
+        assert.strictEqual(line.parameters.calcData.limit, 1000000);
+        assert.strictEqual(line.parameters.calcData.monthlyIncome, 200000);
+        assert.strictEqual(line.parameters.insuredPerson.sex, 'male');
+    } finally {
+        process.env.RESOLUT_PROJECT_ID = prevPid;
+        if (prevShape === undefined) delete process.env.RESOLUT_NSZH_PARAMETERS_SHAPE;
+        else process.env.RESOLUT_NSZH_PARAMETERS_SHAPE = prevShape;
+    }
+});
+
+test('buildNszhLikeParameters: flat shape when RESOLUT_NSZH_PARAMETERS_SHAPE=flat', () => {
+    const prevPid = process.env.RESOLUT_PROJECT_ID;
+    const prevShape = process.env.RESOLUT_NSZH_PARAMETERS_SHAPE;
+    process.env.RESOLUT_PROJECT_ID = '23';
+    process.env.RESOLUT_NSZH_PARAMETERS_SHAPE = 'flat';
     try {
         const line = buildNszhLikeParameters({
             projectId: 23,
@@ -52,14 +83,12 @@ test('buildNszhLikeParameters: byLimit uses client and product resolut code', ()
             amount: 1_000_000,
             valuationType: 'byLimit'
         });
-        assert.strictEqual(line.code, 'assetShort');
         assert.strictEqual(line.parameters.pType, 0);
-        assert.strictEqual(line.parameters.term, 5);
-        assert.strictEqual(line.parameters.calcData.valuationType, 'byLimit');
-        assert.strictEqual(line.parameters.calcData.limit, 1000000);
-        assert.strictEqual(line.parameters.insuredPerson.sex, 'male');
+        assert.strictEqual(line.parameters.currency, 'RUR');
     } finally {
-        process.env.RESOLUT_PROJECT_ID = prev;
+        process.env.RESOLUT_PROJECT_ID = prevPid;
+        if (prevShape === undefined) delete process.env.RESOLUT_NSZH_PARAMETERS_SHAPE;
+        else process.env.RESOLUT_NSZH_PARAMETERS_SHAPE = prevShape;
     }
 });
 

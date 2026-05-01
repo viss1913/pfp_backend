@@ -6,8 +6,23 @@ const productRepository = require('../repositories/productRepository');
 const { formatDobDdMmYyyy, normalizeSex } = require('./resolutNsjQuoteService');
 const { isResolutPortfolioProduct, pickPType } = require('./resolutPortfolioQuoteYieldService');
 
+/** Имена периодичности взноса — как в openapi/OPENAPI_SPEC.yaml (resolut_quote_p_type). */
+const PTYPE_OPENAPI_NAMES = {
+    0: 'единовременно',
+    1: 'ежегодно',
+    2: 'раз в полгода',
+    4: 'ежеквартально',
+    12: 'ежемесячно'
+};
+
+function nszhParametersShape() {
+    const v = String(process.env.RESOLUT_NSZH_PARAMETERS_SHAPE || 'openapi').toLowerCase();
+    return v === 'flat' ? 'flat' : 'openapi';
+}
+
 /**
  * Сборка parameters для quote/portfolio по схеме НСЖ/накоп (currency, pType, term, insuredPerson, calcData).
+ * По умолчанию — формат партнёрского OpenAPI 002 (объекты currency и pType). Откат: RESOLUT_NSZH_PARAMETERS_SHAPE=flat.
  * Подходит для продуктов с resolut_pfp_code в духе assetShort; для иных схем партнёра фронт собирает parameters вручную.
  */
 function buildNszhLikeParameters({
@@ -54,11 +69,33 @@ function buildNszhLikeParameters({
         ? { valuationType: 'byPremium', premium: rounded }
         : { valuationType: 'byLimit', limit: rounded };
 
+    const incomeRaw = clientRow.avg_monthly_income ?? clientRow.monthly_income;
+    const incomeNum = Number(incomeRaw);
+    if (Number.isFinite(incomeNum) && incomeNum > 0) {
+        calcData.monthlyIncome = parseFloat(incomeNum.toFixed(2));
+    }
+
+    if (nszhParametersShape() === 'flat') {
+        return {
+            code,
+            parameters: {
+                currency: 'RUR',
+                pType,
+                term: termYears,
+                insuredPerson: { dob, sex },
+                calcData
+            }
+        };
+    }
+
     return {
         code,
         parameters: {
-            currency: 'RUR',
-            pType,
+            currency: { code: 'RUR', name: 'Рубль РФ' },
+            pType: {
+                code: pType,
+                name: PTYPE_OPENAPI_NAMES[pType] || `код_${pType}`
+            },
             term: termYears,
             insuredPerson: { dob, sex },
             calcData
@@ -115,7 +152,8 @@ class ResolutQuoteLineSuggestService {
                 parameters: line.parameters,
                 hints: {
                     schema: 'nszh_like',
-                    note: 'Use with POST /api/pfp/resolut/quote and publish quotes[]; other product schemas need manual parameters.'
+                    parameters_shape: nszhParametersShape(),
+                    note: 'Use with POST /api/pfp/resolut/quote and publish quotes[]; other product schemas need manual parameters. Shape: openapi (default) or set RESOLUT_NSZH_PARAMETERS_SHAPE=flat.'
                 }
             }
         };
