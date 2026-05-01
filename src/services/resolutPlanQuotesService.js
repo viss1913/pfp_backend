@@ -37,6 +37,39 @@ function maxTermMonthsFromGoals(goals) {
 }
 
 /**
+ * На демо AV/Resolut для assetShort quote/portfolio при сроке меньше 5 лет даёт calcError
+ * «Не заданы выкупные суммы…». Поднимаем срок для plan-quotes / publish-from-plan.
+ *
+ * RESOLUT_PLAN_MIN_TERM_MONTHS: минимум месяцев (по умолчанию 60). Поставьте 0 чтобы отключить.
+ */
+function applyResolutPlanTermFloor(termMonths) {
+    const raw = process.env.RESOLUT_PLAN_MIN_TERM_MONTHS;
+    let floor;
+    if (raw === undefined || raw === '') {
+        floor = 60;
+    } else {
+        const n = Number(raw);
+        floor = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    }
+    const requested = Math.max(1, Math.floor(Number(termMonths) || 0));
+    if (floor <= 0) {
+        return {
+            term_months_used: requested,
+            term_months_requested: requested,
+            term_months_clamped: false,
+            resolut_plan_min_term_months: null
+        };
+    }
+    const used = Math.max(requested, floor);
+    return {
+        term_months_used: used,
+        term_months_requested: requested,
+        term_months_clamped: used !== requested,
+        resolut_plan_min_term_months: floor
+    };
+}
+
+/**
  * Суммируем amount по product_id.
  */
 function mergeByProductId(rows) {
@@ -223,9 +256,11 @@ class ResolutPlanQuotesService {
         const goals = parsed.goals || [];
         const consolidated = parsed.summary?.consolidated_portfolio || null;
 
-        const termMonths = termMonthsOverride != null && Number(termMonthsOverride) > 0
+        const termMonthsRaw = termMonthsOverride != null && Number(termMonthsOverride) > 0
             ? Number(termMonthsOverride)
             : maxTermMonthsFromGoals(goals);
+        const termPack = applyResolutPlanTermFloor(termMonthsRaw);
+        const termMonths = termPack.term_months_used;
 
         let assetRows = consolidated
             ? mergeByProductId(rowsFromConsolidatedAssets(consolidated))
@@ -284,6 +319,8 @@ class ResolutPlanQuotesService {
             data: {
                 client_id: Number(clientId),
                 term_months_used: termMonths,
+                term_months_requested: termPack.term_months_requested,
+                term_months_clamped: termPack.term_months_clamped,
                 include_monthly_flow: includeMonthlyFlow,
                 quotes,
                 skipped: [...assetSkipped, ...flowSkipped],
@@ -292,7 +329,10 @@ class ResolutPlanQuotesService {
                     asset_positions: assetRows.length,
                     flow_positions: includeMonthlyFlow && consolidated
                         ? mergeByProductId(rowsFromConsolidatedCashFlow(consolidated)).length
-                        : 0
+                        : 0,
+                    term_months_requested: termPack.term_months_requested,
+                    term_months_clamped: termPack.term_months_clamped,
+                    resolut_plan_min_term_months: termPack.resolut_plan_min_term_months
                 }
             }
         };
@@ -301,3 +341,4 @@ class ResolutPlanQuotesService {
 
 module.exports = new ResolutPlanQuotesService();
 module.exports.parseGoalsSummary = parseGoalsSummary;
+module.exports.applyResolutPlanTermFloor = applyResolutPlanTermFloor;

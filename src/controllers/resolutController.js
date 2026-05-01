@@ -398,7 +398,9 @@ class ResolutController {
                     quotes_built: built.data.quotes,
                     plan_skipped: built.data.skipped,
                     plan_meta: built.data.meta,
-                    term_months_used: built.data.term_months_used
+                    term_months_used: built.data.term_months_used,
+                    term_months_requested: built.data.term_months_requested,
+                    term_months_clamped: built.data.term_months_clamped
                 }
             });
         } catch (err) {
@@ -451,7 +453,9 @@ class ResolutController {
                     ...result.data,
                     plan_skipped: built.data.skipped,
                     plan_meta: built.data.meta,
-                    term_months_used: built.data.term_months_used
+                    term_months_used: built.data.term_months_used,
+                    term_months_requested: built.data.term_months_requested,
+                    term_months_clamped: built.data.term_months_clamped
                 }
             });
         } catch (err) {
