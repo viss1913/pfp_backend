@@ -40,11 +40,13 @@ test('extractPortfolioOutcome: content.contracts wins over empty flat contracts'
     assert.strictEqual(r.contracts.length, 1);
 });
 
-test('buildNszhLikeParameters: byLimit OpenAPI shape (default)', () => {
+test('buildNszhLikeParameters: byLimit OpenAPI shape (default), no monthlyIncome in calcData', () => {
     const prevPid = process.env.RESOLUT_PROJECT_ID;
     const prevShape = process.env.RESOLUT_NSZH_PARAMETERS_SHAPE;
+    const prevInc = process.env.RESOLUT_CALCDATA_MONTHLY_INCOME;
     process.env.RESOLUT_PROJECT_ID = '23';
     delete process.env.RESOLUT_NSZH_PARAMETERS_SHAPE;
+    delete process.env.RESOLUT_CALCDATA_MONTHLY_INCOME;
     try {
         const line = buildNszhLikeParameters({
             projectId: 23,
@@ -60,12 +62,36 @@ test('buildNszhLikeParameters: byLimit OpenAPI shape (default)', () => {
         assert.strictEqual(line.parameters.term, 5);
         assert.strictEqual(line.parameters.calcData.valuationType, 'byLimit');
         assert.strictEqual(line.parameters.calcData.limit, 1000000);
-        assert.strictEqual(line.parameters.calcData.monthlyIncome, 200000);
+        assert.strictEqual(Object.prototype.hasOwnProperty.call(line.parameters.calcData, 'monthlyIncome'), false);
         assert.strictEqual(line.parameters.insuredPerson.sex, 'male');
     } finally {
         process.env.RESOLUT_PROJECT_ID = prevPid;
         if (prevShape === undefined) delete process.env.RESOLUT_NSZH_PARAMETERS_SHAPE;
         else process.env.RESOLUT_NSZH_PARAMETERS_SHAPE = prevShape;
+        if (prevInc === undefined) delete process.env.RESOLUT_CALCDATA_MONTHLY_INCOME;
+        else process.env.RESOLUT_CALCDATA_MONTHLY_INCOME = prevInc;
+    }
+});
+
+test('buildNszhLikeParameters: monthlyIncome when RESOLUT_CALCDATA_MONTHLY_INCOME=true', () => {
+    const prevPid = process.env.RESOLUT_PROJECT_ID;
+    const prevInc = process.env.RESOLUT_CALCDATA_MONTHLY_INCOME;
+    process.env.RESOLUT_PROJECT_ID = '23';
+    process.env.RESOLUT_CALCDATA_MONTHLY_INCOME = 'true';
+    try {
+        const line = buildNszhLikeParameters({
+            projectId: 23,
+            product: { id: 1, resolut_pfp_code: 'assetShort', resolut_quote_p_type: 0 },
+            clientRow: { birth_date: '1990-06-15', gender: 'male', avg_monthly_income: 200000 },
+            termMonths: 60,
+            amount: 1_000_000,
+            valuationType: 'byLimit'
+        });
+        assert.strictEqual(line.parameters.calcData.monthlyIncome, 200000);
+    } finally {
+        process.env.RESOLUT_PROJECT_ID = prevPid;
+        if (prevInc === undefined) delete process.env.RESOLUT_CALCDATA_MONTHLY_INCOME;
+        else process.env.RESOLUT_CALCDATA_MONTHLY_INCOME = prevInc;
     }
 });
 

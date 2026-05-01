@@ -20,6 +20,11 @@ function nszhParametersShape() {
     return v === 'flat' ? 'flat' : 'openapi';
 }
 
+/** В OpenAPI 002 в calcData только valuationType/premium/limit; лишнее поле может ломать строгий portfolio. */
+function includeCalcDataMonthlyIncome() {
+    return String(process.env.RESOLUT_CALCDATA_MONTHLY_INCOME || '').toLowerCase() === 'true';
+}
+
 /**
  * Сборка parameters для quote/portfolio по схеме НСЖ/накоп (currency, pType, term, insuredPerson, calcData).
  * По умолчанию — формат партнёрского OpenAPI 002 (объекты currency и pType). Откат: RESOLUT_NSZH_PARAMETERS_SHAPE=flat.
@@ -69,10 +74,12 @@ function buildNszhLikeParameters({
         ? { valuationType: 'byPremium', premium: rounded }
         : { valuationType: 'byLimit', limit: rounded };
 
-    const incomeRaw = clientRow.avg_monthly_income ?? clientRow.monthly_income;
-    const incomeNum = Number(incomeRaw);
-    if (Number.isFinite(incomeNum) && incomeNum > 0) {
-        calcData.monthlyIncome = parseFloat(incomeNum.toFixed(2));
+    if (includeCalcDataMonthlyIncome()) {
+        const incomeRaw = clientRow.avg_monthly_income ?? clientRow.monthly_income;
+        const incomeNum = Number(incomeRaw);
+        if (Number.isFinite(incomeNum) && incomeNum > 0) {
+            calcData.monthlyIncome = parseFloat(incomeNum.toFixed(2));
+        }
     }
 
     if (nszhParametersShape() === 'flat') {
@@ -153,7 +160,7 @@ class ResolutQuoteLineSuggestService {
                 hints: {
                     schema: 'nszh_like',
                     parameters_shape: nszhParametersShape(),
-                    note: 'Use with POST /api/pfp/resolut/quote and publish quotes[]; other product schemas need manual parameters. Shape: openapi (default) or set RESOLUT_NSZH_PARAMETERS_SHAPE=flat.'
+                    note: 'Use with POST /api/pfp/resolut/quote and publish quotes[]; other product schemas need manual parameters. Shape: openapi (default) or RESOLUT_NSZH_PARAMETERS_SHAPE=flat. Optional calcData.monthlyIncome only if RESOLUT_CALCDATA_MONTHLY_INCOME=true (not in partner OpenAPI 002).'
                 }
             }
         };
