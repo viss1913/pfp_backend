@@ -4,6 +4,16 @@ info:
   description: |
     Отдельная спека по интеграции AV Inform / Resolut для ЛК агента.
     Префикс путей: `/api/pfp/resolut`.
+
+    **Рекомендуемый порядок (мультипродуктовый портфель):**
+    1. `POST /pfp/resolut/products` — витрина pfpCode.
+    2. Опционально `POST /pfp/resolut/suggest-quote-line` — черновик `{ code, parameters }` для продуктов со схемой как у НСЖ/накоп (иначе parameters собирает фронт вручную).
+    3. `POST /pfp/resolut/quote` по каждой строке портфеля (те же `code`/`parameters`, что пойдут в публикацию).
+    4. `POST /pfp/resolut/publish-preview` — eligible / skipped.
+    5. `POST /pfp/resolut/publish` — одна операция `portfolio` на весь набор; при `RESOLUT_CLIENT_INCOMPLETE` дозаполнить контактные данные и повторить с `resolut_client`.
+    6. Сразу после успеха: `GET /pfp/resolut/link` — одноразовая ссылка (TTL у партнёра ~20 с).
+
+    Ошибки публикации смотри в теле ответа (`skipped`, `error.details`). Сырой прокси: `POST /pfp/resolut/portfolio`.
   version: 1.0.0
 servers:
   - url: /api
@@ -166,6 +176,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/PublishErrorResponse'
 
+  /pfp/resolut/suggest-quote-line:
+    post:
+      tags: [ "Resolut Publish" ]
+      summary: Черновик строки quote/portfolio (схема nszh_like)
+      description: |
+        Собирает `code` (из `products.resolut_pfp_code`) и `parameters` в формате валют/pType/term/insuredPerson/calcData,
+        как для котировок НСЖ/накопительных программ (см. демо quote в OpenAPI партнёра). Для продуктов с иной JSD-схемой
+        фронт формирует `parameters` сам. Только проект `RESOLUT_PROJECT_ID`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestQuoteLineRequest'
+      responses:
+        '200':
+          description: Готовая строка для quote и для массива quotes при publish
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestQuoteLineResponse'
+        '400':
+          description: Нет resolut-кода у продукта или неверные поля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishErrorResponse'
+        '404':
+          description: Клиент или продукт не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishErrorResponse'
+
   /pfp/resolut/publish:
     post:
       tags: [ "Resolut Publish" ]
@@ -295,6 +339,44 @@ components:
           items:
             $ref: '#/components/schemas/PublishQuoteLine'
 
+    SuggestQuoteLineRequest:
+      type: object
+      required: [ client_id, product_id, amount ]
+      properties:
+        client_id: { type: integer }
+        product_id: { type: integer }
+        term_months: { type: integer, minimum: 1, default: 120 }
+        valuation_type:
+          type: string
+          enum: [ byLimit, byPremium ]
+          default: byLimit
+        amount:
+          type: number
+          description: Страховая сумма (byLimit) или премия (byPremium)
+        p_type:
+          type: integer
+          enum: [ 0, 1, 2, 4, 12 ]
+          description: Иначе — из products.resolut_quote_p_type или дефолт 0
+
+    SuggestQuoteLineResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            client_id: { type: integer }
+            product_id: { type: integer }
+            code: { type: string }
+            parameters:
+              type: object
+              additionalProperties: true
+            hints:
+              type: object
+              properties:
+                schema: { type: string, example: nszh_like }
+                note: { type: string }
+
     PublishRequest:
       type: object
       required: [ client_id, quotes ]
@@ -362,6 +444,18 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/SkippedLine'
+            portfolio:
+              type: object
+              description: Нормализованный итог upstream portfolio (плоский и вложенный content учтены на бэке)
+              properties:
+                portfolio_code: { type: string, nullable: true }
+                portfolio_number: { type: string, nullable: true }
+                contracts:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: true
+                upstream_client_code: { type: string, nullable: true }
             resolut:
               $ref: '#/components/schemas/ResolutNormalizedResponse'
 

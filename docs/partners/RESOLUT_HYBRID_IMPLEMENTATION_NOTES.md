@@ -17,7 +17,8 @@ All endpoints require authenticated agent/admin and are mounted under:
 - `GET /api/pfp/resolut/client?code=<Resolut client id>` — получение клиента (upstream GET `operation=client`)
 - `GET /api/pfp/resolut/link` — одноразовая ссылка перехода в Resolut (upstream GET `operation=link`; **TTL ~20 с** у партнёра — вызывать по клику)
 - `POST /api/pfp/resolut/publish-preview` — фильтр/предпросмотр публикации (eligible/skipped) для mixed-портфелей
-- `POST /api/pfp/resolut/publish` — оркестрация оформления: клиент Resolut (create/update) + `portfolio` + сохранение истории в БД
+- `POST /api/pfp/resolut/suggest-quote-line` — черновик `{ code, parameters }` для продуктов со схемой как у НСЖ/накоп (`byLimit` / `byPremium`); иные продукты — вручную на фронте
+- `POST /api/pfp/resolut/publish` — оркестрация оформления: клиент Resolut (create/update) + `portfolio` + сохранение истории в БД; в ответе `data.portfolio` — нормализованные `portfolio_code` / `portfolio_number` / `contracts` (учтены плоский ответ партнёра и вложенный `content`)
 - `GET /api/pfp/resolut/publications?client_id=` — история публикаций клиента (для ЛК)
 
 Resolut `authorize` is **not** exposed as a separate PFP route: it runs inside `POST /api/pfp/auth/login` for agents on the Resolut project (same email/password as the login body), and the returned bearer is stored in [`src/services/resolutSessionStore.js`](../../src/services/resolutSessionStore.js).

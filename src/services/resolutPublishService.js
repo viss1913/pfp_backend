@@ -2,6 +2,7 @@ const db = require('../config/database');
 const resolutService = require('./resolutService');
 const clientRepository = require('../repositories/clientRepository');
 const productRepository = require('../repositories/productRepository');
+const { extractPortfolioOutcome } = require('../utils/resolutPortfolioResponse');
 
 function toDdMmYyyy(value) {
     if (!value) return null;
@@ -198,9 +199,10 @@ class ResolutPublishService {
         };
         const upstream = await resolutService.portfolio(projectId, portfolioPayload, { userId });
 
-        const portfolioCode = upstream?.data?.code != null ? String(upstream.data.code) : null;
-        const portfolioNumber = upstream?.data?.content?.number || null;
-        const contracts = upstream?.data?.content?.contracts || [];
+        const extracted = extractPortfolioOutcome(upstream?.data || null);
+        const portfolioCode = extracted.portfolio_code;
+        const portfolioNumber = extracted.portfolio_number;
+        const contracts = extracted.contracts;
 
         const [publicationId] = await db('resolut_portfolio_publications').insert({
             client_id: Number(clientId),
@@ -222,6 +224,12 @@ class ResolutPublishService {
                 resolut_client_code: clientCode,
                 publication_id: publicationId,
                 skipped: filtered.skipped,
+                portfolio: {
+                    portfolio_code: portfolioCode,
+                    portfolio_number: portfolioNumber,
+                    contracts,
+                    upstream_client_code: extracted.client_code
+                },
                 resolut: upstream
             }
         };

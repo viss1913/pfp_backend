@@ -9,7 +9,7 @@ info:
 
     **Настройки PDF-отчёта** (обложка, сводная, `goal_card_assets` для превью карточек целей): отдельная спека **`openapi/PDFsettings.yaml`**, Swagger UI: `/api-docs-pdf-settings`, префикс путей `/api/pfp/pdf-settings`.
 
-    **Resolut (AV Inform) для ЛК:** отдельная спека **`docs/api/pfp_resolut.yaml`** (прокси `products/quote/client/portfolio/link` и сценарий оформления `publish-preview/publish/publications`).
+    **Resolut (AV Inform) для ЛК:** отдельная спека **`docs/api/pfp_resolut.yaml`** (прокси `products/quote/client/portfolio/link`, `suggest-quote-line`, сценарий оформления `publish-preview/publish/publications`).
 
     **AI B2C в ЛК агента — два независимых набора контекстов:**
     - **Site** — `/pfp/ai-b2c/brain-contexts`, `/pfp/ai-b2c/stages` (клиентский сайт: обычный чат и dynamic-flow).

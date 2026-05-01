@@ -1,5 +1,6 @@
 const resolutService = require('../services/resolutService');
 const resolutPublishService = require('../services/resolutPublishService');
+const resolutQuoteLineSuggestService = require('../services/resolutQuoteLineSuggestService');
 const Joi = require('joi');
 
 const productsSchema = Joi.object({
@@ -75,6 +76,15 @@ const publishSchema = Joi.object({
         phone: Joi.string().optional(),
         email: Joi.string().email().optional()
     }).allow(null).optional()
+});
+
+const suggestQuoteLineSchema = Joi.object({
+    client_id: Joi.number().integer().positive().required(),
+    product_id: Joi.number().integer().positive().required(),
+    term_months: Joi.number().integer().min(1).default(120),
+    valuation_type: Joi.string().valid('byLimit', 'byPremium').default('byLimit'),
+    amount: Joi.number().positive().required(),
+    p_type: Joi.number().integer().valid(0, 1, 2, 4, 12).optional()
 });
 
 class ResolutController {
@@ -264,6 +274,36 @@ class ResolutController {
                 resolutClient: validation.value.resolut_client || null,
                 userId: req.user?.id,
                 agentId: req.user?.agentId || null
+            });
+            return res.json(result);
+        } catch (err) {
+            return this.handlePublishError(err, res, next);
+        }
+    }
+
+    async suggestQuoteLine(req, res, next) {
+        try {
+            const validation = suggestQuoteLineSchema.validate(req.body || {});
+            if (validation.error) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: validation.error.details[0].message
+                    }
+                });
+            }
+            const projectId = this.resolveProjectId(req);
+            const v = validation.value;
+            const result = await resolutQuoteLineSuggestService.suggest({
+                projectId,
+                clientId: v.client_id,
+                productId: v.product_id,
+                termMonths: v.term_months,
+                amount: v.amount,
+                valuationType: v.valuation_type,
+                pTypeOverride: v.p_type != null ? v.p_type : null,
+                userId: req.user?.id
             });
             return res.json(result);
         } catch (err) {

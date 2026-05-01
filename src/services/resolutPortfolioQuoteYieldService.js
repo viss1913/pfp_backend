@@ -132,6 +132,7 @@ async function getImpliedAnnualYieldPercentFromQuote({
 module.exports = {
     getImpliedAnnualYieldPercentFromQuote,
     isResolutPortfolioProduct,
+    pickPType,
     pickSurvivalFv,
     impliedAnnualPercentFromLumpSum,
     resolveResolutProjectId

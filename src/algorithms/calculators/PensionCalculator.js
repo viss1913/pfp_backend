@@ -185,27 +185,13 @@ class PensionCalculator extends BaseCalculator {
                 if (isPds) pdsProductId = product.id;
 
                 const allocatedAmount = Math.max(initialCapital * (item.share_percent / 100), 1);
-                const yields = product.yields || [];
-                const line = yields.find(l =>
-                    monthsToPension >= l.term_from_months &&
-                    monthsToPension <= l.term_to_months &&
-                    allocatedAmount >= parseFloat(l.amount_from) &&
-                    allocatedAmount <= parseFloat(l.amount_to)
-                ) || yields[0];
-
-                const productYield = line ? parseFloat(line.yield_percent) : (product.yields?.[0]?.yield_percent || 0);
-
-                // Short-term yield: ищем доходность с минимальным сроком для ЭТОЙ суммы
-                const matchingAmountRowsP = yields.filter(l =>
-                    allocatedAmount >= parseFloat(l.amount_from) &&
-                    allocatedAmount <= parseFloat(l.amount_to)
+                const { productYield, shortTermYield: shortTermYieldP } = await this.resolveInstrumentYieldsForWeightedPortfolio(
+                    product,
+                    { ...goal, term_months: monthsToPension },
+                    allocatedAmount,
+                    context.projectId,
+                    context
                 );
-                const shortTermLineP = matchingAmountRowsP.length > 0
-                    ? matchingAmountRowsP.reduce((min, l) =>
-                        (parseFloat(l.term_to_months) || 999) < (parseFloat(min.term_to_months) || 999) ? l : min
-                        , matchingAmountRowsP[0])
-                    : null;
-                const shortTermYieldP = shortTermLineP ? parseFloat(shortTermLineP.yield_percent) : productYield;
 
                 const instrumentData = {
                     name: product.name,
