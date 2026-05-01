@@ -171,6 +171,8 @@ class LifeInsuranceCalculator extends BaseCalculator {
                     yield: 5,
                     amount: Math.round(fallbackInitialCapital * 100) / 100,
                     product_type: 'NSZH',
+                    product_id: null,
+                    resolut_pfp_code: null,
                 },
             ];
             result.details.monthly_instruments = [
@@ -181,6 +183,8 @@ class LifeInsuranceCalculator extends BaseCalculator {
                     amount: Math.round(fallbackMonthlyReplenishment * 100) / 100,
                     payment_frequency: 'monthly',
                     product_type: 'NSZH',
+                    product_id: null,
+                    resolut_pfp_code: null,
                 },
             ];
         }

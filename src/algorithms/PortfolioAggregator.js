@@ -51,9 +51,23 @@ class PortfolioAggregator {
                 const name = inst.name || 'Unknown';
                 const amt = inst.amount || 0;
                 const y = inst.yield || 0;
-                if (!assetsMap[name]) assetsMap[name] = { amount: 0, weightedYieldSum: 0, product_type: null };
+                if (!assetsMap[name]) {
+                    assetsMap[name] = {
+                        amount: 0,
+                        weightedYieldSum: 0,
+                        product_type: null,
+                        product_id: null,
+                        resolut_pfp_code: null
+                    };
+                }
                 const pt = inst.product_type != null ? String(inst.product_type).toUpperCase().trim() : '';
                 if (pt && !assetsMap[name].product_type) assetsMap[name].product_type = pt;
+                if (inst.product_id != null && assetsMap[name].product_id == null) {
+                    assetsMap[name].product_id = inst.product_id;
+                }
+                if (inst.resolut_pfp_code && !assetsMap[name].resolut_pfp_code) {
+                    assetsMap[name].resolut_pfp_code = inst.resolut_pfp_code;
+                }
                 assetsMap[name].amount += amt;
                 assetsMap[name].weightedYieldSum += (amt * y);
                 totalInitial += amt;
@@ -64,9 +78,24 @@ class PortfolioAggregator {
                 const amt = inst.amount || 0;
                 const y = inst.yield || 0;
                 const freq = inst.payment_frequency || 'monthly';
-                if (!flowsMap[name]) flowsMap[name] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq, product_type: null };
+                if (!flowsMap[name]) {
+                    flowsMap[name] = {
+                        amount: 0,
+                        weightedYieldSum: 0,
+                        payment_frequency: freq,
+                        product_type: null,
+                        product_id: null,
+                        resolut_pfp_code: null
+                    };
+                }
                 const pt = inst.product_type != null ? String(inst.product_type).toUpperCase().trim() : '';
                 if (pt && !flowsMap[name].product_type) flowsMap[name].product_type = pt;
+                if (inst.product_id != null && flowsMap[name].product_id == null) {
+                    flowsMap[name].product_id = inst.product_id;
+                }
+                if (inst.resolut_pfp_code && !flowsMap[name].resolut_pfp_code) {
+                    flowsMap[name].resolut_pfp_code = inst.resolut_pfp_code;
+                }
                 flowsMap[name].amount += amt;
                 flowsMap[name].weightedYieldSum += (amt * y);
                 if (freq !== 'monthly' && flowsMap[name].payment_frequency === 'monthly') {
@@ -99,11 +128,18 @@ class PortfolioAggregator {
             // Расчитываем short_term_yield за 6 месяцев по суммарному объему + тип продукта из БД
             let shortTermYield = avgYield;
             let productType = data.product_type || null;
+            let productIdOut = data.product_id != null ? data.product_id : null;
+            let resolutPfpCodeOut = data.resolut_pfp_code || null;
             try {
                 const product = await productRepository.findByName(name, projectId);
                 if (product) {
                     const pt = (product.product_type || '').toUpperCase().trim();
                     if (pt) productType = pt;
+                    if (productIdOut == null) productIdOut = Number(product.id);
+                    if (!resolutPfpCodeOut && product.resolut_pfp_code) {
+                        const t = String(product.resolut_pfp_code).trim();
+                        resolutPfpCodeOut = t || null;
+                    }
                     if (product.yields && product.yields.length > 0) {
                         const TERM = 6;
                         const amount = data.amount;
@@ -131,6 +167,8 @@ class PortfolioAggregator {
                 short_term_yield: Math.round(shortTermYield * 100) / 100,
                 payment_frequency: data.payment_frequency,
                 product_type: productType || null,
+                product_id: productIdOut,
+                resolut_pfp_code: resolutPfpCodeOut,
             });
         }
         return list;

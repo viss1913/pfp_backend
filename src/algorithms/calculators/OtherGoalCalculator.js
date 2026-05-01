@@ -150,6 +150,7 @@ class OtherGoalCalculator extends BaseCalculator {
                     share: item.share_percent,
                     yield: productYield,
                     product_type: prodType || null,
+                    ...this.instrumentProductFields(product),
                 };
 
                 const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();

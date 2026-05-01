@@ -450,6 +450,19 @@ class BaseCalculator {
         return { fixedInflows, sharedInflowsTaken, allInflows: [...fixedInflows, ...sharedInflowsTaken] };
     }
 
+    /**
+     * Идентификаторы продукта для ответа расчёта / сборки quotes Resolut (ЛК агента).
+     * @param {Object|null} product — строка из productRepository.findById
+     * @returns {{ product_id: number|null, resolut_pfp_code: string|null }}
+     */
+    instrumentProductFields(product) {
+        if (!product || product.id == null) {
+            return { product_id: null, resolut_pfp_code: null };
+        }
+        const raw = product.resolut_pfp_code;
+        const trimmed = raw != null && String(raw).trim() !== '' ? String(raw).trim() : null;
+        return { product_id: Number(product.id), resolut_pfp_code: trimmed };
+    }
 
     /**
      * Доходность инструмента для взвешенного портфеля: котировка Resolut (только project RESOLUT_PROJECT_ID + resolut_pfp_code)
@@ -592,6 +605,7 @@ class BaseCalculator {
                 yield: productYield,
                 short_term_yield: shortTermYield,
                 product_type: prodType || null,
+                ...this.instrumentProductFields(product),
             };
 
             const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();

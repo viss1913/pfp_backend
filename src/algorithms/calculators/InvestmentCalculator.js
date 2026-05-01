@@ -92,6 +92,7 @@ class InvestmentCalculator extends BaseCalculator {
                 yield: Math.round(weightedYieldAnnual * 100) / 100,
                 amount: initialCapital,
                 product_type: null,
+                ...this.instrumentProductFields(null),
             });
         }
         if (monthlyReplenishment > 0 && (!monthly_instruments || monthly_instruments.length === 0)) {
@@ -101,6 +102,7 @@ class InvestmentCalculator extends BaseCalculator {
                 yield: Math.round(weightedYieldAnnual * 100) / 100,
                 amount: monthlyReplenishment,
                 product_type: null,
+                ...this.instrumentProductFields(null),
             });
         }
 

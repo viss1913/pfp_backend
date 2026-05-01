@@ -92,6 +92,7 @@ class FinReserveCalculator extends BaseCalculator {
                 share: 100,
                 yield: Math.round(weightedYieldAnnual * 100) / 100,
                 product_type: null,
+                ...this.instrumentProductFields(null),
             }];
         }
 

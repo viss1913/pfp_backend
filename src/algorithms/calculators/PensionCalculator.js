@@ -199,6 +199,7 @@ class PensionCalculator extends BaseCalculator {
                     yield: productYield,
                     short_term_yield: shortTermYieldP,
                     product_type: prodType || null,
+                    ...this.instrumentProductFields(product),
                 };
 
                 const bType = (item.bucket_type || 'INITIAL_CAPITAL').toUpperCase().trim();
@@ -283,23 +284,30 @@ class PensionCalculator extends BaseCalculator {
         // from the bucket loop above if they were part of the portfolio.
         // If we want to guarantee PDS is shown even if missing from buckets (legacy), 
         // we should only add if not already present.
-        if (pdsProductId && initial_instruments.length === 0) {
-            initial_instruments.push({
-                name: 'ПДС НПФ (Updated)',
-                share: 100,
-                yield: weightedYieldAnnual,
-                amount: initialCapital,
-                product_type: 'PDS',
-            });
-        }
-        if (pdsProductId && recommendedReplenishment > 0 && monthly_instruments.length === 0) {
-            monthly_instruments.push({
-                name: 'ПДС НПФ (Updated)',
-                share: 100,
-                yield: weightedYieldAnnual,
-                amount: recommendedReplenishment,
-                product_type: 'PDS',
-            });
+        if (pdsProductId && (initial_instruments.length === 0
+            || (recommendedReplenishment > 0 && monthly_instruments.length === 0))) {
+            const pdsRow = await productRepository.findById(pdsProductId, context.projectId);
+            const pdsMeta = this.instrumentProductFields(pdsRow);
+            if (initial_instruments.length === 0) {
+                initial_instruments.push({
+                    name: 'ПДС НПФ (Updated)',
+                    share: 100,
+                    yield: weightedYieldAnnual,
+                    amount: initialCapital,
+                    product_type: 'PDS',
+                    ...pdsMeta,
+                });
+            }
+            if (recommendedReplenishment > 0 && monthly_instruments.length === 0) {
+                monthly_instruments.push({
+                    name: 'ПДС НПФ (Updated)',
+                    share: 100,
+                    yield: weightedYieldAnnual,
+                    amount: recommendedReplenishment,
+                    product_type: 'PDS',
+                    ...pdsMeta,
+                });
+            }
         }
 
         if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
