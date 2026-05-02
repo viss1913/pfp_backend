@@ -857,6 +857,20 @@ components:
           type: string
         experience_years:
           type: integer
+        passport_series:
+          type: string
+          description: Серия паспорта
+        passport_number:
+          type: string
+          description: Номер паспорта
+        birth_date:
+          type: string
+          format: date
+          description: Дата рождения (YYYY-MM-DD)
+        gender:
+          type: string
+          enum: [male, female]
+          description: Пол
         created_at:
           type: string
           format: date-time
@@ -903,6 +917,16 @@ components:
           type: string
         experience_years:
           type: integer
+        passport_series:
+          type: string
+        passport_number:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
 
     AgentUpdate:
       type: object
@@ -937,6 +961,16 @@ components:
           type: string
         experience_years:
           type: integer
+        passport_series:
+          type: string
+        passport_number:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
 
     Project:
       type: object

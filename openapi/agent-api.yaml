@@ -2,7 +2,9 @@ openapi: 3.0.0
 info:
   title: Agent Management API
   version: 1.0.0
-  description: API для управления агентами в системе ПФП (создание, обновление, просмотр).
+  description: |
+    API для управления агентами в системе ПФП (создание, обновление, просмотр).
+    Актуальные поля профиля агента (паспорт, ДР, пол и т.д.) — в openapi/OPENAPI_SPEC.yaml (схемы Agent / AgentCreate / AgentUpdate).
 
 servers:
   - url: https://pfpbackend-production.up.railway.app/api
