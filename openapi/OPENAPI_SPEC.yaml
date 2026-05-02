@@ -871,6 +871,10 @@ components:
           type: string
           enum: [male, female]
           description: Пол
+        signature_image_url:
+          type: string
+          format: uri
+          description: Публичный URL изображения подписи (после загрузки через POST .../signature-upload или вручную)
         created_at:
           type: string
           format: date-time
@@ -927,6 +931,9 @@ components:
         gender:
           type: string
           enum: [male, female]
+        signature_image_url:
+          type: string
+          format: uri
 
     AgentUpdate:
       type: object
@@ -971,6 +978,9 @@ components:
         gender:
           type: string
           enum: [male, female]
+        signature_image_url:
+          type: string
+          format: uri
 
     Project:
       type: object
@@ -2474,6 +2484,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Agent'
+
+  /pfp/agents/{id}/signature-upload:
+    post:
+      summary: Загрузить изображение подписи агента
+      description: |
+        Multipart, поле `image` (jpeg, png, webp, до 8MB). Файл сохраняется в Cloudflare R2 (если настроен) или в `/uploads` на сервере; в БД пишется `signature_image_url`.
+        Доступ: admin/super_admin или сам агент (`id` совпадает с токеном).
+      tags:
+        - Agents
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: URL сохранён в профиле агента
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                  signature_image_url:
+                    type: string
+                    format: uri
+                  agent:
+                    $ref: '#/components/schemas/Agent'
+        '400':
+          description: Нет файла или неверный тип
+        '403':
+          description: Нет прав
+        '503':
+          description: R2 не настроен или ошибка загрузки (если включён STORAGE_REQUIRE_R2)
 
   # ==================== Agent: Clients (B2C/CRM hub) ====================
   /pfp/clients:

@@ -1,4 +1,8 @@
+const fs = require('fs');
+const path = require('path');
 const agentService = require('../services/agentService');
+const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
+const { bufferToWebp } = require('../utils/imageToWebp');
 
 class AgentController {
     /**
@@ -77,6 +81,103 @@ class AgentController {
 
             const updatedAgent = await agentService.updateAgent(agentId, projectId, req.body);
             res.json(updatedAgent);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /api/pfp/agents/:id/signature-upload
+     * multipart field `image` (jpeg, png, webp, max 8MB) → R2 или локальный fallback, URL в agents.signature_image_url
+     */
+    async uploadSignatureImage(req, res, next) {
+        try {
+            const agentId = req.params.id;
+            const projectId = req.projectId || req.user?.projectId;
+            const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+
+            if (!isAdmin && req.user.agentId !== parseInt(agentId, 10)) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+
+            if (!req.file || !req.file.buffer) {
+                return res.status(400).json({
+                    error: 'No file uploaded. Use multipart field name "image" (jpeg, png, webp, max 8MB).',
+                });
+            }
+
+            let ext = path.extname(req.file.originalname || '').toLowerCase();
+            if (!['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+                ext = '.jpg';
+            }
+
+            let uploadBody = req.file.buffer;
+            let contentType = req.file.mimetype || 'image/jpeg';
+            if (ext === '.png' || contentType === 'image/png') {
+                try {
+                    uploadBody = await bufferToWebp(uploadBody);
+                    ext = '.webp';
+                    contentType = 'image/webp';
+                } catch (e) {
+                    console.warn('[Agent] PNG→WebP failed, оригинал PNG:', e.message);
+                    uploadBody = req.file.buffer;
+                    ext = '.png';
+                    contentType = 'image/png';
+                }
+            }
+
+            const pid = projectId != null ? String(projectId) : 'common';
+            const key = `agent-signatures/${pid}/${agentId}/signature_${Date.now()}${ext}`;
+
+            const up = await uploadPublicFile({
+                key,
+                body: uploadBody,
+                contentType,
+            });
+
+            if (!up.ok) {
+                console.warn('[Agent] R2 signature upload failed:', up.reason, up.detail || '');
+            }
+
+            let publicUrl;
+            if (up.ok) {
+                publicUrl = up.url;
+            } else if (up.reason === 'r2_public_url_missing' || (isR2ClientReady() && up.reason === 'r2_put_failed')) {
+                return res.status(503).json({
+                    error:
+                        up.reason === 'r2_public_url_missing'
+                            ? 'R2: не задан публичный URL (R2_PUBLIC_BASE_URL / R2_CDN_BASE_URL / R2_PUBLIC_DOMAIN). См. docs/env-cloudflare-r2.md'
+                            : 'Загрузка в Cloudflare R2 не удалась (PutObject).',
+                    code: up.reason === 'r2_public_url_missing' ? 'R2_PUBLIC_URL_MISSING' : 'R2_PUT_FAILED',
+                    reason: up.reason,
+                    detail: up.detail || undefined,
+                });
+            } else if (isStorageUploadRequireR2()) {
+                return res.status(503).json({
+                    error: 'Cloudflare R2 is required (STORAGE_REQUIRE_R2) but upload failed',
+                    code: 'STORAGE_R2_REQUIRED',
+                    reason: up.reason || 'unknown',
+                    detail: up.detail || undefined,
+                });
+            } else {
+                const dir = path.join(__dirname, '../../uploads/agent-signatures', pid, String(agentId));
+                fs.mkdirSync(dir, { recursive: true });
+                const fname = `signature_${Date.now()}${ext}`;
+                const full = path.join(dir, fname);
+                fs.writeFileSync(full, uploadBody);
+                const baseUrl = `${req.protocol}://${req.get('host')}`;
+                publicUrl = `${baseUrl}/uploads/agent-signatures/${pid}/${agentId}/${fname}`;
+            }
+
+            const agent = await agentService.updateAgent(agentId, projectId, {
+                signature_image_url: publicUrl,
+            });
+
+            res.status(201).json({
+                url: publicUrl,
+                signature_image_url: publicUrl,
+                agent,
+            });
         } catch (err) {
             next(err);
         }
