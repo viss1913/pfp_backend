@@ -698,6 +698,39 @@ class ClientController {
     }
 
     /**
+     * POST /api/pfp/clients/nda/send — NDA до first-run: клиента в БД нет, тело как у sendNda.
+     */
+    async sendNdaStandalone(req, res, next) {
+        try {
+            const validation = sendNdaSchema.validate(req.body || {}, { stripUnknown: true });
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const agentId = req.user?.agentId;
+            if (!agentId) {
+                return res.status(403).json({ error: 'Доступно только агенту' });
+            }
+
+            const projectId = req.projectId != null ? req.projectId : req.user?.projectId;
+
+            const result = await ndaService.generateAndSendNdaStandalone({
+                agentUserId: Number(agentId),
+                projectId: projectId != null ? Number(projectId) : null,
+                clientEmail: validation.value.client_email,
+                clientFullName: validation.value.client_full_name,
+                clientPhone: validation.value.client_phone,
+                clientBirthDate: validation.value.client_birth_date,
+                clientGender: validation.value.client_gender,
+            });
+
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
      * POST /api/pfp/clients/:id/nda/send (см. agentClientRoutes; только agent/admin/super_admin)
      * Сформировать NDA (PDF), отправить на client_email из тела, вернуть pdf_base64.
      */

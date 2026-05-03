@@ -8,6 +8,9 @@ const { restrictTo } = require('../middlewares/roleMiddleware');
 // Все роуты ниже — только для ролей agent/admin/super_admin
 const agentMiddleware = [authMiddleware, tenantMiddleware, restrictTo('agent', 'admin', 'super_admin')];
 
+// POST /api/pfp/clients/nda/send — NDA без клиента в БД (до first-run); см. также POST /:id/nda/send
+router.post('/nda/send', agentMiddleware, clientController.sendNdaStandalone.bind(clientController));
+
 // GET /api/pfp/clients — список клиентов агента с планами из B2C/CRM
 router.get('/', agentMiddleware, clientController.listByAgent.bind(clientController));
 

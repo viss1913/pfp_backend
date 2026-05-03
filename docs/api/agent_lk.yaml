@@ -25,7 +25,9 @@ info:
     Полные схемы тел: **`openapi/pfp-api.yaml`** (`CalculationRequest`, `TaxPlanningRequest`). В этой спеке — тег **«Расчёт ПФП и налоги»**.
     Для карточки клиента кредиты передаются как `liabilities` (основной контракт) либо как алиас `credits` (`type`, `balance`, `monthlyPayment`, `rate`) с серверным маппингом в `liabilities`.
 
-    **NDA (соглашение о неразглашении):** `POST /pfp/clients/{clientId}/nda/send` — тело `NdaSendRequestBody`: обязательны `client_email`, `client_full_name`, `client_phone`, `client_birth_date`, `client_gender` (`male`/`female`, только для текста письма).
+    **NDA (соглашение о неразглашении):** тело `NdaSendRequestBody` — обязательны `client_email`, `client_full_name`, `client_phone`, `client_birth_date`, `client_gender` (`male`/`female`, только для текста письма).
+    - **`POST /pfp/clients/nda/send`** — клиента в БД ещё нет (до first-run), только JWT агента.
+    - **`POST /pfp/clients/{clientId}/nda/send`** — клиент уже есть; проверяется привязка к агенту.
   version: 1.0.0
 servers:
   - url: /api
@@ -773,6 +775,35 @@ paths:
                 $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ClientPlan'
         '404':
           description: Клиент или план не найдены
+
+  /pfp/clients/nda/send:
+    post:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Отправить NDA без клиента в БД (до first-run)
+      description: |
+        То же тело, что у `POST …/clients/{clientId}/nda/send` (`NdaSendRequestBody`), но **без** `clientId` в пути — карточка клиента не нужна (например, до расчёта / first-run).
+        Привязка к клиенту в БД не проверяется. PDF и письмо — как у второго маршрута.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NdaSendRequestBody'
+      responses:
+        '200':
+          description: Успех — PDF сгенерирован, письмо отправлено (Resend)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NdaSendResponse'
+        '400':
+          description: Неполное/невалидное тело, нет подписи у агента
+        '403':
+          description: Нет agent_id в токене
+        '404':
+          description: Агент не найден
+        '502':
+          description: Не удалось загрузить подпись или отправить почту
 
   /pfp/clients/{clientId}/nda/send:
     post:

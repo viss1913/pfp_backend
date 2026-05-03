@@ -58,18 +58,9 @@ async function fetchImageAsDataUri(url) {
 
 class NdaService {
     /**
-     * @param {object} params
-     * @param {number} params.clientId
-     * @param {number} params.agentUserId — req.user.agentId из JWT
-     * @param {number|null} params.projectId
-     * @param {string} params.clientEmail — email получателя (для PDF и отправки)
-     * @param {string} params.clientFullName
-     * @param {string} params.clientPhone
-     * @param {string} params.clientBirthDate — ISO date
-     * @param {'male'|'female'} params.clientGender — для текста письма (в PDF не подставляется)
+     * Общая отправка: PDF + письмо (подпись и данные агента из профиля).
      */
-    async generateAndSendNda({
-        clientId,
+    async _deliverNdaPdfEmail({
         agentUserId,
         projectId,
         clientEmail,
@@ -77,15 +68,8 @@ class NdaService {
         clientPhone,
         clientBirthDate,
         clientGender,
+        filename,
     }) {
-        const client = await clientService.getFullClient(clientId, projectId);
-        if (!client) {
-            throw { status: 404, message: 'Client not found' };
-        }
-        if (client.agent_id != null && Number(client.agent_id) !== Number(agentUserId)) {
-            throw { status: 403, message: 'Access denied' };
-        }
-
         const recipientEmail =
             clientEmail != null && String(clientEmail).trim() ? String(clientEmail).trim() : '';
         if (!recipientEmail) {
@@ -142,8 +126,6 @@ class NdaService {
         });
 
         const pdfBuffer = await renderHtmlToPdfBuffer(html);
-        const safeName = clientFullNameDisplay.replace(/[^\wа-яА-ЯёЁ\-]+/g, '_').slice(0, 80);
-        const filename = `NDA_${clientId}_${safeName || 'client'}.pdf`;
 
         const ccAgent =
             agentEmail &&
@@ -171,6 +153,75 @@ class NdaService {
             pdf_base64: pdfBuffer.toString('base64'),
             client_email: recipientEmail,
         };
+    }
+
+    /**
+     * NDA для существующего клиента (проверка agent_id в карточке).
+     */
+    async generateAndSendNda({
+        clientId,
+        agentUserId,
+        projectId,
+        clientEmail,
+        clientFullName,
+        clientPhone,
+        clientBirthDate,
+        clientGender,
+    }) {
+        const client = await clientService.getFullClient(clientId, projectId);
+        if (!client) {
+            throw { status: 404, message: 'Client not found' };
+        }
+        if (client.agent_id != null && Number(client.agent_id) !== Number(agentUserId)) {
+            throw { status: 403, message: 'Access denied' };
+        }
+
+        const safeName = String(clientFullName || '')
+            .trim()
+            .replace(/[^\wа-яА-ЯёЁ\-]+/g, '_')
+            .slice(0, 80);
+        const filename = `NDA_${clientId}_${safeName || 'client'}.pdf`;
+
+        return this._deliverNdaPdfEmail({
+            agentUserId,
+            projectId,
+            clientEmail,
+            clientFullName,
+            clientPhone,
+            clientBirthDate,
+            clientGender,
+            filename,
+        });
+    }
+
+    /**
+     * NDA без клиента в БД (до first-run): те же поля тела, без `clientId`.
+     */
+    async generateAndSendNdaStandalone({
+        agentUserId,
+        projectId,
+        clientEmail,
+        clientFullName,
+        clientPhone,
+        clientBirthDate,
+        clientGender,
+    }) {
+        const safeName = String(clientFullName || '')
+            .trim()
+            .replace(/[^\wа-яА-ЯёЁ\-]+/g, '_')
+            .slice(0, 60);
+        const filename = `NDA_${safeName || 'client'}_${Date.now()}.pdf`;
+
+        return this._deliverNdaPdfEmail({
+            agentUserId,
+            projectId,
+            clientEmail,
+            clientFullName,
+            clientPhone,
+            clientBirthDate,
+            clientGender,
+            filename,
+        });
     }
 }
 

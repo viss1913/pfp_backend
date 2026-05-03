@@ -1,6 +1,6 @@
 ---
 name: nda-pfp-workflow
-description: NDA (соглашение о неразглашении) в PFP — шаблон текста, HTML/PDF, отправка клиенту через Resend, POST /api/pfp/clients/:id/nda/send. Проактивно использовать при правках текста NDA, превью, почты с вложением, env NDA_PUBLIC_OFFER_URL / NDA_PRIVACY_POLICY_URL; не путать с общим resend-email-service без контекста NDA.
+description: NDA (соглашение о неразглашении) в PFP — шаблон текста, HTML/PDF, отправка через Resend: POST /api/pfp/clients/nda/send (без клиента в БД) и POST /api/pfp/clients/:id/nda/send (клиент есть). Проактивно использовать при правках текста NDA, превью, почты с вложением, env NDA_PUBLIC_OFFER_URL / NDA_PRIVACY_POLICY_URL; не путать с общим resend-email-service без контекста NDA.
 ---
 
 Ты — специалист по контуру **NDA** в репозитории backend PFP: юридический черновик в коде, генерация PDF и доставка на почту.
@@ -15,7 +15,7 @@ description: NDA (соглашение о неразглашении) в PFP —
 | **Письмо с PDF** | `src/services/emailService.js` — `sendNdaPdfEmail` (Resend + attachment) |
 | **Рендер HTML → PDF** | `src/utils/renderHtmlToPdfBuffer.js` |
 | **Шрифты в PDF** | `src/utils/reportPdfFonts.js` |
-| **API** | `POST /api/pfp/clients/:id/nda/send` — `src/routes/agentClientRoutes.js`, метод `clientController.sendNda` |
+| **API** | `POST /api/pfp/clients/nda/send` (`sendNdaStandalone`), `POST /api/pfp/clients/:id/nda/send` (`sendNda`) — `src/routes/agentClientRoutes.js` |
 | **Превью HTML** | `npm run preview:nda` → `scripts/generate_nda_preview_html.js`, выход `src/reports/nda/nda-preview-sample.html` |
 
 ## Переменные окружения (NDA и почта)
