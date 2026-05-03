@@ -13,7 +13,129 @@ function getResendClient() {
     return resend;
 }
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+const RESEND_FROM_RAW = () => (process.env.RESEND_FROM_EMAIL || '').trim();
+
+/** Из строки вида `Имя <addr@domain>` или просто `addr@domain` — только email. */
+function parseMailboxEmail(fromEnv) {
+    const raw = String(fromEnv ?? '')
+        .trim()
+        .replace(/^["']+|["']+$/g, '');
+    if (!raw) return null;
+    const m = raw.match(/<([^>]+)>/);
+    return (m ? m[1] : raw).trim() || null;
+}
+
+/** Домен из шаблона `{agent}@bank-future.com` (после подстановки заглушки). */
+function extractDomainFromAgentTemplate(template) {
+    const withPlaceholder = String(template).replace(/\{agent\}/gi, 'subst');
+    const at = withPlaceholder.lastIndexOf('@');
+    if (at < 0) return null;
+    return withPlaceholder.slice(at + 1).trim().toLowerCase().replace(/[>\s].*$/, '') || null;
+}
+
+/** Локальная часть из `email_corp` (только ящик или полный адрес — берём до @). */
+function normalizeCorpLocalPart(raw) {
+    const s = String(raw ?? '').trim();
+    if (!s) return null;
+    const at = s.indexOf('@');
+    const local = (at >= 0 ? s.slice(0, at) : s).trim();
+    return local || null;
+}
+
+/**
+ * Локальная часть для `{agent}`: приоритет agents.email_corp, иначе users.email на том же домене, иначе agent_{id}.
+ */
+function deriveAgentLocalPart(agent, domain) {
+    const corp = normalizeCorpLocalPart(agent?.email_corp);
+    if (corp) return corp;
+    if (!domain) return `agent_${agent?.id ?? '0'}`;
+    const em = String(agent?.email || '').trim();
+    if (em) {
+        const lower = em.toLowerCase();
+        const idx = lower.lastIndexOf('@');
+        if (idx > 0) {
+            const local = em.slice(0, idx).trim();
+            const dom = lower.slice(idx + 1);
+            if (dom === domain && local) {
+                return local;
+            }
+        }
+    }
+    return `agent_${agent?.id ?? '0'}`;
+}
+
+/**
+ * RESEND_FROM_EMAIL может быть `{agent}@bank-future.com` — подстановка по агенту (NDA).
+ * Иначе как раньше: один общий ящик.
+ */
+function resolveNdaMailbox(agent) {
+    let raw = RESEND_FROM_RAW() || 'onboarding@resend.dev';
+    if (/\{agent\}/i.test(raw)) {
+        const domain = extractDomainFromAgentTemplate(raw);
+        const local = deriveAgentLocalPart(agent, domain);
+        raw = raw.replace(/\{agent\}/gi, local).trim();
+    }
+    return parseMailboxEmail(raw) || raw;
+}
+
+/**
+ * Письма без контекста агента (код регистрации): при шаблоне `{agent}@domain` — noreply@domain.
+ */
+function getVerificationFrom() {
+    const raw = RESEND_FROM_RAW();
+    if (!raw) return 'onboarding@resend.dev';
+    if (/\{agent\}/i.test(raw)) {
+        const domain = extractDomainFromAgentTemplate(raw);
+        const local = (process.env.RESEND_SYSTEM_LOCAL || 'noreply').trim();
+        if (domain) return `${local}@${domain}`;
+        return 'onboarding@resend.dev';
+    }
+    return raw;
+}
+
+/**
+ * NDA: «ФИО» + конкретный ящик (в т.ч. ivanov@bank-future.com из шаблона).
+ */
+function buildNdaFromHeader(agentFullName, ndaMailboxEmail) {
+    const disabled =
+        process.env.NDA_FROM_USE_AGENT_NAME === '0' || process.env.NDA_FROM_USE_AGENT_NAME === 'false';
+    if (disabled) {
+        return ndaMailboxEmail;
+    }
+    const addr = String(ndaMailboxEmail || '').trim();
+    if (!addr) {
+        return RESEND_FROM_RAW() || 'onboarding@resend.dev';
+    }
+    const name = String(agentFullName || '')
+        .trim()
+        .replace(/"/g, '')
+        .replace(/[\r\n]+/g, ' ');
+    if (!name || name === '—') {
+        return addr;
+    }
+    return `"${name}" <${addr}>`;
+}
+
+/** Ответ клиента — на почту агента (если не совпадает с фактическим From). */
+function buildNdaReplyTo(agentEmail, ndaFromMailboxEmail) {
+    const disabled =
+        process.env.NDA_REPLY_TO_AGENT === '0' || process.env.NDA_REPLY_TO_AGENT === 'false';
+    if (disabled) {
+        return undefined;
+    }
+    const em = String(agentEmail || '').trim();
+    if (!em || em === '—') {
+        return undefined;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+        return undefined;
+    }
+    const fromAddr = String(ndaFromMailboxEmail || '').trim().toLowerCase();
+    if (fromAddr && em.toLowerCase() === fromAddr) {
+        return undefined;
+    }
+    return em;
+}
 
 function escapeHtmlLite(s) {
     return String(s || '')
@@ -70,7 +192,7 @@ class EmailService {
     async sendVerificationCode(email, code) {
         try {
             const { data, error } = await getResendClient().emails.send({
-                from: FROM_EMAIL,
+                from: getVerificationFrom(),
                 to: email,
                 subject: 'Код подтверждения регистрации',
                 html: this._buildVerificationEmail(code)
@@ -105,7 +227,7 @@ class EmailService {
      */
     /**
      * Письмо с PDF соглашения о неразглашении (NDA).
-     * @param {{ to: string, cc?: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, pdfBuffer: Buffer, filename: string }} opts
+     * @param {{ to: string, cc?: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, pdfBuffer: Buffer, filename: string, ndaAgent: { id: number, email?: string|null, email_corp?: string|null } }} opts
      */
     async sendNdaPdfEmail({
         to,
@@ -117,6 +239,7 @@ class EmailService {
         agentPhone,
         pdfBuffer,
         filename,
+        ndaAgent,
     }) {
         const safeName = filename && String(filename).endsWith('.pdf') ? filename : `${filename || 'NDA'}.pdf`;
         const salutation = buildNdaSalutationLine(clientGender, clientFullName);
@@ -132,11 +255,16 @@ class EmailService {
   <p style="margin-top:1.5em;">${signature}</p>
 </body></html>`;
 
+        const ndaMailbox = resolveNdaMailbox(ndaAgent || {});
+        const fromHeader = buildNdaFromHeader(agentFullName, ndaMailbox);
+        const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
+
         try {
             const { data, error } = await getResendClient().emails.send({
-                from: FROM_EMAIL,
+                from: fromHeader,
                 to,
                 ...(cc ? { cc } : {}),
+                ...(replyTo ? { reply_to: replyTo } : {}),
                 subject,
                 html,
                 attachments: [

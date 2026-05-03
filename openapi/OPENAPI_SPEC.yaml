@@ -835,6 +835,12 @@ components:
           type: string
         email:
           type: string
+        email_corp:
+          type: string
+          nullable: true
+          description: |
+            Локальная часть корпоративной почты без домена (например vissarov), для подстановки в RESEND_FROM_EMAIL
+            вида {agent}@bank-future.com при отправке NDA и др. Если передан полный адрес — используется часть до @.
         phone:
           type: string
         website_url:
@@ -934,6 +940,10 @@ components:
         signature_image_url:
           type: string
           format: uri
+        email_corp:
+          type: string
+          nullable: true
+          description: Локальная часть корпоративного ящика (см. Agent.email_corp)
 
     AgentUpdate:
       type: object
@@ -981,6 +991,10 @@ components:
         signature_image_url:
           type: string
           format: uri
+        email_corp:
+          type: string
+          nullable: true
+          description: Локальная часть корпоративного ящика (см. Agent.email_corp)
 
     Project:
       type: object

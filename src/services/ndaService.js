@@ -144,6 +144,7 @@ class NdaService {
             agentPhone,
             pdfBuffer,
             filename,
+            ndaAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
         });
 
         return {
