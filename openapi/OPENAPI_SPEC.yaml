@@ -2641,6 +2641,75 @@ paths:
         '400':
           description: Agent ID not found in token
 
+  /pfp/clients/{clientId}/nda/send:
+    post:
+      summary: Сформировать NDA (PDF), отправить клиенту на email, вернуть PDF в base64
+      description: |
+        Только для агента. Тело запроса **обязательно** содержит `client_email`, `client_full_name`, `client_phone`, `client_birth_date` (ISO), `client_gender` (`male`/`female`).
+        На `client_email` уходит PDF; первые четыре поля — в таблице сторон документа. Пол клиента используется только для обращения в тексте письма («Уважаемый/Уважаемая»), в PDF не подставляется.
+        URL оферты/политики ПДн задаются на бэкенде (`NDA_*` в env).
+        У агента должна быть загружена подпись (`signature_image_url`). Письмо с PDF через Resend.
+      tags: [Agents, Clients]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: clientId
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [client_email, client_full_name, client_phone, client_birth_date, client_gender]
+              additionalProperties: false
+              properties:
+                client_email:
+                  type: string
+                  format: email
+                  description: Адрес доставки PDF и email в таблице сторон NDA
+                client_full_name:
+                  type: string
+                  minLength: 2
+                  maxLength: 500
+                  description: ФИО клиента в таблице сторон NDA
+                client_phone:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                  description: Телефон в таблице сторон NDA
+                client_birth_date:
+                  type: string
+                  format: date
+                  description: Дата рождения клиента (ISO 8601)
+                client_gender:
+                  type: string
+                  enum: [male, female]
+                  description: Пол клиента — для приветствия в письме с PDF (в документ NDA не входит)
+      responses:
+        '200':
+          description: Успех
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  message_id: { type: string, nullable: true }
+                  filename: { type: string }
+                  pdf_base64: { type: string }
+                  client_email: { type: string, format: email }
+        '400':
+          description: Неполное или невалидное тело (все поля клиента обязательны), нет подписи у агента и т.п.
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент или агент не найден
+        '502':
+          description: Не удалось загрузить подпись или отправить почту
+
   /admin/constructor/bots:
     get:
       summary: List all AI bots (Admin)

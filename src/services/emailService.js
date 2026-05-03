@@ -15,6 +15,51 @@ function getResendClient() {
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 
+function escapeHtmlLite(s) {
+    return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+/** Из ФИО «Фамилия Имя Отчество» → «Имя Отчество» для обращения в письме. */
+function extractFirstNamePatronymic(fullName) {
+    const parts = String(fullName || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    if (parts.length >= 3) return `${parts[1]} ${parts[2]}`;
+    if (parts.length === 2) return parts[1];
+    return parts[0] || '';
+}
+
+function buildNdaEmailSubject(agentFullName) {
+    const name = String(agentFullName || '').trim() || 'Финансовый консультант';
+    return `Соглашение о неразглашении. Финансовый консультант ${name}`;
+}
+
+function buildNdaSalutationLine(clientGender, clientFullName) {
+    const title = clientGender === 'female' ? 'Уважаемая' : 'Уважаемый';
+    const short = extractFirstNamePatronymic(clientFullName);
+    const namePart = String(short || clientFullName || '').trim() || 'клиент';
+    return `${title} ${escapeHtmlLite(namePart)},`;
+}
+
+function buildNdaAgentSignatureHtml(agentFullName, agentEmail, agentPhone) {
+    const nameLine = escapeHtmlLite(String(agentFullName || '').trim() || '—');
+    const blocks = [`С уважением,<br/>${nameLine}`];
+    const em = String(agentEmail || '').trim();
+    const ph = String(agentPhone || '').trim();
+    if (em && em !== '—') {
+        blocks.push(`<a href="mailto:${escapeHtmlLite(em)}">${escapeHtmlLite(em)}</a>`);
+    }
+    if (ph && ph !== '—') {
+        blocks.push(escapeHtmlLite(ph));
+    }
+    return blocks.join('<br/>');
+}
+
 class EmailService {
     /**
      * Send a 6-digit verification code to the client's email
@@ -58,6 +103,71 @@ class EmailService {
     /**
      * Build a nice HTML email with the verification code
      */
+    /**
+     * Письмо с PDF соглашения о неразглашении (NDA).
+     * @param {{ to: string, cc?: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, pdfBuffer: Buffer, filename: string }} opts
+     */
+    async sendNdaPdfEmail({
+        to,
+        cc,
+        clientFullName,
+        clientGender,
+        agentFullName,
+        agentEmail,
+        agentPhone,
+        pdfBuffer,
+        filename,
+    }) {
+        const safeName = filename && String(filename).endsWith('.pdf') ? filename : `${filename || 'NDA'}.pdf`;
+        const salutation = buildNdaSalutationLine(clientGender, clientFullName);
+        const signature = buildNdaAgentSignatureHtml(agentFullName, agentEmail, agentPhone);
+        const subject = buildNdaEmailSubject(agentFullName);
+        const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:15px;color:#333;line-height:1.6;">
+  <p>${salutation}</p>
+  <p>Направляю вам во вложении соглашение о неразглашении информации (NDA). Документ подготовлен в рамках консультационного сопровождения.</p>
+  <p>При необходимости вы можете задать вопросы по контактным данным ниже.</p>
+  <p style="margin-top:1.5em;">${signature}</p>
+</body></html>`;
+
+        try {
+            const { data, error } = await getResendClient().emails.send({
+                from: FROM_EMAIL,
+                to,
+                ...(cc ? { cc } : {}),
+                subject,
+                html,
+                attachments: [
+                    {
+                        filename: safeName,
+                        content: pdfBuffer,
+                    },
+                ],
+            });
+
+            if (error) {
+                console.error('[EmailService] Resend NDA error:', JSON.stringify(error));
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn('[EmailService] DEV: NDA email failed; PDF still returned in API response');
+                    return { id: 'dev-mode-nda', error: error.message };
+                }
+                throw { status: 502, message: 'Не удалось отправить письмо с NDA' };
+            }
+
+            console.log(`[EmailService] NDA PDF sent to ${to}, messageId: ${data?.id}`);
+            return data;
+        } catch (err) {
+            if (err.status) throw err;
+            console.error('[EmailService] NDA send error:', err.message || err);
+            if (process.env.NODE_ENV !== 'production') {
+                return { id: 'dev-mode-nda-fallback' };
+            }
+            throw { status: 502, message: 'Сервис почты недоступен' };
+        }
+    }
+
     _buildVerificationEmail(code) {
         return `
 <!DOCTYPE html>

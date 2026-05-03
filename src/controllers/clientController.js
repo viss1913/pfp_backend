@@ -171,12 +171,21 @@ const taxPlanningRequestSchema = Joi.object({
     }).default({})
 });
 
+const sendNdaSchema = Joi.object({
+    client_email: Joi.string().trim().email().required(),
+    client_full_name: Joi.string().trim().min(2).max(500).required(),
+    client_phone: Joi.string().trim().min(1).max(50).required(),
+    client_birth_date: Joi.string().isoDate().required(),
+    client_gender: Joi.string().valid('male', 'female').required(),
+});
+
 const clientService = require('../services/clientService');
 const aiB2cService = require('../services/aiB2cService');
 const constructorSiteChatAgentService = require('../services/constructorSiteChatAgentService');
 const goalRecalculator = require('../algorithms/recalculators');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const taxPlanningService = require('../services/taxPlanningService');
+const ndaService = require('../services/ndaService');
 const { ensureClientReportPdfReady } = require('../services/reportPdfStorageService');
 const pdfWarmupScheduleByClient = new Map();
 
@@ -683,6 +692,45 @@ class ClientController {
             if (!req.body) req.body = {};
             req.body.goals = null;
             return this.recalculate(req, res, next);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /api/pfp/clients/:id/nda/send (см. agentClientRoutes; только agent/admin/super_admin)
+     * Сформировать NDA (PDF), отправить на client_email из тела, вернуть pdf_base64.
+     */
+    async sendNda(req, res, next) {
+        try {
+            const validation = sendNdaSchema.validate(req.body || {}, { stripUnknown: true });
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const agentId = req.user?.agentId;
+            if (!agentId) {
+                return res.status(403).json({ error: 'Доступно только агенту' });
+            }
+
+            const projectId = req.projectId != null ? req.projectId : req.user?.projectId;
+            const clientId = Number(req.params.id);
+            if (!Number.isFinite(clientId)) {
+                return res.status(400).json({ error: 'Некорректный id клиента' });
+            }
+
+            const result = await ndaService.generateAndSendNda({
+                clientId,
+                agentUserId: Number(agentId),
+                projectId: projectId != null ? Number(projectId) : null,
+                clientEmail: validation.value.client_email,
+                clientFullName: validation.value.client_full_name,
+                clientPhone: validation.value.client_phone,
+                clientBirthDate: validation.value.client_birth_date,
+                clientGender: validation.value.client_gender,
+            });
+
+            res.json(result);
         } catch (err) {
             next(err);
         }

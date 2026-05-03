@@ -24,6 +24,8 @@ info:
     - **`POST /client/tax-planning/calculate`** — только расширенное налоговое планирование (имущественный вычет, %% ипотеки, соцвычет до 150k, дети); **без** массива `goals`. Требуется JWT агента (как у `first-run`).
     Полные схемы тел: **`openapi/pfp-api.yaml`** (`CalculationRequest`, `TaxPlanningRequest`). В этой спеке — тег **«Расчёт ПФП и налоги»**.
     Для карточки клиента кредиты передаются как `liabilities` (основной контракт) либо как алиас `credits` (`type`, `balance`, `monthlyPayment`, `rate`) с серверным маппингом в `liabilities`.
+
+    **NDA (соглашение о неразглашении):** `POST /pfp/clients/{clientId}/nda/send` — тело `NdaSendRequestBody`: обязательны `client_email`, `client_full_name`, `client_phone`, `client_birth_date`, `client_gender` (`male`/`female`, только для текста письма).
   version: 1.0.0
 servers:
   - url: /api
@@ -771,6 +773,42 @@ paths:
                 $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/ClientPlan'
         '404':
           description: Клиент или план не найдены
+
+  /pfp/clients/{clientId}/nda/send:
+    post:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Отправить клиенту NDA (PDF на email)
+      description: |
+        Собирает PDF и отправляет на **`client_email`**. В теле — обязательные данные клиента (см. `NdaSendRequestBody`): ФИО, телефон, дата рождения и **`client_gender`** для обращения в письме («Уважаемый/Уважаемая …»); пол в PDF не подставляется.
+
+        У агента в профиле должно быть изображение подписи. Текст соглашения и ссылки на оферту/политику ПДн задаются на бэкенде (`NDA_PUBLIC_OFFER_URL`, `NDA_PRIVACY_POLICY_URL`, `NDA_AGREEMENT_CITY` и т.д.).
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NdaSendRequestBody'
+      responses:
+        '200':
+          description: Успех — PDF сгенерирован, письмо отправлено (Resend)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NdaSendResponse'
+        '400':
+          description: Неполное/невалидное тело (все поля клиента обязательны), нет подписи у агента
+        '403':
+          description: Нет agent_id в токене или доступ к клиенту запрещён
+        '404':
+          description: Клиент или агент не найден
+        '502':
+          description: Не удалось загрузить подпись или отправить почту
 
   /my/risk-profile/questionnaire:
     get:
@@ -2223,6 +2261,60 @@ components:
       allOf:
         - $ref: '#/components/schemas/AgentClientB2CRow'
       description: Полная карточка клиента (те же поля, что в списке, плюс goals, assets, liabilities, expenses и т.д.)
+
+    NdaSendRequestBody:
+      type: object
+      required: [client_email, client_full_name, client_phone, client_birth_date, client_gender]
+      description: |
+        На `client_email` уходит PDF; `client_email`, `client_full_name`, `client_phone`, `client_birth_date` — в таблице сторон NDA.
+        `client_gender` — только для текста письма (обращение), в PDF не попадает.
+        Раньше поддерживались `client_passport_line` и `client_address_line` — **удалены**, не отправлять.
+      properties:
+        client_email:
+          type: string
+          format: email
+          description: Куда отправить письмо с PDF и какой email показать в документе
+        client_full_name:
+          type: string
+          minLength: 2
+          maxLength: 500
+          description: ФИО клиента для таблицы сторон в NDA
+        client_phone:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Телефон для таблицы сторон
+        client_birth_date:
+          type: string
+          format: date
+          description: Дата рождения ISO 8601 (`YYYY-MM-DD`), например `1985-06-12`
+        client_gender:
+          type: string
+          enum: [male, female]
+          description: Пол клиента — приветствие в письме (Уважаемый/Уважаемая); в PDF не подставляется
+      additionalProperties: false
+
+    NdaSendResponse:
+      type: object
+      required: [ok, filename, pdf_base64, client_email]
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message_id:
+          type: string
+          nullable: true
+          description: Идентификатор письма в Resend (если доставка через Resend)
+        filename:
+          type: string
+          description: Имя файла вложения
+        pdf_base64:
+          type: string
+          description: Тот же PDF в Base64 (превью или скачивание в ЛК)
+        client_email:
+          type: string
+          format: email
+          description: Адрес, на который отправлено письмо (тот же, что `client_email` в запросе)
 
     RiskProfileAnswersRequest:
       type: object

@@ -1,8 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const puppeteer = require('puppeteer');
-
 const reportService = require('./reportService');
+const { injectReportPdfEmbeddedFont } = require('../utils/reportPdfFonts');
+const { renderHtmlToPdfBuffer } = require('../utils/renderHtmlToPdfBuffer');
 const pdfSettingsService = require('./pdfSettingsService');
 const macroService = require('./macroService');
 const { buildReportCoverHtml } = require('../reports/cover/buildCoverHtml');
@@ -31,50 +29,6 @@ function escapeAttr(s) {
         .replace(/"/g, '&quot;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
-}
-
-const REPO_ROOT_FOR_PDF_FONTS = path.join(__dirname, '..', '..');
-/** Кэш HTML-блока с @font-face (DejaVu — есть U+20BD ₽) для страниц в iframe[srcdoc]. */
-let cachedReportPdfFontInjectionHtml = null;
-
-function buildReportPdfFontInjectionHtml() {
-    if (cachedReportPdfFontInjectionHtml !== null) {
-        return cachedReportPdfFontInjectionHtml;
-    }
-    const normalPath = path.join(REPO_ROOT_FOR_PDF_FONTS, 'assets', 'fonts', 'DejaVuSans.ttf');
-    const boldPath = path.join(REPO_ROOT_FOR_PDF_FONTS, 'assets', 'fonts', 'DejaVuSans-Bold.ttf');
-    if (!fs.existsSync(normalPath)) {
-        console.warn('[reportPdfService] DejaVuSans.ttf not found — символ ₽ в PDF может отображаться квадратиком');
-        cachedReportPdfFontInjectionHtml = '';
-        return cachedReportPdfFontInjectionHtml;
-    }
-    const normalB64 = fs.readFileSync(normalPath).toString('base64');
-    const boldB64 = fs.existsSync(boldPath) ? fs.readFileSync(boldPath).toString('base64') : normalB64;
-    cachedReportPdfFontInjectionHtml = `<style data-pfp-pdf-font="1">
-@font-face{font-family:PfpPdfSans;src:url(data:font/ttf;base64,${normalB64}) format('truetype');font-weight:400;font-style:normal;font-display:block;}
-@font-face{font-family:PfpPdfSans;src:url(data:font/ttf;base64,${boldB64}) format('truetype');font-weight:700;font-style:normal;font-display:block;}
-body{font-family:PfpPdfSans,'DejaVu Sans',sans-serif!important;}
-svg text{font-family:PfpPdfSans,'DejaVu Sans',sans-serif!important;}
-</style>`;
-    return cachedReportPdfFontInjectionHtml;
-}
-
-/**
- * Каждая страница отчёта живёт в iframe[srcdoc] — шрифты родителя туда не попадают.
- * Встраиваем DejaVu, иначе ₽ часто превращается в «тофу» (□).
- */
-function injectReportPdfEmbeddedFontForIframe(html) {
-    const s = String(html || '');
-    if (!s || s.includes('data-pfp-pdf-font')) return s;
-    const inj = buildReportPdfFontInjectionHtml();
-    if (!inj) return s;
-    if (/<\/head>/i.test(s)) {
-        return s.replace(/<\/head>/i, `${inj}\n</head>`);
-    }
-    if (/<head[^>]*>/i.test(s)) {
-        return s.replace(/<head[^>]*>/i, (open) => `${open}\n${inj}\n`);
-    }
-    return s;
 }
 
 function buildFramesContainerHtml(pageHtmlList) {
@@ -122,21 +76,6 @@ function buildFramesContainerHtml(pageHtmlList) {
 ${frames}
 </body>
 </html>`;
-}
-
-function getDefaultExecutablePath() {
-    const candidates = [
-        process.env.PUPPETEER_EXECUTABLE_PATH,
-        process.env.CHROME_BIN,
-        '/usr/bin/chromium',
-        '/usr/bin/google-chrome-stable',
-        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    ].filter(Boolean);
-
-    return candidates.find((p) => fs.existsSync(p)) || null;
 }
 
 function estimateScheduleChunks(goal) {
@@ -250,7 +189,7 @@ class ReportPdfService {
             includeSummary,
             goalTypes,
         });
-        const pdfBuffer = await this._renderPdfFromMergedHtml(htmlPkg.mergedHtml);
+        const pdfBuffer = await renderHtmlToPdfBuffer(htmlPkg.mergedHtml);
         return {
             pdfBuffer,
             toc: htmlPkg.toc,
@@ -430,55 +369,11 @@ class ReportPdfService {
             toc = buildRostechPensionOnlyToc({ hasCover: includeCover, goal: pensionGoal });
         }
 
-        const pageHtmlListForPdf = pageHtmlList.map((h) => injectReportPdfEmbeddedFontForIframe(h));
+        const pageHtmlListForPdf = pageHtmlList.map((h) => injectReportPdfEmbeddedFont(h));
         const mergedHtml = buildFramesContainerHtml(pageHtmlListForPdf);
         return { mergedHtml, toc, pageHtmlList: pageHtmlListForPdf };
     }
 
-    async _renderPdfFromMergedHtml(mergedHtml) {
-
-        const executablePath = getDefaultExecutablePath();
-        const launchOptions = {
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--disable-software-rasterizer',
-            ],
-        };
-
-        if (executablePath) {
-            launchOptions.executablePath = executablePath;
-        }
-
-        const browser = await puppeteer.launch(launchOptions);
-        try {
-            const page = await browser.newPage();
-            const pdfNavTimeoutMs = Math.min(
-                Math.max(Number(process.env.REPORT_PDF_NAV_TIMEOUT_MS) || 120000, 15000),
-                300000
-            );
-            page.setDefaultNavigationTimeout(pdfNavTimeoutMs);
-            page.setDefaultTimeout(pdfNavTimeoutMs);
-            await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
-            // load — быстрее networkidle0; вёрстка отчёта с data:-картинками не ждёт сеть
-            await page.setContent(mergedHtml, {
-                waitUntil: 'load',
-                timeout: pdfNavTimeoutMs,
-            });
-            await new Promise((resolve) => setTimeout(resolve, 450));
-            return await page.pdf({
-                printBackground: true,
-                format: 'A4',
-                margin: { top: '0', right: '0', bottom: '0', left: '0' },
-                preferCSSPageSize: true,
-            });
-        } finally {
-            await browser.close();
-        }
-    }
 }
 
 module.exports = new ReportPdfService();

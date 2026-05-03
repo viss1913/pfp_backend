@@ -15,6 +15,8 @@
     "test:monthly-schedule-pds": "node scripts/test_monthly_schedule_pds.js",
     "test:portfolio-fallback": "node scripts/test_portfolio_find_by_criteria_fallback.js",
     "r2:smoke": "node scripts/r2_smoke_test.js",
+    "smoke:resend": "node scripts/smoke_resend.js",
+    "preview:nda": "node scripts/generate_nda_preview_html.js",
     "r2:upload-sample-image": "node scripts/r2_upload_sample_image.js",
     "seed:pdf-cover-default": "node scripts/seed_default_report_cover_all_agents.js",
     "seed:pdf-goal-cards-r2": "node scripts/seed_report_goal_cards_r2.js",

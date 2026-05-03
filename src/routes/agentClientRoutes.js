@@ -17,5 +17,8 @@ router.get('/:id/plans', agentMiddleware, clientController.get.bind(clientContro
 // POST /api/pfp/clients/:clientId/plans/:planId/take-over — подхватить план клиента агентом
 router.post('/:id/plans/:planId/take-over', agentMiddleware, clientController.recalculate.bind(clientController));
 
+// POST /api/pfp/clients/:id/nda/send — NDA PDF на email клиента + base64 в ответе
+router.post('/:id/nda/send', agentMiddleware, clientController.sendNda.bind(clientController));
+
 module.exports = router;
 
