@@ -2690,6 +2690,7 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
+                  success: { type: boolean, description: Дублирует контракт ЛК (как у других POST) }
                   message_id: { type: string, nullable: true }
                   filename: { type: string }
                   pdf_base64: { type: string }
@@ -2760,6 +2761,7 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
+                  success: { type: boolean }
                   message_id: { type: string, nullable: true }
                   filename: { type: string }
                   pdf_base64: { type: string }

@@ -148,6 +148,7 @@ class NdaService {
 
         return {
             ok: true,
+            success: true,
             message_id: emailResult?.id || null,
             filename,
             pdf_base64: pdfBuffer.toString('base64'),

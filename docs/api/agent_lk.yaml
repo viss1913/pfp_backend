@@ -2327,11 +2327,15 @@ components:
 
     NdaSendResponse:
       type: object
-      required: [ok, filename, pdf_base64, client_email]
+      required: [ok, success, filename, pdf_base64, client_email]
       properties:
         ok:
           type: boolean
           example: true
+        success:
+          type: boolean
+          example: true
+          description: Как у остальных эндпоинтов ЛК (`success: true` при успехе)
         message_id:
           type: string
           nullable: true

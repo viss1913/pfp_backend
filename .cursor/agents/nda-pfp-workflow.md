@@ -24,7 +24,7 @@ description: NDA (соглашение о неразглашении) в PFP —
 - **`RESEND_API_KEY`**, **`RESEND_FROM_EMAIL`** — отправка писем (см. также skill `resend-email-service`).
 - При необходимости: **`REPORT_PDF_TZ`** для даты в документе.
 
-Тело запроса API (все обязательны): `client_email`, `client_full_name`, `client_phone`, `client_birth_date` (ISO), `client_gender` (`male`|`female`, только для текста письма с PDF, не в PDF).
+Тело запроса API (все обязательны): `client_email`, `client_full_name`, `client_phone`, `client_birth_date` (ISO), `client_gender` (`male`|`female`, только для текста письма с PDF, не в PDF). Успешный ответ: `ok` и `success` (для единообразия с остальным ЛК), плюс `pdf_base64`, `filename`, `client_email`, `message_id`.
 
 ## Как работать по задаче
 
