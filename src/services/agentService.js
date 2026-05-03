@@ -2,6 +2,7 @@ const knex = require('../config/database');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const smmService = require('./smmService');
+const { withNormalizedBirthDate } = require('../utils/normalizeMysqlDate');
 
 class AgentService {
     /**
@@ -36,11 +37,12 @@ class AgentService {
      */
     async createAgent(projectId, data) {
         const { email, password, ...agentData } = data;
+        const profile = withNormalizedBirthDate(agentData);
 
         return await knex.transaction(async (trx) => {
             // 1. Create agent profile
             const [id] = await trx('agents').insert({
-                ...agentData,
+                ...profile,
                 project_id: projectId,
                 uuid: crypto.randomUUID(), // Generate universal UUID
                 created_at: new Date(),
@@ -60,9 +62,9 @@ class AgentService {
                     project_id: projectId,
                     email,
                     password_hash: passwordHash,
-                    name: `${agentData.first_name || ''} ${agentData.last_name || ''}`.trim() || 'Agent',
+                    name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Agent',
                     role: 'agent',
-                    is_active: agentData.is_active !== undefined ? agentData.is_active : true,
+                    is_active: profile.is_active !== undefined ? profile.is_active : true,
                     created_at: new Date(),
                     updated_at: new Date()
                 });
@@ -105,6 +107,7 @@ class AgentService {
      */
     async updateAgent(id, projectId, data) {
         const { email, password, ...agentData } = data;
+        const profile = withNormalizedBirthDate(agentData);
 
         return await knex.transaction(async (trx) => {
             // Check if agent exists and belongs to project
@@ -114,9 +117,9 @@ class AgentService {
             }
 
             // 1. Update agent profile
-            if (Object.keys(agentData).length > 0) {
+            if (Object.keys(profile).length > 0) {
                 await trx('agents').where({ id, project_id: projectId }).update({
-                    ...agentData,
+                    ...profile,
                     updated_at: new Date()
                 });
             }
@@ -125,7 +128,7 @@ class AgentService {
             const userUpdate = {};
             if (email) userUpdate.email = email;
             if (password) userUpdate.password_hash = await bcrypt.hash(password, 10);
-            if (agentData.is_active !== undefined) userUpdate.is_active = agentData.is_active;
+            if (profile.is_active !== undefined) userUpdate.is_active = profile.is_active;
 
             if (Object.keys(userUpdate).length > 0) {
                 const existingUser = await trx('users').where({ agent_id: id, project_id: projectId }).first();
@@ -145,9 +148,9 @@ class AgentService {
                         project_id: projectId,
                         email,
                         password_hash: passwordHash,
-                        name: `${agentData.first_name || ''} ${agentData.last_name || ''}`.trim() || 'Agent',
+                        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Agent',
                         role: 'agent',
-                        is_active: agentData.is_active !== undefined ? agentData.is_active : true,
+                        is_active: profile.is_active !== undefined ? profile.is_active : true,
                         created_at: new Date(),
                         updated_at: new Date()
                     });
