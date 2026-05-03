@@ -9,6 +9,8 @@ info:
 
     **Настройки PDF-отчёта** (обложка, сводная, `goal_card_assets` для превью карточек целей): отдельная спека **`openapi/PDFsettings.yaml`**, Swagger UI: `/api-docs-pdf-settings`, префикс путей `/api/pfp/pdf-settings`.
 
+    **Отправка готового PDF финплана клиенту на email** (Resend, от имени агента, вложение + краткое письмо): **`POST /pfp/reports/{clientId}/pdf/send-email`** — см. путь ниже; полный контракт отчёта также в **`openapi/getReport.yaml`**.
+
     **Resolut (AV Inform) для ЛК:** отдельная спека **`docs/api/pfp_resolut.yaml`** (прокси `products/quote/client/portfolio/link`, `plan-quotes` / `plan-publish-preview` / `publish-from-plan`, `suggest-quote-line`, `publish-preview` / `publish` / `publications`).
 
     **AI B2C в ЛК агента — два независимых набора контекстов:**
@@ -840,6 +842,114 @@ paths:
           description: Клиент или агент не найден
         '502':
           description: Не удалось загрузить подпись или отправить почту
+
+  /pfp/reports/{clientId}/pdf/send-email:
+    post:
+      tags: [ "PDF-отчёт клиента" ]
+      summary: Отправить PDF финплана клиенту на email (от имени агента)
+      description: |
+        Генерирует PDF отчёта (как `GET /pfp/reports/{clientId}/pdf`), один раз поднимает данные отчёта с ИИ-резюме,
+        сжимает PDF и отправляет письмо через **Resend** с вложением. Обращение в письме — «Уважаемый/ая», имя и отчество;
+        в теле — краткая сводка по портфелю и текст executive summary.
+
+        **Доступ:** агент (владелец клиента) или администратор. Роль `client` — **403**.
+
+        **Получатель:** `client_email` или `to` в JSON, иначе query `client_email` / `to`, иначе `email` из карточки клиента (если пусто — **400**).
+
+        Параметры `includeCover`, `includeSummary`, `goalTypes` — в теле или query (как у GET PDF); приоритет у полей тела.
+        Требуются настроенные `RESEND_API_KEY` и verified-домен для `RESEND_FROM_EMAIL` (см. NDA / внутреннюю документацию Resend).
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: includeCover
+          in: query
+          required: false
+          description: По умолчанию true; `0` / `false` — без обложки
+          schema:
+            type: string
+        - name: includeSummary
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: goalTypes
+          in: query
+          required: false
+          description: Подмножество целей через запятую, например `FIN_RESERVE,LIFE`
+          schema:
+            type: string
+        - name: client_email
+          in: query
+          required: false
+          description: Email получателя, если не в теле и не в карточке клиента
+          schema:
+            type: string
+            format: email
+        - name: to
+          in: query
+          required: false
+          description: Синоним `client_email`
+          schema:
+            type: string
+            format: email
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client_email:
+                  type: string
+                  format: email
+                to:
+                  type: string
+                  format: email
+                  description: Синоним client_email
+                includeCover:
+                  type: boolean
+                includeSummary:
+                  type: boolean
+                goalTypes:
+                  type: string
+                  example: FIN_RESERVE,LIFE
+      responses:
+        '200':
+          description: Письмо принято провайдером (Resend)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, client_email, filename]
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  message_id:
+                    type: string
+                    nullable: true
+                    description: Идентификатор сообщения Resend
+                  client_email:
+                    type: string
+                    format: email
+                  filename:
+                    type: string
+                    example: Finplan-otchyot-123-2026-05-03.pdf
+        '400':
+          description: Нет email получателя или нет агента для подписи письма
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет доступа к клиенту или роль client
+        '404':
+          description: Клиент или агент не найдены
+        '502':
+          description: Ошибка отправки почты (Resend)
+        '500':
+          description: Внутренняя ошибка
 
   /my/risk-profile/questionnaire:
     get:

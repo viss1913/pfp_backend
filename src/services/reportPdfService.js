@@ -158,6 +158,7 @@ class ReportPdfService {
         includeCover = true,
         includeSummary = true,
         goalTypes = null,
+        preloadedReport = null,
     }) {
         const pkg = await this.generateClientReportPdfPackage({
             clientId,
@@ -167,6 +168,7 @@ class ReportPdfService {
             includeCover,
             includeSummary,
             goalTypes,
+            preloadedReport,
         });
         return pkg.pdfBuffer;
     }
@@ -179,6 +181,7 @@ class ReportPdfService {
         includeCover = true,
         includeSummary = true,
         goalTypes = null,
+        preloadedReport = null,
     }) {
         const htmlPkg = await this.generateClientReportHtmlPackage({
             clientId,
@@ -188,6 +191,7 @@ class ReportPdfService {
             includeCover,
             includeSummary,
             goalTypes,
+            preloadedReport,
         });
         const pdfBuffer = await renderHtmlToPdfBuffer(htmlPkg.mergedHtml);
         return {
@@ -206,8 +210,12 @@ class ReportPdfService {
         includeCover = true,
         includeSummary = true,
         goalTypes = null,
+        preloadedReport = null,
     }) {
-        const report = await reportService.getClientReportData(clientId, projectId);
+        const report =
+            preloadedReport != null
+                ? preloadedReport
+                : await reportService.getClientReportData(clientId, projectId);
         const themeKey = resolveReportThemeKey(projectId);
         const isFinamProject = themeKey !== 'rostech' && isFinamTemplateProject(projectId);
 

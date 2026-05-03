@@ -4,6 +4,13 @@ const reportController = require('../controllers/reportController');
 const reportPagesController = require('../controllers/reportPagesController');
 const authMiddleware = require('../middlewares/authMiddleware');
 
+// POST /api/pfp/reports/:clientId/pdf/send-email — PDF отчёта на email клиента (агент/админ), тело JSON опционально
+router.post(
+    '/:clientId/pdf/send-email',
+    authMiddleware,
+    reportController.sendClientReportPdfEmail.bind(reportController)
+);
+
 // GET /api/pfp/reports/:clientId/pdf - generate and return ready PDF report
 // query:
 // - includeCover=true|false (default true)

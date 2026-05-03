@@ -1,11 +1,31 @@
 const reportService = require('../services/reportService');
 const reportPdfService = require('../services/reportPdfService');
 const clientService = require('../services/clientService');
+const agentService = require('../services/agentService');
+const emailService = require('../services/emailService');
 const {
     maybeCompressPdfBuffer,
     ensureClientReportPdfReady,
     getClientReportPdfCacheStatus,
 } = require('../services/reportPdfStorageService');
+
+function buildAgentDisplayFullName(agent) {
+    const parts = [agent.last_name, agent.first_name, agent.middle_name].filter(Boolean);
+    return parts.length ? parts.join(' ') : '—';
+}
+
+/** Для обращения в письме: male | female */
+function normalizeReportClientGender(raw) {
+    const s = String(raw || '').toLowerCase();
+    if (s === 'female' || s === 'f' || s === 'ж') return 'female';
+    return 'male';
+}
+
+function parseReportIncludeFlag(val, defaultTrue = true) {
+    if (val === undefined || val === null || val === '') return defaultTrue;
+    const s = String(val).toLowerCase();
+    return s !== '0' && s !== 'false';
+}
 
 async function ensureClientReportAccess({ user, clientId, projectId }) {
     const client = await clientService.getFullClient(clientId, projectId);
@@ -86,6 +106,139 @@ class ReportController {
             }
             console.error('Report Generation Error:', error);
             res.status(500).json({ error: 'Failed to generate report data' });
+        }
+    }
+
+    async sendClientReportPdfEmail(req, res) {
+        try {
+            const clientId = Number(req.params.clientId);
+            const projectId = req.projectId || req.user?.projectId;
+
+            if (!clientId || Number.isNaN(clientId)) {
+                res.status(400).json({ error: 'Invalid clientId' });
+                return;
+            }
+
+            const role = String(req.user?.role || '').toLowerCase();
+            if (role === 'client') {
+                res.status(403).json({ error: 'Отправка отчёта на email доступна только агенту или администратору' });
+                return;
+            }
+
+            const client = await ensureClientReportAccess({ user: req.user, clientId, projectId });
+
+            const body = req.body && typeof req.body === 'object' ? req.body : {};
+            const includeCover = parseReportIncludeFlag(
+                body.includeCover !== undefined ? body.includeCover : req.query.includeCover,
+                true
+            );
+            const includeSummary = parseReportIncludeFlag(
+                body.includeSummary !== undefined ? body.includeSummary : req.query.includeSummary,
+                true
+            );
+            const goalTypes =
+                body.goalTypes != null && String(body.goalTypes).trim()
+                    ? String(body.goalTypes).trim()
+                    : req.query.goalTypes || null;
+
+            const rawTo = [body.client_email, body.to, req.query.client_email, req.query.to]
+                .map((x) => (x != null ? String(x).trim() : ''))
+                .find(Boolean);
+            const recipient = rawTo || String(client.email || '').trim();
+            if (!recipient) {
+                res.status(400).json({
+                    error: 'Не указан email получателя: заполните email у клиента или передайте client_email в запросе.',
+                });
+                return;
+            }
+
+            let emailAgentId =
+                Number.isFinite(Number(req.user?.agentId)) && Number(req.user.agentId) > 0
+                    ? Number(req.user.agentId)
+                    : null;
+            if (!emailAgentId && client.agent_id != null && Number.isFinite(Number(client.agent_id))) {
+                emailAgentId = Number(client.agent_id);
+            }
+            if (!emailAgentId) {
+                res.status(400).json({ error: 'Нет агента для отправки письма (привяжите клиента к агенту).' });
+                return;
+            }
+
+            const agent = await agentService.getAgentById(emailAgentId, projectId);
+            if (!agent) {
+                res.status(404).json({ error: 'Agent not found' });
+                return;
+            }
+
+            const report = await reportService.getClientReportData(clientId, projectId);
+            const { pdfBuffer } = await reportPdfService.generateClientReportPdfPackage({
+                clientId,
+                projectId,
+                includeCover,
+                includeSummary,
+                goalTypes,
+                preloadedReport: report,
+                ...reportBrandingOpts(req.user, client),
+            });
+            const finalPdf = (await maybeCompressPdfBuffer(pdfBuffer)).buffer;
+
+            const ts = new Date().toISOString().slice(0, 10);
+            const filename = `Finplan-otchyot-${clientId}-${ts}.pdf`;
+
+            const agentFullName = buildAgentDisplayFullName(agent);
+            const agentEmail = (agent.email && String(agent.email).trim()) || '—';
+            const agentPhone = (agent.phone && String(agent.phone).trim()) || '—';
+
+            const ccAgent =
+                agentEmail &&
+                agentEmail !== '—' &&
+                String(agentEmail).toLowerCase() !== String(recipient).toLowerCase()
+                    ? agentEmail
+                    : undefined;
+
+            const clientFullName = String(report?.client_info?.full_name || '').trim() || '—';
+            const clientGender = normalizeReportClientGender(client.gender || client.sex);
+
+            const exec = report.ai_executive_summary;
+            const executiveSummaryText =
+                exec && typeof exec === 'object' && exec.summary_text != null ? String(exec.summary_text) : '';
+
+            const portfolio = report?.overall_plan?.pdf_metrics?.portfolio || {};
+            const goalsCount = Array.isArray(report.goals_detailed) ? report.goals_detailed.length : 0;
+
+            const emailResult = await emailService.sendFinancialPlanReportPdfEmail({
+                to: recipient,
+                cc: ccAgent,
+                clientFullName,
+                clientGender,
+                agentFullName,
+                agentEmail,
+                agentPhone,
+                pdfBuffer: finalPdf,
+                filename,
+                reportAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
+                portfolio,
+                goalsCount,
+                executiveSummaryText,
+            });
+
+            res.json({
+                ok: true,
+                message_id: emailResult?.id || null,
+                client_email: recipient,
+                filename,
+            });
+        } catch (error) {
+            if (error?.status) {
+                res.status(error.status).json({ error: error.message });
+                return;
+            }
+            if (error?.statusCode) {
+                res.status(error.statusCode).json({ error: error.message });
+                return;
+            }
+            console.error('Report PDF email send error:', error);
+            res.status(500).json({ error: error.message || 'Failed to send report email' });
         }
     }
 

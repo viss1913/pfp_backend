@@ -161,6 +161,71 @@ function buildNdaEmailSubject(agentFullName) {
     return `Соглашение о неразглашении. Финансовый консультант ${name}`;
 }
 
+function buildFinancialPlanReportEmailSubject() {
+    return 'Финансовый план — PDF-отчёт во вложении';
+}
+
+/** Простое форматирование текста резюме (без markdown-парсера): абзацы и переносы строк. */
+function executiveSummaryTextToEmailHtml(raw) {
+    const t = String(raw || '').trim();
+    if (!t) return '';
+    return t
+        .split(/\n\n+/)
+        .map((para) => {
+            const inner = escapeHtmlLite(para).replace(/\n/g, '<br/>');
+            return `<p style="margin:0 0 12px;">${inner}</p>`;
+        })
+        .join('');
+}
+
+/**
+ * Краткий блок по сводному портфелю для тела письма.
+ * @param {object} portfolio — overall_plan.pdf_metrics.portfolio из отчёта
+ * @param {number} goalsCount
+ */
+function buildFinancialPlanPortfolioSummaryHtml(portfolio, goalsCount) {
+    const p = portfolio && typeof portfolio === 'object' ? portfolio : {};
+    const nGoals = Number(goalsCount);
+    const lines = [];
+
+    lines.push(
+        `<strong>Кратко по плану:</strong> целей — ${Number.isFinite(nGoals) ? nGoals : '—'}.`
+    );
+
+    const init = Number(p.total_initial_capital);
+    if (Number.isFinite(init) && init > 0) {
+        lines.push(
+            `Совокупный стартовый капитал: ${Math.round(init).toLocaleString('ru-RU')}&nbsp;₽.`
+        );
+    }
+
+    const monthly = Number(p.total_monthly_replenishment);
+    if (Number.isFinite(monthly) && monthly > 0) {
+        lines.push(
+            `Совокупное ежемесячное пополнение: ${Math.round(monthly).toLocaleString('ru-RU')}&nbsp;₽/мес.`
+        );
+    }
+
+    const yld = Number(p.estimated_portfolio_yield_percent);
+    if (Number.isFinite(yld) && yld > 0) {
+        lines.push(`Ориентир доходности портфеля (среднее по целям): ${yld.toFixed(1)}%.`);
+    }
+
+    const alloc = Array.isArray(p.assets_allocation) ? [...p.assets_allocation] : [];
+    alloc.sort((a, b) => Number(b?.share_percent) - Number(a?.share_percent));
+    const top = alloc.filter((a) => Number(a?.share_percent) > 0).slice(0, 3);
+    if (top.length > 0) {
+        lines.push('<strong>Крупнейшие доли стартового портфеля:</strong>');
+        top.forEach((a) => {
+            const name = escapeHtmlLite(a?.name || 'Инструмент');
+            const sh = Math.round(Number(a?.share_percent) || 0);
+            lines.push(`— ${name}: ${sh}%`);
+        });
+    }
+
+    return lines.map((line) => `<p style="margin:0 0 8px;">${line}</p>`).join('');
+}
+
 function buildNdaSalutationLine(clientGender, clientFullName) {
     const title = clientGender === 'female' ? 'Уважаемая' : 'Уважаемый';
     const short = extractFirstNamePatronymic(clientFullName);
@@ -293,6 +358,91 @@ class EmailService {
             console.error('[EmailService] NDA send error:', err.message || err);
             if (process.env.NODE_ENV !== 'production') {
                 return { id: 'dev-mode-nda-fallback' };
+            }
+            throw { status: 502, message: 'Сервис почты недоступен' };
+        }
+    }
+
+    /**
+     * Письмо с PDF финансового плана (от ящика агента, как NDA).
+     * @param {{ to: string, cc?: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, pdfBuffer: Buffer, filename: string, reportAgent: { id: number, email?: string|null, email_corp?: string|null }, portfolio: object, goalsCount: number, executiveSummaryText: string }} opts
+     */
+    async sendFinancialPlanReportPdfEmail({
+        to,
+        cc,
+        clientFullName,
+        clientGender,
+        agentFullName,
+        agentEmail,
+        agentPhone,
+        pdfBuffer,
+        filename,
+        reportAgent,
+        portfolio,
+        goalsCount,
+        executiveSummaryText,
+    }) {
+        const safeName =
+            filename && String(filename).endsWith('.pdf') ? filename : `${filename || 'report'}.pdf`;
+        const salutation = buildNdaSalutationLine(clientGender, clientFullName);
+        const signature = buildNdaAgentSignatureHtml(agentFullName, agentEmail, agentPhone);
+        const subject = buildFinancialPlanReportEmailSubject();
+        const portfolioBlock = buildFinancialPlanPortfolioSummaryHtml(portfolio, goalsCount);
+        const summaryBlock = executiveSummaryTextToEmailHtml(executiveSummaryText);
+        const disclaimer =
+            '<p style="margin:16px 0 0;font-size:12px;color:#64748b;">Материал носит информационный характер и не является индивидуальной инвестиционной рекомендацией.</p>';
+
+        const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:15px;color:#333;line-height:1.6;">
+  <p>${salutation}</p>
+  <p>Направляю вам во вложении PDF-отчёт по вашему финансовому плану.</p>
+  ${portfolioBlock}
+  ${summaryBlock ? `<p style="margin:16px 0 8px;"><strong>Краткое резюме:</strong></p>${summaryBlock}` : ''}
+  <p style="margin-top:1.2em;">При необходимости вы можете задать вопросы по контактным данным ниже.</p>
+  ${disclaimer}
+  <p style="margin-top:1.5em;">${signature}</p>
+</body></html>`;
+
+        const ndaMailbox = resolveNdaMailbox(reportAgent || {});
+        const fromHeader = buildNdaFromHeader(agentFullName, ndaMailbox);
+        const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
+
+        try {
+            const { data, error } = await getResendClient().emails.send({
+                from: fromHeader,
+                to,
+                ...(cc ? { cc } : {}),
+                ...(replyTo ? { reply_to: replyTo } : {}),
+                subject,
+                html,
+                attachments: [
+                    {
+                        filename: safeName,
+                        content: Buffer.isBuffer(pdfBuffer)
+                            ? pdfBuffer.toString('base64')
+                            : Buffer.from(pdfBuffer).toString('base64'),
+                    },
+                ],
+            });
+
+            if (error) {
+                console.error('[EmailService] Resend financial plan report error:', JSON.stringify(error));
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn('[EmailService] DEV: financial plan email failed');
+                    return { id: 'dev-mode-finplan-report', error: error.message };
+                }
+                throw { status: 502, message: 'Не удалось отправить письмо с отчётом' };
+            }
+
+            console.log(`[EmailService] Financial plan PDF sent to ${to}, messageId: ${data?.id}`);
+            return data;
+        } catch (err) {
+            if (err.status) throw err;
+            console.error('[EmailService] Financial plan report send error:', err.message || err);
+            if (process.env.NODE_ENV !== 'production') {
+                return { id: 'dev-mode-finplan-report-fallback' };
             }
             throw { status: 502, message: 'Сервис почты недоступен' };
         }
