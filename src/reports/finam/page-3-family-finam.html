@@ -44,7 +44,7 @@
 
     /* Фон «тетрадь в клетку»: шаг 20px (как page-2 / page-4) */
     article.page {
-      font-size: 16px;
+      font-size: 14px;
       width: 595px;
       height: 842px;
       background-color: #fafbfc;
@@ -60,7 +60,7 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      padding: 30px 36px 26px;
+      padding: 24px 32px 20px;
       overflow-wrap: break-word;
       word-break: break-word;
       flex-shrink: 0;
@@ -78,7 +78,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
     }
 
     .logo-mark {
@@ -116,19 +116,19 @@
     .divider {
       height: 1px;
       background: #000000;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .avatar-section {
       display: flex;
-      gap: 14px;
+      gap: 10px;
       align-items: flex-start;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
 
     .avatar {
-      width: 50px;
-      height: 50px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
       background: linear-gradient(135deg, #f9a8d4, #c084fc);
       flex-shrink: 0;
@@ -140,7 +140,7 @@
     }
 
     .avatar-text {
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 700;
       color: #ffffff;
     }
@@ -150,7 +150,7 @@
       background: #f3f3f3;
       border: 1px solid #cccccc;
       border-radius: 10px;
-      padding: 10px 14px;
+      padding: 7px 11px;
       position: relative;
     }
 
@@ -158,7 +158,7 @@
       content: '';
       position: absolute;
       left: -7px;
-      top: 16px;
+      top: 13px;
       width: 11px;
       height: 11px;
       background: #f3f3f3;
@@ -168,10 +168,10 @@
     }
 
     .speech p {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 400;
       color: #222222;
-      line-height: 1.55;
+      line-height: 1.42;
     }
 
     .speech em {
@@ -181,12 +181,12 @@
     }
 
     .section-tag {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
-      letter-spacing: 0.14em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
       color: #6366f1;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       display: flex;
       align-items: center;
       gap: 5px;
@@ -202,12 +202,12 @@
     .two-cols {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 12px;
+      gap: 6px;
+      margin-bottom: 8px;
     }
 
     .info-card {
-      padding: 10px;
+      padding: 8px;
       border-radius: 6px;
       background: #f3f3f3;
       border: 1px solid #cccccc;
@@ -216,23 +216,23 @@
     }
 
     .info-card-title {
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 600;
       color: #000000;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     /* Две колонки: подпись | значение — одна правая граница у всех строк (не space-between). */
     .info-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 9.8rem;
-      column-gap: 8px;
+      grid-template-columns: minmax(0, 1fr) 10.5rem;
+      column-gap: 6px;
       align-items: start;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
     }
 
     .info-label {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 400;
       color: #555555;
       min-width: 0;
@@ -240,25 +240,26 @@
     }
 
     .info-value {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       color: #000000;
       text-align: right;
-      line-height: 1.35;
+      line-height: 1.3;
+      font-variant-numeric: tabular-nums;
     }
 
     .info-divider {
       height: 1px;
       background: #cccccc;
-      margin: 4px 0;
+      margin: 3px 0;
     }
 
     .children-block {
-      margin-top: 4px;
+      margin-top: 3px;
     }
 
     .children-block-title {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: 500;
       color: #555555;
       margin-bottom: 3px;
@@ -268,10 +269,10 @@
 
     .child-row {
       display: grid;
-      grid-template-columns: 10px minmax(0, 1fr) 9.8rem;
-      column-gap: 6px;
+      grid-template-columns: 10px minmax(0, 1fr) 10.5rem;
+      column-gap: 5px;
       align-items: center;
-      margin-bottom: 3px;
+      margin-bottom: 2px;
     }
 
     .child-dot {
@@ -284,30 +285,30 @@
     }
 
     .child-name {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       color: #000000;
       min-width: 0;
     }
 
     .child-age {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 500;
       color: #555555;
       text-align: right;
     }
 
-    .obligations { margin-bottom: 10px; }
+    .obligations { margin-bottom: 7px; }
 
     .obligations-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .obligations-total {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 600;
       color: #000000;
     }
@@ -315,13 +316,13 @@
     .obligation-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
+      gap: 6px;
+      margin-bottom: 3px;
     }
 
     .obligation-label {
-      width: 90px;
-      font-size: 12px;
+      width: 78px;
+      font-size: 10px;
       font-weight: 500;
       color: #000000;
       text-align: right;
@@ -330,7 +331,7 @@
 
     .obligation-bar-bg {
       flex: 1;
-      height: 16px;
+      height: 13px;
       background: #eaeaea;
       border: 1px solid #dddddd;
       border-radius: 3px;
@@ -344,39 +345,44 @@
     }
 
     .obligation-value {
-      width: 64px;
-      font-size: 12px;
-      font-weight: 600;
-      color: #000000;
-      flex-shrink: 0;
-    }
-
-    .balance-box {
-      padding: 10px 12px;
-      border-radius: 6px;
-      background: #f3f3f3;
-      border: 1px solid #cccccc;
-      margin-bottom: 10px;
-    }
-
-    .balance-title {
+      flex: 0 0 92px;
+      width: 92px;
+      min-width: 92px;
       font-size: 10px;
       font-weight: 600;
       color: #000000;
-      margin-bottom: 8px;
+      flex-shrink: 0;
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .balance-box {
+      padding: 7px 9px;
+      border-radius: 6px;
+      background: #f3f3f3;
+      border: 1px solid #cccccc;
+      margin-bottom: 7px;
+    }
+
+    .balance-title {
+      font-size: 9px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 5px;
     }
 
     .balance-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 5px;
+      gap: 6px;
+      margin-bottom: 3px;
     }
 
     .balance-label {
-      flex: 0 0 128px;
-      width: 128px;
-      font-size: 11px;
+      flex: 0 0 108px;
+      width: 108px;
+      font-size: 10px;
       font-weight: 500;
       color: #333333;
       line-height: 1.2;
@@ -385,7 +391,7 @@
 
     .balance-bar-bg {
       flex: 1;
-      height: 16px;
+      height: 13px;
       background: #eaeaea;
       border: 1px solid #dddddd;
       border-radius: 3px;
@@ -403,18 +409,22 @@
     .balance-bar.amber { background: #f59e0b; }
 
     .balance-val {
-      width: 64px;
-      font-size: 12px;
+      flex: 0 0 92px;
+      width: 92px;
+      min-width: 92px;
+      font-size: 10px;
       font-weight: 600;
       color: #000000;
       flex-shrink: 0;
       text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
 
     .balance-separator {
       height: 1px;
       background: #cccccc;
-      margin: 3px 0 5px 98px;
+      margin: 2px 0 4px 86px;
     }
 
     .spacer { flex: 1; }
@@ -423,20 +433,20 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 6px;
-      padding-top: 5px;
+      margin-top: 4px;
+      padding-top: 4px;
       border-top: 1px solid #cccccc;
     }
 
     .footer-left {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 400;
       color: #555555;
-      line-height: 1.5;
+      line-height: 1.35;
     }
 
     .footer-right {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 400;
       color: #555555;
       text-align: right;
