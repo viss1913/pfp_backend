@@ -589,6 +589,10 @@ paths:
         Если проект не определён — ответ **`400`** с текстом вроде **`Project context is missing`**.
 
         Сохранение клиента и целей в БД — отдельно **`POST /client/first-run`** (JWT обязателен).
+
+        В элементах **`goals`** (см. `CalculationGoal` в `openapi/pfp-api.yaml`): опционально **`risk_profile_extended`**
+        (5 уровней, те же строки, что `profile_type` в портфеле при наличии срезов `MODERATELY_*`). Поле **`risk_profile`**
+        остаётся тройкой для совместимости; бэкенд может проставлять extended после анкеты на first-run / пересчёте.
       security: []
       parameters:
         - name: x-project-key
@@ -2507,7 +2511,7 @@ components:
       description: |
         Explainable результат скоринга.
         `risk_profile` — 3 уровня для обратной совместимости с текущими портфелями.
-        `risk_profile_extended` — 5 уровней для расширенного UI.
+        `risk_profile_extended` — 5 уровней для расширенного UI (те же строки, что `profile_type` в `riskProfiles` портфеля в OPENAPI_SPEC / админке).
       properties:
         risk_profile:
           type: string

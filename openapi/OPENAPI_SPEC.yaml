@@ -323,7 +323,15 @@ components:
       properties:
         profile_type:
           type: string
-          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+          description: |
+            Пять уровней (как `risk_profile_extended` в анкете). Допустимо по-прежнему передавать только три
+            «крупных» профиля — обратная совместимость с существующими портфелями.
+          enum:
+            - CONSERVATIVE
+            - MODERATELY_CONSERVATIVE
+            - BALANCED
+            - MODERATELY_AGGRESSIVE
+            - AGGRESSIVE
         potential_yield_percent:
           type: number
         explanation:
@@ -369,6 +377,26 @@ components:
             ID профиля риска (только в GET-ответе, игнорируется при PUT).
             Это поле присутствует в ответе API, но не нужно отправлять при обновлении.
           readOnly: true
+    ClientGoalRiskFields:
+      type: object
+      description: |
+        Риск цели в API расчёта / first-run / карточки клиента. `risk_profile` — три уровня (как раньше).
+        `risk_profile_extended` — пять уровней (как `RiskProfileResult.risk_profile_extended` и как `PortfolioRiskProfile.profile_type`,
+        если в портфеле заданы срезы MODERATELY_*). Детальный расчёт в ответе может содержать `risk_profile_details`.
+      properties:
+        risk_profile:
+          type: string
+          nullable: true
+          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+        risk_profile_extended:
+          type: string
+          nullable: true
+          enum:
+            - CONSERVATIVE
+            - MODERATELY_CONSERVATIVE
+            - BALANCED
+            - MODERATELY_AGGRESSIVE
+            - AGGRESSIVE
     SystemSetting:
       type: object
       description: |

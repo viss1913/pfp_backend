@@ -737,6 +737,10 @@ class CalculationService {
                                 );
                                 goal.risk_profile = calculatedProfile.risk_profile;
                                 goal.risk_profile_details = calculatedProfile;
+                                goal.risk_profile_extended =
+                                    calculatedProfile.risk_profile_extended != null
+                                        ? calculatedProfile.risk_profile_extended
+                                        : null;
                             }
                         }
                     }
@@ -756,7 +760,8 @@ class CalculationService {
                             goal_type: result.goal_type || goal.goal_type || 'OTHER',
                             goal_type_id: result.goal_type_id || goal.goal_type_id,
                             goal_id: result.goal_id || goal.id || goal.goal_id,
-                            risk_profile: goal.risk_profile
+                            risk_profile: goal.risk_profile,
+                            risk_profile_extended: goal.risk_profile_extended != null ? goal.risk_profile_extended : null
                         };
 
                         resultsIndexed.push({ index, result: wrappedResult });

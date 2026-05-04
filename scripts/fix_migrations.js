@@ -35,7 +35,13 @@ async function fixMigrations() {
                 table.bigIncrements('id').primary();
                 table.bigInteger('portfolio_id').unsigned().notNullable()
                     .references('id').inTable('portfolios').onDelete('CASCADE');
-                table.enu('profile_type', ['CONSERVATIVE', 'BALANCED', 'AGGRESSIVE']).notNullable();
+                table.enu('profile_type', [
+                    'CONSERVATIVE',
+                    'MODERATELY_CONSERVATIVE',
+                    'BALANCED',
+                    'MODERATELY_AGGRESSIVE',
+                    'AGGRESSIVE'
+                ]).notNullable();
                 table.decimal('potential_yield_percent', 5, 2).nullable();
             });
             console.log('✅ Created portfolio_risk_profiles');

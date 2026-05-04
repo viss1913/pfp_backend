@@ -190,6 +190,10 @@ const calculationRequestSchema = Joi.object({
         term_months: Joi.number().integer().min(0).optional(),
         desired_monthly_income: Joi.number().min(0).optional(),
         risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').optional(),
+        risk_profile_extended: Joi.string()
+            .valid('CONSERVATIVE', 'MODERATELY_CONSERVATIVE', 'BALANCED', 'MODERATELY_AGGRESSIVE', 'AGGRESSIVE')
+            .allow(null)
+            .optional(),
         initial_capital: Joi.number().min(0).optional().default(0),
         inflation_rate: Joi.number().min(0).optional(),
         avg_monthly_income: Joi.number().min(0).optional(),

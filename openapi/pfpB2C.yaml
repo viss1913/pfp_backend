@@ -246,6 +246,15 @@ components:
         risk_profile:
           type: string
           enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+        risk_profile_extended:
+          type: string
+          nullable: true
+          enum:
+            - CONSERVATIVE
+            - MODERATELY_CONSERVATIVE
+            - BALANCED
+            - MODERATELY_AGGRESSIVE
+            - AGGRESSIVE
         initial_capital:
           type: number
           default: 0

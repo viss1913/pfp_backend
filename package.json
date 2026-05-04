@@ -10,7 +10,7 @@
     "seed": "knex seed:run",
     "setup": "npm run migrate && npm run seed",
     "fix-migrations": "node scripts/fix_migrations.js",
-    "test": "node --test test/resolutPortfolioQuoteYieldService.test.js test/resolutPortfolioPublishHelpers.test.js test/resolutPlanQuotesService.test.js",
+    "test": "node --test test/resolutPortfolioQuoteYieldService.test.js test/resolutPortfolioPublishHelpers.test.js test/resolutPlanQuotesService.test.js test/riskProfileSlice.test.js",
     "smoke:resolut-pfp": "node scripts/smoke_resolut_pfp_api.js",
     "test:monthly-schedule-pds": "node scripts/test_monthly_schedule_pds.js",
     "test:portfolio-fallback": "node scripts/test_portfolio_find_by_criteria_fallback.js",

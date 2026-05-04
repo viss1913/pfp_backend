@@ -11,7 +11,13 @@ const instrumentSchema = Joi.object({
 // Schema for risk profile - supports both old format (initial_capital/initial_replenishment) 
 // and new format (instruments with bucket_type)
 const riskProfileSchema = Joi.object({
-    profile_type: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').required(),
+    profile_type: Joi.string().valid(
+        'CONSERVATIVE',
+        'MODERATELY_CONSERVATIVE',
+        'BALANCED',
+        'MODERATELY_AGGRESSIVE',
+        'AGGRESSIVE'
+    ).required(),
     potential_yield_percent: Joi.number().allow(null).optional(),
     description: Joi.string().allow(null, '').optional(),
     explanation: Joi.string().allow(null, '').optional(),

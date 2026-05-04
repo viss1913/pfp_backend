@@ -218,7 +218,8 @@ class ClientService {
             if (data.goals && data.goals.length > 0) {
                 const goalColumns = [
                     'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
-                    'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile'
+                    'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile',
+                    'risk_profile_extended'
                 ];
 
                 const goals = data.goals.map(g => {
@@ -397,7 +398,8 @@ class ClientService {
                 if (data.goals.length > 0) {
                     const goalColumns = [
                         'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
-                        'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile'
+                        'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile',
+                        'risk_profile_extended'
                     ];
 
                     const goals = data.goals.map(g => {
@@ -452,7 +454,8 @@ class ClientService {
     async addGoal(clientId, goalData) {
         const goalColumns = [
             'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
-            'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile'
+            'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile',
+            'risk_profile_extended'
         ];
 
         const goalRecord = { client_id: clientId };
@@ -478,7 +481,8 @@ class ClientService {
     async updateGoal(clientId, goalId, goalData) {
         const goalColumns = [
             'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
-            'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile'
+            'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile',
+            'risk_profile_extended'
         ];
 
         const goalRecord = {};

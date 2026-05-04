@@ -115,7 +115,14 @@ components:
       properties:
         profile_type:
           type: string
-          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+          description: |
+            Пять уровней (как расширенный риск-профиль). Три значения CONSERVATIVE | BALANCED | AGGRESSIVE по-прежнему валидны.
+          enum:
+            - CONSERVATIVE
+            - MODERATELY_CONSERVATIVE
+            - BALANCED
+            - MODERATELY_AGGRESSIVE
+            - AGGRESSIVE
         potential_yield_percent:
           type: number
         instruments:
@@ -203,8 +210,20 @@ components:
         risk_profile:
           type: string
           enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
-          description: Risk profile
+          description: Risk profile (3 levels, backward compatible)
           example: "BALANCED"
+        risk_profile_extended:
+          type: string
+          nullable: true
+          enum:
+            - CONSERVATIVE
+            - MODERATELY_CONSERVATIVE
+            - BALANCED
+            - MODERATELY_AGGRESSIVE
+            - AGGRESSIVE
+          description: |
+            Optional 5-level profile (same strings as portfolio `profile_type` when portfolio uses MODERATELY_* slices).
+            Backend may set this from the risk questionnaire on first run / recalculate.
         initial_capital:
           type: number
           minimum: 0
@@ -1328,6 +1347,16 @@ components:
             type: integer
          risk_profile:
             type: string
+         risk_profile_extended:
+            type: string
+            nullable: true
+            enum:
+              - CONSERVATIVE
+              - MODERATELY_CONSERVATIVE
+              - BALANCED
+              - MODERATELY_AGGRESSIVE
+              - AGGRESSIVE
+            description: Five-level risk slice for goals; used when portfolio has MODERATELY_* profiles
          initial_capital:
             type: number
          inflation_rate:

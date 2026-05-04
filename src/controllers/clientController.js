@@ -74,7 +74,12 @@ const calculationRequestSchema = Joi.object({
         desired_monthly_income: Joi.number().min(0).optional()
             .description('Желаемый ежемесячный доход (для PASSIVE_INCOME)'),
         risk_profile: Joi.string().valid('CONSERVATIVE', 'BALANCED', 'AGGRESSIVE').optional()
-            .description('Риск-профиль: CONSERVATIVE, BALANCED или AGGRESSIVE'),
+            .description('Риск-профиль (3 уровня): CONSERVATIVE, BALANCED или AGGRESSIVE'),
+        risk_profile_extended: Joi.string()
+            .valid('CONSERVATIVE', 'MODERATELY_CONSERVATIVE', 'BALANCED', 'MODERATELY_AGGRESSIVE', 'AGGRESSIVE')
+            .allow(null)
+            .optional()
+            .description('Расширенный риск-профиль (5 уровней); для портфеля с MODERATELY_* срезами; иначе можно не передавать'),
         initial_capital: Joi.number().min(0).optional().default(0)
             .description('Начальный капитал (опционально, по умолчанию 0)'),
         inflation_rate: Joi.number().min(0).optional()

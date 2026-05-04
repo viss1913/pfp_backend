@@ -1,4 +1,5 @@
 const BaseCalculator = require('./BaseCalculator');
+const { findPortfolioRiskProfileRow } = require('./riskProfileSlice');
 const productRepository = require('../../repositories/productRepository');
 const portfolioRepository = require('../../repositories/portfolioRepository');
 
@@ -104,11 +105,7 @@ class OtherGoalCalculator extends BaseCalculator {
             throw new Error('No risk profiles found for other goal portfolio');
         }
 
-        const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
-        const profile = riskProfiles.find(p => {
-            const pType = (p.risk_profile || p.profile_type || '').toUpperCase();
-            return pType === searchProfile;
-        });
+        const { profile } = findPortfolioRiskProfileRow(riskProfiles, goal);
 
         const initial_instruments = [];
         const monthly_instruments = [];

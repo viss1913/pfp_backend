@@ -54,6 +54,10 @@ paths:
                 monthly_replenishment: { type: number }
                 term_months: { type: integer }
                 risk_profile: { type: string, enum: [CONSERVATIVE, BALANCED, AGGRESSIVE] }
+                risk_profile_extended:
+                  type: string
+                  nullable: true
+                  enum: [CONSERVATIVE, MODERATELY_CONSERVATIVE, BALANCED, MODERATELY_AGGRESSIVE, AGGRESSIVE]
                 ipk_current: { type: number, description: "Текущий ИПК (для Пенсии)." }
                 ops_capital: { type: number, description: "ОПС / накопительная часть, руб. (цель или клиент)." }
       responses:
@@ -78,6 +82,10 @@ components:
         monthly_replenishment: { type: number }
         term_months: { type: integer }
         risk_profile: { type: string, enum: [CONSERVATIVE, BALANCED, AGGRESSIVE] }
+        risk_profile_extended:
+          type: string
+          nullable: true
+          enum: [CONSERVATIVE, MODERATELY_CONSERVATIVE, BALANCED, MODERATELY_AGGRESSIVE, AGGRESSIVE]
         inflation_rate: { type: number }
         ipk_current: { type: number, description: "Для Пенсии." }
         ops_capital: { type: number, description: "Для Пенсии / ПДС." }

@@ -1,4 +1,5 @@
 const BaseCalculator = require('./BaseCalculator');
+const { findPortfolioRiskProfileRow } = require('./riskProfileSlice');
 
 class PensionCalculator extends BaseCalculator {
     /**
@@ -151,13 +152,7 @@ class PensionCalculator extends BaseCalculator {
             throw new Error('No risk profiles found for pension portfolio');
         }
 
-        const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
-        const profile = riskProfiles.find(p => {
-            const pType = (p.risk_profile || p.profile_type || '').toUpperCase();
-            return pType === searchProfile;
-        });
-
-        if (!profile) throw new Error(`Pension risk profile ${searchProfile} not found`);
+        const { profile } = findPortfolioRiskProfileRow(riskProfiles, goal);
 
         const initial_instruments = [];
         const monthly_instruments = [];

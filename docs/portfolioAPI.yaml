@@ -431,7 +431,12 @@ components:
       properties:
         profile_type:
           type: string
-          enum: [CONSERVATIVE, BALANCED, AGGRESSIVE]
+          enum:
+            - CONSERVATIVE
+            - MODERATELY_CONSERVATIVE
+            - BALANCED
+            - MODERATELY_AGGRESSIVE
+            - AGGRESSIVE
           example: "CONSERVATIVE"
         potential_yield_percent:
           type: number

@@ -1,6 +1,7 @@
 const TaxService = require('../TaxService');
 const settingsService = require('../../services/settingsService');
 const resolutPortfolioQuoteYieldService = require('../../services/resolutPortfolioQuoteYieldService');
+const { findPortfolioRiskProfileRow } = require('./riskProfileSlice');
 
 /** @param {Date} d */
 function formatScheduleDate(d) {
@@ -552,15 +553,7 @@ class BaseCalculator {
             throw new Error('No risk profiles found for portfolio');
         }
 
-        const searchProfile = (goal.risk_profile || 'BALANCED').toUpperCase();
-        const profile = riskProfiles.find(p => {
-            const pType = (p.risk_profile || p.profile_type || '').toUpperCase();
-            return pType === searchProfile;
-        });
-
-        if (!profile) {
-            throw new Error(`Risk profile ${searchProfile} not found in portfolio`);
-        }
+        const { profile } = findPortfolioRiskProfileRow(riskProfiles, goal);
 
         let weightedYieldAnnual = 0;
         let allBuckets = [];
