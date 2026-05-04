@@ -71,15 +71,15 @@
     </p>
     <section class="charts">
       <article class="chart">
-        <h3>Годовая инфляция</h3>
-        <p>Текущее значение: <b>0,00%</b></p>
+        <h3>Ключевая ставка Банка России</h3>
+        <p>Текущее значение: <b>0,00%</b> <span style="font-size:11px;color:#64748b">(в PDF — из macro cbr_key_rate)</span></p>
       </article>
       <article class="chart">
-        <h3>Ключевая ставка Банка России</h3>
-        <p>Текущее значение: <b>0,00%</b></p>
-        <svg width="520" height="200" viewBox="0 0 520 200" role="img" aria-label="Ключевая ставка ЦБ">
+        <h3>Инфляция (ИПЦ, г/г)</h3>
+        <p>Последнее значение в ряду: <b>0,00%</b> <span style="font-size:11px;color:#64748b">(график — russia_cpi_inflation_yoy)</span></p>
+        <svg width="520" height="200" viewBox="0 0 520 200" role="img" aria-label="Инфляция г/г">
   <rect x="0" y="0" width="520" height="200" fill="transparent" />
-  <text x="260" y="100" text-anchor="middle" fill="#334155" font-size="12">Недостаточно данных</text>
+  <text x="260" y="100" text-anchor="middle" fill="#334155" font-size="12">Недостаточно данных (статический превью)</text>
 </svg>
       </article>
     </section>
@@ -108,7 +108,7 @@
       </div>
     </section>
     <p class="footnote">
-      Источники: Банк России и MOEX. Исторические ряды за последние 12 месяцев из /api/pfp/macro/history/*.
+      Источники: Банк России и MOEX; ряд г/г — в ПФП (см. buildInflationPageFinamHtml). Живые данные — только в PDF из reportPdfService.
       Оценка спреда корпоративных облигаций носит ориентировочный характер и не является индивидуальной инвестиционной рекомендацией.
     </p>
   </div>

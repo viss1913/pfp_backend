@@ -55,7 +55,8 @@ function reduceSeriesForChart(series, maxPoints = 24) {
 }
 
 function buildLineChartSvg(seriesIn, options = {}) {
-  const series = reduceSeriesForChart(normalizeSeries(seriesIn), 26);
+  const maxPts = Number(options.maxPoints) > 0 ? Number(options.maxPoints) : 26;
+  const series = reduceSeriesForChart(normalizeSeries(seriesIn), maxPts);
   const width = Number(options.width) || 520;
   const height = Number(options.height) || 200;
   const title = escapeHtml(options.title || 'График');
@@ -133,14 +134,14 @@ function getLatest(series) {
 }
 
 async function buildInflationPageFinamHtml(data = {}) {
-  const inflationSeries = normalizeSeries(data.inflationSeries);
+  const cpiYoySeries = normalizeSeries(data.cpiYoySeries);
   const keyRateSeries = normalizeSeries(data.keyRateSeries);
   const ofz2Series = normalizeSeries(data.ofz2Series);
   const ofz5Series = normalizeSeries(data.ofz5Series);
   const ofz10Series = normalizeSeries(data.ofz10Series);
   const corpIndexSeries = normalizeSeries(data.corpIndexSeries);
 
-  const inflationLatest = getLatest(inflationSeries);
+  const cpiYoyLatest = getLatest(cpiYoySeries);
   const keyRateLatest = getLatest(keyRateSeries);
   const ofz2Latest = getLatest(ofz2Series);
   const ofz5Latest = getLatest(ofz5Series);
@@ -150,9 +151,10 @@ async function buildInflationPageFinamHtml(data = {}) {
   const corpSpreadMin = Number.isFinite(ofz5Latest) ? ofz5Latest + 2 : null;
   const corpSpreadMax = Number.isFinite(ofz5Latest) ? ofz5Latest + 3 : null;
 
-  const keyRateChart = buildLineChartSvg(keyRateSeries, {
-    title: 'Ключевая ставка Банка России',
-    lineColor: '#6366f1',
+  const inflationYoyChart = buildLineChartSvg(cpiYoySeries, {
+    title: 'Инфляция ИПЦ, год к году',
+    lineColor: '#c2410c',
+    maxPoints: 48,
   });
 
   return `<!DOCTYPE html>
@@ -258,14 +260,14 @@ async function buildInflationPageFinamHtml(data = {}) {
       </div>
       <div class="charts">
         <div class="chart-card">
-          <h3>Годовая инфляция</h3>
-          <p>Текущее значение: <b>${escapeHtml(asPercent(inflationLatest))}</b></p>
-        </div>
-        <div class="chart-card">
           <h3>Ключевая ставка Банка России</h3>
           <p>Текущее значение: <b>${escapeHtml(asPercent(keyRateLatest))}</b></p>
+        </div>
+        <div class="chart-card">
+          <h3>Инфляция (ИПЦ, г/г)</h3>
+          <p>Последнее значение в ряду: <b>${escapeHtml(asPercent(cpiYoyLatest))}</b></p>
           <div style="margin-top:5px;">
-            ${keyRateChart}
+            ${inflationYoyChart}
           </div>
         </div>
       </div>
@@ -298,7 +300,7 @@ async function buildInflationPageFinamHtml(data = {}) {
       </div>
       <div class="spacer"></div>
       <p class="footnote">
-        Источники: Банк России и MOEX. Исторические ряды за последние 12 месяцев. Оценка спреда корпоративных облигаций носит ориентировочный характер и не является индивидуальной инвестиционной рекомендацией.
+        Источники: Банк России и MOEX (ставка ЦБ, ОФЗ, RUCBICP). Ряд инфляции г/г — исторические данные в системе ПФП. Оценка спреда корпоративных облигаций носит ориентировочный характер и не является индивидуальной инвестиционной рекомендацией.
       </p>
       <footer class="footer">
         <div class="footer-left">

@@ -107,13 +107,17 @@ async function loadMacroHistorySafe(slug, from, to) {
 
 async function buildFinamInflationPageHtml() {
     const to = toIsoDateOnly(new Date());
-    const fromDate = new Date();
-    fromDate.setFullYear(fromDate.getFullYear() - 1);
-    const from = toIsoDateOnly(fromDate);
+    const fromYear = new Date();
+    fromYear.setFullYear(fromYear.getFullYear() - 1);
+    const from = toIsoDateOnly(fromYear);
+
+    const from10y = new Date();
+    from10y.setFullYear(from10y.getFullYear() - 10);
+    const from10yIso = toIsoDateOnly(from10y);
 
     return await buildInflationPageFinamHtml({
-        inflationSeries: await loadMacroHistorySafe('cbr_inflation_annual', from, to),
         keyRateSeries: await loadMacroHistorySafe('cbr_key_rate', from, to),
+        cpiYoySeries: await loadMacroHistorySafe('russia_cpi_inflation_yoy', from10yIso, to),
         ofz2Series: await loadMacroHistorySafe('moex_ofz_gcurve_2y', from, to),
         ofz5Series: await loadMacroHistorySafe('moex_ofz_gcurve_5y', from, to),
         ofz10Series: await loadMacroHistorySafe('moex_ofz_gcurve_10y', from, to),
