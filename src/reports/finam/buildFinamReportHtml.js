@@ -2448,6 +2448,8 @@ async function buildFinamFullPageHtmlList({
     iduStrategies = applyFinamIduStrategiesPage(iduStrategies);
     pages.push(withInline(iduStrategies));
 
+    pages.push(withInline(await readTemplate('finam-new-clients-promo-finam.html')));
+
     if (inflationPageHtml && String(inflationPageHtml).trim()) {
         pages.push(withInline(String(inflationPageHtml)));
     }

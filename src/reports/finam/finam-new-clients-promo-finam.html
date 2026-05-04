@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Акции Финам для новых клиентов — шаблон</title>
+  <!--
+    Лист отчёта Финам: после idu-strategies-finam.html, перед страницей инфляции.
+    Статический контент; ссылки на лендинги bonus.finam.ru и broker.finam.ru.
+  -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DejaVu Sans', 'Liberation Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
+      background: #ffffff;
+      display: flex;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #0f172a;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 28px 32px 24px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #000000;
+    }
+
+    .doc-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #000000;
+      padding: 3px 10px;
+      border: 1px solid #000000;
+      border-radius: 4px;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    .divider { height: 1px; background: #000000; margin-bottom: 8px; }
+
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #6366f1;
+      margin: 0 0 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .section-label::before {
+      content: '';
+      width: 12px;
+      height: 2px;
+      background: #6366f1;
+      border-radius: 1px;
+    }
+
+    .section-label--tight { margin-top: 10px; }
+
+    .intro {
+      font-size: 10.5px;
+      line-height: 1.42;
+      color: #334155;
+      margin-bottom: 8px;
+    }
+
+    .promo-block {
+      border-radius: 10px;
+      border: 1px solid #c7d2fe;
+      background: linear-gradient(180deg, #ffffff 0%, #f5f7ff 100%);
+      padding: 8px 10px 9px;
+      margin-bottom: 6px;
+    }
+
+    .promo-block h3 {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #1e1b4b;
+      margin-bottom: 5px;
+    }
+
+    .promo-block h3.transition-lead {
+      font-size: 11px;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+
+    .bonus-list {
+      margin: 0;
+      padding-left: 16px;
+      font-size: 9px;
+      line-height: 1.38;
+      color: #0f172a;
+    }
+
+    .bonus-list li { margin-bottom: 3px; }
+
+    .bonus-list li::marker { font-weight: 700; color: #6366f1; }
+
+    .bonus-amount {
+      font-weight: 700;
+      color: #5b21b6;
+      white-space: nowrap;
+    }
+
+    a.link-line {
+      margin-top: 6px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 8.5px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: #4338ca;
+      text-decoration: none;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid #c7d2fe;
+      background: #eef2ff;
+    }
+
+    a.link-line:hover { text-decoration: underline; }
+
+    .transition-text {
+      font-size: 9px;
+      line-height: 1.4;
+      color: #334155;
+      margin-bottom: 5px;
+    }
+
+    .disclaimer {
+      margin-top: 6px;
+      font-size: 8.5px;
+      line-height: 1.38;
+      color: #6b7280;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      padding: 5px 7px;
+    }
+
+    .spacer { flex: 1; min-height: 4px; }
+
+    .page-num {
+      font-size: 11px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 2px;
+      text-align: right;
+    }
+
+    .footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 4px;
+      border-top: 1px solid #cccccc;
+    }
+
+    .footer-left,
+    .footer-right {
+      font-size: 10px;
+      font-weight: 400;
+      color: #555555;
+      line-height: 1.45;
+    }
+
+    .footer-right { text-align: right; }
+
+    @media print {
+      body { margin: 0; padding: 0; }
+    }
+
+    @page { size: A4; margin: 0; }
+  </style>
+</head>
+<body>
+
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Новым клиентам</div>
+    </header>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Спецпредложения Финам</div>
+    <p class="intro">
+      Для тех, кто только подключается к сервисам Группы Финам: программа бонусов и отдельная акция на выгодный переход на брокерское обслуживание. Подробные условия, сроки и ограничения — на официальных страницах акций.
+    </p>
+
+    <section class="promo-block" aria-labelledby="finam-bonus-title">
+      <h3 id="finam-bonus-title">Программа «Финам Бонус»</h3>
+      <ol class="bonus-list">
+        <li>Регистрация в «Финам Бонусе» — <span class="bonus-amount">500 бонусов</span></li>
+        <li>Открытие и пополнение брокерского счёта на сумму от 30&nbsp;000&nbsp;₽ — <span class="bonus-amount">1000 бонусов</span></li>
+        <li>Первый вход в приложение FinamTrade — <span class="bonus-amount">300 бонусов</span> (только для клиентов, у которых до регистрации в «Финам Бонусе» не было открытых счетов)</li>
+        <li>Диверсификация (покупка от 9 и более инструментов) — <span class="bonus-amount">700 бонусов</span></li>
+        <li>Оборот от 200&nbsp;000&nbsp;₽ с момента регистрации — <span class="bonus-amount">500 бонусов</span></li>
+      </ol>
+      <a class="link-line" href="https://bonus.finam.ru/" target="_blank" rel="noopener noreferrer">https://bonus.finam.ru/</a>
+    </section>
+
+    <div class="section-label section-label--tight">Акция «Выгодный переход»</div>
+    <section class="promo-block" aria-labelledby="transition-title">
+      <h3 id="transition-title" class="transition-lead">До 15&nbsp;000&nbsp;₽ за переход в «Финам»</h3>
+      <p class="transition-text">
+        Переведите ценные бумаги или денежные средства в «Финам» от другого брокера и получите премию до 2%. Чем больше сумма&nbsp;— тем выше премия!
+      </p>
+      <a class="link-line" href="https://broker.finam.ru/landing/vygodniy-perekhod/" target="_blank" rel="noopener noreferrer">https://broker.finam.ru/landing/vygodniy-perekhod/</a>
+    </section>
+
+    <p class="disclaimer">
+      Начисление бонусов, статусы клиента и правила акций определяются организатором на момент участия. Информация в отчёте носит ознакомительный характер и не заменяет оферту и правила программ на сайтах Финам.
+    </p>
+
+    <div class="spacer"></div>
+
+    <div class="page-num">Страница 1 из 1 · Акции для новых клиентов</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+</body>
+</html>

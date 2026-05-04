@@ -7,6 +7,7 @@
   tax-planning-block-finam.html (overall_plan.tax_benefits)
   comon-autofollow-finam.html
   idu-strategies-finam.html
+  finam-new-clients-promo-finam.html (Финам Бонус + «Выгодный переход», статика)
   inflation-page (buildInflationPageFinamHtml, макро из reportPdfService)
   risk-declaration-preview-1.html … risk-declaration-preview-5.html
   repleneshment (buildRepleneshmentPageHtml → несколько листов по FINAM_REPLENISHMENT_ROWS_PER_PAGE строк, splitFinamPage4IntoStandalonePages)
@@ -39,6 +40,7 @@ HTML-макеты: сводные блоки отчёта (не привязан
   tax-planning-block-finam.html         — отдельный лист: детализация вычетов (ПДС, ИИС, НСЖ, квартира, ипотека) за год и за период; не дублировать внутри goal-page-pension / passive
   comon-autofollow-finam.html           — отдельный лист после tax-planning: ИИ-вводка + карточки автоследования Comon (клетка)
   idu-strategies-finam.html             — сразу после Comon: ИДУ Финам Фонды, 9 карточек (ожид. доходность + ссылка funds.finam.ru)
+  finam-new-clients-promo-finam.html    — после ИДУ, перед инфляцией: «Финам Бонус» (план начислений) + акция «Выгодный переход», ссылки на лендинги
 
 Контексты для генерации текстов (промпты, роли, поля данных):
   context-page-01-cover.md
