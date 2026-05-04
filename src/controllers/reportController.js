@@ -141,13 +141,10 @@ class ReportController {
                     ? String(body.goalTypes).trim()
                     : req.query.goalTypes || null;
 
-            const rawTo = [body.client_email, body.to, req.query.client_email, req.query.to]
-                .map((x) => (x != null ? String(x).trim() : ''))
-                .find(Boolean);
-            const recipient = rawTo || String(client.email || '').trim();
+            const recipient = String(client.email || '').trim();
             if (!recipient) {
                 res.status(400).json({
-                    error: 'Не указан email получателя: заполните email у клиента или передайте client_email в запросе.',
+                    error: 'У клиента не заполнен email в карточке — укажите его и повторите отправку.',
                 });
                 return;
             }

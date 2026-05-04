@@ -96,8 +96,7 @@ paths:
         сжимает PDF и отправляет письмо через Resend с вложением. Доступно ролям агента и администратора;
         роль `client` получает 403.
 
-        Получатель: поле `client_email` или `to` в JSON-теле, иначе query `client_email` / `to`,
-        иначе email из карточки клиента (если пусто — 400).
+        Получатель — только **email из карточки клиента** в БД (если пусто — 400).
 
         Параметры `includeCover`, `includeSummary`, `goalTypes` можно передать в теле JSON или query (как у GET PDF);
         приоритет у полей тела.
@@ -122,13 +121,6 @@ paths:
           required: false
           schema:
             type: string
-        - name: client_email
-          in: query
-          required: false
-          description: Ящик получателя, если не задан в теле и нет email у клиента в БД
-          schema:
-            type: string
-            format: email
       security:
         - bearerAuth: []
       requestBody:
@@ -138,13 +130,6 @@ paths:
             schema:
               type: object
               properties:
-                client_email:
-                  type: string
-                  format: email
-                to:
-                  type: string
-                  format: email
-                  description: Синоним client_email
                 includeCover:
                   type: boolean
                 includeSummary:
@@ -168,10 +153,11 @@ paths:
                   client_email:
                     type: string
                     format: email
+                    description: Email из карточки клиента, на который отправлено
                   filename:
                     type: string
         '400':
-          description: Нет email получателя или контекста агента
+          description: Нет email у клиента в карточке или нет контекста агента
         '401':
           description: Нет токена
         '403':

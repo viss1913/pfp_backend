@@ -9,7 +9,7 @@ info:
 
     **Настройки PDF-отчёта** (обложка, сводная, `goal_card_assets` для превью карточек целей): отдельная спека **`openapi/PDFsettings.yaml`**, Swagger UI: `/api-docs-pdf-settings`, префикс путей `/api/pfp/pdf-settings`.
 
-    **Отправка готового PDF финплана клиенту на email** (Resend, от имени агента, вложение + краткое письмо): **`POST /pfp/reports/{clientId}/pdf/send-email`** — см. путь ниже; полный контракт отчёта также в **`openapi/getReport.yaml`**.
+    **Отправка готового PDF финплана клиенту на email** (Resend, от имени агента, вложение + краткое письмо): **`POST /pfp/reports/{clientId}/pdf/send-email`** — получатель только **email из карточки клиента**; см. путь ниже, полный контракт отчёта также в **`openapi/getReport.yaml`**.
 
     **Resolut (AV Inform) для ЛК:** отдельная спека **`docs/api/pfp_resolut.yaml`** (прокси `products/quote/client/portfolio/link`, `plan-quotes` / `plan-publish-preview` / `publish-from-plan`, `suggest-quote-line`, `publish-preview` / `publish` / `publications`).
 
@@ -854,7 +854,7 @@ paths:
 
         **Доступ:** агент (владелец клиента) или администратор. Роль `client` — **403**.
 
-        **Получатель:** `client_email` или `to` в JSON, иначе query `client_email` / `to`, иначе `email` из карточки клиента (если пусто — **400**).
+        **Получатель:** только поле **`email` в карточке клиента** в БД (если пусто — **400**).
 
         Параметры `includeCover`, `includeSummary`, `goalTypes` — в теле или query (как у GET PDF); приоритет у полей тела.
         Требуются настроенные `RESEND_API_KEY` и verified-домен для `RESEND_FROM_EMAIL` (см. NDA / внутреннюю документацию Resend).
@@ -881,20 +881,6 @@ paths:
           description: Подмножество целей через запятую, например `FIN_RESERVE,LIFE`
           schema:
             type: string
-        - name: client_email
-          in: query
-          required: false
-          description: Email получателя, если не в теле и не в карточке клиента
-          schema:
-            type: string
-            format: email
-        - name: to
-          in: query
-          required: false
-          description: Синоним `client_email`
-          schema:
-            type: string
-            format: email
       requestBody:
         required: false
         content:
@@ -902,13 +888,6 @@ paths:
             schema:
               type: object
               properties:
-                client_email:
-                  type: string
-                  format: email
-                to:
-                  type: string
-                  format: email
-                  description: Синоним client_email
                 includeCover:
                   type: boolean
                 includeSummary:
@@ -935,11 +914,12 @@ paths:
                   client_email:
                     type: string
                     format: email
+                    description: Email из карточки клиента, на который ушло письмо
                   filename:
                     type: string
                     example: Finplan-otchyot-123-2026-05-03.pdf
         '400':
-          description: Нет email получателя или нет агента для подписи письма
+          description: Нет email у клиента в карточке или нет агента для подписи письма
         '401':
           description: Нет токена
         '403':
