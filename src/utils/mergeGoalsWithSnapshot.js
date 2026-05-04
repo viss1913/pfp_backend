@@ -72,6 +72,8 @@ function mergeGoalsWithSnapshot(clientObj) {
             goal_type: snap.goal_type,
             goal_type_id: snap.goal_type_id != null ? snap.goal_type_id : dbGoal.goal_type_id,
             risk_profile: snap.risk_profile != null ? snap.risk_profile : dbGoal.risk_profile,
+            risk_profile_extended: snap.risk_profile_extended != null ? snap.risk_profile_extended : dbGoal.risk_profile_extended,
+            risk_profile_details: snap.risk_profile_details != null ? snap.risk_profile_details : dbGoal.risk_profile_details,
             summary: snap.summary,
             details: snap.details
         };

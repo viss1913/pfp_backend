@@ -19,6 +19,8 @@
   - `POST /my/risk-profile/answers`
 - расчет профиля в `riskProfileService` по методике BaseScore + BehaviorScore.
 
+**Синхрон расчёт / ЛК (2026):** в `calculateFirstRun` обязательства нормализуются так же, как при сохранении клиента (`mergeLiabilitiesWithCredits`). Эталонная цель для `risk_profile_result` и снимок для ИИ (`goals_portfolio_risk`) используют тот же порядок целей, что и расчёт (`sortGoalsForCalculationOrder`).
+
 ### Этап 2. Shadow-режим
 
 - фронт продолжает старую отправку, но параллельно использует новый endpoint анкеты;

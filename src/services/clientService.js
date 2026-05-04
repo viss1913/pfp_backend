@@ -66,7 +66,9 @@ function mapCreditToLiabilityRow(credit) {
 }
 
 function mergeLiabilitiesWithCredits(payload) {
-    const directLiabilities = Array.isArray(payload?.liabilities) ? payload.liabilities : [];
+    const fromClient = Array.isArray(payload?.client?.liabilities) ? payload.client.liabilities : [];
+    const rootLiabilities = Array.isArray(payload?.liabilities) ? payload.liabilities : [];
+    const directLiabilities = [...fromClient, ...rootLiabilities];
     const credits = Array.isArray(payload?.credits) ? payload.credits : [];
     if (credits.length === 0) return directLiabilities;
 
@@ -204,7 +206,11 @@ class ClientService {
                 await clientRepository.addAssets(assets, trx);
             }
 
-            const normalizedLiabilities = mergeLiabilitiesWithCredits(data);
+            const normalizedLiabilities = mergeLiabilitiesWithCredits({
+                client: data.client,
+                liabilities: data.liabilities,
+                credits: data.credits
+            });
             if (normalizedLiabilities.length > 0) {
                 const liabilities = normalizedLiabilities.map(l => ({ ...l, client_id: clientId }));
                 await clientRepository.addLiabilities(liabilities, trx);
@@ -377,7 +383,11 @@ class ClientService {
             const hasLiabilitiesPayload = Object.prototype.hasOwnProperty.call(data, 'liabilities');
             const hasCreditsPayload = Object.prototype.hasOwnProperty.call(data, 'credits');
             if (hasLiabilitiesPayload || hasCreditsPayload) {
-                const normalizedLiabilities = mergeLiabilitiesWithCredits(data);
+                const normalizedLiabilities = mergeLiabilitiesWithCredits({
+                    client: data.client,
+                    liabilities: data.liabilities,
+                    credits: data.credits
+                });
                 await clientRepository.deleteLiabilities(clientId, trx);
                 if (normalizedLiabilities.length > 0) {
                     const liabilities = normalizedLiabilities.map(l => ({ ...l, client_id: clientId }));
@@ -511,4 +521,6 @@ class ClientService {
     }
 }
 
-module.exports = new ClientService();
+const clientServiceInstance = new ClientService();
+clientServiceInstance.mergeLiabilitiesWithCredits = mergeLiabilitiesWithCredits;
+module.exports = clientServiceInstance;

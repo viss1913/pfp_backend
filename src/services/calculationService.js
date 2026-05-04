@@ -13,8 +13,13 @@ const finReserveCalculator = require('../algorithms/calculators/FinReserveCalcul
 const otherGoalCalculator = require('../algorithms/calculators/OtherGoalCalculator');
 const rentCalculator = require('../algorithms/calculators/RentCalculator');
 const riskProfileService = require('./riskProfileService');
+const clientService = require('./clientService');
 const portfolioAggregator = require('../algorithms/PortfolioAggregator');
 const { getLifeFirstPaymentAmount } = require('../algorithms/calculators/lifeUpfrontAmount');
+const {
+    getPriorityForCalculation,
+    compareGoalsForCalculation
+} = require('../utils/sortGoalsForCalculation');
 
 const CALCULATORS = {
     1: pensionCalculator,     // PENSION
@@ -122,22 +127,7 @@ class CalculationService {
     }
 
     _getPriority(goal) {
-        // 1: Reservoir/Emergency
-        // 2: Pension (id 1)
-        // 3: Passive Income (id 2) / Life (id 5)
-        // 4: Investment (id 3) / Other
-        const name = (goal.name || '').toUpperCase();
-        // Keep name check for backward compatibility or explicit "Reservation" naming
-        if (name.includes('РЕЗЕРВ') || name.includes('RESERVOIR')) return 1;
-
-        const map = {
-            7: 1, // FinReserve (First Priority)
-            5: 2, // Life Insurance (Second Priority)
-            3: 3, // Investment (Third - Critical for 60% Rule)
-            1: 4, // Pension
-            2: 5  // Passive Income
-        };
-        return map[goal.goal_type_id] || 5;
+        return getPriorityForCalculation(goal);
     }
 
     _getClientAgeYears(client) {
@@ -632,6 +622,12 @@ class CalculationService {
             const assetsFromRoot = Array.isArray(requestRootAssets) ? requestRootAssets : [];
             clientData.assets = assetsFromClient.length > 0 ? assetsFromClient : assetsFromRoot;
 
+            clientData.liabilities = clientService.mergeLiabilitiesWithCredits({
+                client: clientData,
+                liabilities: data.liabilities,
+                credits: data.credits
+            });
+
             logger.info(`[CalculationService] calculateFirstRun for project: ${clientData.project_id}, Goals: ${goals?.length}`);
 
             // 1. Prepare Shared Context
@@ -662,12 +658,7 @@ class CalculationService {
                 }
 
                 return { goal: g, index: i };
-            }).sort((a, b) => {
-                const pA = a.goal.priority || this._getPriority(a.goal);
-                const pB = b.goal.priority || this._getPriority(b.goal);
-                if (pA !== pB) return pA - pB;
-                return (a.goal.term_months || 0) - (b.goal.term_months || 0);
-            });
+            }).sort((a, b) => compareGoalsForCalculation(a.goal, b.goal));
 
             logger.info(`[CalculationService] Ordered goals: ${indexedGoals.map(g => g.goal.id).join(', ')}`);
 
@@ -760,8 +751,10 @@ class CalculationService {
                             goal_type: result.goal_type || goal.goal_type || 'OTHER',
                             goal_type_id: result.goal_type_id || goal.goal_type_id,
                             goal_id: result.goal_id || goal.id || goal.goal_id,
+                            term_months: goal.term_months != null ? goal.term_months : (result.term_months != null ? result.term_months : null),
                             risk_profile: goal.risk_profile,
-                            risk_profile_extended: goal.risk_profile_extended != null ? goal.risk_profile_extended : null
+                            risk_profile_extended: goal.risk_profile_extended != null ? goal.risk_profile_extended : null,
+                            risk_profile_details: goal.risk_profile_details || null
                         };
 
                         resultsIndexed.push({ index, result: wrappedResult });
@@ -832,7 +825,11 @@ class CalculationService {
                             goal_id: prevResult.goal_id || goal.id || goal.goal_id,
                             goal_name: goal.name || goal.goal_name || prevResult.goal_name || prevResult.name || goal.goal_type || 'Цель',
                             goal_type: prevResult.goal_type || goal.goal_type || 'OTHER',
-                            risk_profile: goal.risk_profile || prevResult.risk_profile
+                            goal_type_id: prevResult.goal_type_id != null ? prevResult.goal_type_id : goal.goal_type_id,
+                            term_months: goal.term_months != null ? goal.term_months : prevResult.term_months,
+                            risk_profile: goal.risk_profile || prevResult.risk_profile,
+                            risk_profile_extended: goal.risk_profile_extended != null ? goal.risk_profile_extended : prevResult.risk_profile_extended,
+                            risk_profile_details: prevResult.risk_profile_details || goal.risk_profile_details || null
                         };
 
                         resultsIndexed.push({ index, result: finalFrozenResult });

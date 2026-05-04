@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const aiService = require('./aiService');
 
-const EXPLANATION_VERSION = 'v1';
+const EXPLANATION_VERSION = 'v2';
 const CACHE_TTL_MS = 1000 * 60 * 30;
 
 function stableJson(value) {
@@ -23,17 +23,25 @@ class RiskProfileExplanationService {
         this.cache = new Map();
     }
 
-    async build({ riskProfileResult, answerMap = {}, questionnaire = null, projectId = null }) {
+    async build({
+        riskProfileResult,
+        answerMap = {},
+        questionnaire = null,
+        projectId = null,
+        goalsPortfolioRisk = null
+    }) {
         if (!riskProfileResult || typeof riskProfileResult !== 'object') return null;
 
-        const sourceHash = this._buildSourceHash(riskProfileResult, answerMap, questionnaire);
+        const goalsDigest = Array.isArray(goalsPortfolioRisk) ? goalsPortfolioRisk : [];
+
+        const sourceHash = this._buildSourceHash(riskProfileResult, answerMap, questionnaire, goalsDigest);
         const cached = this.cache.get(sourceHash);
         if (cached && (Date.now() - cached.ts) <= CACHE_TTL_MS) {
             return { ...cached.payload };
         }
 
         const humanAnswers = this._collectHumanAnswers(answerMap, questionnaire);
-        const fallback = this._buildFallback(riskProfileResult, humanAnswers, sourceHash);
+        const fallback = this._buildFallback(riskProfileResult, humanAnswers, sourceHash, goalsDigest);
 
         if (!this._isAiEnabled()) {
             this.cache.set(sourceHash, { ts: Date.now(), payload: fallback });
@@ -44,7 +52,8 @@ class RiskProfileExplanationService {
             const messages = this._buildPromptMessages({
                 riskProfileResult,
                 questionnaireCode: questionnaire?.code || null,
-                humanAnswers
+                humanAnswers,
+                goalsPortfolioRisk: goalsDigest
             });
             const model = this._resolveModel(projectId);
             const raw = await aiService.getCompletion(messages, model);
@@ -67,12 +76,13 @@ class RiskProfileExplanationService {
         return process.env.OPENROUTER_MODEL_RISK_PROFILE_EXPLANATION || process.env.OPENROUTER_MODEL || null;
     }
 
-    _buildSourceHash(riskProfileResult, answerMap, questionnaire) {
+    _buildSourceHash(riskProfileResult, answerMap, questionnaire, goalsPortfolioRisk = []) {
         const source = stableJson({
             risk_profile_result: riskProfileResult,
             risk_profile_answers: answerMap,
             questionnaire_code: questionnaire?.code || null,
-            questionnaire_version_id: questionnaire?.id || null
+            questionnaire_version_id: questionnaire?.id || null,
+            goals_portfolio_risk: goalsPortfolioRisk
         });
         return `sha256:${crypto.createHash('sha256').update(source, 'utf8').digest('hex')}`;
     }
@@ -95,13 +105,16 @@ class RiskProfileExplanationService {
             .filter(Boolean);
     }
 
-    _buildPromptMessages({ riskProfileResult, questionnaireCode, humanAnswers }) {
+    _buildPromptMessages({ riskProfileResult, questionnaireCode, humanAnswers, goalsPortfolioRisk = [] }) {
         const systemPrompt = [
             'Ты финансовый ассистент PFP.',
-            'Задача: объяснить риск-профиль клиента понятным и аккуратным языком.',
+            'Задача: объяснить риск-профиль клиента с учётом портфеля целей понятным и аккуратным языком.',
             'Жесткие правила:',
             '1) Используй только данные из входного JSON, не выдумывай факты.',
             '2) Не пересчитывай score и не меняй риск-профиль из backend.',
+            '   Поле risk_profile_result — эталонный срез для одной опорной цели (как в расчёте).',
+            '   Массив goals_portfolio_risk — риск по каждой цели после backend; уровни могут различаться из‑за горизонта (term_months) и ограничений.',
+            '   Не противоречь ни risk_profile_result, ни ни одной строке goals_portfolio_risk: подписи risk_profile / risk_profile_extended и final_score брать только из JSON.',
             '3) Не обещай доходность и не давай гарантий.',
             '4) Верни строго JSON-объект без markdown и без пояснений вокруг.',
             '5) Поля JSON:',
@@ -119,7 +132,8 @@ class RiskProfileExplanationService {
             '- key_factors 3-5 пунктов;',
             '- recommendations 3-5 пунктов;',
             '- caution 1-2 предложения;',
-            '- agent_note 2-4 предложения.'
+            '- agent_note 2-4 предложения.',
+            'Если goals_portfolio_risk непустой: в summary кратко отрази общую картину и различия между целями; первая строка массива — порядок приоритета как в расчёте.'
         ].join('\n');
 
         const payload = {
@@ -133,6 +147,7 @@ class RiskProfileExplanationService {
                 max_final_score_by_capacity: riskProfileResult.max_final_score_by_capacity ?? null,
                 explanation: riskProfileResult.explanation || null
             },
+            goals_portfolio_risk: goalsPortfolioRisk,
             questionnaire: {
                 version_code: questionnaireCode,
                 answers_human: humanAnswers
@@ -190,7 +205,7 @@ class RiskProfileExplanationService {
         };
     }
 
-    _buildFallback(riskProfileResult, humanAnswers, sourceHash) {
+    _buildFallback(riskProfileResult, humanAnswers, sourceHash, goalsPortfolioRisk = []) {
         const profile = String(riskProfileResult?.risk_profile_extended || riskProfileResult?.risk_profile || 'UNKNOWN');
         const baseScore = Number(riskProfileResult?.base_score);
         const behaviorScore = Number(riskProfileResult?.behavior_score);
@@ -210,8 +225,12 @@ class RiskProfileExplanationService {
             factors.push(`Ключевой поведенческий сигнал: "${humanAnswers[0].answer}".`);
         }
 
+        const multiLine = goalsPortfolioRisk.length > 1
+            ? ` По целям портфеля backend назначил разные уровни риска (см. goals_portfolio_risk); эталонный срез для карточки клиента — ${profile}.`
+            : '';
+
         const summary = [
-            `Итоговый риск-профиль определен как ${profile}.`,
+            `Итоговый риск-профиль (опорная цель) определен как ${profile}.${multiLine}`,
             'Результат учитывает одновременно финансовые параметры клиента и поведенческую устойчивость.',
             'Такой подход снижает риск решений на эмоциях в периоды рыночной волатильности.'
         ].join(' ');

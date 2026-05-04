@@ -13,6 +13,8 @@ const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSync
 const riskQuestionnaireService = require('../services/riskQuestionnaireService');
 const riskProfileExplanationService = require('../services/riskProfileExplanationService');
 const riskProfileService = require('../services/riskProfileService');
+const { mergeGoalsWithSnapshot } = require('../utils/mergeGoalsWithSnapshot');
+const { sortGoalsForCalculationOrder } = require('../utils/sortGoalsForCalculation');
 const Joi = require('joi');
 
 function wantsReportHtmlDocument(req) {
@@ -58,8 +60,10 @@ async function computeAndPersistRiskProfileResultIfPossible({ clientId, projectI
         return { client: fullClient, riskProfileResult: null };
     }
 
+    mergeGoalsWithSnapshot(fullClient);
     const goals = Array.isArray(fullClient.goals) ? fullClient.goals : [];
-    const goalForRisk = goals.find((g) => Number(g?.term_months || 0) > 0) || { term_months: 120 };
+    const sortedGoals = sortGoalsForCalculationOrder(goals);
+    const goalForRisk = sortedGoals.find((g) => Number(g?.term_months || 0) > 0) || { term_months: 120 };
 
     const riskProfileResult = await riskProfileService.calculateGoalProfile({
         answers,
@@ -93,11 +97,93 @@ function shouldForceReverseModeForPatch(existingGoal, patch) {
     return hasReverseTrigger && !hasExplicitMonthlyChange;
 }
 
-function pickRiskProfileResult(calculationResponse) {
+function pickRiskProfileResult(calculationResponse, requestGoals = null) {
     const calculation = calculationResponse?.calculation || calculationResponse;
-    const goals = Array.isArray(calculation?.goals) ? calculation.goals : [];
-    const firstWithDetails = goals.find((goal) => goal?.risk_profile_details);
+    const calcGoals = Array.isArray(calculation?.goals) ? calculation.goals : [];
+
+    const detailsByGoalId = new Map();
+    for (const g of calcGoals) {
+        const id = g?.goal_id ?? g?.id;
+        if (id != null && g?.risk_profile_details) {
+            detailsByGoalId.set(String(id), g.risk_profile_details);
+        }
+    }
+
+    const tryId = (id) => {
+        if (id == null || id === '') return null;
+        return detailsByGoalId.get(String(id)) || null;
+    };
+
+    if (Array.isArray(requestGoals) && requestGoals.length > 0) {
+        const sortedReq = sortGoalsForCalculationOrder(requestGoals);
+        const ref = sortedReq.find((g) => Number(g?.term_months || 0) > 0);
+        if (ref) {
+            const id = ref.id ?? ref.goal_id;
+            const got = tryId(id);
+            if (got) return got;
+        }
+    }
+
+    const syntheticForSort = calcGoals.map((g) => ({
+        ...g,
+        name: g.goal_name || g.name,
+        id: g.goal_id ?? g.id,
+        term_months: g.term_months != null ? Number(g.term_months) : 0
+    }));
+    const refFromCalc = sortGoalsForCalculationOrder(syntheticForSort)
+        .find((g) => Number(g?.term_months || 0) > 0);
+    if (refFromCalc) {
+        const got = tryId(refFromCalc.goal_id ?? refFromCalc.id);
+        if (got) return got;
+    }
+
+    const firstWithDetails = calcGoals.find((goal) => goal?.risk_profile_details);
     return firstWithDetails?.risk_profile_details || null;
+}
+
+function buildGoalsPortfolioRisk(client) {
+    if (!client || !Array.isArray(client.goals) || client.goals.length === 0) return [];
+
+    const draft = { ...client, goals: client.goals.map((g) => ({ ...g })) };
+    mergeGoalsWithSnapshot(draft);
+    const ordered = sortGoalsForCalculationOrder(draft.goals);
+
+    const metricKeys = [
+        'target_amount_initial',
+        'target_amount_future',
+        'accumulation_yield_percent',
+        'initial_capital',
+        'monthly_replenishment',
+        'projected_capital_at_end'
+    ];
+
+    return ordered.map((g) => {
+        const sid = g.id != null ? g.id : g.goal_id;
+        const summary = g.summary && typeof g.summary === 'object' ? g.summary : {};
+        const details = g.risk_profile_details && typeof g.risk_profile_details === 'object'
+            ? g.risk_profile_details
+            : null;
+
+        const summary_metrics = {};
+        for (const k of metricKeys) {
+            if (summary[k] != null && summary[k] !== '') {
+                summary_metrics[k] = summary[k];
+            }
+        }
+
+        return {
+            goal_id: sid != null && Number.isFinite(Number(sid)) ? Number(sid) : sid,
+            name: g.name || g.goal_name || null,
+            goal_type_id: g.goal_type_id != null ? Number(g.goal_type_id) : null,
+            term_months: g.term_months != null ? Number(g.term_months) : null,
+            risk_profile: g.risk_profile || null,
+            risk_profile_extended: g.risk_profile_extended != null ? g.risk_profile_extended : null,
+            final_score: details?.final_score ?? null,
+            base_score: details?.base_score ?? null,
+            behavior_score: details?.behavior_score ?? null,
+            summary_metrics
+        };
+    });
 }
 
 async function warmupClientPdfInBackgroundForCabinet({
@@ -289,11 +375,13 @@ class ClientCabinetController {
             let riskProfileExplanation = null;
             if (riskProfileResult) {
                 const questionnaire = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId || null);
+                const goalsPortfolioRisk = buildGoalsPortfolioRisk(client);
                 riskProfileExplanation = await riskProfileExplanationService.build({
                     riskProfileResult,
                     answerMap: client.risk_profile_answers || {},
                     questionnaire,
-                    projectId
+                    projectId,
+                    goalsPortfolioRisk
                 });
             }
 
@@ -355,11 +443,16 @@ class ClientCabinetController {
             let riskProfileExplanation = null;
             if (riskProfileResult) {
                 const questionnaireV2 = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId || null);
+                const fullClientForExplain = computed.client || (await clientService.getFullClient(clientId, projectId));
+                const goalsPortfolioRisk = fullClientForExplain
+                    ? buildGoalsPortfolioRisk(fullClientForExplain)
+                    : [];
                 riskProfileExplanation = await riskProfileExplanationService.build({
                     riskProfileResult,
                     answerMap: normalizedAnswers,
                     questionnaire: questionnaireV2,
-                    projectId
+                    projectId,
+                    goalsPortfolioRisk
                 });
             }
 
@@ -684,9 +777,10 @@ class ClientCabinetController {
                         ? JSON.stringify(req.body.client.risk_profile_answers)
                         : undefined,
                     risk_questionnaire_version_id: req.body.client?.risk_questionnaire_version_id || undefined,
-                    risk_profile_result: pickRiskProfileResult(calculationResponse)
-                        ? JSON.stringify(pickRiskProfileResult(calculationResponse))
-                        : undefined
+                    risk_profile_result: (() => {
+                        const r = pickRiskProfileResult(calculationResponse, req.body.goals);
+                        return r ? JSON.stringify(r) : undefined;
+                    })()
                 },
                 goals: req.body.goals
             };
@@ -841,7 +935,7 @@ class ClientCabinetController {
                 if (clientUpdate.risk_profile_answers) {
                     clientUpdate.risk_profile_answers = JSON.stringify(clientUpdate.risk_profile_answers);
                 }
-                const riskProfileResult = pickRiskProfileResult(calculationResponse);
+                const riskProfileResult = pickRiskProfileResult(calculationResponse, goalsToCalculate);
                 if (riskProfileResult) {
                     clientUpdate.risk_profile_result = JSON.stringify(riskProfileResult);
                 }
