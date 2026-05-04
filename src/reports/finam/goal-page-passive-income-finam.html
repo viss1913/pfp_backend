@@ -12,7 +12,7 @@
       есть ненулевые эффекты: сумма tax_deduction за выбранный календарный год, total_tax_benefit,
       налоги (tax_deduction за год, total_tax_benefit) и/или софин (cofinancing за год, total_cofinancing) —
       те же карточки «год | весь период», что у вычетов. Иначе весь узел не рендерить.
-    График капитала.
+    Линейный график капитала на стр.2 не используем (переполнение листа в PDF); динамика — по monthly_schedule в данных.
   -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -393,7 +393,7 @@
     .pie-legend-name { font-weight: 600; color: #111827; }
     .pie-legend-meta { font-weight: 400; color: #6b7280; }
 
-    /* Столбики + линейный график (стр.2) */
+    /* Столбики «состав капитала» (стр.2) */
     .fin-bar-chart-block {
       margin-bottom: 9px;
       padding: 8px 10px 9px;
@@ -586,69 +586,6 @@
 
     .passive-extras-note strong { font-weight: 700; color: #111827; }
 
-    .chart-card {
-      padding: 8px 8px 6px; border-radius: 6px;
-      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 7px;
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chart-header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 5px;
-    }
-
-    .chart-title {
-      font-size: 12px; font-weight: 600; color: #000000;
-    }
-
-    .chart-legend {
-      display: flex; gap: 8px;
-    }
-
-    .chart-legend-item {
-      display: flex; align-items: center; gap: 3px;
-    }
-
-    .legend-line {
-      width: 12px; height: 2px; border-radius: 1px; flex-shrink: 0;
-      background: #6366f1;
-    }
-
-    .legend-text { font-size: 12px; font-weight: 400; color: #555555; }
-
-    .chart-svg { display: block; width: 100%; height: auto; min-height: 142px; }
-
-    .avatar-section-sm {
-      display: flex; gap: 8px; align-items: flex-start; margin-top: 2px;
-    }
-
-    .avatar-sm {
-      width: 30px; height: 30px; border-radius: 50%;
-      background: linear-gradient(135deg, #f9a8d4, #c084fc);
-      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-      border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-    }
-
-    .avatar-sm-text { font-size: 11px; font-weight: 700; color: #ffffff; }
-
-    .speech-sm {
-      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
-      border-radius: 8px; padding: 5px 9px; position: relative;
-    }
-
-    .speech-sm::before {
-      content: ''; position: absolute; left: -5px; top: 9px;
-      width: 8px; height: 8px; background: #f3f3f3;
-      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
-      transform: rotate(45deg);
-    }
-
-    .speech-sm p { font-size: 12px; font-weight: 400; color: #222222; line-height: 1.4; }
-    .speech-sm em { font-style: normal; font-weight: 700; color: #000000; }
-
     /* Стр.1: не растягиваем пустоту до футера — контент и пироги заполняют низ */
     article.page:first-of-type .spacer {
       flex: 0 0 8px;
@@ -672,21 +609,6 @@
 
     .footer-left { font-size: 12px; font-weight: 400; color: #555555; line-height: 1.45; }
     .footer-right { font-size: 12px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
-
-    /* Стр.2: график без flex-grow — иначе серая карточка тянется и ИИ визуально лезет на блок */
-    article.page:nth-of-type(2) .chart-card {
-      flex: 0 0 auto;
-      margin-bottom: 12px;
-    }
-
-    article.page:nth-of-type(2) .chart-svg {
-      min-height: 136px;
-    }
-
-    article.page:nth-of-type(2) .avatar-section-sm {
-      margin-top: 14px;
-      clear: both;
-    }
 
     @media print {
       body { margin: 0; padding: 0; gap: 0; }
@@ -737,11 +659,11 @@
     <div class="metrics-2">
       <div class="metric">
         <div class="metric-value">170 000<span> ₽/мес</span></div>
-        <div class="metric-desc">Необходимый пассивный доход<br>(в сегодняшних рублях)</div>
+        <div class="metric-desc">Желаемый пассивный доход<br>(в сегодняшних рублях)</div>
       </div>
       <div class="metric">
         <div class="metric-value">825 472<span> ₽/мес</span></div>
-        <div class="metric-desc">Пассивный доход с учётом инфляции<br>к году выхода на пенсию</div>
+        <div class="metric-desc">Пассивный доход с учётом инфляции<br>к концу срока цели</div>
       </div>
     </div>
 
@@ -908,7 +830,7 @@
     <div class="section-label">Состав капитала</div>
     <div class="fin-bar-chart-block">
       <div class="fin-bar-chart-title">Структура накопленного капитала</div>
-      <div class="fin-bar-chart-hint">На дату последней точки графика (подстановка). Сумма двух первых столбцов = «Итого капитал». Софинансирование и вычеты учитываются только если заданы в цели.</div>
+      <div class="fin-bar-chart-hint">Сумма двух первых столбцов = «Итого капитал». Софинансирование и вычеты учитываются только если заданы в цели.</div>
       <div class="fin-bar-chart-area" role="img" aria-label="Состав капитала">
         <div class="fin-bar-track">
           <div class="fin-bar fin-bar--own" style="height: 68px;">
@@ -980,59 +902,6 @@
     <p class="passive-extras-note">
       <strong>Без льгот в цели:</strong> блок выше не выводим; в среднем столбце «состава капитала» остаётся в основном инвестиционный доход. Год в подписях и суммы подставляет бэк.
     </p>
-
-    <div class="section-label">График капитала</div>
-    <div class="chart-card">
-      <div class="chart-header">
-        <div class="chart-title">Накопление: апр. 2026 → 2055 (упрощённо, для вёрстки)</div>
-        <div class="chart-legend">
-          <div class="chart-legend-item">
-            <div class="legend-line"></div>
-            <span class="legend-text">Капитал по графику</span>
-          </div>
-        </div>
-      </div>
-      <svg class="chart-svg" viewBox="0 0 500 152" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="pg-passive" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#6366f1" stop-opacity="0.18"/>
-            <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02"/>
-          </linearGradient>
-        </defs>
-        <line x1="40" y1="118" x2="480" y2="118" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <line x1="40" y1="96" x2="480" y2="96" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <line x1="40" y1="74" x2="480" y2="74" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <line x1="40" y1="52" x2="480" y2="52" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <line x1="40" y1="30" x2="480" y2="30" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <text x="36" y="121" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">0</text>
-        <text x="36" y="99" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">10М</text>
-        <text x="36" y="77" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">20М</text>
-        <text x="36" y="55" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">30М</text>
-        <text x="36" y="33" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">40М</text>
-        <text x="40" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2026</text>
-        <text x="128" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2032</text>
-        <text x="216" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2038</text>
-        <text x="304" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2044</text>
-        <text x="392" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2050</text>
-        <text x="480" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2055</text>
-        <path d="M40,116.8 L128,108 L216,90 L304,66 L392,44 L480,24 L480,118 L40,118 Z" fill="url(#pg-passive)"/>
-        <polyline
-          points="40,116.8 128,108 216,90 304,66 392,44 480,24"
-          fill="none" stroke="#6366f1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="40" cy="116.8" r="2.5" fill="#6366f1"/>
-        <circle cx="480" cy="24" r="2.5" fill="#6366f1"/>
-        <rect x="362" y="6" width="112" height="14" rx="3" fill="#eef2ff" stroke="#c7d2fe" stroke-width="0.5"/>
-        <text x="418" y="16" font-size="7.5" fill="#4338ca" text-anchor="middle" font-family="sans-serif" font-weight="700">≈ 47,6 млн ₽</text>
-        <text x="40" y="148" font-size="6.5" fill="#64748b" font-family="sans-serif">Старт: 01.04.2026 — 112 000 ₽ · 11.05.2026 — 118 405 ₽ (пополнение + доходность)</text>
-      </svg>
-    </div>
-
-    <div class="avatar-section-sm">
-      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
-      <div class="speech-sm">
-        <p>На графике — <em>упрощённый скелет</em>. В отчёте подставим точки из помесячного массива — линия совпадёт с расчётом.</p>
-      </div>
-    </div>
 
     <div class="spacer"></div>
 

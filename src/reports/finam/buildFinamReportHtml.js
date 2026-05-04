@@ -892,20 +892,39 @@ function applyPensionHeroPlaceholders(html, goal) {
 }
 
 function applyPensionGapMetrics(html, goal) {
-    if (!html.includes('Необходимый пассивный доход') || !html.includes('Пассивный доход с учётом инфляции')) return html;
+    const hasFirstPassive =
+        html.includes('Необходимый пассивный доход') || html.includes('Желаемый пассивный доход');
+    if (!hasFirstPassive || !html.includes('Пассивный доход с учётом инфляции')) return html;
     const s = goal?.summary || {};
-    const targetPresent = toNum(s.target_amount_initial ?? s.projected_pension_monthly_present);
-    const statePensionToday = toNum(s.state_pension_monthly_today);
-    const requiredPassiveIncomeToday = Math.max(targetPresent - statePensionToday, 0);
-    const pensionGapFuture = toNum(s.pension_gap_future);
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
+
+    let presentMonthly;
+    let futureMonthly;
+
+    if (goalType === 'PASSIVE_INCOME' || goalTypeId === 2) {
+        // PassiveIncomeCalculator: target_amount_* = желаемый ₽/мес (сегодня / в ценах конца срока), не пенсионный разрыв.
+        presentMonthly = toNum(s.target_amount_initial);
+        futureMonthly = toNum(s.target_amount_future);
+    } else if (goalType === 'RENT' || goalTypeId === 8) {
+        const rent = toNum(s.projected_monthly_income);
+        presentMonthly = rent;
+        futureMonthly = rent;
+    } else {
+        const targetPresent = toNum(s.target_amount_initial ?? s.projected_pension_monthly_present);
+        const statePensionToday = toNum(s.state_pension_monthly_today);
+        presentMonthly = Math.max(targetPresent - statePensionToday, 0);
+        futureMonthly = toNum(s.pension_gap_future);
+    }
+
     return html
         .replace(
-            /(<div class="metric-value">)[\s\S]*?(<span> ₽\/мес<\/span><\/div>\s*<div class="metric-desc">Необходимый пассивный доход)/,
-            `$1${formatIntValue(requiredPassiveIncomeToday)}<span> ₽/мес</span></div>\n        <div class="metric-desc">Необходимый пассивный доход`
+            /(<div class="metric-value">)[\s\S]*?(<span> ₽\/мес<\/span><\/div>\s*<div class="metric-desc">)(Необходимый|Желаемый)( пассивный доход<br>\(в сегодняшних рублях\)<\/div>)/,
+            `$1${formatIntValue(presentMonthly)}<span> ₽/мес</span></div>\n        <div class="metric-desc">$3$4`
         )
         .replace(
-            /(<div class="metric-value">)[\s\S]*?(<span> ₽\/мес<\/span><\/div>\s*<div class="metric-desc">Пассивный доход с учётом инфляции)/,
-            `$1${formatIntValue(pensionGapFuture)}<span> ₽/мес</span></div>\n        <div class="metric-desc">Пассивный доход с учётом инфляции`
+            /(<div class="metric-value">)[\s\S]*?(<span> ₽\/мес<\/span><\/div>\s*<div class="metric-desc">Пассивный доход с учётом инфляции<br>)([^<]+)(<\/div>)/,
+            `$1${formatIntValue(futureMonthly)}<span> ₽/мес</span></div>\n        <div class="metric-desc">Пассивный доход с учётом инфляции<br>$3$4`
         );
 }
 

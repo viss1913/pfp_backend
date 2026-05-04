@@ -17,13 +17,13 @@ HTML-макеты (актуальная вёрстка от дизайна):
   page-3-family-finam.html   — страница 3, семья / текущее состояние
   page-4-targets-finam.html   — страница 4, цели
 
-HTML-макеты: цель 595×842; часть шаблонов — два листа в одном HTML (два article.page), в сборке PDF режутся на отдельные iframe-страницы:
+HTML-макеты: цель 595×842; часть шаблонов — два или три листа в одном HTML (несколько article.page), в сборке PDF режутся на отдельные iframe-страницы:
   goal-page-fin-reserve-finam.html      — FIN_RESERVE, финансовая подушка
   goal-page-life-finam.html             — LIFE, защита жизни
   goal-page-pension-finam.html          — PENSION, пенсия
   goal-page-passive-income-finam.html   — PASSIVE_INCOME, пассивный доход
   goal-page-save-grow-finam.html        — INVESTMENT / «Сохранить и приумножить»
-  goal-page-education-finam.html        — OTHER, сценарий «Образование»
+  goal-page-education-finam.html        — OTHER, «Образование»: 3 листа (план → пироги → состав/льготы)
   goal-page-apartment-finam.html        — OTHER, сценарий «Квартира»
   goal-page-house-finam.html            — OTHER, сценарий «Дом» / загородная недвижимость
   goal-page-business-finam.html         — OTHER, сценарий «Свой бизнес»

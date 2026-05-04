@@ -5,10 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Образование — Финансовый план</title>
   <!--
-    Финам PDF: OTHER, сценарий «Образование ребёнка» (goal_name / параметры на бэке). Две страницы.
+    Финам PDF: OTHER, сценарий «Образование ребёнка» (goal_name / параметры на бэке). Три страницы.
     Суммы в номинале без отдельного блока инфляции в макете (как в линейке Финам).
-    Стр.1: целевая сумма к дате (вуз/колледж), горизонт, план накопления, пироги.
-    Стр.2: состав капитала; #education-benefits-dynamic — вычеты/софин при ненулевых полях; график schedule[].
+    Стр.1: целевая сумма к дате, горизонт, план накопления (без пирогов — помещается на лист).
+    Стр.2: только «Структура портфеля» — два пирога (начальный / пополнения).
+    Стр.3: состав капитала; #education-benefits-dynamic — вычеты/софин; линейный график не используем (динамика в данных).
     Плейсхолдеры: child_age / years_to_enrollment, target_amount, initial_capital, monthly_replenishment,
     horizon_months, yield, split, capital_own / доход+льготы / total, schedule.
   -->
@@ -403,7 +404,7 @@
     .pie-legend-name { font-weight: 600; color: #111827; }
     .pie-legend-meta { font-weight: 400; color: #6b7280; }
 
-    /* Столбики + линейный график (стр.2) */
+    /* Столбики «состав капитала» (стр.3) */
     .fin-bar-chart-block {
       margin-bottom: 9px;
       padding: 8px 10px 9px;
@@ -596,70 +597,7 @@
 
     .passive-extras-note strong { font-weight: 700; color: #111827; }
 
-    .chart-card {
-      padding: 8px 8px 6px; border-radius: 6px;
-      background: #f3f3f3; border: 1px solid #cccccc; margin-bottom: 7px;
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chart-header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 5px;
-    }
-
-    .chart-title {
-      font-size: 12px; font-weight: 600; color: #000000;
-    }
-
-    .chart-legend {
-      display: flex; gap: 8px;
-    }
-
-    .chart-legend-item {
-      display: flex; align-items: center; gap: 3px;
-    }
-
-    .legend-line {
-      width: 12px; height: 2px; border-radius: 1px; flex-shrink: 0;
-      background: #6366f1;
-    }
-
-    .legend-text { font-size: 12px; font-weight: 400; color: #555555; }
-
-    .chart-svg { display: block; width: 100%; height: auto; min-height: 142px; }
-
-    .avatar-section-sm {
-      display: flex; gap: 8px; align-items: flex-start; margin-top: 2px;
-    }
-
-    .avatar-sm {
-      width: 30px; height: 30px; border-radius: 50%;
-      background: linear-gradient(135deg, #f9a8d4, #c084fc);
-      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-      border: 2px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
-    }
-
-    .avatar-sm-text { font-size: 11px; font-weight: 700; color: #ffffff; }
-
-    .speech-sm {
-      flex: 1; background: #f3f3f3; border: 1px solid #cccccc;
-      border-radius: 8px; padding: 5px 9px; position: relative;
-    }
-
-    .speech-sm::before {
-      content: ''; position: absolute; left: -5px; top: 9px;
-      width: 8px; height: 8px; background: #f3f3f3;
-      border-left: 1px solid #cccccc; border-bottom: 1px solid #cccccc;
-      transform: rotate(45deg);
-    }
-
-    .speech-sm p { font-size: 12px; font-weight: 400; color: #222222; line-height: 1.4; }
-    .speech-sm em { font-style: normal; font-weight: 700; color: #000000; }
-
-    /* Стр.1: не растягиваем пустоту до футера — контент и пироги заполняют низ */
+    /* Стр.1: не растягиваем пустоту до футера — верхний блок без пирогов */
     article.page:first-of-type .spacer {
       flex: 0 0 8px;
       min-height: 0;
@@ -683,23 +621,10 @@
     .footer-left { font-size: 12px; font-weight: 400; color: #555555; line-height: 1.45; }
     .footer-right { font-size: 12px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
 
-    /* Стр.2: график без flex-grow — иначе серая карточка тянется и ИИ визуально лезет на блок */
-    article.page:nth-of-type(2) .chart-card {
-      flex: 0 0 auto;
+    /* Стр.2: пироги по центру листа */
+    article.page:nth-of-type(2) .pie-row {
+      margin-top: 4px;
       margin-bottom: 12px;
-    }
-
-    article.page:nth-of-type(2) .chart-svg {
-      min-height: 136px;
-    }
-
-    article.page:nth-of-type(2) .avatar-section-sm {
-      margin-top: 14px;
-      clear: both;
-    }
-
-    article.page:nth-of-type(2) .legend-line {
-      background: #7c3aed;
     }
 
     @media print {
@@ -738,7 +663,7 @@
         <div class="education-tag">Учёба</div>
         <div class="education-hero-title">Образование ребёнка</div>
         <div class="education-hero-sub">
-          План накопления: стартовый капитал, регулярные взносы и портфель с ожидаемой доходностью. Ниже — сколько нужно к дате и как растёт капитал по шагам и по графику.
+          План накопления: стартовый капитал, регулярные взносы и портфель с ожидаемой доходностью. Ниже — сколько нужно к дате; структура портфеля — на отдельном листе.
         </div>
       </div>
       <div class="education-hero-image">
@@ -822,6 +747,37 @@
       </div>
     </div>
 
+    <div class="spacer" aria-hidden="true"></div>
+
+    <div class="page-num">Страница 1 из 3 · Образование</div>
+    <footer class="footer">
+      <div class="footer-left">
+        Персональный финансовый план · Конфиденциально<br>
+        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+      </div>
+      <div class="footer-right">
+        Информация не является индивидуальной<br>
+        инвестиционной рекомендацией
+      </div>
+    </footer>
+
+  </div>
+</article>
+
+<!-- ========== СТРАНИЦА 2 (только пироги портфеля) ========== -->
+<article class="page">
+  <div class="content">
+
+    <header class="header">
+      <div class="logo-mark">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Финансовый план</span>
+      </div>
+      <div class="doc-label">Образование — портфель</div>
+    </header>
+
+    <div class="divider"></div>
+
     <div class="section-label">Структура портфеля</div>
     <div class="pie-row">
       <div class="pie-card">
@@ -890,7 +846,7 @@
 
     <div class="spacer" aria-hidden="true"></div>
 
-    <div class="page-num">Страница 1 из 2 · Образование</div>
+    <div class="page-num">Страница 2 из 3 · Образование</div>
     <footer class="footer">
       <div class="footer-left">
         Персональный финансовый план · Конфиденциально<br>
@@ -905,7 +861,7 @@
   </div>
 </article>
 
-<!-- ========== СТРАНИЦА 2 ========== -->
+<!-- ========== СТРАНИЦА 3 ========== -->
 <article class="page">
   <div class="content">
 
@@ -922,7 +878,7 @@
     <div class="section-label">Состав капитала</div>
     <div class="fin-bar-chart-block">
       <div class="fin-bar-chart-title">Структура накопленного капитала</div>
-      <div class="fin-bar-chart-hint">На дату последней точки графика (подстановка). Сумма двух первых столбцов = «Итого капитал». Софинансирование и налоговые вычеты — только если заданы в цели (ИИС, НПФ и т. п.).</div>
+      <div class="fin-bar-chart-hint">Сумма двух первых столбцов = «Итого капитал». Софинансирование и налоговые вычеты — только если заданы в цели (ИИС, НПФ и т. п.).</div>
       <div class="fin-bar-chart-area" role="img" aria-label="Состав капитала">
         <div class="fin-bar-track">
           <div class="fin-bar fin-bar--own" style="height: 56px;">
@@ -995,62 +951,9 @@
       <strong>Без льгот в цели:</strong> блок «Софинансирование и вычеты» не выводим; в среднем столбце «состава капитала» остаётся в основном инвестиционный доход. Годы и суммы подставляет бэк.
     </p>
 
-    <div class="section-label">График капитала</div>
-    <div class="chart-card">
-      <div class="chart-header">
-        <div class="chart-title">Накопление на образование: апр. 2026 → апр. 2038 (номинал · демо для вёрстки)</div>
-        <div class="chart-legend">
-          <div class="chart-legend-item">
-            <div class="legend-line"></div>
-            <span class="legend-text">Капитал по графику</span>
-          </div>
-        </div>
-      </div>
-      <svg class="chart-svg" viewBox="0 0 500 152" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="pg-education" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.2"/>
-            <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.02"/>
-          </linearGradient>
-        </defs>
-        <line x1="40" y1="118" x2="480" y2="118" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <line x1="40" y1="96" x2="480" y2="96" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <line x1="40" y1="74" x2="480" y2="74" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <line x1="40" y1="52" x2="480" y2="52" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <line x1="40" y1="30" x2="480" y2="30" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
-        <text x="36" y="121" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">0</text>
-        <text x="36" y="99" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">1М</text>
-        <text x="36" y="77" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">2М</text>
-        <text x="36" y="55" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">3М</text>
-        <text x="36" y="33" font-size="7" fill="#999999" text-anchor="end" font-family="sans-serif">4М</text>
-        <text x="40" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2026</text>
-        <text x="128" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2029</text>
-        <text x="216" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2032</text>
-        <text x="304" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2035</text>
-        <text x="392" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2037</text>
-        <text x="480" y="134" font-size="6.5" fill="#999999" text-anchor="middle" font-family="sans-serif">2038</text>
-        <path d="M40,113 L128,104 L216,92 L304,76 L392,58 L480,37 L480,118 L40,118 Z" fill="url(#pg-education)"/>
-        <polyline
-          points="40,113 128,104 216,92 304,76 392,58 480,37"
-          fill="none" stroke="#7c3aed" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="40" cy="113" r="2.5" fill="#7c3aed"/>
-        <circle cx="480" cy="37" r="2.5" fill="#7c3aed"/>
-        <rect x="348" y="6" width="126" height="14" rx="3" fill="#f3e8ff" stroke="#d8b4fe" stroke-width="0.5"/>
-        <text x="411" y="16" font-size="7.5" fill="#6b21a8" text-anchor="middle" font-family="sans-serif" font-weight="700">≈ 2,8 млн ₽</text>
-        <text x="40" y="148" font-size="6.5" fill="#64748b" font-family="sans-serif">Старт: 01.04.2026 — 180 000 ₽ · далее взносы 12 000 ₽/мес и доходность портфеля</text>
-      </svg>
-    </div>
-
-    <div class="avatar-section-sm">
-      <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
-      <div class="speech-sm">
-        <p>На графике — <em>упрощённый скелет</em>. В отчёте подставим точки из помесячного массива — линия совпадёт с расчётом.</p>
-      </div>
-    </div>
-
     <div class="spacer"></div>
 
-    <div class="page-num">Страница 2 из 2 · Образование</div>
+    <div class="page-num">Страница 3 из 3 · Образование</div>
     <footer class="footer">
       <div class="footer-left">
         Персональный финансовый план · Конфиденциально<br>
