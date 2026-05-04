@@ -6,6 +6,7 @@
   portfolio-final-page-finam.html (overall_plan.pdf_metrics.portfolio: share или share_percent)
   tax-planning-block-finam.html (overall_plan.tax_benefits)
   comon-autofollow-finam.html
+  idu-strategies-finam.html
   inflation-page (buildInflationPageFinamHtml, макро из reportPdfService)
   risk-declaration-preview-1.html … risk-declaration-preview-5.html
   repleneshment (buildRepleneshmentPageHtml → несколько листов по FINAM_REPLENISHMENT_ROWS_PER_PAGE строк, splitFinamPage4IntoStandalonePages)
@@ -37,6 +38,7 @@ HTML-макеты: сводные блоки отчёта (не привязан
   repleneshment-page-finam.html         — шаблон сводной таблицы помесячных пополнений/вытчетов/софина с агрегацией по целям (LIFE отдельно)
   tax-planning-block-finam.html         — отдельный лист: детализация вычетов (ПДС, ИИС, НСЖ, квартира, ипотека) за год и за период; не дублировать внутри goal-page-pension / passive
   comon-autofollow-finam.html           — отдельный лист после tax-planning: ИИ-вводка + карточки автоследования Comon (клетка)
+  idu-strategies-finam.html             — сразу после Comon: ИДУ Финам Фонды, 9 карточек (ожид. доходность + ссылка funds.finam.ru)
 
 Контексты для генерации текстов (промпты, роли, поля данных):
   context-page-01-cover.md
@@ -44,6 +46,7 @@ HTML-макеты: сводные блоки отчёта (не привязан
   context-page-03-family.md
   context-page-04-targets.md
   context-page-05-comon-autofollow.md
+  context-finam-idu-strategies.md       — справочник ИДУ (доходности, slug); карточки PDF — idu-strategies-finam.html + buildFinamReportHtml.js
   context-goals-by-type.md
 
 Архив только старых пустых шаблонов (не трогать как эталон вёрстки):

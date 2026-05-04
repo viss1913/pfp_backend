@@ -195,6 +195,103 @@ function applyFinamComonAutofollowPage(html, report) {
     return out;
 }
 
+/** Публичная витрина ИДУ; см. `context-finam-idu-strategies.md`. */
+const FINAM_FUNDS_BASE_URL = 'https://funds.finam.ru';
+
+/**
+ * Каталог стратегий ДУ для листа отчёта (витрина главной, ожидаемая доходность).
+ * @type {{ name: string, slug: string | null, yieldLabel: string, desc: string }[]}
+ */
+const FINAM_IDU_STRATEGIES_CATALOG = [
+    {
+        name: 'Валютная CNY',
+        slug: 'currency-cny',
+        yieldLabel: '10%',
+        desc: 'Юаневые облигации эмитентов российского рынка.',
+    },
+    {
+        name: 'Новая Синергия',
+        slug: 'synergy-new',
+        yieldLabel: '55%',
+        desc: 'Диверсификация и алгоритмы; на сайте также «Синергия NEW».',
+    },
+    {
+        name: 'M2 Всепогодная',
+        slug: 'm2-all-weather',
+        yieldLabel: '30%',
+        desc: 'Облигации, акции, ОФЗ и алгоритмическая торговля фьючерсами.',
+    },
+    {
+        name: 'Алготраст',
+        slug: 'algotrust',
+        yieldLabel: '30%',
+        desc: 'Автоматизированная торговля ликвидными фьючерсами Мосбиржи.',
+    },
+    {
+        name: 'Ключевая ставка',
+        slug: 'key-rate',
+        yieldLabel: '45%',
+        desc: 'ОФЗ и сценарии вокруг ключевой ставки ЦБ.',
+    },
+    {
+        name: 'Валютный депозит',
+        slug: 'currency-deposit',
+        yieldLabel: '20%',
+        desc: 'Инвалютные инструменты, выплаты по курсу ЦБ.',
+    },
+    {
+        name: 'Инвестиционный прирост',
+        slug: 'investment-growth',
+        yieldLabel: '18%',
+        desc: 'PAA: акции, облигации и денежный рынок РФ.',
+    },
+    {
+        name: 'Облигационная Максимум',
+        slug: 'bond-maximum',
+        yieldLabel: '20%',
+        desc: 'Российские облигации, реинвестирование купонов.',
+    },
+    {
+        name: 'Авторская стратегия Юлии Афанасьевой',
+        slug: null,
+        yieldLabel: '33%',
+        desc: 'Российские акции и облигации; страница — с витрины ДУ на сайте.',
+    },
+];
+
+function buildFinamIduStrategiesCardsHtml() {
+    return FINAM_IDU_STRATEGIES_CATALOG.map((row) => {
+        const title = escapeHtml(row.name);
+        const desc = escapeHtml(row.desc);
+        const y = escapeHtml(row.yieldLabel);
+        let linkHtml;
+        if (row.slug) {
+            const url = `${FINAM_FUNDS_BASE_URL}/idu/${row.slug}/`;
+            const safeUrl = escapeHtml(url);
+            linkHtml = `<a class="link-line" href="${safeUrl}" target="_blank" rel="noopener noreferrer" title="${safeUrl}">Подробнее</a>`;
+        } else {
+            const safeBase = escapeHtml(`${FINAM_FUNDS_BASE_URL}/`);
+            linkHtml = `<a class="link-line" href="${safeBase}" target="_blank" rel="noopener noreferrer" title="${safeBase}">Витрина ДУ</a>`;
+        }
+        return `<article class="strategy-card">
+        <h3 class="strategy-title">${title}</h3>
+        <p class="strategy-desc">${desc}</p>
+        <div class="chip-row">
+          <span class="chip chip--yield">Ожид. доходность: ${y}</span>
+        </div>
+        ${linkHtml}
+      </article>`;
+    }).join('\n');
+}
+
+function applyFinamIduStrategiesPage(html) {
+    if (!html || typeof html !== 'string') return html;
+    return html.replace(
+        /<section class="cards-grid" aria-label="Карточки стратегий ИДУ">[\s\S]*?<\/section>/,
+        `<section class="cards-grid" aria-label="Карточки стратегий ИДУ">\n${buildFinamIduStrategiesCardsHtml()}\n    </section>`
+    );
+}
+
 function toNum(value) {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
@@ -2346,6 +2443,10 @@ async function buildFinamFullPageHtmlList({
     let comonAutofollow = await readTemplate('comon-autofollow-finam.html');
     comonAutofollow = applyFinamComonAutofollowPage(comonAutofollow, report);
     pages.push(withInline(comonAutofollow));
+
+    let iduStrategies = await readTemplate('idu-strategies-finam.html');
+    iduStrategies = applyFinamIduStrategiesPage(iduStrategies);
+    pages.push(withInline(iduStrategies));
 
     if (inflationPageHtml && String(inflationPageHtml).trim()) {
         pages.push(withInline(String(inflationPageHtml)));
