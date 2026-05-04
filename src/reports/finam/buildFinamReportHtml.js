@@ -1855,6 +1855,7 @@ async function fetchAiB2cAvatarUrl(projectId) {
 
 const FINAM_FAMILY_CONTEXT_FILE = path.join(TEMPLATE_DIR, 'context-page-03-family.md');
 const FINAM_GOALS_CONTEXT_FILE = path.join(TEMPLATE_DIR, 'context-goals-by-type.md');
+const FINAM_PORTFOLIO_FINAL_CONTEXT_FILE = path.join(TEMPLATE_DIR, 'context-page-portfolio-final.md');
 
 const PAGE3_SPEECH1_FALLBACK =
     '<p>Вот ваша финансовая фотография на сегодня. Доход <em>150 000 ₽</em>, но обязательства съедают почти всё — свободным остаётся всего <em>8 000 ₽</em> в месяц. Именно отсюда мы начнём строить план.</p>';
@@ -1878,6 +1879,16 @@ function readFinamGoalsContextMarkdown() {
         return fs.readFileSync(FINAM_GOALS_CONTEXT_FILE, 'utf-8');
     } catch (e) {
         console.warn('[buildFinamReportHtml] context-goals-by-type.md:', e?.message || e);
+        return '';
+    }
+}
+
+function readFinamPortfolioFinalContextMarkdown() {
+    try {
+        if (!fs.existsSync(FINAM_PORTFOLIO_FINAL_CONTEXT_FILE)) return '';
+        return fs.readFileSync(FINAM_PORTFOLIO_FINAL_CONTEXT_FILE, 'utf-8');
+    } catch (e) {
+        console.warn('[buildFinamReportHtml] context-page-portfolio-final.md:', e?.message || e);
         return '';
     }
 }
@@ -1964,6 +1975,41 @@ function buildFinamFamilyPageAiPayload(report) {
         })),
         plan_waterfall: report?.overall_plan?.chart_waterfall || null,
     };
+}
+
+function buildFinamPortfolioFinalAiPayload(report) {
+    const p = report?.overall_plan?.pdf_metrics?.portfolio;
+    if (!p || typeof p !== 'object') {
+        return {
+            total_initial_capital: 0,
+            total_monthly_replenishment: 0,
+            estimated_portfolio_yield_percent: null,
+            assets_allocation: [],
+            cash_flow_allocation: [],
+        };
+    }
+    const mapRow = (item) => ({
+        name: item?.name,
+        share_percent: item?.share_percent ?? item?.share,
+        yield_percent: item?.yield_percent ?? item?.yield,
+    });
+    const slice = (arr, n) => (Array.isArray(arr) ? arr.slice(0, n) : []);
+    return {
+        total_initial_capital: p.total_initial_capital,
+        total_monthly_replenishment: p.total_monthly_replenishment,
+        estimated_portfolio_yield_percent: p.estimated_portfolio_yield_percent,
+        assets_allocation: slice(p.assets_allocation, 20).map(mapRow),
+        cash_flow_allocation: slice(p.cash_flow_allocation, 20).map(mapRow),
+    };
+}
+
+function isPortfolioFinalAiPayloadEmpty(payload) {
+    if (!payload || typeof payload !== 'object') return true;
+    const ti = toNum(payload.total_initial_capital);
+    const tm = toNum(payload.total_monthly_replenishment);
+    const a = Array.isArray(payload.assets_allocation) ? payload.assets_allocation.length : 0;
+    const c = Array.isArray(payload.cash_flow_allocation) ? payload.cash_flow_allocation.length : 0;
+    return ti <= 0 && tm <= 0 && a === 0 && c === 0;
 }
 
 function finamAiPlainTextToLeadParagraphHtml(text) {
@@ -2351,6 +2397,61 @@ async function applyFinamGoalAiSpeech(html, goal, projectId) {
 }
 
 /**
+ * Страница «Итоговый портфель»: блок .speech с data-finam-ai-portfolio-final + context-page-portfolio-final.md (PORTFOLIO_FINAL_AI_MAIN=).
+ */
+async function applyFinamPortfolioFinalAi(html, report, projectId) {
+    if (!html || typeof html !== 'string' || !html.includes('data-finam-ai-portfolio-final')) {
+        return html;
+    }
+    const md = readFinamPortfolioFinalContextMarkdown();
+    const ctxMain = parseFinamMarkdownContextKey(md, 'PORTFOLIO_FINAL_AI_MAIN');
+    if (!ctxMain) return html;
+
+    const payload = buildFinamPortfolioFinalAiPayload(report);
+    if (isPortfolioFinalAiPayloadEmpty(payload)) return html;
+
+    const systemCore = [
+        'Ты помогаешь заполнять PDF-отчёт «Финансовый план» (Финам), страница «Итоговый портфель».',
+        'Ответь только связным текстом (без заголовков, без Markdown # ** _). Можно кавычки «». Обращение на «вы».',
+        'Опирайся строго на поле JSON с данными расчёта; не придумывай доли, классы активов и суммы, которых нет в JSON.',
+        'Только русский язык.',
+    ].join('\n');
+
+    try {
+        if (!aiService.apiKey) {
+            console.warn('[buildFinamReportHtml] Portfolio final AI skipped: no API key');
+            return html;
+        }
+        const model =
+            (await fetchOpenRouterModelForFinamReport(projectId)) ||
+            process.env.OPENROUTER_MODEL ||
+            'google/gemma-3-27b-it';
+        const systemPrompt = [systemCore, ctxMain].filter(Boolean).join('\n\n');
+        const userPrompt = `Напиши текст для блока речи над диаграммами консолидированного портфеля.\n\nДанные расчёта (JSON — обязательно используй в ответе):\n${JSON.stringify(
+            payload,
+            null,
+            2
+        )}`;
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+        ];
+        const raw = await aiService.getCompletion(messages, model);
+        if (!raw || !String(raw).trim()) return html;
+        const speechInner = finamAiPlainTextToLeadParagraphHtml(raw);
+        const reSpeech = /<div class="speech"[^>]*data-finam-ai-portfolio-final="1"[^>]*>[\s\S]*?<\/div>/i;
+        if (!reSpeech.test(html)) return html;
+        return html.replace(
+            reSpeech,
+            `<div class="speech" data-finam-ai-portfolio-final="1">\n        ${speechInner}\n      </div>`
+        );
+    } catch (err) {
+        console.warn('[buildFinamReportHtml] Portfolio final AI failed:', err?.message || err);
+        return html;
+    }
+}
+
+/**
  * Подставляет аватар B2C-ассистента (R2 / ai_b2c_settings) вместо плейсхолдеров «ИИ» в финам-шаблонах.
  */
 function applyFinamAiAvatarHtml(html, avatarUrl) {
@@ -2450,6 +2551,7 @@ async function buildFinamFullPageHtmlList({
 
     let portfolioFinal = await readTemplate('portfolio-final-page-finam.html');
     portfolioFinal = applyFinamPortfolioFinalPage(portfolioFinal, report);
+    portfolioFinal = await applyFinamPortfolioFinalAi(portfolioFinal, report, projectId);
     for (const portfolioPart of splitFinamPage4IntoStandalonePages(portfolioFinal)) {
         pages.push(withInline(portfolioPart));
     }
@@ -2503,4 +2605,6 @@ module.exports = {
     applyFinamPage3FamilyAi,
     applyFinamPage3FamilyFactsFromReport,
     buildFinamFamilyPageAiPayload,
+    applyFinamPortfolioFinalAi,
+    buildFinamPortfolioFinalAiPayload,
 };

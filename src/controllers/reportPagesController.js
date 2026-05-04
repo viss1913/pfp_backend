@@ -17,6 +17,7 @@ const {
     applyGoalFactsToTemplate,
     fetchAiB2cAvatarUrl,
     applyFinamAiAvatarHtml,
+    applyFinamPortfolioFinalAi,
     inlineFinamRasterImages,
 } = require('../reports/finam/buildFinamReportHtml');
 const { isFinamTemplateProject } = require('../reports/finam/finamTemplateProjects');
@@ -154,6 +155,7 @@ class ReportPagesController {
                         html = applyFinamTaxPlanningPage(html, report);
                     } else {
                         html = applyFinamPortfolioFinalPage(html, report);
+                        html = await applyFinamPortfolioFinalAi(html, report, projectId);
                     }
                     html = applyFinamAiAvatarHtml(inlineFinamRasterImages(html, FINAM_REPO_ROOT), finamB2cAvatarUrl);
                     res.setHeader('Content-Type', 'text/html; charset=utf-8');

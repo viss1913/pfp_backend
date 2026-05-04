@@ -48,6 +48,7 @@ HTML-макеты: сводные блоки отчёта (не привязан
   context-page-03-family.md
   context-page-04-targets.md
   context-page-05-comon-autofollow.md
+  context-page-portfolio-final.md       — ИИ-речь над «Консолидированный портфель» (portfolio-final-page-finam.html, PORTFOLIO_FINAL_AI_MAIN=)
   context-finam-idu-strategies.md       — справочник ИДУ (доходности, slug); карточки PDF — idu-strategies-finam.html + buildFinamReportHtml.js
   context-goals-by-type.md
 
