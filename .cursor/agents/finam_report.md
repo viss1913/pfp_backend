@@ -51,6 +51,12 @@ description: PDF и HTML отчёта PFP для проекта Финам (proj
 - Comon: [`projectComonShowcaseSettings.js`](src/utils/projectComonShowcaseSettings.js); детали — [`comon_finam`](.cursor/agents/comon_finam.md).
 - Роутер PDF по целям сейчас знает **FIN_RESERVE, LIFE, PENSION, INVESTMENT, OTHER**; **`PASSIVE_INCOME`** в данных калькулятора есть — при макете пассивного дохода может понадобиться маппинг в сервисе.
 
+## Риск-профиль (5 уровней) и PDF/HTML Финам
+
+- В снимке расчёта (`goals_summary`) у цели есть **`risk_profile`** (3) и **`risk_profile_extended`** (5) + **`risk_profile_details`**; выбор среза портфеля в калькуляторах — [`riskProfileSlice.js`](src/algorithms/calculators/riskProfileSlice.js) (портфель с `MODERATELY_*` → матч по extended).
+- **Отчёт Финам** собирает подпись «Риск-профиль цели» в [`buildFinamReportHtml.js`](src/reports/finam/buildFinamReportHtml.js): `resolveGoalRiskProfileKeyForLabel` (приоритет **`risk_profile_extended`** с цели и из `risk_profile_details`, иначе 3-уровневый `risk_profile`) → `riskProfileLabelRu` (все пять уровней по-русски), вставка в **`applyOtherGoalTemplateAdjustments`** (блок `.other-risk-profile`).
+- **Не путать** подпись в отчёте с **типом среза портфеля** в админке (`profile_type` строки портфеля) и с **`risk_profile_result` на клиенте** для ИИ-объяснения: у клиента результат может считаться на **эталонной цели** (первая с `term_months > 0` в [`clientCabinetController`](src/controllers/clientCabinetController.js) `computeAndPersistRiskProfileResultIfPossible`), а на конкретной цели риск — **с её сроком**; при вопросах консистентности — агент [`risk-profile-architect`](.cursor/agents/risk-profile-architect.md).
+
 ## Локальный просмотр в браузере
 
 Из каталога [`src/reports/finam`](src/reports/finam):
@@ -80,6 +86,7 @@ python -m http.server 8765
 3. Новый HTML в **`finam/`** + строка в **`FINAM_REPORT_ORDER.txt`** при новом файле; контексты для ИИ — **`context-*.md`**.
 4. Детализация налоговых вычетов по строкам (ПДС, ИИС, НСЖ, имущество) — **`tax-planning-block-finam.html`** или билдер; **не** раздувать карточки на `goal-page-pension-finam` / `goal-page-passive-income-finam` без явного запроса.
 5. Смена контракта API — **OpenAPI** + при необходимости skill.
+6. Правки по **риск-профилю в PDF** — см. раздел «Риск-профиль (5 уровней) и PDF/HTML Финам» выше; OpenAPI цели/портфеля — `OPENAPI_SPEC`, `pfp-api`, `agent_lk`.
 
 ## Анти-факап по вёрстке (чтобы не ловить это снова)
 

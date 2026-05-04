@@ -356,9 +356,37 @@ function riskProfileLabelRu(value) {
     if (!raw) return '—';
     const norm = raw.toUpperCase();
     if (norm === 'CONSERVATIVE') return 'Консервативный';
+    if (norm === 'MODERATELY_CONSERVATIVE') return 'Умеренно консервативный';
     if (norm === 'BALANCED') return 'Сбалансированный';
+    if (norm === 'MODERATELY_AGGRESSIVE') return 'Умеренно агрессивный';
     if (norm === 'AGGRESSIVE') return 'Агрессивный';
     return raw;
+}
+
+/** Ключ профиля для подписи в отчёте: сначала 5-уровневый срез (как в riskProfileSlice), иначе 3-уровневый. */
+function resolveGoalRiskProfileKeyForLabel(goal) {
+    const detailsRoot = goal?.risk_profile_details && typeof goal.risk_profile_details === 'object'
+        ? goal.risk_profile_details
+        : {};
+    const summary = goal?.summary || {};
+    const details = goal?.details || {};
+    const ext =
+        goal?.risk_profile_extended ??
+        detailsRoot?.risk_profile_extended ??
+        summary?.risk_profile_extended ??
+        details?.risk_profile_extended ??
+        null;
+    if (ext != null && String(ext).trim() !== '') return String(ext).trim();
+
+    return (
+        goal?.risk_profile ??
+        detailsRoot?.risk_profile ??
+        details?.risk_profile ??
+        summary?.risk_profile ??
+        details?.risk_profile_name ??
+        summary?.risk_profile_name ??
+        null
+    );
 }
 
 function computeGoalFacts(goal) {
@@ -391,13 +419,7 @@ function computeGoalFacts(goal) {
             goal?.portfolio_yield_percent ??
             details.portfolio_yield_percent
     );
-    const goalRiskProfile =
-        goal?.risk_profile ??
-        details?.risk_profile ??
-        summary?.risk_profile ??
-        details?.risk_profile_name ??
-        summary?.risk_profile_name ??
-        null;
+    const goalRiskProfile = resolveGoalRiskProfileKeyForLabel(goal);
 
     const firstDate = schedule.find((row) => row?.date)?.date;
     const fallbackYear = firstDate ? new Date(firstDate).getFullYear() : new Date().getFullYear();
