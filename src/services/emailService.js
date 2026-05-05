@@ -525,7 +525,7 @@ class EmailService {
             '',
             'Если будет нужно — помогу с оформлением и отвечу на вопросы.',
             '',
-            String(signature || '').replace(/<br\\s*\\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+            String(signature || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
         ].join('\n');
 
         const ndaMailbox = resolveNdaMailbox(reportAgent || {});
@@ -631,7 +631,7 @@ class EmailService {
             `- Выгодный переход: ${safePromoTransferUrl}`,
             'Актуальные условия, сроки и ограничения — на страницах акций.',
             '',
-            String(signature || '').replace(/<br\\s*\\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+            String(signature || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
         ].join('\n');
 
         const ndaMailbox = resolveNdaMailbox(reportAgent || {});
