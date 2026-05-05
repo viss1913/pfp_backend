@@ -593,7 +593,8 @@ class CalculationService {
      * @param {Object} data - CalculationRequest data
      * @param {string} [targetGoalId] - ID of the goal to recalculate (partial mode)
      * @param {Object} [previousCalculation] - Result of previous calculation for "frozen" goals
-     * @param {Object} [options] - Additional options { isFirstRun, usePool }
+     * @param {Object} [options] - { isFirstRun, usePool, agentUserId, explicitManualRiskForTarget }
+     *   explicitManualRiskForTarget: при пересчёте одной цели — не перезаписывать risk цели методикой анкеты
      */
     async calculateFirstRun(data, targetGoalId = null, previousCalculation = null, options = {}) {
         logger.info("[CalculationService] calculateFirstRun STARTED");
@@ -697,9 +698,13 @@ class CalculationService {
             for (const { goal, index } of indexedGoals) {
                 const currentGoalId = String(goal.id || goal.goal_id);
                 const isTarget = !targetGoalId || currentGoalId === String(targetGoalId);
+                const skipQuestionnaireAutoRisk =
+                    options.explicitManualRiskForTarget === true
+                    && targetGoalId != null
+                    && currentGoalId === String(targetGoalId);
 
                 // [RISK PROFILE] Auto-calculate risk profile from questionnaire + objective constraints.
-                if (isTarget && clientData.risk_profile_answers) {
+                if (isTarget && clientData.risk_profile_answers && !skipQuestionnaireAutoRisk) {
                     let answers = clientData.risk_profile_answers;
                     if (typeof answers === 'string') {
                         try { answers = JSON.parse(answers); } catch (e) { }

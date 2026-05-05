@@ -188,6 +188,7 @@ const clientService = require('../services/clientService');
 const aiB2cService = require('../services/aiB2cService');
 const constructorSiteChatAgentService = require('../services/constructorSiteChatAgentService');
 const goalRecalculator = require('../algorithms/recalculators');
+const { patchHasExplicitManualGoalRisk, applyManualGoalRiskSanitize } = require('../utils/goalManualRisk');
 const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSyncService');
 const taxPlanningService = require('../services/taxPlanningService');
 const ndaService = require('../services/ndaService');
@@ -539,6 +540,7 @@ class ClientController {
 
             let identifiedTargetId = null;
             let goalsToCalculate = [];
+            let explicitManualRiskForTarget = false;
 
             // 3. Handle Updates (Bulk or Single)
             if (!req.body.goals || req.body.goals.length === 0) {
@@ -553,6 +555,8 @@ class ClientController {
                         preparedPatch.monthly_replenishment = null;
                     }
                     const updated = goalRecalculator.prepare(existing, preparedPatch);
+                    explicitManualRiskForTarget = patchHasExplicitManualGoalRisk(preparedPatch);
+                    applyManualGoalRiskSanitize(updated, preparedPatch);
 
                     goalsMap.set(String(singleGoalId), updated);
                     identifiedTargetId = String(singleGoalId);
@@ -573,6 +577,10 @@ class ClientController {
                             preparedPatch.monthly_replenishment = null;
                         }
                         const updated = goalRecalculator.prepare(existing, preparedPatch);
+                        if (req.body.goals.length === 1) {
+                            explicitManualRiskForTarget = patchHasExplicitManualGoalRisk(preparedPatch);
+                        }
+                        applyManualGoalRiskSanitize(updated, preparedPatch);
                         goalsMap.set(matchKey, updated);
                         if (req.body.goals.length === 1) identifiedTargetId = matchKey;
                     } else {
@@ -616,7 +624,12 @@ class ClientController {
                 calcRequest,
                 identifiedTargetId,
                 previousCalculation,
-                { isFirstRun: false, usePool: false, agentUserId: req.user?.id }
+                {
+                    isFirstRun: false,
+                    usePool: false,
+                    agentUserId: req.user?.id,
+                    explicitManualRiskForTarget,
+                }
             );
 
             // 6. Persistence

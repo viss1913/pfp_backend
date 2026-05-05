@@ -30,7 +30,7 @@ router.get('/comon-strategies/:id', clientComonStrategyController.getOne);
 // POST /my/plan/first-run — Create/update my financial plan
 router.post('/plan/first-run', clientCabinetController.createMyPlan.bind(clientCabinetController));
 
-// POST /my/plan/:goalId/recalculate — Recalculate a specific goal
+// POST /my/plan/:goalId/recalculate — одна цель; опционально в корне тела: risk_profile, risk_profile_extended (ручной риск, приоритет над анкетой)
 router.post('/plan/:goalId/recalculate', clientCabinetController.recalculateGoal.bind(clientCabinetController));
 
 // ==================== AI B2C Chat ====================

@@ -15,6 +15,7 @@ const riskProfileExplanationService = require('../services/riskProfileExplanatio
 const riskProfileService = require('../services/riskProfileService');
 const { mergeGoalsWithSnapshot } = require('../utils/mergeGoalsWithSnapshot');
 const { sortGoalsForCalculationOrder } = require('../utils/sortGoalsForCalculation');
+const { patchHasExplicitManualGoalRisk, applyManualGoalRiskSanitize } = require('../utils/goalManualRisk');
 const Joi = require('joi');
 
 function wantsReportHtmlDocument(req) {
@@ -860,6 +861,7 @@ class ClientCabinetController {
             existingGoals.forEach(g => { if (g.id) goalsMap.set(String(g.id), g); });
 
             let identifiedTargetId = null;
+            let explicitManualRiskForTarget = false;
 
             // Apply updates to target goal
             if (goalId && goalsMap.has(String(goalId))) {
@@ -869,6 +871,8 @@ class ClientCabinetController {
                     preparedPatch.monthly_replenishment = null;
                 }
                 const updated = goalRecalculator.prepare(existing, preparedPatch);
+                explicitManualRiskForTarget = patchHasExplicitManualGoalRisk(preparedPatch);
+                applyManualGoalRiskSanitize(updated, preparedPatch);
                 goalsMap.set(String(goalId), updated);
                 identifiedTargetId = String(goalId);
             } else {
@@ -900,7 +904,11 @@ class ClientCabinetController {
 
             const calculationResponse = await calculationService.calculateFirstRun(
                 calcRequest, identifiedTargetId, previousCalculation,
-                { isFirstRun: false, usePool: false }
+                {
+                    isFirstRun: false,
+                    usePool: false,
+                    explicitManualRiskForTarget,
+                }
             );
 
             // Persist

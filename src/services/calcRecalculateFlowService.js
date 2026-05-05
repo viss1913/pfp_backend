@@ -2,6 +2,7 @@ const aiService = require('./aiService');
 const clientService = require('./clientService');
 const calculationService = require('./calculationService');
 const goalRecalculator = require('../algorithms/recalculators');
+const { patchHasExplicitManualGoalRisk, applyManualGoalRiskSanitize } = require('../utils/goalManualRisk');
 const { syncCalculationGoalsWithDatabase } = require('./clientGoalSyncService');
 const constructorPfpPersistService = require('./constructorPfpPersistService');
 
@@ -375,6 +376,8 @@ async function runCalcRecalculateFlow({
     delete clientPatch.ops_capital;
 
     const updatedGoal = goalRecalculator.prepare(existingGoal, goalPatch);
+    const explicitManualRiskForTarget = patchHasExplicitManualGoalRisk(goalPatch);
+    applyManualGoalRiskSanitize(updatedGoal, goalPatch);
     goalsMap.set(targetGoalId, updatedGoal);
 
     const clientForCalc = {
@@ -392,6 +395,7 @@ async function runCalcRecalculateFlow({
     const calculationResponse = await calculationService.calculateFirstRun(calcRequest, targetGoalId, previousCalculation, {
         isFirstRun: false,
         usePool: false,
+        explicitManualRiskForTarget,
     });
     const calculation = calculationResponse.calculation || calculationResponse;
     const calculatedGoals = calculation?.goals || [];

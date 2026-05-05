@@ -239,6 +239,12 @@ paths:
     post:
       tags: [ "Цели" ]
       summary: Пересчет конкретной финансовой цели
+      description: |
+        Тело — поля цели (см. `CalculationGoal` в `openapi/pfpB2C.yaml`): обычно патч изменённых полей.
+        **Ручной риск:** `risk_profile` (CONSERVATIVE | BALANCED | AGGRESSIVE); для UI с 5 уровнями — также **`risk_profile_extended`**
+        (CONSERVATIVE, MODERATELY_CONSERVATIVE, BALANCED, MODERATELY_AGGRESSIVE, AGGRESSIVE), иначе срез портфеля может взяться только по тройке.
+        Если в запросе явно переданы `risk_profile` и/или `risk_profile_extended`, они **имеют приоритет** над автоматическим профилем из анкеты для этой цели.
+        Опционально в том же JSON: **`client`** — фрагмент `ClientData` (например `risk_profile_answers`), как при first-run.
       parameters:
         - name: goalId
           in: path

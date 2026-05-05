@@ -27,6 +27,8 @@ info:
     Полные схемы тел: **`openapi/pfp-api.yaml`** (`CalculationRequest`, `TaxPlanningRequest`). В этой спеке — тег **«Расчёт ПФП и налоги»**.
     Для карточки клиента кредиты передаются как `liabilities` (основной контракт) либо как алиас `credits` (`type`, `balance`, `monthlyPayment`, `rate`) с серверным маппингом в `liabilities`.
 
+    **ЛК клиента (B2C), сохранённый план:** пути **`POST /my/plan/first-run`**, **`POST /my/plan/{goalId}/recalculate`** и схемы — в **`docs/api/b2c_lk.yaml`** / **`openapi/pfpB2C.yaml`**. При пересчёте одной цели с ручным риском в корне тела передают **`risk_profile`** (тройка); для портфелей с пятью срезами (напр. Финам) — ещё **`risk_profile_extended`** (те же строки, что `profile_type` в строке портфеля). Если эти поля присутствуют в запросе, бэкенд **не подменяет** их результатом риск-анкеты для этой цели.
+
     **NDA (соглашение о неразглашении):** тело `NdaSendRequestBody` — обязательны `client_email`, `client_full_name`, `client_phone`, `client_birth_date`, `client_gender` (`male`/`female`, только для текста письма).
     - **`POST /pfp/clients/nda/send`** — клиента в БД ещё нет (до first-run), только JWT агента.
     - **`POST /pfp/clients/{clientId}/nda/send`** — клиент уже есть; проверяется привязка к агенту.
