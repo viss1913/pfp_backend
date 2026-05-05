@@ -168,7 +168,7 @@ function buildFinancialPlanReportEmailSubject() {
 }
 
 function buildSberLifeOfferEmailSubject() {
-    return 'Подушка безопасности — оформление страховой защиты';
+    return 'Информация по страховой защите жизни';
 }
 
 /** Простое форматирование текста резюме (без markdown-парсера): абзацы и переносы строк. */
@@ -488,38 +488,41 @@ class EmailService {
         const description = String(shortDescription || '').trim() ||
             'Подушка безопасности от Сбер Страхование Жизни — страховая защита с фиксированным тарифом 1,44% в год. Продукт покрывает риски травм, инвалидности I-II группы и ухода из жизни по ключевым сценариям.';
 
-        const logoPath = path.join(__dirname, '..', 'reports', 'finam', 'assets', 'sber-life-logo.png');
-        const sberLogoDataUrl = readImageAsDataUrl(logoPath);
-        const logoBlock = sberLogoDataUrl
-            ? `<img src="${sberLogoDataUrl}" alt="Сбер Страхование Жизни" style="width:220px;height:auto;display:block;margin:0 0 20px;"/>`
-            : '<div style="font-size:24px;font-weight:700;color:#148f2a;margin:0 0 20px;">СБЕР СТРАХОВАНИЕ ЖИЗНИ</div>';
-
         const html = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"/></head>
-<body style="margin:0;padding:24px;background:#f3fdf5;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1f2937;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:14px;border:1px solid #dcfce7;overflow:hidden;">
+<body style="margin:0;padding:20px;background:#ffffff;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;border-collapse:collapse;">
+    <tr><td style="padding:0 0 10px;font-size:16px;line-height:1.5;">${salutation}</td></tr>
+    <tr><td style="padding:0 0 10px;font-size:16px;line-height:1.55;">Направляю информацию по страховой защите жизни.</td></tr>
+    <tr><td style="padding:0 0 12px;font-size:16px;line-height:1.55;">${escapeHtmlLite(description)}</td></tr>
     <tr>
-      <td style="padding:28px 28px 10px;background:linear-gradient(135deg,#0f9d58 0%,#16a34a 100%);color:#fff;">
-        <div style="font-size:22px;font-weight:700;">Подушка безопасности</div>
-        <div style="font-size:14px;opacity:.95;margin-top:6px;">Страховая защита жизни от Сбер Страхование Жизни</div>
+      <td style="padding:0 0 14px;font-size:16px;line-height:1.55;">
+        Ссылка для оформления: <a href="${escapeHtmlLite(safeOfferUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtmlLite(safeOfferUrl)}</a>
       </td>
     </tr>
     <tr>
-      <td style="padding:26px 28px 30px;">
-        ${logoBlock}
-        <p style="margin:0 0 12px;">${salutation}</p>
-        <p style="margin:0 0 14px;line-height:1.55;">${escapeHtmlLite(description)}</p>
-        <p style="margin:0 0 18px;line-height:1.55;">Для оформления перейдите по кнопке ниже:</p>
-        <p style="margin:0 0 24px;">
-          <a href="${escapeHtmlLite(safeOfferUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9px;font-weight:700;">Оформить НСЖ</a>
-        </p>
-        <p style="margin:0 0 10px;line-height:1.55;">Если будут вопросы по условиям — отвечу и помогу пройти оформление.</p>
-        <p style="margin:16px 0 0;">${signature}</p>
+      <td style="padding:4px 0 16px;">
+        <a href="${escapeHtmlLite(safeOfferUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#177245;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:6px;font-size:15px;">Оформить НСЖ</a>
       </td>
     </tr>
+    <tr><td style="padding:0 0 8px;font-size:16px;line-height:1.55;">Если будет нужно — помогу с оформлением и отвечу на вопросы.</td></tr>
+    <tr><td style="padding:10px 0 0;font-size:15px;line-height:1.5;">${signature}</td></tr>
   </table>
 </body></html>`;
+
+        const text = [
+            String(salutation || '').replace(/<[^>]+>/g, ''),
+            '',
+            'Направляю информацию по страховой защите жизни.',
+            description,
+            '',
+            `Ссылка для оформления: ${safeOfferUrl}`,
+            '',
+            'Если будет нужно — помогу с оформлением и отвечу на вопросы.',
+            '',
+            String(signature || '').replace(/<br\\s*\\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+        ].join('\n');
 
         const ndaMailbox = resolveNdaMailbox(reportAgent || {});
         const fromHeader = buildNdaFromHeader(agentFullName, ndaMailbox);
@@ -532,6 +535,7 @@ class EmailService {
                 ...(replyTo ? { reply_to: replyTo } : {}),
                 subject,
                 html,
+                text,
             });
 
             if (error) {
