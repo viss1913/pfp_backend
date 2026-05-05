@@ -26,5 +26,8 @@ router.post('/:id/nda/send', agentMiddleware, clientController.sendNda.bind(clie
 // POST /api/pfp/clients/:id/life-insurance/send-email — письмо с открытием страхования жизни
 router.post('/:id/life-insurance/send-email', agentMiddleware, clientController.sendLifeInsuranceOfferEmail.bind(clientController));
 
+// POST /api/pfp/clients/:id/broker-account/send-email — письмо с открытием брокерского счёта Финам
+router.post('/:id/broker-account/send-email', agentMiddleware, clientController.sendBrokerAccountOfferEmail.bind(clientController));
+
 module.exports = router;
 

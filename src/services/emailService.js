@@ -171,6 +171,10 @@ function buildSberLifeOfferEmailSubject() {
     return 'Информация по страховой защите жизни';
 }
 
+function buildFinamBrokerOfferEmailSubject() {
+    return 'Информация по открытию брокерского счёта Финам';
+}
+
 /** Простое форматирование текста резюме (без markdown-парсера): абзацы и переносы строк. */
 function executiveSummaryTextToEmailHtml(raw) {
     const t = String(raw || '').trim();
@@ -553,6 +557,112 @@ class EmailService {
             console.error('[EmailService] Sber life offer send error:', err.message || err);
             if (process.env.NODE_ENV !== 'production') {
                 return { id: 'dev-mode-sber-life-offer-fallback' };
+            }
+            throw { status: 502, message: 'Сервис почты недоступен' };
+        }
+    }
+
+    /**
+     * Письмо клиенту с открытием брокерского счёта Финам и блоком спецакций.
+     * @param {{ to: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, reportAgent: { id: number, email?: string|null, email_corp?: string|null }, openUrl?: string, shortDescription?: string, promoBonusUrl?: string, promoTransferUrl?: string }} opts
+     */
+    async sendFinamBrokerOfferEmail({
+        to,
+        clientFullName,
+        clientGender,
+        agentFullName,
+        agentEmail,
+        agentPhone,
+        reportAgent,
+        openUrl,
+        shortDescription,
+        promoBonusUrl,
+        promoTransferUrl,
+    }) {
+        const salutation = buildNdaSalutationLine(clientGender, clientFullName);
+        const signature = buildNdaAgentSignatureHtml(agentFullName, agentEmail, agentPhone);
+        const subject = buildFinamBrokerOfferEmailSubject();
+        const safeOpenUrl = String(openUrl || 'https://www.finam.ru/open/order/russia/').trim();
+        const safePromoBonusUrl = String(promoBonusUrl || 'https://bonus.finam.ru/2025/').trim();
+        const safePromoTransferUrl = String(promoTransferUrl || 'https://broker.finam.ru/landing/vygodniy-perekhod/').trim();
+        const description = String(shortDescription || '').trim() ||
+            'Открытие брокерского счёта Финам даёт доступ к рынку акций, облигаций, фондов и стратегиям автоследования в рамках вашего финансового плана.';
+
+        const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:20px;background:#ffffff;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;border-collapse:collapse;">
+    <tr><td style="padding:0 0 10px;font-size:16px;line-height:1.5;">${salutation}</td></tr>
+    <tr><td style="padding:0 0 10px;font-size:16px;line-height:1.55;">Направляю информацию по открытию брокерского счёта Финам.</td></tr>
+    <tr><td style="padding:0 0 12px;font-size:16px;line-height:1.55;">${escapeHtmlLite(description)}</td></tr>
+    <tr>
+      <td style="padding:0 0 14px;font-size:16px;line-height:1.55;">
+        Ссылка для открытия: <a href="${escapeHtmlLite(safeOpenUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtmlLite(safeOpenUrl)}</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:4px 0 16px;">
+        <a href="${escapeHtmlLite(safeOpenUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#177245;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:6px;font-size:15px;">Открыть брокерский счёт</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 0 8px;font-size:16px;line-height:1.55;">
+        <strong>Спецакции Финам:</strong><br/>
+        • Финам Бонус: <a href="${escapeHtmlLite(safePromoBonusUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtmlLite(safePromoBonusUrl)}</a><br/>
+        • Выгодный переход: <a href="${escapeHtmlLite(safePromoTransferUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtmlLite(safePromoTransferUrl)}</a><br/>
+        Актуальные условия, сроки и ограничения — на страницах акций.
+      </td>
+    </tr>
+    <tr><td style="padding:10px 0 0;font-size:15px;line-height:1.5;">${signature}</td></tr>
+  </table>
+</body></html>`;
+
+        const text = [
+            String(salutation || '').replace(/<[^>]+>/g, ''),
+            '',
+            'Направляю информацию по открытию брокерского счёта Финам.',
+            description,
+            '',
+            `Ссылка для открытия: ${safeOpenUrl}`,
+            '',
+            'Спецакции Финам:',
+            `- Финам Бонус: ${safePromoBonusUrl}`,
+            `- Выгодный переход: ${safePromoTransferUrl}`,
+            'Актуальные условия, сроки и ограничения — на страницах акций.',
+            '',
+            String(signature || '').replace(/<br\\s*\\/?>/gi, '\n').replace(/<[^>]+>/g, '')
+        ].join('\n');
+
+        const ndaMailbox = resolveNdaMailbox(reportAgent || {});
+        const fromHeader = buildNdaFromHeader(agentFullName, ndaMailbox);
+        const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
+
+        try {
+            const { data, error } = await getResendClient().emails.send({
+                from: fromHeader,
+                to,
+                ...(replyTo ? { reply_to: replyTo } : {}),
+                subject,
+                html,
+                text,
+            });
+
+            if (error) {
+                console.error('[EmailService] Resend broker offer error:', JSON.stringify(error));
+                if (process.env.NODE_ENV !== 'production') {
+                    return { id: 'dev-mode-broker-offer', error: error.message };
+                }
+                throw { status: 502, message: 'Не удалось отправить письмо с предложением по брокерскому счёту' };
+            }
+
+            console.log(`[EmailService] Finam broker offer email sent to ${to}, messageId: ${data?.id}`);
+            return data;
+        } catch (err) {
+            if (err.status) throw err;
+            console.error('[EmailService] Finam broker offer send error:', err.message || err);
+            if (process.env.NODE_ENV !== 'production') {
+                return { id: 'dev-mode-broker-offer-fallback' };
             }
             throw { status: 502, message: 'Сервис почты недоступен' };
         }

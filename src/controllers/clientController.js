@@ -189,6 +189,11 @@ const sendLifeOfferSchema = Joi.object({
     short_description: Joi.string().trim().max(2000).optional(),
 });
 
+const sendBrokerOfferSchema = Joi.object({
+    open_url: Joi.string().uri().optional(),
+    short_description: Joi.string().trim().max(2000).optional(),
+});
+
 const clientService = require('../services/clientService');
 const aiB2cService = require('../services/aiB2cService');
 const constructorSiteChatAgentService = require('../services/constructorSiteChatAgentService');
@@ -876,6 +881,87 @@ class ClientController {
                 message_id: emailResult?.id || null,
                 client_email: recipient,
                 offer_url: offerUrl,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /api/pfp/clients/:id/broker-account/send-email
+     * Отправка клиенту письма с открытием брокерского счёта Финам.
+     */
+    async sendBrokerAccountOfferEmail(req, res, next) {
+        try {
+            const validation = sendBrokerOfferSchema.validate(req.body || {}, { stripUnknown: true });
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const clientId = Number(req.params.id);
+            if (!Number.isFinite(clientId)) {
+                return res.status(400).json({ error: 'Некорректный id клиента' });
+            }
+
+            const projectId = req.projectId != null ? Number(req.projectId) : Number(req.user?.projectId);
+            const client = await clientService.getFullClient(clientId, projectId);
+            if (!client) {
+                return res.status(404).json({ error: 'Клиент не найден' });
+            }
+
+            const role = String(req.user?.role || '').toLowerCase();
+            const isAdmin = role === 'admin' || role === 'super_admin';
+            if (!isAdmin) {
+                const requesterAgentId = Number(req.user?.agentId);
+                const ownerAgentId = Number(client?.agent_id);
+                if (!Number.isFinite(requesterAgentId) || requesterAgentId <= 0 || requesterAgentId !== ownerAgentId) {
+                    return res.status(403).json({ error: 'Доступ запрещён' });
+                }
+            }
+
+            const recipient = String(client.email || '').trim();
+            if (!recipient) {
+                return res.status(400).json({ error: 'У клиента не заполнен email в карточке' });
+            }
+
+            let emailAgentId =
+                Number.isFinite(Number(req.user?.agentId)) && Number(req.user.agentId) > 0
+                    ? Number(req.user.agentId)
+                    : null;
+            if (!emailAgentId && Number.isFinite(Number(client.agent_id))) {
+                emailAgentId = Number(client.agent_id);
+            }
+            if (!emailAgentId) {
+                return res.status(400).json({ error: 'Нет агента для отправки письма' });
+            }
+
+            const agent = await agentService.getAgentById(emailAgentId, projectId);
+            if (!agent) {
+                return res.status(404).json({ error: 'Agent not found' });
+            }
+
+            const openUrl = validation.value.open_url || 'https://www.finam.ru/open/order/russia/';
+            const emailResult = await emailService.sendFinamBrokerOfferEmail({
+                to: recipient,
+                clientFullName: String(client.fio || '').trim() || 'клиент',
+                clientGender: normalizeClientGender(client.gender || client.sex),
+                agentFullName: buildAgentDisplayFullName(agent),
+                agentEmail: (agent.email && String(agent.email).trim()) || '—',
+                agentPhone: (agent.phone && String(agent.phone).trim()) || '—',
+                reportAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
+                openUrl,
+                shortDescription: validation.value.short_description,
+            });
+
+            return res.json({
+                ok: true,
+                message_id: emailResult?.id || null,
+                client_email: recipient,
+                open_url: openUrl,
+                promo_urls: {
+                    bonus: 'https://bonus.finam.ru/2025/',
+                    transfer: 'https://broker.finam.ru/landing/vygodniy-perekhod/',
+                },
             });
         } catch (err) {
             next(err);

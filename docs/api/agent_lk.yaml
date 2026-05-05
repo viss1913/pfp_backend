@@ -33,6 +33,7 @@ info:
     - **`POST /pfp/clients/nda/send`** — клиента в БД ещё нет (до first-run), только JWT агента.
     - **`POST /pfp/clients/{clientId}/nda/send`** — клиент уже есть; проверяется привязка к агенту.
     - **`POST /pfp/clients/{clientId}/life-insurance/send-email`** — отправить клиенту HTML-письмо по продукту «Подушка безопасности» с кнопкой **«Оформить НСЖ»**.
+    - **`POST /pfp/clients/{clientId}/broker-account/send-email`** — отправить клиенту письмо с открытием брокерского счёта Финам и ссылками на спецакции.
   version: 1.0.0
 servers:
   - url: /api
@@ -900,6 +901,77 @@ paths:
                   offer_url:
                     type: string
                     format: uri
+        '400':
+          description: Невалидный `clientId`, нет email у клиента или нет агента для отправки
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент или агент не найдены
+        '502':
+          description: Ошибка отправки письма (Resend)
+
+  /pfp/clients/{clientId}/broker-account/send-email:
+    post:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Отправить клиенту письмо по открытию брокерского счёта Финам
+      description: |
+        Отправляет клиенту из карточки (`clients.email`) письмо через Resend с:
+        - ссылкой открытия брокерского счёта Финам;
+        - блоком спецакций (официальные страницы «Финам Бонус» и «Выгодный переход»).
+
+        Доступ: агент-владелец клиента, admin, super_admin.
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                open_url:
+                  type: string
+                  format: uri
+                  description: Ссылка открытия, по умолчанию `https://www.finam.ru/open/order/russia/`
+                short_description:
+                  type: string
+                  description: Короткое описание в теле письма
+      responses:
+        '200':
+          description: Письмо отправлено
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, client_email, open_url]
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  message_id:
+                    type: string
+                    nullable: true
+                  client_email:
+                    type: string
+                    format: email
+                  open_url:
+                    type: string
+                    format: uri
+                  promo_urls:
+                    type: object
+                    properties:
+                      bonus:
+                        type: string
+                        format: uri
+                      transfer:
+                        type: string
+                        format: uri
         '400':
           description: Невалидный `clientId`, нет email у клиента или нет агента для отправки
         '401':
