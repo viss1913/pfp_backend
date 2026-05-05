@@ -4,6 +4,8 @@
  */
 
 const nsjApiServiceSingleton = require('../../services/nsjApiService');
+const FINAM_PROJECT_ID = 14;
+const SBER_LIFE_TARIFF = 0.0144;
 
 /**
  * @param {Object} goal
@@ -30,6 +32,30 @@ async function fetchLifeNsjResult(goal, context) {
             ? Number(context.projectId)
             : (context?.client?.project_id != null ? Number(context.client.project_id) : null);
     const agentUserId = context?.agentUserId != null ? Number(context.agentUserId) : null;
+
+    if (ctxProjectId === FINAM_PROJECT_ID) {
+        const annualPremium = Math.round(targetAmount * SBER_LIFE_TARIFF * 100) / 100;
+        return {
+            nsjResult: {
+                success: true,
+                total_premium: annualPremium,
+                term_years: 15,
+                total_limit: targetAmount,
+                program: 'Подушка безопасности',
+                risks: [
+                    { risk_name: 'Травмы', limit_amount: Math.round(targetAmount * 0.3) },
+                    {
+                        risk_name: 'Инвалидность I-II группы в результате несчастного случая или болезни',
+                        limit_amount: Math.round(targetAmount)
+                    },
+                    { risk_name: 'Уход из жизни по любой причине', limit_amount: Math.round(targetAmount) },
+                    { risk_name: 'Уход из жизни в результате несчастного случая', limit_amount: Math.round(targetAmount) },
+                    { risk_name: 'Уход из жизни в результате ДТП', limit_amount: Math.round(targetAmount) }
+                ]
+            },
+            apiError: null
+        };
+    }
 
     try {
         if (resolutPid && ctxProjectId === resolutPid) {

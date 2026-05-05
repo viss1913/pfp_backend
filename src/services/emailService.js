@@ -1,4 +1,6 @@
 const { Resend } = require('resend');
+const fs = require('fs');
+const path = require('path');
 
 let resend = null;
 
@@ -165,6 +167,10 @@ function buildFinancialPlanReportEmailSubject() {
     return 'Финансовый план — PDF-отчёт во вложении';
 }
 
+function buildSberLifeOfferEmailSubject() {
+    return 'Подушка безопасности — оформление страховой защиты';
+}
+
 /** Простое форматирование текста резюме (без markdown-парсера): абзацы и переносы строк. */
 function executiveSummaryTextToEmailHtml(raw) {
     const t = String(raw || '').trim();
@@ -245,6 +251,18 @@ function buildNdaAgentSignatureHtml(agentFullName, agentEmail, agentPhone) {
         blocks.push(escapeHtmlLite(ph));
     }
     return blocks.join('<br/>');
+}
+
+function readImageAsDataUrl(absPath) {
+    try {
+        if (!fs.existsSync(absPath)) return null;
+        const ext = path.extname(absPath).toLowerCase();
+        const mime = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+        const b64 = fs.readFileSync(absPath).toString('base64');
+        return `data:${mime};base64,${b64}`;
+    } catch {
+        return null;
+    }
 }
 
 class EmailService {
@@ -443,6 +461,94 @@ class EmailService {
             console.error('[EmailService] Financial plan report send error:', err.message || err);
             if (process.env.NODE_ENV !== 'production') {
                 return { id: 'dev-mode-finplan-report-fallback' };
+            }
+            throw { status: 502, message: 'Сервис почты недоступен' };
+        }
+    }
+
+    /**
+     * Письмо клиенту с открытием LIFE-продукта «Подушка безопасности».
+     * @param {{ to: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, reportAgent: { id: number, email?: string|null, email_corp?: string|null }, offerUrl: string, shortDescription?: string }} opts
+     */
+    async sendSberLifeOfferEmail({
+        to,
+        clientFullName,
+        clientGender,
+        agentFullName,
+        agentEmail,
+        agentPhone,
+        reportAgent,
+        offerUrl,
+        shortDescription,
+    }) {
+        const salutation = buildNdaSalutationLine(clientGender, clientFullName);
+        const signature = buildNdaAgentSignatureHtml(agentFullName, agentEmail, agentPhone);
+        const subject = buildSberLifeOfferEmailSubject();
+        const safeOfferUrl = String(offerUrl || 'https://sberbank-insurance.ru/podushka-bezopasnosti').trim();
+        const description = String(shortDescription || '').trim() ||
+            'Подушка безопасности от Сбер Страхование Жизни — страховая защита с фиксированным тарифом 1,44% в год. Продукт покрывает риски травм, инвалидности I-II группы и ухода из жизни по ключевым сценариям.';
+
+        const logoPath = path.join(__dirname, '..', 'reports', 'finam', 'assets', 'sber-life-logo.png');
+        const sberLogoDataUrl = readImageAsDataUrl(logoPath);
+        const logoBlock = sberLogoDataUrl
+            ? `<img src="${sberLogoDataUrl}" alt="Сбер Страхование Жизни" style="width:220px;height:auto;display:block;margin:0 0 20px;"/>`
+            : '<div style="font-size:24px;font-weight:700;color:#148f2a;margin:0 0 20px;">СБЕР СТРАХОВАНИЕ ЖИЗНИ</div>';
+
+        const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:24px;background:#f3fdf5;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#1f2937;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:14px;border:1px solid #dcfce7;overflow:hidden;">
+    <tr>
+      <td style="padding:28px 28px 10px;background:linear-gradient(135deg,#0f9d58 0%,#16a34a 100%);color:#fff;">
+        <div style="font-size:22px;font-weight:700;">Подушка безопасности</div>
+        <div style="font-size:14px;opacity:.95;margin-top:6px;">Страховая защита жизни от Сбер Страхование Жизни</div>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:26px 28px 30px;">
+        ${logoBlock}
+        <p style="margin:0 0 12px;">${salutation}</p>
+        <p style="margin:0 0 14px;line-height:1.55;">${escapeHtmlLite(description)}</p>
+        <p style="margin:0 0 18px;line-height:1.55;">Для оформления перейдите по кнопке ниже:</p>
+        <p style="margin:0 0 24px;">
+          <a href="${escapeHtmlLite(safeOfferUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;padding:12px 22px;border-radius:9px;font-weight:700;">Оформить НСЖ</a>
+        </p>
+        <p style="margin:0 0 10px;line-height:1.55;">Если будут вопросы по условиям — отвечу и помогу пройти оформление.</p>
+        <p style="margin:16px 0 0;">${signature}</p>
+      </td>
+    </tr>
+  </table>
+</body></html>`;
+
+        const ndaMailbox = resolveNdaMailbox(reportAgent || {});
+        const fromHeader = buildNdaFromHeader(agentFullName, ndaMailbox);
+        const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
+
+        try {
+            const { data, error } = await getResendClient().emails.send({
+                from: fromHeader,
+                to,
+                ...(replyTo ? { reply_to: replyTo } : {}),
+                subject,
+                html,
+            });
+
+            if (error) {
+                console.error('[EmailService] Resend Sber life offer error:', JSON.stringify(error));
+                if (process.env.NODE_ENV !== 'production') {
+                    return { id: 'dev-mode-sber-life-offer', error: error.message };
+                }
+                throw { status: 502, message: 'Не удалось отправить письмо с предложением страхования' };
+            }
+
+            console.log(`[EmailService] Sber life offer email sent to ${to}, messageId: ${data?.id}`);
+            return data;
+        } catch (err) {
+            if (err.status) throw err;
+            console.error('[EmailService] Sber life offer send error:', err.message || err);
+            if (process.env.NODE_ENV !== 'production') {
+                return { id: 'dev-mode-sber-life-offer-fallback' };
             }
             throw { status: 502, message: 'Сервис почты недоступен' };
         }

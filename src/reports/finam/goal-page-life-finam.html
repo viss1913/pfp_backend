@@ -176,7 +176,7 @@
 
     .life-risks {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 5px;
       margin-bottom: 7px;
     }
@@ -275,7 +275,15 @@
     }
 
     .life-yield-big { font-size: 16px; font-weight: 800; color: #4f46e5; line-height: 1; }
-    .life-yield-sub { font-size: 11px; color: #6b7280; margin-top: 1px; }
+    .life-yield-sub { font-size: 11px; color: #6b7280; margin-top: 1px; text-align: center; }
+
+    .life-sber-logo {
+      margin-top: 4px;
+      width: 130px;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
 
     /* Налоги */
     .life-tax {
@@ -366,18 +374,19 @@
     <div class="avatar-section">
       <div class="avatar"><span class="avatar-text">ИИ</span></div>
       <div class="speech">
-        <p>Цель <em>«Защита жизни»</em> — про спокойствие семьи: при срыве дохода или здоровья у вас уже прописаны <em>лимиты выплат</em> по рискам и понятный график взносов в НСЖ.</p>
+        <p>Цель <em>«Защита жизни»</em> — зафиксировать страховую защиту семьи: при критичных событиях заранее определены <em>лимиты выплат</em> и понятный график взносов.</p>
       </div>
     </div>
 
     <div class="life-hero">
       <div class="life-hero-main">
         <div class="life-hero-top">
-          <div class="life-tag">LIFE · НСЖ</div>
+          <div class="life-tag">LIFE · Сбер</div>
         </div>
         <div class="life-hero-title">Защита жизни</div>
-        <div class="life-hero-sub">Программа накопительного страхования с защитой от ключевых рисков</div>
-        <div class="life-hero-program">Продукт: <span>НСЖ «Династия»</span></div>
+        <div class="life-hero-sub">Программа «Подушка безопасности» с фиксированным тарифом и расширенным покрытием рисков</div>
+        <div class="life-hero-program">Продукт: <span>Подушка безопасности</span></div>
+        <img class="life-sber-logo" src="./assets/sber-life-logo.png" alt="Сбер Страхование Жизни" />
       </div>
       <div class="life-hero-image">
         <div class="ph">./assets/<br>goal-life.webp<br><br>LIFE</div>
@@ -390,7 +399,7 @@
         <div class="life-risk-icon">
           <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
-        <div class="life-risk-name">Уход из жизни (любая причина)</div>
+        <div class="life-risk-name">Уход из жизни по любой причине</div>
         <div class="life-risk-limit">3 <small>млн ₽</small></div>
         <div class="life-risk-bar-bg"><div class="life-risk-bar" style="width: 20%;"></div></div>
       </div>
@@ -406,9 +415,25 @@
         <div class="life-risk-icon">
           <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
         </div>
-        <div class="life-risk-name">Критические заболевания</div>
+        <div class="life-risk-name">Уход из жизни в результате НС</div>
         <div class="life-risk-limit">15 <small>млн ₽</small></div>
         <div class="life-risk-bar-bg"><div class="life-risk-bar" style="width: 100%;"></div></div>
+      </div>
+      <div class="life-risk">
+        <div class="life-risk-icon">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M8 7v10m8-10v10M4 17h16"/></svg>
+        </div>
+        <div class="life-risk-name">Уход из жизни в результате ДТП</div>
+        <div class="life-risk-limit">3 <small>млн ₽</small></div>
+        <div class="life-risk-bar-bg"><div class="life-risk-bar" style="width: 20%;"></div></div>
+      </div>
+      <div class="life-risk">
+        <div class="life-risk-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2v20M3 12h18"/></svg>
+        </div>
+        <div class="life-risk-name">Травмы</div>
+        <div class="life-risk-limit">900 <small>тыс ₽</small></div>
+        <div class="life-risk-bar-bg"><div class="life-risk-bar" style="width: 10%;"></div></div>
       </div>
     </div>
 
@@ -426,16 +451,16 @@
     <div class="life-product">
       <div class="life-product-left">
         <div class="life-product-label">Инструмент в портфеле цели</div>
-        <div class="life-product-name">НСЖ «Династия»</div>
-        <div class="life-product-row"><span>Тип продукта</span><span>НСЖ (NSZH)</span></div>
+        <div class="life-product-name">Подушка безопасности</div>
+        <div class="life-product-row"><span>Тип продукта</span><span>Страхование жизни</span></div>
         <div class="life-product-row"><span>Доля в цели</span><span>100%</span></div>
         <div class="life-product-row"><span>Начальная сумма</span><span>200 000 ₽</span></div>
         <div class="life-product-row"><span>Ежемесячное пополнение</span><span>16 666,67 ₽</span></div>
         <div class="life-product-row"><span>Периодичность</span><span>Ежемесячно</span></div>
       </div>
       <div class="life-product-right">
-        <div class="life-yield-big">5%</div>
-        <div class="life-yield-sub">доходность</div>
+        <div class="life-yield-big">1,44%</div>
+        <div class="life-yield-sub">тариф<br>в год</div>
       </div>
     </div>
 
@@ -444,7 +469,7 @@
         <svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       </div>
       <div class="life-tax-body">
-        <div class="life-tax-title">Налоговые вычеты по НСЖ</div>
+        <div class="life-tax-title">Налоговые вычеты</div>
         <div class="life-tax-desc">По модели плана: суммарный вычет <em>301 500 ₽</em>; в том числе оценка на <em>2026 год — 20 100 ₽</em> (не налоговая консультация).</div>
       </div>
       <div class="life-tax-side">
@@ -457,7 +482,7 @@
     <div class="avatar-section-sm">
       <div class="avatar-sm"><span class="avatar-sm-text">ИИ</span></div>
       <div class="speech-sm">
-        <p>Страхование жизни для семьи — <em>нормальный must-have</em>, а не «лишняя строчка в бюджете»: вы закрываете риски для близких, а если всё пройдёт спокойно — а так бывает чаще всего — по договору <em>забираете накопленный капитал в конце срока</em>. Защита + понятный финансовый итог в одной коробке.</p>
+        <p>Подушка безопасности — это понятный страховой продукт: фиксируете защиту семьи от ключевых рисков и заранее знаете размер ежегодного и ежемесячного платежа. Без сценариев дожития и возврата премий — только страховое покрытие.</p>
       </div>
     </div>
 

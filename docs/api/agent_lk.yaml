@@ -32,6 +32,7 @@ info:
     **NDA (соглашение о неразглашении):** тело `NdaSendRequestBody` — обязательны `client_email`, `client_full_name`, `client_phone`, `client_birth_date`, `client_gender` (`male`/`female`, только для текста письма).
     - **`POST /pfp/clients/nda/send`** — клиента в БД ещё нет (до first-run), только JWT агента.
     - **`POST /pfp/clients/{clientId}/nda/send`** — клиент уже есть; проверяется привязка к агенту.
+    - **`POST /pfp/clients/{clientId}/life-insurance/send-email`** — отправить клиенту HTML-письмо по продукту «Подушка безопасности» с кнопкой **«Оформить НСЖ»**.
   version: 1.0.0
 servers:
   - url: /api
@@ -848,6 +849,67 @@ paths:
           description: Клиент или агент не найден
         '502':
           description: Не удалось загрузить подпись или отправить почту
+
+  /pfp/clients/{clientId}/life-insurance/send-email:
+    post:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Отправить клиенту письмо по продукту «Подушка безопасности»
+      description: |
+        Отправляет клиенту из карточки (`clients.email`) HTML-письмо через Resend:
+        логотип Сбер Страхование Жизни, короткое описание и кнопка **«Оформить НСЖ»**.
+
+        Доступ: агент-владелец клиента, admin, super_admin.
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offer_url:
+                  type: string
+                  format: uri
+                  description: Ссылка открытия, по умолчанию `https://sberbank-insurance.ru/podushka-bezopasnosti`
+                short_description:
+                  type: string
+                  description: Короткое описание продукта в теле письма
+      responses:
+        '200':
+          description: Письмо отправлено
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, client_email, offer_url]
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  message_id:
+                    type: string
+                    nullable: true
+                  client_email:
+                    type: string
+                    format: email
+                  offer_url:
+                    type: string
+                    format: uri
+        '400':
+          description: Невалидный `clientId`, нет email у клиента или нет агента для отправки
+        '401':
+          description: Нет токена
+        '403':
+          description: Нет доступа к клиенту
+        '404':
+          description: Клиент или агент не найдены
+        '502':
+          description: Ошибка отправки письма (Resend)
 
   /pfp/reports/{clientId}/pdf/send-email:
     post:

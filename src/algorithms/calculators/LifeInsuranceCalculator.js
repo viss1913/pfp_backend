@@ -1,5 +1,16 @@
 const BaseCalculator = require('./BaseCalculator');
 const { fetchLifeNsjResult, deriveLifeCostNow } = require('./lifeUpfrontAmount');
+const FINAM_PROJECT_ID = 14;
+const SBER_LIFE_TERM_MONTHS = 15 * 12;
+const SBER_LIFE_TARIFF = 0.0144;
+
+function resolveProjectId(context) {
+    const fromContext = Number(context?.projectId);
+    if (Number.isFinite(fromContext) && fromContext > 0) return fromContext;
+    const fromClient = Number(context?.client?.project_id);
+    if (Number.isFinite(fromClient) && fromClient > 0) return fromClient;
+    return null;
+}
 
 /** @param {Date} d */
 function formatScheduleDate(d) {
@@ -16,17 +27,24 @@ function buildLifeMonthlySchedule({
     termMonths,
     startDate,
     expectedCashValue,
-    isSinglePremium,
+    paymentFrequency,
     singlePremiumAmount,
-    annualPremiumAmount
+    annualPremiumAmount,
+    monthlyPremiumAmount
 }) {
     const schedule = [];
     let currentDate = new Date(startDate);
     currentDate.setMonth(currentDate.getMonth() + 1);
     for (let m = 1; m <= termMonths; m++) {
         let replenishment = 0;
-        if (isSinglePremium) {
+        if (paymentFrequency === 'once') {
             if (m === 1) replenishment = singlePremiumAmount;
+        } else if (paymentFrequency === 'annual') {
+            if (m % 12 === 0 || (m === termMonths && termMonths % 12 !== 0)) {
+                replenishment = annualPremiumAmount;
+            }
+        } else if (paymentFrequency === 'monthly') {
+            replenishment = monthlyPremiumAmount;
         } else if (m % 12 === 0 || (m === termMonths && termMonths % 12 !== 0)) {
             replenishment = annualPremiumAmount;
         }
@@ -47,12 +65,39 @@ class LifeInsuranceCalculator extends BaseCalculator {
         const { client, services, assets, settings } = context;
 
         // 1. Calculate NSJ Parameters first (we need the premium amount)
-        const termMonths = Number(goal.term_months || 120);
+        const projectId = resolveProjectId(context);
+        const isFinamSberLife = projectId === FINAM_PROJECT_ID;
+        const termMonths = isFinamSberLife ? SBER_LIFE_TERM_MONTHS : Number(goal.term_months || 120);
         const targetAmount = Number(goal.target_amount || 0);
 
-        const { nsjResult, apiError } = await fetchLifeNsjResult(goal, context);
-        if (apiError) {
-            console.warn('NSJ API Error, using fallback:', apiError.message);
+        let nsjResult;
+        let apiError = null;
+        if (isFinamSberLife) {
+            const annualPremiumFixed = Math.round(targetAmount * SBER_LIFE_TARIFF * 100) / 100;
+            nsjResult = {
+                success: true,
+                term_years: 15,
+                total_premium: annualPremiumFixed,
+                total_limit: targetAmount,
+                program: 'Подушка безопасности',
+                risks: [
+                    { risk_name: 'Травмы', limit_amount: Math.round(targetAmount * 0.3) },
+                    {
+                        risk_name: 'Инвалидность I-II группы в результате несчастного случая или болезни',
+                        limit_amount: Math.round(targetAmount)
+                    },
+                    { risk_name: 'Уход из жизни по любой причине', limit_amount: Math.round(targetAmount) },
+                    { risk_name: 'Уход из жизни в результате несчастного случая', limit_amount: Math.round(targetAmount) },
+                    { risk_name: 'Уход из жизни в результате ДТП', limit_amount: Math.round(targetAmount) }
+                ]
+            };
+        } else {
+            const lifeQuote = await fetchLifeNsjResult(goal, context);
+            nsjResult = lifeQuote.nsjResult;
+            apiError = lifeQuote.apiError;
+            if (apiError) {
+                console.warn('NSJ API Error, using fallback:', apiError.message);
+            }
         }
 
         // 2. Determine payment frequency and premium distribution
@@ -65,7 +110,10 @@ class LifeInsuranceCalculator extends BaseCalculator {
         let totalPremium = nsjResult ? (nsjResult.total_premium || targetAmount) : targetAmount;
         let termYears = nsjResult ? (nsjResult.term_years || Math.ceil(termMonths / 12)) : Math.ceil(termMonths / 12);
 
-        if (isSinglePremium) {
+        if (isFinamSberLife) {
+            replenishmentAmount = Math.round((totalPremium / 12) * 100) / 100;
+            paymentFrequency = 'monthly';
+        } else if (isSinglePremium) {
             replenishmentAmount = 0;
             paymentFrequency = 'once';
         } else if (isAnnualPayment || goal.payment_variant === 12) {
@@ -154,7 +202,9 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 total_tax_benefit: Math.round(totalTaxDeductions * 100) / 100
             },
             details: {
-                program_name: nsjResult.program || goal.program || (isFallback ? 'НСЖ Династия' : 'Страхование жизни'),
+                program_name: isFinamSberLife
+                    ? 'Подушка безопасности · Сбер Страхование Жизни'
+                    : (nsjResult.program || goal.program || (isFallback ? 'НСЖ Династия' : 'Страхование жизни')),
                 annual_premium: isFallback ? Math.round(fallbackInitialCapital * 100) / 100 : annualPremium,
                 tax_deduction_2026: Math.round(taxDeduction2026 * 100) / 100,
                 total_tax_deductions: Math.round(totalTaxDeductions * 100) / 100,
@@ -162,14 +212,18 @@ class LifeInsuranceCalculator extends BaseCalculator {
             }
         };
 
-        if (isFallback) {
+        if (isFallback || isFinamSberLife) {
+            const instrumentName = isFinamSberLife ? 'Подушка безопасности' : 'НСЖ Династия';
             result.summary.monthly_replenishment = Math.round(fallbackMonthlyReplenishment * 100) / 100;
+            if (isFinamSberLife) {
+                result.summary.monthly_replenishment = Math.round((annualPremium / 12) * 100) / 100;
+            }
             result.details.initial_instruments = [
                 {
-                    name: 'НСЖ Династия',
+                    name: instrumentName,
                     share: 100,
-                    yield: 5,
-                    amount: Math.round(fallbackInitialCapital * 100) / 100,
+                    yield: isFinamSberLife ? 0 : 5,
+                    amount: isFinamSberLife ? Math.round(annualPremium * 100) / 100 : Math.round(fallbackInitialCapital * 100) / 100,
                     product_type: 'NSZH',
                     product_id: null,
                     resolut_pfp_code: null,
@@ -177,10 +231,12 @@ class LifeInsuranceCalculator extends BaseCalculator {
             ];
             result.details.monthly_instruments = [
                 {
-                    name: 'НСЖ Династия',
+                    name: instrumentName,
                     share: 100,
-                    yield: 5,
-                    amount: Math.round(fallbackMonthlyReplenishment * 100) / 100,
+                    yield: isFinamSberLife ? 0 : 5,
+                    amount: isFinamSberLife
+                        ? Math.round((annualPremium / 12) * 100) / 100
+                        : Math.round(fallbackMonthlyReplenishment * 100) / 100,
                     payment_frequency: 'monthly',
                     product_type: 'NSZH',
                     product_id: null,
@@ -193,9 +249,10 @@ class LifeInsuranceCalculator extends BaseCalculator {
             termMonths,
             startDate: goal.start_date ? new Date(goal.start_date) : new Date(),
             expectedCashValue: result.summary.expected_cash_value,
-            isSinglePremium,
+            paymentFrequency,
             singlePremiumAmount: Math.round(totalPremium * 100) / 100,
-            annualPremiumAmount: result.details.annual_premium
+            annualPremiumAmount: result.details.annual_premium,
+            monthlyPremiumAmount: result.summary.monthly_replenishment
         });
 
         if (apiError && !isFallback) {

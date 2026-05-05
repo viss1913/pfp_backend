@@ -82,6 +82,14 @@ function inlineFinamRasterImages(html, repoRoot = FINAM_REPO_ROOT) {
         }
     );
     out = out.replace(
+        /src="\.\/assets\/sber-life-logo\.png"/gi,
+        (match) => {
+            const abs = path.join(__dirname, 'assets', 'sber-life-logo.png');
+            const dataUrl = imageDataUrlFromLocalFile(abs);
+            return dataUrl ? `src="${dataUrl}"` : match;
+        }
+    );
+    out = out.replace(
         /<div class="goal-image">\s*<div class="goal-image-placeholder">\.\/assets\/<br>([^<]+)<\/div>\s*<\/div>/gi,
         (match, fnameRaw) => {
             const key = String(fnameRaw).trim();
@@ -957,6 +965,24 @@ function formatLifeRiskLimitHtml(amount) {
     return `${Math.round(n).toLocaleString('ru-RU')} <small>₽</small>`;
 }
 
+function buildLifeRiskCardsHtml(risks, maxRisk) {
+    const list = Array.isArray(risks) ? risks : [];
+    if (list.length === 0) return '';
+    return list
+        .map((risk) => {
+            const ratio = Math.max(8, Math.round((toNum(risk?.limit_amount) / Math.max(1, maxRisk)) * 100));
+            return `<div class="life-risk">
+        <div class="life-risk-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="life-risk-name">${escapeHtml(String(risk?.risk_name || 'Риск'))}</div>
+        <div class="life-risk-limit">${formatLifeRiskLimitHtml(risk?.limit_amount)}</div>
+        <div class="life-risk-bar-bg"><div class="life-risk-bar" style="width: ${ratio}%;"></div></div>
+      </div>`;
+        })
+        .join('\n');
+}
+
 function replaceNthMatch(text, regex, replacement, n) {
     let idx = 0;
     return text.replace(regex, (...args) => {
@@ -1372,33 +1398,12 @@ function applyGoalFactsToTemplate(html, goal) {
         const inst = resolvePrimaryGoalInstrument(goal);
         const lifeYield = inst.yield > 0 ? inst.yield : facts.portfolioYield;
         const lifeShare = inst.share > 0 ? `${Math.round(inst.share)}%` : '100%';
-        const programName = details.program_name || inst.name || 'НСЖ';
+        const programName = details.program_name || inst.name || 'Подушка безопасности';
         const productTypeLabel = finamInstrumentTypeLabel(inst.productType || 'NSZH');
 
         if (risks.length > 0) {
-            for (let i = 0; i < 3; i += 1) {
-                const risk = risks[i];
-                if (!risk) break;
-                const idx = i + 1;
-                out = replaceNthMatch(
-                    out,
-                    /<div class="life-risk-name">[\s\S]*?<\/div>/g,
-                    `<div class="life-risk-name">${escapeHtml(String(risk.risk_name || 'Риск'))}</div>`,
-                    idx
-                );
-                out = replaceNthMatch(
-                    out,
-                    /<div class="life-risk-limit">[\s\S]*?<\/div>/g,
-                    `<div class="life-risk-limit">${formatLifeRiskLimitHtml(risk.limit_amount)}</div>`,
-                    idx
-                );
-                out = replaceNthMatch(
-                    out,
-                    /<div class="life-risk-bar" style="width:\s*[^"]+;"><\/div>/g,
-                    `<div class="life-risk-bar" style="width: ${Math.max(8, Math.round((toNum(risk.limit_amount) / maxRisk) * 100))}%;"></div>`,
-                    idx
-                );
-            }
+            const riskCardsHtml = buildLifeRiskCardsHtml(risks, maxRisk);
+            out = out.replace(/<div class="life-risks">[\s\S]*?<\/div>/, `<div class="life-risks">\n${riskCardsHtml}\n    </div>`);
         }
 
         out = out.replace(

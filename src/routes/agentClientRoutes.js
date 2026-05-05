@@ -23,5 +23,8 @@ router.post('/:id/plans/:planId/take-over', agentMiddleware, clientController.re
 // POST /api/pfp/clients/:id/nda/send — NDA PDF на email клиента + base64 в ответе
 router.post('/:id/nda/send', agentMiddleware, clientController.sendNda.bind(clientController));
 
+// POST /api/pfp/clients/:id/life-insurance/send-email — письмо с открытием страхования жизни
+router.post('/:id/life-insurance/send-email', agentMiddleware, clientController.sendLifeInsuranceOfferEmail.bind(clientController));
+
 module.exports = router;
 
