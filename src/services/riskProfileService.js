@@ -1,4 +1,10 @@
 const riskQuestionnaireService = require('./riskQuestionnaireService');
+const { getMortgageLeverageSnapshot, applyLtvDebtBonus } = require('../utils/mortgageLeverageRisk');
+
+/** Сдвиг порогов подписей (Финам): чуть чаще «выше» ступень при том же числе. */
+const FINAM_LABEL_THRESHOLD_DELTA = 0.12;
+/** Лёгкий bias к итогу после ёмкостного cap. */
+const FINAM_FINAL_SCORE_BIAS = 0.1;
 
 class RiskProfileService {
     _legacyScoreTermMonths(termMonths) {
@@ -127,10 +133,11 @@ class RiskProfileService {
     }
 
     _finalScoreToLabels(score) {
-        if (score <= 1.8) return { profile5: 'CONSERVATIVE', profile3: 'CONSERVATIVE' };
-        if (score <= 2.6) return { profile5: 'MODERATELY_CONSERVATIVE', profile3: 'CONSERVATIVE' };
-        if (score <= 3.4) return { profile5: 'BALANCED', profile3: 'BALANCED' };
-        if (score <= 4.2) return { profile5: 'MODERATELY_AGGRESSIVE', profile3: 'BALANCED' };
+        const d = FINAM_LABEL_THRESHOLD_DELTA;
+        if (score <= 1.8 - d) return { profile5: 'CONSERVATIVE', profile3: 'CONSERVATIVE' };
+        if (score <= 2.6 - d) return { profile5: 'MODERATELY_CONSERVATIVE', profile3: 'CONSERVATIVE' };
+        if (score <= 3.4 - d) return { profile5: 'BALANCED', profile3: 'BALANCED' };
+        if (score <= 4.2 - d) return { profile5: 'MODERATELY_AGGRESSIVE', profile3: 'BALANCED' };
         return { profile5: 'AGGRESSIVE', profile3: 'AGGRESSIVE' };
     }
 
@@ -160,15 +167,23 @@ class RiskProfileService {
             incomeStability: 0.05
         };
 
-        const componentScores = {
+        const mortgageLeverage = getMortgageLeverageSnapshot(client);
+        const baseDebtScore = this._scoreDebtLoad(client);
+        const { debtScore, debt_adjustment: debtLtvAdjustment } = applyLtvDebtBonus(
+            baseDebtScore,
+            mortgageLeverage
+        );
+
+        const capacityPreDebtLtv = {
             term: this._scoreTermMonths(goal.term_months),
-            debt: this._scoreDebtLoad(client),
+            debt: baseDebtScore,
             freeCashFlow: this._scoreFreeCashFlow(client),
             reserve: this._scoreReserveFund(client),
             housing: this._scoreHomeOwnership(client),
             dependents: this._scoreDependents(client),
             incomeStability: riskQuestionnaireService.getIncomeStabilityScore(client)
         };
+        const componentScores = { ...capacityPreDebtLtv, debt: debtScore };
 
         const baseScoreRaw = Object.keys(weights).reduce(
             (sum, key) => sum + componentScores[key] * weights[key],
@@ -180,6 +195,8 @@ class RiskProfileService {
         let finalScore = Number((baseScore * behaviorCoefficient).toFixed(3));
         const maxByCapacity = this._deriveCapacityCaps(componentScores);
         finalScore = Number(Math.min(finalScore, maxByCapacity).toFixed(3));
+        const finamBias = Number(FINAM_FINAL_SCORE_BIAS.toFixed(3));
+        finalScore = Number(Math.min(5, finalScore + finamBias).toFixed(3));
 
         const labels = this._finalScoreToLabels(finalScore);
 
@@ -197,6 +214,16 @@ class RiskProfileService {
             explanation: {
                 weights,
                 capacity_components: componentScores,
+                capacity_components_pre_ltv: capacityPreDebtLtv,
+                mortgage_leverage: {
+                    ...mortgageLeverage,
+                    debt_score_before_ltv: baseDebtScore,
+                    debt_ltv_adjustment: debtLtvAdjustment
+                },
+                finam_calibration: {
+                    label_threshold_delta: FINAM_LABEL_THRESHOLD_DELTA,
+                    final_score_bias: finamBias
+                },
                 behavior_details: behavior.details
             }
         };

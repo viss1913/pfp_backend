@@ -15,6 +15,7 @@ const riskProfileExplanationService = require('../services/riskProfileExplanatio
 const riskProfileService = require('../services/riskProfileService');
 const { mergeGoalsWithSnapshot } = require('../utils/mergeGoalsWithSnapshot');
 const { sortGoalsForCalculationOrder } = require('../utils/sortGoalsForCalculation');
+const { pickReferenceGoalForRiskProfile } = require('../utils/riskReferenceGoal');
 const { patchHasExplicitManualGoalRisk, applyManualGoalRiskSanitize } = require('../utils/goalManualRisk');
 const Joi = require('joi');
 
@@ -64,7 +65,7 @@ async function computeAndPersistRiskProfileResultIfPossible({ clientId, projectI
     mergeGoalsWithSnapshot(fullClient);
     const goals = Array.isArray(fullClient.goals) ? fullClient.goals : [];
     const sortedGoals = sortGoalsForCalculationOrder(goals);
-    const goalForRisk = sortedGoals.find((g) => Number(g?.term_months || 0) > 0) || { term_months: 120 };
+    const goalForRisk = pickReferenceGoalForRiskProfile(sortedGoals);
 
     const riskProfileResult = await riskProfileService.calculateGoalProfile({
         answers,
@@ -117,8 +118,8 @@ function pickRiskProfileResult(calculationResponse, requestGoals = null) {
 
     if (Array.isArray(requestGoals) && requestGoals.length > 0) {
         const sortedReq = sortGoalsForCalculationOrder(requestGoals);
-        const ref = sortedReq.find((g) => Number(g?.term_months || 0) > 0);
-        if (ref) {
+        const ref = pickReferenceGoalForRiskProfile(sortedReq);
+        if (ref && Number(ref.term_months || 0) > 0) {
             const id = ref.id ?? ref.goal_id;
             const got = tryId(id);
             if (got) return got;
@@ -129,10 +130,13 @@ function pickRiskProfileResult(calculationResponse, requestGoals = null) {
         ...g,
         name: g.goal_name || g.name,
         id: g.goal_id ?? g.id,
+        goal_type_id: g.goal_type_id != null ? Number(g.goal_type_id) : g.goal_type_id,
+        initial_capital: g.initial_capital,
         term_months: g.term_months != null ? Number(g.term_months) : 0
     }));
-    const refFromCalc = sortGoalsForCalculationOrder(syntheticForSort)
-        .find((g) => Number(g?.term_months || 0) > 0);
+    const refFromCalc = pickReferenceGoalForRiskProfile(
+        sortGoalsForCalculationOrder(syntheticForSort)
+    );
     if (refFromCalc) {
         const got = tryId(refFromCalc.goal_id ?? refFromCalc.id);
         if (got) return got;
