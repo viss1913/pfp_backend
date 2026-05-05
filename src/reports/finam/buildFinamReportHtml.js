@@ -983,6 +983,36 @@ function buildLifeRiskCardsHtml(risks, maxRisk) {
         .join('\n');
 }
 
+function findLifeRiskLimitByName(risks, matcher) {
+    const list = Array.isArray(risks) ? risks : [];
+    const item = list.find((r) => matcher(String(r?.risk_name || '').toLowerCase()));
+    return toNum(item?.limit_amount);
+}
+
+function buildLifeRiskModel(goal) {
+    const details = goal?.details || {};
+    const summary = goal?.summary || {};
+    const sourceRisks = Array.isArray(details.risks) ? details.risks : [];
+
+    const explicitBase =
+        findLifeRiskLimitByName(sourceRisks, (n) => n.includes('уход') && n.includes('жизн')) ||
+        findLifeRiskLimitByName(sourceRisks, (n) => n.includes('инвалид')) ||
+        toNum(summary.target_coverage);
+    const baseLimit = Math.max(0, explicitBase);
+    if (baseLimit <= 0) return [];
+
+    const traumaFromSource = findLifeRiskLimitByName(sourceRisks, (n) => n.includes('травм'));
+    const traumaLimit = traumaFromSource > 0 ? traumaFromSource : Math.round(baseLimit * 0.3);
+
+    return [
+        { risk_name: 'Уход из жизни', limit_amount: baseLimit },
+        { risk_name: 'Инвалидность I и II группа', limit_amount: baseLimit },
+        { risk_name: 'Уход из жизни в результате НС', limit_amount: baseLimit * 2 },
+        { risk_name: 'Уход из жизни в результате ДТП', limit_amount: baseLimit * 3 },
+        { risk_name: 'Травмы', limit_amount: traumaLimit },
+    ].filter((r) => toNum(r.limit_amount) > 0);
+}
+
 function replaceNthMatch(text, regex, replacement, n) {
     let idx = 0;
     return text.replace(regex, (...args) => {
@@ -1389,21 +1419,24 @@ function applyGoalFactsToTemplate(html, goal) {
     if (isLife) {
         const details = goal?.details || {};
         const summary = goal?.summary || {};
-        const risks = Array.isArray(details.risks) ? details.risks.filter((r) => toNum(r?.limit_amount) > 0) : [];
+        const risks = buildLifeRiskModel(goal);
         const maxRisk = Math.max(1, ...risks.map((r) => toNum(r.limit_amount)));
         const annualPremium = toNum(details.annual_premium ?? summary.annual_premium ?? facts.initial);
         const monthlyPremium = annualPremium > 0 ? annualPremium / 12 : facts.monthly;
         const yearTaxLife = toNum(summary.tax_deduction_2026 ?? details.tax_deduction_2026 ?? facts.taxYearAmount);
         const totalTaxLife = toNum(summary.total_tax_deductions ?? details.total_tax_deductions ?? facts.totalTax);
         const inst = resolvePrimaryGoalInstrument(goal);
-        const lifeYield = inst.yield > 0 ? inst.yield : facts.portfolioYield;
+        const lifeYield = inst.yield > 0 ? inst.yield : toNum(summary.investment_yield_percent ?? facts.portfolioYield);
         const lifeShare = inst.share > 0 ? `${Math.round(inst.share)}%` : '100%';
         const programName = details.program_name || inst.name || 'Подушка безопасности';
-        const productTypeLabel = finamInstrumentTypeLabel(inst.productType || 'NSZH');
+        const productTypeLabel = 'Страхование жизни';
 
         if (risks.length > 0) {
             const riskCardsHtml = buildLifeRiskCardsHtml(risks, maxRisk);
-            out = out.replace(/<div class="life-risks">[\s\S]*?<\/div>/, `<div class="life-risks">\n${riskCardsHtml}\n    </div>`);
+            out = out.replace(
+                /<div class="life-risks">[\s\S]*?<\/div>\s*(?=<div class="life-premium-row">)/,
+                `<div class="life-risks">\n${riskCardsHtml}\n    </div>\n\n    `
+            );
         }
 
         out = out.replace(
@@ -1442,6 +1475,10 @@ function applyGoalFactsToTemplate(html, goal) {
         out = out.replace(
             /<div class="life-yield-big">[\s\S]*?<\/div>/,
             `<div class="life-yield-big">${formatPercentValue(lifeYield)}</div>`
+        );
+        out = out.replace(
+            /<p>Подушка безопасности — это понятный страховой продукт:[\s\S]*?<\/p>/,
+            '<p>Подушка безопасности — это понятный страховой продукт: фиксируете защиту семьи от ключевых рисков и заранее знаете размер ежегодного и ежемесячного платежа.</p>'
         );
 
         out = out.replace(
