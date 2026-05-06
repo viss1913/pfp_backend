@@ -13,6 +13,7 @@
   repleneshment (buildRepleneshmentPageHtml → несколько листов по FINAM_REPLENISHMENT_ROWS_PER_PAGE строк, splitFinamPage4IntoStandalonePages)
 
 Сборка в коде: src/reports/finam/buildFinamReportHtml.js, finamGoalTemplates.js, finamPdfPageAppliers.js
+  Опционально без OpenRouter для PDF: PFP_PDF_FINAM_AI=0|false|off — только шаблоны и fallback тексты (стр. 3, речь у целей, итоговый портфель).
 
 HTML-макеты (актуальная вёрстка от дизайна):
   page-2-finam.html           — страница 2, введение

@@ -22,6 +22,18 @@ const TEMPLATE_DIR = __dirname;
 /** Корень репозитория (от `src/reports/finam`). */
 const FINAM_REPO_ROOT = path.join(__dirname, '..', '..', '..');
 
+/**
+ * OpenRouter при сборке Finam PDF: стр. 3 «семья» (2 запроса), речь у каждой цели, итоговый портфель.
+ * Выключить и оставить только шаблоны/fallback: PFP_PDF_FINAM_AI=0 | false | off | no | disabled
+ */
+function isFinamReportPdfAiEnabled() {
+    const v = process.env.PFP_PDF_FINAM_AI;
+    if (v == null || String(v).trim() === '') return true;
+    const s = String(v).trim().toLowerCase();
+    if (['0', 'false', 'off', 'no', 'disabled'].includes(s)) return false;
+    return true;
+}
+
 const FINAM_GOAL_CARD_PLACEHOLDER_MAP = {
     'goal-reserve.webp': 'reserve.webp',
     'goal-life.webp': 'lifeinsurance.webp',
@@ -2590,6 +2602,7 @@ async function applyFinamPage3FamilyAi(html, report, projectId) {
 
     async function runSpeech(contextExtra, userTask, fallbackPhtml) {
         if (!contextExtra) return fallbackPhtml;
+        if (!isFinamReportPdfAiEnabled()) return fallbackPhtml;
         try {
             if (!aiService.apiKey) {
                 console.warn('[buildFinamReportHtml] Page3 family AI skipped: no API key');
@@ -2644,6 +2657,7 @@ async function applyFinamGoalAiSpeech(html, goal, projectId) {
     const commonRules = parseFinamMarkdownContextKey(md, 'GOAL_COMMON_RULES');
     const goalCtx = parseFinamMarkdownContextKey(md, goalTypeContextKey(goal));
     if (!goalCtx) return html;
+    if (!isFinamReportPdfAiEnabled()) return html;
     try {
         if (!aiService.apiKey) return html;
         const model =
@@ -2688,6 +2702,7 @@ async function applyFinamPortfolioFinalAi(html, report, projectId) {
 
     const payload = buildFinamPortfolioFinalAiPayload(report);
     if (isPortfolioFinalAiPayloadEmpty(payload)) return html;
+    if (!isFinamReportPdfAiEnabled()) return html;
 
     const systemCore = [
         'Ты помогаешь заполнять PDF-отчёт «Финансовый план» (Финам), страница «Итоговый портфель».',
@@ -2794,6 +2809,9 @@ async function buildFinamFullPageHtmlList({
     inflationPageHtml = null,
     finamRasterRefMode,
 }) {
+    if (!isFinamReportPdfAiEnabled()) {
+        console.info('[buildFinamReportHtml] Finam PDF: ИИ отключён (PFP_PDF_FINAM_AI), только шаблоны');
+    }
     let avatarUrl = finamAiAvatarUrl;
     if (!avatarUrl && projectId != null) {
         avatarUrl = await fetchAiB2cAvatarUrl(projectId);
@@ -2895,4 +2913,5 @@ module.exports = {
     buildFinamFamilyPageAiPayload,
     applyFinamPortfolioFinalAi,
     buildFinamPortfolioFinalAiPayload,
+    isFinamReportPdfAiEnabled,
 };
