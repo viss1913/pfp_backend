@@ -23,19 +23,8 @@ article.page {
   max-height: 297mm !important;
   box-sizing: border-box !important;
 }
-article.page > .content {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 auto !important;
-  min-height: 0 !important;
-  height: 100% !important;
-}
-article.page .content > footer.footer {
-  margin-top: auto !important;
-}
-article.page .content > .page-tail {
-  margin-top: auto !important;
-}
+/* Не тянуть footer через margin-top: auto — получается огромный «воздух» между блоками и футером.
+   Фон article + html уже заполняют лист до 297mm под компактным контентом. */
 </style>`;
 
 function injectReportPdfPageFillA4(html) {
