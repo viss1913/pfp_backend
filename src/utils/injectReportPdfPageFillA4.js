@@ -22,9 +22,25 @@ article.page {
   height: 297mm !important;
   max-height: 297mm !important;
   box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
-/* Не тянуть footer через margin-top: auto — получается огромный «воздух» между блоками и футером.
-   Фон article + html уже заполняют лист до 297mm под компактным контентом. */
+/*
+  Лист растянут на A4, но единственный ребёнок .content по умолчанию flex: 0 1 auto — остаётся
+  по высоте контента; снизу видна только «клетка» article. Растягиваем .content на всю колонку.
+  Футер прижимаем к низу только если внутри нет .spacer (там уже flex:1 разносит блоки).
+*/
+article.page > .content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+}
+article.page > .content:not(:has(.spacer)) > footer.footer:last-child {
+  margin-top: auto !important;
+}
+article.page > .content:not(:has(.spacer)) > .page-tail:last-child {
+  margin-top: auto !important;
+}
 </style>`;
 
 function injectReportPdfPageFillA4(html) {
