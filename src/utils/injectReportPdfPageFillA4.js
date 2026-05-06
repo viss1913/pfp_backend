@@ -9,6 +9,11 @@ const STYLE = `<style ${MARK}="1">
 html {
   min-height: 297mm;
   background-color: #fafbfc;
+  background-image:
+    linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-position: 0 0;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -24,6 +29,13 @@ article.page {
   box-sizing: border-box !important;
   display: flex !important;
   flex-direction: column !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+/* Клетка только на html (full-bleed A4); в шаблонах дублируется в ::before — убираем муар */
+article.page::before {
+  content: none !important;
+  display: none !important;
 }
 /*
   Лист растянут на A4, но единственный ребёнок .content по умолчанию flex: 0 1 auto — остаётся
