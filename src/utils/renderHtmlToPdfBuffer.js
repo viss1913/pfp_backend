@@ -96,9 +96,10 @@ async function closeSharedPuppeteerBrowser() {
 /**
  * Рендер одного HTML-документа в PDF (A4), тот же стек, что и отчёт PFP.
  * @param {string} html
+ * @param {{ pdfScale?: number, preferCssPageSize?: boolean }} [options]
  * @returns {Promise<Buffer>}
  */
-async function renderHtmlToPdfBuffer(html) {
+async function renderHtmlToPdfBuffer(html, options = {}) {
     registerShutdownHooksOnce();
 
     const browser = await getSharedBrowser();
@@ -111,6 +112,8 @@ async function renderHtmlToPdfBuffer(html) {
         Math.max(Number(process.env.REPORT_PDF_POST_LOAD_DELAY_MS) || 300, 0),
         5000
     );
+    const pdfScale = Math.min(Math.max(Number(options?.pdfScale) || 1, 0.1), 2);
+    const preferCssPageSize = options?.preferCssPageSize !== false;
 
     try {
         page.setDefaultNavigationTimeout(pdfNavTimeoutMs);
@@ -127,7 +130,8 @@ async function renderHtmlToPdfBuffer(html) {
             printBackground: true,
             format: 'A4',
             margin: { top: '0', right: '0', bottom: '0', left: '0' },
-            preferCSSPageSize: true,
+            preferCSSPageSize: preferCssPageSize,
+            scale: pdfScale,
         });
     } finally {
         await page.close().catch(() => {});
