@@ -79,6 +79,10 @@ ${frames}
 </html>`;
 }
 
+function wrapPageHtmlForA4(pageHtml) {
+    return buildFramesContainerHtml([pageHtml]);
+}
+
 function estimateScheduleChunks(goal) {
     const scheduleRows = Array.isArray(goal?.details?.monthly_schedule)
         ? goal.details.monthly_schedule.filter((row) => row && row.date).length
@@ -202,7 +206,8 @@ class ReportPdfService {
         // Рендерим каждый HTML-лист отдельно и склеиваем готовые PDF-страницы.
         const pagePdfBuffers = [];
         for (const pageHtml of htmlPkg.pageHtmlList || []) {
-            pagePdfBuffers.push(await renderHtmlToPdfBuffer(pageHtml));
+            // Масштаб 595x842 -> A4 (как в старом контейнере), но без единого тяжелого общего PDF-рендера.
+            pagePdfBuffers.push(await renderHtmlToPdfBuffer(wrapPageHtmlForA4(pageHtml)));
         }
         const pdfBuffer = await mergePdfBuffers(pagePdfBuffers);
         return {
@@ -333,7 +338,8 @@ class ReportPdfService {
                 goalTypes,
                 projectId,
                 inflationPageHtml,
-                finamRasterRefMode: 'fileUrl',
+                // В per-page рендере стабильнее держать dataUrl (иначе часть локальных картинок в Chromium может пропадать).
+                finamRasterRefMode: 'dataUrl',
             });
             pageHtmlList.push(...finamPages);
         } else {
