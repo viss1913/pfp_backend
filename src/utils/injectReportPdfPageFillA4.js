@@ -5,6 +5,9 @@
  */
 const MARK = 'data-pfp-pdf-page-fill-a4';
 
+/** Масштаб текста/вёрстки внутри листа (1.3 ≈ «в 1,3 раза»). Chromium PDF: zoom + узкая колонка, чтобы визуально заполнить ширину без клипа. */
+const CONTENT_ZOOM = 1.3;
+
 const STYLE = `<style ${MARK}="1">
 html {
   min-height: 297mm;
@@ -33,6 +36,8 @@ article.page {
   flex-direction: column !important;
   background-color: transparent !important;
   background-image: none !important;
+  padding-left: 14px !important;
+  padding-right: 14px !important;
 }
 /* Клетка только на html (full-bleed A4); в шаблонах дублируется в ::before — убираем муар */
 article.page::before {
@@ -47,7 +52,12 @@ article.page::before {
 article.page > .content {
   flex: 1 1 auto !important;
   min-height: 0 !important;
-  align-self: stretch !important;
+  box-sizing: border-box !important;
+  width: calc(100% / ${CONTENT_ZOOM}) !important;
+  max-width: calc(100% / ${CONTENT_ZOOM}) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  zoom: ${CONTENT_ZOOM};
 }
 /*
   Многостраничные goal-шаблоны в одном файле: для «стр. 1» стоит
