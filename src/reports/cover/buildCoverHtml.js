@@ -320,7 +320,7 @@ async function buildReportCoverHtml(options = {}) {
     }
 
     @page {
-      size: ${S.canvas.width_px}px ${S.canvas.height_px}px;
+      size: A4;
       margin: ${S.page.margin_css};
     }
 
@@ -351,6 +351,7 @@ async function buildReportCoverHtml(options = {}) {
       width: ${S.background_layer.width_px}px;
       height: ${S.background_layer.height_px}px;
       pointer-events: ${S.background_layer.pointer_events};
+      overflow: hidden;
     }
 
     .report-cover__bg-wrap img {

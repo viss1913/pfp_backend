@@ -228,10 +228,18 @@ class ReportPdfService {
             16
         );
         const list = htmlPkg.pageHtmlList || [];
+        // Обложка и листы сверстаны под @page 595×842 (или A4 margin 0). Раньше было preferCSSPageSize: false
+        // и scale 1.333 — Chrome игнорировал размер страницы из CSS, обложка уезжала «картинка в белой рамке».
+        const reportPdfScale = (() => {
+            const n = Number(process.env.REPORT_PDF_SCALE);
+            if (Number.isFinite(n) && n > 0) return Math.min(Math.max(n, 0.1), 2);
+            return 1;
+        })();
+        const reportPreferCssPageSize = process.env.REPORT_PDF_PREFER_CSS_PAGE_SIZE !== '0';
         const pagePdfBuffers = await mapWithConcurrency(list, renderConcurrency, (pageHtml) =>
             renderHtmlToPdfBuffer(pageHtml, {
-                pdfScale: 1.3333333333,
-                preferCssPageSize: false,
+                pdfScale: reportPdfScale,
+                preferCssPageSize: reportPreferCssPageSize,
             })
         );
         const pdfBuffer = await mergePdfBuffers(pagePdfBuffers);
