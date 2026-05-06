@@ -35,16 +35,31 @@ function matchesCountryHouseScenario(label) {
     });
 }
 
-function resolveOtherGoalTemplateFile(goalName) {
-    const name = normalizeText(goalName);
-    if (!name) return 'goal-page-education-finam.html';
-    if (matchesApartmentScenario(goalName)) return 'goal-page-apartment-finam.html';
-    if (matchesCountryHouseScenario(goalName)) return 'goal-page-house-finam.html';
-    if (includesAny(name, ['бизнес', 'свой бизнес'])) return 'goal-page-business-finam.html';
-    if (includesAny(name, ['управление капиталом', 'капитал'])) return 'goal-page-capital-finam.html';
-    if (includesAny(name, ['путешеств', 'поездк', 'переезд'])) return 'goal-page-travel-finam.html';
-    if (includesAny(name, ['автомоб', 'машин', 'авто'])) return 'goal-page-car-finam.html';
-    if (includesAny(name, ['образован', 'ребенк'])) return 'goal-page-education-finam.html';
+/**
+ * Подпись в шапке и файл картинки цели для OTHER (единый HTML — goal-page-education-finam).
+ */
+function resolveOtherGoalScenarioMeta(goal) {
+    const label = finamTemplateLabel(goal);
+    const name = normalizeText(label);
+    if (!name) {
+        return { docLabel: 'Цель', cardFile: 'obrazovanie_rebyonka.webp' };
+    }
+    if (matchesApartmentScenario(label)) return { docLabel: 'Квартира', cardFile: 'kvartira.webp' };
+    if (matchesCountryHouseScenario(label)) {
+        const dl = String(label).trim();
+        return { docLabel: (dl || 'Дом').slice(0, 42), cardFile: 'zagorodnayanedvizhimost.webp' };
+    }
+    if (includesAny(name, ['бизнес', 'свой бизнес'])) return { docLabel: 'Свой бизнес', cardFile: 'svoybiznes.webp' };
+    if (includesAny(name, ['управление капиталом', 'капитал'])) return { docLabel: 'Капитал', cardFile: 'upravlenie_capitalom.webp' };
+    if (includesAny(name, ['путешеств', 'поездк', 'переезд'])) return { docLabel: 'Путешествие', cardFile: 'puteshestvie.webp' };
+    if (includesAny(name, ['автомоб', 'машин', 'авто'])) return { docLabel: 'Автомобиль', cardFile: 'drugoe.webp' };
+    if (includesAny(name, ['образован', 'ребенк'])) return { docLabel: 'Образование', cardFile: 'obrazovanie_rebyonka.webp' };
+    const short = String(label).trim();
+    return { docLabel: short.slice(0, 48) || 'Другое', cardFile: 'drugoe.webp' };
+}
+
+/** Все OTHER рендерим одним макетом (как «Образование»); сценарий — только подпись и картинка. */
+function resolveOtherGoalTemplateFile() {
     return 'goal-page-education-finam.html';
 }
 
@@ -66,7 +81,7 @@ function resolveGoalTemplateFile(goal) {
         if (id === 2) return 'goal-page-passive-income-finam.html';
         if (id === 8) return 'goal-page-passive-income-finam.html';
         if (id === 3) return resolveInvestmentTemplateFile(label);
-        if (id === 4 || id === 6 || id === 9) return resolveOtherGoalTemplateFile(label);
+        if (id === 4 || id === 6 || id === 9) return resolveOtherGoalTemplateFile();
     }
 
     const goalType = String(goal?.goal_type || '').toUpperCase();
@@ -76,7 +91,7 @@ function resolveGoalTemplateFile(goal) {
     if (goalType === 'PASSIVE_INCOME') return 'goal-page-passive-income-finam.html';
     if (goalType === 'RENT') return 'goal-page-passive-income-finam.html';
     if (goalType === 'INVESTMENT') return resolveInvestmentTemplateFile(label);
-    if (goalType === 'OTHER') return resolveOtherGoalTemplateFile(label);
+    if (goalType === 'OTHER') return resolveOtherGoalTemplateFile();
     return null;
 }
 
@@ -84,6 +99,7 @@ module.exports = {
     normalizeText,
     includesAny,
     finamTemplateLabel,
+    resolveOtherGoalScenarioMeta,
     resolveOtherGoalTemplateFile,
     resolveGoalTemplateFile,
 };

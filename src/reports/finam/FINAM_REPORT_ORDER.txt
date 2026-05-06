@@ -2,7 +2,7 @@
 
 Порядок листов в PDF (projectId 14, generateClientReportHtmlPackage → buildFinamFullPageHtmlList):
   page-2-finam, page-3-family-finam, page-4-targets-finam (тело стр. 4 из расчёта)
-  goal-page-* в порядке: FIN_RESERVE → LIFE → PENSION / PASSIVE_INCOME / RENT → OTHER/INVESTMENT «образование» → прочие (внутри группы priority ↑); у шаблона может быть несколько <article class="page"> — в PDF каждый даёт отдельный лист (splitFinamPage4IntoStandalonePages)
+  goal-page-* в порядке: FIN_RESERVE → LIFE → PENSION / PASSIVE_INCOME / RENT → INVESTMENT (отдельные шаблоны) → OTHER (все сценарии — один HTML goal-page-education-finam.html, подпись и картинка из resolveOtherGoalScenarioMeta); у шаблона может быть несколько <article class="page"> — в PDF каждый даёт отдельный лист (splitFinamPage4IntoStandalonePages)
   portfolio-final-page-finam.html (overall_plan.pdf_metrics.portfolio: share или share_percent)
   tax-planning-block-finam.html (overall_plan.tax_benefits)
   comon-autofollow-finam.html
@@ -25,13 +25,13 @@ HTML-макеты: цель 595×842; часть шаблонов — два и�
   goal-page-pension-finam.html          — PENSION, пенсия
   goal-page-passive-income-finam.html   — PASSIVE_INCOME, пассивный доход
   goal-page-save-grow-finam.html        — INVESTMENT / «Сохранить и приумножить»
-  goal-page-education-finam.html        — OTHER, «Образование»: 2 листа (план+пироги → состав/льготы)
-  goal-page-apartment-finam.html        — OTHER, сценарий «Квартира»
-  goal-page-house-finam.html            — OTHER, сценарий «Дом» / загородная недвижимость
-  goal-page-business-finam.html         — OTHER, сценарий «Свой бизнес»
-  goal-page-capital-finam.html          — OTHER / INVESTMENT, «Управление капиталом» / «Капитал»
-  goal-page-travel-finam.html           — OTHER, сценарий «Путешествие»
-  goal-page-car-finam.html              — OTHER, сценарий «Автомобиль» (картинка drugoe.webp — заглушка до отдельного ассета)
+  goal-page-education-finam.html        — единый макет для всех OTHER (в т.ч. квартира/дом/бизнес/…): 2 листа; сценарий — doc-label + goal-card в finamGoalTemplates.resolveOtherGoalScenarioMeta
+  goal-page-apartment-finam.html        — только для INVESTMENT при сценарии «Квартира» (resolveInvestmentTemplateFile)
+  goal-page-house-finam.html            — архив/референс; OTHER больше не маппится сюда
+  goal-page-business-finam.html         — архив для OTHER; макет = education
+  goal-page-capital-finam.html          — INVESTMENT «Капитал» и др.; OTHER «капитал» → education + картинка
+  goal-page-travel-finam.html           — архив OTHER; макет = education
+  goal-page-car-finam.html              — архив OTHER; макет = education
 
 HTML-макеты: сводные блоки отчёта (не привязаны к одному goal_type):
   portfolio-page-finam.html             — портфель по целям (ИИ + таблицы инструментов) и краткий итог (пирог, стр. 2)

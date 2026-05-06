@@ -3,109 +3,114 @@
 <head>
   <meta charset="utf-8" />
   <style>
-    @page { size: 595px 842px; margin: 0; }
-    * { box-sizing: border-box; }
+    @page { size: A4; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
-    body { font-family: 'DejaVu Sans', sans-serif; color: #212121; }
-    .page {
-      position: relative;
-      width: 595px;
-      height: 842px;
-      overflow: hidden;
-      background: #fff;
-      padding: 0px 30px 30px;
-    }
-    .bg {
-      position: absolute;
-      inset: 0;
-      z-index: 0;
+    body {
+      font-family: 'DejaVu Sans', 'Liberation Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
       background: #ffffff;
-    }
-    .bg img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.16;
-      filter: grayscale(100%);
-    }
-    .inner { position: relative; z-index: 1; }
-    .top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 18px;
-    }
-    .h1 { font-size: 26px; line-height: 1.15; font-weight: 700; margin: 0; }
-    .sub { margin-top: 6px; font-size: 14px; color: #4b5563; }
-    .logo { height: 24px; width: auto; object-fit: contain; }
-    .card {
-      border: 1px solid #d7d7d7;
-      border-radius: 12px;
-      background: #fff;
-      padding: 14px;
-      margin-bottom: 12px;
-    }
-    .muted { font-size: 12px; color: #4b5563; }
-    .pill {
-      display: inline-block;
-      border: 1px solid #722257;
-      color: #722257;
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-weight: 700;
-      font-size: 13px;
-      margin-top: 10px;
-    }
-    .footer {
-      position: absolute;
-      left: 30px;
-      right: 30px;
-      bottom: 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 16px;
-      font-size: 11px;
-      color: #6b7280;
-    }
-    .footer__left {
+      padding: 0;
+      margin: 0;
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
-      max-width: 420px;
+      align-items: center;
+      gap: 40px;
     }
-    .footer__disclaimer {
-      font-size: 10px;
-      line-height: 1.25;
-      color: #212121;
+    article.page {
+      font-size: 16px;
+      width: 595px;
+      height: 842px;
+      background-color: #fafbfc;
+      color: #000000;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
-    .footer__logo {
-      height: 19px;
-      width: auto;
-      max-width: 120px;
-      object-fit: contain;
-      display: block;
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .logo-mark { display: flex; align-items: center; gap: 6px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
+    .logo-text {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+    .doc-label {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 4px 11px;
+      border: 1px solid #000000; border-radius: 4px;
+      max-width: 260px;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .divider { height: 1px; background: #000000; margin-bottom: 10px; }
+    .risk-stage { position: relative; flex: 1; min-height: 0; width: 100%; }
+    .risk-fill { position: relative; width: 100%; height: 100%; min-height: 520px; }
+    .footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 6px;
+      border-top: 1px solid #cccccc;
+    }
+    .footer-left { font-size: 12px; font-weight: 400; color: #555555; line-height: 1.45; }
+    .footer-right { font-size: 12px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
+    @media print {
+      body { margin: 0; padding: 0; gap: 0; }
+      article.page { page-break-after: always; }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="bg"></div>
-    <div class="inner">
-      
-      
-              <div style="position:relative;width:535px;height:770px;">
-                
-      <div style="position:absolute;inset:0;border-radius:12px;overflow:hidden;z-index:0;">
-        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(248,241,247,0.55) 0%,rgba(244,248,255,0.55) 100%);"></div>
-        <div style="position:absolute;inset:0;background-image:linear-gradient(to right, rgba(114,34,87,0.09) 1px, transparent 1px),linear-gradient(to bottom, rgba(114,34,87,0.09) 1px, transparent 1px);background-size:22px 22px;"></div>
-      </div>
+  <article class="page">
+    <div class="content">
+      <header class="header">
+        <div class="logo-mark">
+          <div class="logo-dot"></div>
+          <span class="logo-text">Финансовый план</span>
+        </div>
+        <div class="doc-label">Декларация о рисках</div>
+      </header>
+      <div class="divider"></div>
+      <div class="risk-stage">
+        <div class="risk-fill">
+              <div style="position:relative;width:100%;height:100%;min-height:520px;">
                 <div style="position:absolute;top:30px;left:0;background:#722257;color:#fff;padding:10px 12px;border-radius:8px 8px 0 0;font-size:16px;line-height:1.2;z-index:1;">
                   3. Риск дефолта государства<br/>по облигациям федерального займа (ОФЗ)
                 </div>
-                <div style="position:absolute;top:88px;left:0;width:535px;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.3;color:#212121;z-index:1;">
+                <div style="position:absolute;top:88px;left:0;width:100%;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.3;color:#212121;z-index:1;">
                   <p style="font-size:14px;margin-bottom:8px;font-weight:700;">Риск</p>
                   <p style="margin-bottom:10px;">Снижение стоимости ОФЗ и/или ухудшение реальной доходности на фоне инфляции и движения ставок.</p>
 
@@ -123,15 +128,19 @@
                   <p style="margin:0;">ОФЗ остаются базовым защитным инструментом, но рыночные колебания и инфляция продолжают влиять на итоговый результат.</p>
                 </div>
               </div>
-            
-    </div>
-    <div class="footer">
-      <div class="footer__left">
-        <div class="footer__disclaimer">Ренессанс Накопления • Финам • Сбер Страхование</div>
-        
+        </div>
       </div>
-      <div style="white-space:nowrap;">Страница PDF</div>
+      <footer class="footer">
+        <div class="footer-left">
+          Персональный финансовый план · Конфиденциально<br>
+          Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
+        </div>
+        <div class="footer-right">
+          Информация не является индивидуальной<br>
+          инвестиционной рекомендацией
+        </div>
+      </footer>
     </div>
-  </div>
+  </article>
 </body>
 </html>

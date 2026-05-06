@@ -162,38 +162,78 @@ async function buildInflationPageFinamHtml(data = {}) {
 <head>
   <meta charset="utf-8" />
   <style>
-    @page { size: 595px 842px; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { size: A4; margin: 0; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
-      font-family: 'DejaVu Sans', 'Liberation Sans', sans-serif;
+      font-family: 'DejaVu Sans', 'Liberation Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                   'Helvetica Neue', Arial, sans-serif;
       background: #ffffff;
+      padding: 0;
+      margin: 0;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      gap: 40px;
     }
     article.page {
+      font-size: 16px;
       width: 595px;
       height: 842px;
       background-color: #fafbfc;
-      background-image:
-        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
-      background-size: 20px 20px;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
+      color: #000000;
       position: relative;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       padding: 30px 36px 26px;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
-    .content { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
-    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    article.page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-color: transparent;
+      background-image:
+        linear-gradient(rgba(100, 120, 170, 0.14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(100, 120, 170, 0.14) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
     .logo-mark { display: flex; align-items: center; gap: 6px; }
     .logo-dot { width: 8px; height: 8px; border-radius: 2px; background: #6366f1; }
-    .logo-text { font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #000; }
-    .doc-label { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: #000; padding: 3px 10px; border: 1px solid #000; border-radius: 4px; }
-    .divider { height: 1px; background: #000; margin-bottom: 12px; }
+    .logo-text {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
+      text-transform: uppercase; color: #000000;
+    }
+    .doc-label {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #000000; padding: 4px 11px;
+      border: 1px solid #000000; border-radius: 4px;
+      max-width: 260px;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .divider { height: 1px; background: #000000; margin-bottom: 10px; }
     .title { margin: 0 0 10px 0; font-size: 18px; line-height: 1.2; font-weight: 800; color: #000; }
     .lead {
       margin: 0 0 12px 0;
@@ -230,17 +270,29 @@ async function buildInflationPageFinamHtml(data = {}) {
     .metric-value { font-size: 14px; font-weight: 800; color: #000; }
     .metric-sub { font-size: 8px; color: #666; margin-top: 3px; line-height: 1.3; }
     .footnote {
-      margin-top: 10px;
+      margin-top: auto;
       font-size: 9px;
-      color: #555;
+      color: #555555;
       line-height: 1.4;
-      border-top: 1px solid #ccc;
+      border-top: 1px solid #cccccc;
       padding-top: 8px;
     }
-    .spacer { flex: 1; }
-    .footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; padding-top: 5px; border-top: 1px solid #ccc; }
-    .footer-left { font-size: 10px; color: #555; line-height: 1.4; }
-    .footer-right { font-size: 10px; color: #555; text-align: right; }
+    .footer {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #cccccc;
+      flex-shrink: 0;
+    }
+    .footer-left { font-size: 12px; font-weight: 400; color: #555555; line-height: 1.45; }
+    .footer-right { font-size: 12px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
+    @media print {
+      body { margin: 0; padding: 0; gap: 0; }
+      article.page { page-break-after: always; }
+      article.page:last-child { page-break-after: auto; }
+    }
   </style>
 </head>
 <body>
@@ -298,7 +350,6 @@ async function buildInflationPageFinamHtml(data = {}) {
           <div class="metric-sub">Обычно на 2-3 п.п. выше ОФЗ схожей дюрации</div>
         </div>
       </div>
-      <div class="spacer"></div>
       <p class="footnote">
         Источники: Банк России и MOEX (ставка ЦБ, ОФЗ, RUCBICP). Ряд инфляции г/г — исторические данные в системе ПФП. Оценка спреда корпоративных облигаций носит ориентировочный характер и не является индивидуальной инвестиционной рекомендацией.
       </p>

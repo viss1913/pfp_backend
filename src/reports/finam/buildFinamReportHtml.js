@@ -3,7 +3,12 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 const db = require('../../config/database');
 const aiService = require('../../services/aiService');
-const { resolveGoalTemplateFile, resolveOtherGoalTemplateFile } = require('./finamGoalTemplates');
+const {
+    resolveGoalTemplateFile,
+    resolveOtherGoalTemplateFile,
+    resolveOtherGoalScenarioMeta,
+    finamTemplateLabel,
+} = require('./finamGoalTemplates');
 const {
     orderFinamGoalsForPdf,
     applyFinamPage4TargetsFromReport,
@@ -779,7 +784,13 @@ function applyPassiveIncomePortfolioStructure(html, goal, facts) {
     const goalType = String(goal?.goal_type || '').toUpperCase();
     const goalTypeId = Number(goal?.goal_type_id);
     const isPassiveGoal = goalType === 'PASSIVE_INCOME' || goalType === 'RENT' || goalTypeId === 2 || goalTypeId === 8;
-    const isOtherLikeGoal = goalType === 'OTHER' || goalType === 'INVESTMENT' || goalTypeId === 4 || goalTypeId === 3;
+    const isOtherLikeGoal =
+        goalType === 'OTHER' ||
+        goalType === 'INVESTMENT' ||
+        goalTypeId === 3 ||
+        goalTypeId === 4 ||
+        goalTypeId === 6 ||
+        goalTypeId === 9;
     const isSupportedGoal = isPassiveGoal || isOtherLikeGoal;
     if (!isSupportedGoal || !html.includes('class="pie-row"')) return html;
 
@@ -1271,6 +1282,38 @@ function stripOtherChartSection(html, goal) {
     return out;
 }
 
+/**
+ * OTHER всегда собирается из goal-page-education-finam.html; подставляем сценарную подпись и картинку.
+ */
+function applyFinamOtherScenarioFromEducationBase(html, goal) {
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
+    const isOtherPdf =
+        goalType === 'OTHER' || (Number.isFinite(goalTypeId) && (goalTypeId === 4 || goalTypeId === 6 || goalTypeId === 9));
+    if (!isOtherPdf) return html;
+
+    const meta = resolveOtherGoalScenarioMeta(goal);
+    const docEsc = escapeHtml(meta.docLabel);
+    const gname = escapeHtml(finamTemplateLabel(goal) || meta.docLabel);
+
+    let out = html;
+    out = out.replace(/<div class="doc-label">Образование<\/div>/g, `<div class="doc-label">${docEsc}</div>`);
+    out = out.replace(
+        /<div class="doc-label">Образование — продолжение<\/div>/g,
+        `<div class="doc-label">${docEsc} — продолжение</div>`
+    );
+    out = out.replace(
+        /(<div class="speech-goal-image">\s*<img src=")(\.\.\/\.\.\/\.\.\/assets\/reports\/goal-cards\/)[^"]+(")/i,
+        `$1$2${meta.cardFile}$3`
+    );
+    out = out.replace(/Страница (\d+) из (\d+) · Образование/g, `Страница $1 из $2 · ${docEsc}`);
+    out = out.replace(
+        /<p>Цель <em>«Образование ребёнка»<\/em>[\s\S]*?<\/p>/i,
+        `<p>Цель <em>«${gname}»</em>: план накопления к дате цели — стартовый капитал, регулярные взносы и портфель с ожидаемой доходностью. Ниже — суммы к целевой дате; структура портфеля — на этой странице.</p>`
+    );
+    return out;
+}
+
 function applyOtherLayoutCompactFix(html, goal) {
     if (!isOtherLikeGoal(goal) && !isSaveGrowGoal(goal)) return html;
     if (html.includes('finam-other-compact-layout')) return html;
@@ -1453,6 +1496,7 @@ function applyGoalFactsToTemplate(html, goal) {
     const goalType = String(goal?.goal_type || '').toUpperCase();
     const goalTypeId = Number(goal?.goal_type_id);
 
+    out = applyFinamOtherScenarioFromEducationBase(out, goal);
     out = applyPensionHeroPlaceholders(out, goal);
     out = applyPensionGapMetrics(out, goal);
     out = stripPensionChartSection(out, goal);
@@ -1787,10 +1831,12 @@ function applyGoalFactsToTemplate(html, goal) {
     if (isEducation) {
         const childName = resolveEducationChildName(goal);
         if (childName) {
-            out = out.replace(/<div class="education-hero-title">[\s\S]*?<\/div>/, `<div class="education-hero-title">Образование. ${escapeHtml(childName)}</div>`);
+            const cn = escapeHtml(childName);
+            out = out.replace(/<div class="education-hero-title">[\s\S]*?<\/div>/, `<div class="education-hero-title">Образование. ${cn}</div>`);
+            out = out.replace(/<div class="doc-label">Образование<\/div>/g, `<div class="doc-label">Образование · ${cn}</div>`);
             out = out.replace(
-                /<div class="doc-label">Образование(?:\s*—\s*продолжение)?<\/div>/,
-                `<div class="doc-label">Образование · ${escapeHtml(childName)}</div>`
+                /<div class="doc-label">Образование — продолжение<\/div>/g,
+                `<div class="doc-label">Образование · ${cn} — продолжение</div>`
             );
         }
     }
@@ -2835,6 +2881,7 @@ async function buildFinamFullPageHtmlList({
 module.exports = {
     FINAM_PROJECT_ID,
     FINAM_REPO_ROOT,
+    resolveOtherGoalScenarioMeta,
     resolveOtherGoalTemplateFile,
     resolveGoalTemplateFile,
     buildRepleneshmentPageHtml,
