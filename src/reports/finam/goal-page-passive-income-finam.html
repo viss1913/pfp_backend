@@ -126,42 +126,29 @@
     .speech p { font-size: 9.5px; font-weight: 400; color: #222222; line-height: 1.5; }
     .speech em { font-style: normal; font-weight: 700; color: #000000; }
 
-    .passive-hero {
-      display: flex; gap: 9px; align-items: stretch; margin-bottom: 9px;
+    .avatar-section--with-goal-image {
+      align-items: stretch;
+      gap: 10px;
     }
-
-    .passive-hero-main {
-      flex: 1; min-width: 0;
-      padding: 8px 10px; border-radius: 6px;
-      background: #f0fdf4; border: 1px solid #86efac;
+    .avatar-section--with-goal-image .speech {
+      flex: 1;
+      min-width: 0;
     }
-
-    .passive-tag {
-      font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
-      text-transform: uppercase; color: #15803d;
-      display: inline-block; padding: 2px 6px; border-radius: 3px;
-      background: #dcfce7; border: 1px solid #4ade80;
-      margin-bottom: 4px;
+    .speech-goal-image {
+      width: 96px;
+      min-width: 96px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #86efac;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-
-    .passive-hero-title {
-      font-size: 11.5px; font-weight: 700; color: #14532d; line-height: 1.2;
-      margin-bottom: 3px;
-    }
-
-    .passive-hero-sub {
-      font-size: 12px; font-weight: 400; color: #4b5563; line-height: 1.45;
-    }
-
-    .passive-hero-image {
-      width: 96px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
-      background: #dcfce7; border: 1px solid #86efac;
-      display: flex; align-items: center; justify-content: center;
-      min-height: 74px;
-    }
-
-    .passive-hero-image img {
-      width: 100%; height: 100%; object-fit: cover;
+    .speech-goal-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
       display: block;
     }
 
@@ -634,22 +621,12 @@
 
     <div class="divider"></div>
 
-    <div class="avatar-section">
+    <div class="avatar-section avatar-section--with-goal-image">
       <div class="avatar"><span class="avatar-text">ИИ</span></div>
       <div class="speech">
         <p>Цель <em>«Пассивный доход»</em> в связке с пенсией: капитал к нужной выплате, план накопления и как распределены взносы по инструментам.</p>
       </div>
-    </div>
-
-    <div class="passive-hero">
-      <div class="passive-hero-main">
-        <div class="passive-tag">Доход</div>
-        <div class="passive-hero-title">Пассивный доход</div>
-        <div class="passive-hero-sub">
-          Пассивный доход в финансовом плане я посчитала как цель накопить такой капитал, чтобы вложив в депозиты, ОФЗ и т. п. получать ежемесячно процент.
-        </div>
-      </div>
-      <div class="passive-hero-image">
+      <div class="speech-goal-image">
         <img src="../../../assets/reports/goal-cards/passivnyy_dohod_v_buduschem.webp" alt=""
              onerror="this.replaceWith(Object.assign(document.createElement('span'),{style:'font-size: 11px;color:#15803d;padding:6px;text-align:center;line-height:1.35',innerHTML:'Картинка<br>цели'}))">
       </div>

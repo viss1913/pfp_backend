@@ -26,6 +26,7 @@
     "generate:pdf-font-subsets": "node scripts/generate_pdf_dejavu_subsets.mjs",
     "measure:pdf-payload": "node scripts/measure_pdf_payload_estimate.js",
     "fetch:report-pdf": "node scripts/fetch_report_pdf.js",
+    "fetch:report-html": "node scripts/fetch_report_html.js",
     "preview:summary": "node scripts/serve_summary_preview.mjs",
     "seed:pdf-summary-stock-assets-r2": "node scripts/seed_pdf_summary_stock_assets_r2.js",
     "import:comon-recommended": "node scripts/import_comon_recommended_strategies.js"

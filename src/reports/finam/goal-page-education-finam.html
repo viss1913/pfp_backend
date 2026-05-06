@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Образование — Финансовый план</title>
   <!--
-    Финам PDF: OTHER, сценарий «Образование ребёнка» (goal_name / параметры на бэке). Три страницы.
+    Финам PDF: OTHER, сценарий «Образование ребёнка» (goal_name / параметры на бэке). Две страницы.
     Суммы в номинале без отдельного блока инфляции в макете (как в линейке Финам).
-    Стр.1: целевая сумма к дате, горизонт, план накопления (без пирогов — помещается на лист).
-    Стр.2: только «Структура портфеля» — два пирога (начальный / пополнения).
-    Стр.3: состав капитала; #education-benefits-dynamic — вычеты/софин; линейный график не используем (динамика в данных).
+    Стр.1: целевая сумма к дате, горизонт, план накопления + «Структура портфеля» (два пирога).
+    Стр.2: состав капитала; #education-benefits-dynamic — вычеты/софин; линейный график не используем (динамика в данных).
     Плейсхолдеры: child_age / years_to_enrollment, target_amount, initial_capital, monthly_replenishment,
     horizon_months, yield, split, capital_own / доход+льготы / total, schedule.
   -->
@@ -122,42 +121,29 @@
     .speech p { font-size: 9.5px; font-weight: 400; color: #222222; line-height: 1.5; }
     .speech em { font-style: normal; font-weight: 700; color: #000000; }
 
-    .education-hero {
-      display: flex; gap: 9px; align-items: stretch; margin-bottom: 9px;
+    .avatar-section--with-goal-image {
+      align-items: stretch;
+      gap: 10px;
     }
-
-    .education-hero-main {
-      flex: 1; min-width: 0;
-      padding: 8px 10px; border-radius: 6px;
-      background: #faf5ff; border: 1px solid #e9d5ff;
+    .avatar-section--with-goal-image .speech {
+      flex: 1;
+      min-width: 0;
     }
-
-    .education-tag {
-      font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
-      text-transform: uppercase; color: #6b21a8;
-      display: inline-block; padding: 2px 6px; border-radius: 3px;
-      background: #f3e8ff; border: 1px solid #d8b4fe;
-      margin-bottom: 4px;
+    .speech-goal-image {
+      width: 96px;
+      min-width: 96px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #d8b4fe;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-
-    .education-hero-title {
-      font-size: 11.5px; font-weight: 700; color: #581c87; line-height: 1.2;
-      margin-bottom: 3px;
-    }
-
-    .education-hero-sub {
-      font-size: 12px; font-weight: 400; color: #4b5563; line-height: 1.45;
-    }
-
-    .education-hero-image {
-      width: 96px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
-      background: #f3e8ff; border: 1px solid #d8b4fe;
-      display: flex; align-items: center; justify-content: center;
-      min-height: 74px;
-    }
-
-    .education-hero-image img {
-      width: 100%; height: 100%; object-fit: cover;
+    .speech-goal-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
       display: block;
     }
 
@@ -621,11 +607,17 @@
     .footer-left { font-size: 12px; font-weight: 400; color: #555555; line-height: 1.45; }
     .footer-right { font-size: 12px; font-weight: 400; color: #555555; text-align: right; line-height: 1.45; }
 
-    /* Стр.2: пироги по центру листа */
-    article.page:nth-of-type(2) .pie-row {
+    /* На 1-й странице пироги держим компактными, чтобы не расползались по высоте */
+    article.page:first-of-type .pie-row {
       margin-top: 4px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
+      gap: 8px;
+      align-items: flex-start;
     }
+    article.page:first-of-type .pie-card { padding: 7px 7px 8px; }
+    article.page:first-of-type .pie-card-title { font-size: 10px; margin-bottom: 4px; }
+    article.page:first-of-type .pie-svg-wrap { width: 82px; height: 82px; margin-bottom: 4px; }
+    article.page:first-of-type .pie-legend-row { font-size: 10px; line-height: 1.25; gap: 3px; }
 
     @media print {
       body { margin: 0; padding: 0; gap: 0; }
@@ -651,22 +643,12 @@
 
     <div class="divider"></div>
 
-    <div class="avatar-section">
+    <div class="avatar-section avatar-section--with-goal-image">
       <div class="avatar"><span class="avatar-text">ИИ</span></div>
       <div class="speech">
         <p>Цель <em>«Образование ребёнка»</em>: копим к <em>году поступления</em> (вуз, колледж, год за рубежом — как задано в цели). Суммы в макете — <em>номинал</em>, без отдельного блока инфляции. Если в сценарии есть ИИС/льготы — блок вычетов и софина на второй странице.</p>
       </div>
-    </div>
-
-    <div class="education-hero">
-      <div class="education-hero-main">
-        <div class="education-tag">Учёба</div>
-        <div class="education-hero-title">Образование ребёнка</div>
-        <div class="education-hero-sub">
-          План накопления: стартовый капитал, регулярные взносы и портфель с ожидаемой доходностью. Ниже — сколько нужно к дате; структура портфеля — на отдельном листе.
-        </div>
-      </div>
-      <div class="education-hero-image">
+      <div class="speech-goal-image">
         <img src="../../../assets/reports/goal-cards/obrazovanie_rebyonka.webp" alt=""
              onerror="this.replaceWith(Object.assign(document.createElement('span'),{style:'font-size: 11px;color:#6b21a8;padding:6px;text-align:center;line-height:1.35',innerHTML:'Картинка<br>цели'}))">
       </div>
@@ -747,37 +729,6 @@
       </div>
     </div>
 
-    <div class="spacer" aria-hidden="true"></div>
-
-    <div class="page-num">Страница 1 из 3 · Образование</div>
-    <footer class="footer">
-      <div class="footer-left">
-        Персональный финансовый план · Конфиденциально<br>
-        Все партнёры осуществляют деятельность на основании лицензий ЦБ РФ
-      </div>
-      <div class="footer-right">
-        Информация не является индивидуальной<br>
-        инвестиционной рекомендацией
-      </div>
-    </footer>
-
-  </div>
-</article>
-
-<!-- ========== СТРАНИЦА 2 (только пироги портфеля) ========== -->
-<article class="page">
-  <div class="content">
-
-    <header class="header">
-      <div class="logo-mark">
-        <div class="logo-dot"></div>
-        <span class="logo-text">Финансовый план</span>
-      </div>
-      <div class="doc-label">Образование — портфель</div>
-    </header>
-
-    <div class="divider"></div>
-
     <div class="section-label">Структура портфеля</div>
     <div class="pie-row">
       <div class="pie-card">
@@ -846,7 +797,7 @@
 
     <div class="spacer" aria-hidden="true"></div>
 
-    <div class="page-num">Страница 2 из 3 · Образование</div>
+    <div class="page-num">Страница 1 из 2 · Образование</div>
     <footer class="footer">
       <div class="footer-left">
         Персональный финансовый план · Конфиденциально<br>
@@ -861,7 +812,7 @@
   </div>
 </article>
 
-<!-- ========== СТРАНИЦА 3 ========== -->
+<!-- ========== СТРАНИЦА 2 ========== -->
 <article class="page">
   <div class="content">
 
@@ -953,7 +904,7 @@
 
     <div class="spacer"></div>
 
-    <div class="page-num">Страница 3 из 3 · Образование</div>
+    <div class="page-num">Страница 2 из 2 · Образование</div>
     <footer class="footer">
       <div class="footer-left">
         Персональный финансовый план · Конфиденциально<br>

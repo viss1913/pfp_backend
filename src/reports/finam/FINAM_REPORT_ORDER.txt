@@ -25,7 +25,7 @@ HTML-макеты: цель 595×842; часть шаблонов — два и�
   goal-page-pension-finam.html          — PENSION, пенсия
   goal-page-passive-income-finam.html   — PASSIVE_INCOME, пассивный доход
   goal-page-save-grow-finam.html        — INVESTMENT / «Сохранить и приумножить»
-  goal-page-education-finam.html        — OTHER, «Образование»: 3 листа (план → пироги → состав/льготы)
+  goal-page-education-finam.html        — OTHER, «Образование»: 2 листа (план+пироги → состав/льготы)
   goal-page-apartment-finam.html        — OTHER, сценарий «Квартира»
   goal-page-house-finam.html            — OTHER, сценарий «Дом» / загородная недвижимость
   goal-page-business-finam.html         — OTHER, сценарий «Свой бизнес»

@@ -826,21 +826,74 @@ function applyPassiveIncomePortfolioStructure(html, goal, facts) {
     return out;
 }
 
+function extractFirstDivByClass(html, className) {
+    const marker = `class="${className}"`;
+    const classIdx = html.indexOf(marker);
+    if (classIdx < 0) return { html, element: '' };
+    const openIdx = html.lastIndexOf('<div', classIdx);
+    if (openIdx < 0) return { html, element: '' };
+
+    let i = openIdx;
+    let depth = 0;
+    while (i < html.length) {
+        const nextOpen = html.indexOf('<div', i);
+        const nextClose = html.indexOf('</div>', i);
+        if (nextClose < 0) return { html, element: '' };
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+            depth += 1;
+            i = nextOpen + 4;
+            continue;
+        }
+        depth -= 1;
+        i = nextClose + 6;
+        if (depth <= 0) {
+            return {
+                html: html.slice(0, openIdx) + html.slice(i),
+                element: html.slice(openIdx, i),
+            };
+        }
+    }
+    return { html, element: '' };
+}
+
 function applyGoalHeroImageIntoAvatarSpeech(html, goal) {
     const goalType = String(goal?.goal_type || '').toUpperCase();
     const goalTypeId = Number(goal?.goal_type_id);
     const isPassive = goalType === 'PASSIVE_INCOME' || goalType === 'RENT' || goalTypeId === 2 || goalTypeId === 8;
-    const isOtherOrInvestment = goalType === 'OTHER' || goalType === 'INVESTMENT' || goalTypeId === 4 || goalTypeId === 3;
+    const isOtherOrInvestment =
+        goalType === 'OTHER' ||
+        goalType === 'INVESTMENT' ||
+        goalTypeId === 3 ||
+        goalTypeId === 4 ||
+        goalTypeId === 6 ||
+        goalTypeId === 9;
     if ((!isPassive && !isOtherOrInvestment) || !html.includes('class="avatar-section"')) return html;
 
-    const heroMatch = html.match(/<div class="[a-z-]+-hero">[\s\S]*?<\/div>\s*/i);
-    if (!heroMatch) return html;
-    const heroBlock = heroMatch[0];
+    const heroClassCandidates = [
+        'education-hero',
+        'savegrow-hero',
+        'apartment-hero',
+        'house-hero',
+        'business-hero',
+        'travel-hero',
+        'car-hero',
+        'capital-hero',
+    ];
+    let out = html;
+    let heroBlock = '';
+    for (const cls of heroClassCandidates) {
+        const extracted = extractFirstDivByClass(out, cls);
+        if (extracted.element) {
+            heroBlock = extracted.element;
+            out = extracted.html;
+            break;
+        }
+    }
+    if (!heroBlock) return html;
     const imgMatch = heroBlock.match(/<img[\s\S]*?>/i);
     if (!imgMatch) return html;
     const imageTag = imgMatch[0];
 
-    let out = html.replace(heroMatch[0], '');
     out = out.replace(/<div class="avatar-section">/, '<div class="avatar-section avatar-section--with-goal-image">');
     out = out.replace(
         /(<div class="speech">[\s\S]*?<\/div>)(\s*<\/div>)/,
@@ -1194,10 +1247,10 @@ function stripPensionChartSection(html, goal) {
     return out;
 }
 
-function isOtherGoalTypeFour(goal) {
+function isOtherLikeGoal(goal) {
     const goalType = String(goal?.goal_type || '').toUpperCase();
     const goalTypeId = Number(goal?.goal_type_id);
-    return goalTypeId === 4 || (!goalTypeId && goalType === 'OTHER');
+    return goalType === 'OTHER' || goalTypeId === 4 || goalTypeId === 6 || goalTypeId === 9;
 }
 
 function isSaveGrowGoal(goal) {
@@ -1208,7 +1261,7 @@ function isSaveGrowGoal(goal) {
 }
 
 function stripOtherChartSection(html, goal) {
-    if (!isOtherGoalTypeFour(goal) && !isSaveGrowGoal(goal)) return html;
+    if (!isOtherLikeGoal(goal) && !isSaveGrowGoal(goal)) return html;
     let out = html;
     out = out.replace(/<p class="passive-extras-note">[\s\S]*?<\/p>/, '');
     out = out.replace(
@@ -1219,7 +1272,7 @@ function stripOtherChartSection(html, goal) {
 }
 
 function applyOtherLayoutCompactFix(html, goal) {
-    if (!isOtherGoalTypeFour(goal) && !isSaveGrowGoal(goal)) return html;
+    if (!isOtherLikeGoal(goal) && !isSaveGrowGoal(goal)) return html;
     if (html.includes('finam-other-compact-layout')) return html;
     const compactCss = `
     /* finam-other-compact-layout */
@@ -1242,9 +1295,9 @@ function applyOtherLayoutCompactFix(html, goal) {
 }
 
 function applyOtherGoalTemplateAdjustments(html, goal, facts) {
-    if (!isOtherGoalTypeFour(goal) && !isSaveGrowGoal(goal)) return html;
+    if (!isOtherLikeGoal(goal) && !isSaveGrowGoal(goal)) return html;
     let out = html;
-    const isOtherGoal = isOtherGoalTypeFour(goal);
+    const isOtherGoal = isOtherLikeGoal(goal);
 
     const targetToday = isSaveGrowGoal(goal)
         ? toNum(goal?.summary?.initial_capital ?? facts.initial)
@@ -1274,6 +1327,58 @@ function applyOtherGoalTemplateAdjustments(html, goal, facts) {
     </div>
     `
     );
+
+    // Для OTHER/INVESTMENT убираем второй "hero" блок (Учёба/Квартира/...),
+    // а картинку цели переносим вправо в верхний ИИ-блок над "Сумма и срок".
+    const heroBlockMatch = out.match(
+        /<div class="(?:education|savegrow|apartment|house|business|travel|car|capital)-hero">[\s\S]*?(?=<div class="section-label">)/
+    );
+    if (heroBlockMatch) {
+        const heroBlock = heroBlockMatch[0];
+        const imgMatch = heroBlock.match(/<img[\s\S]*?>/i);
+        out = out.replace(
+            /<div class="(?:education|savegrow|apartment|house|business|travel|car|capital)-hero">[\s\S]*?(?=<div class="section-label">)/,
+            ''
+        );
+
+        if (imgMatch && imgMatch[0] && out.includes('class="avatar-section"')) {
+            out = out.replace(/<div class="avatar-section">/, '<div class="avatar-section avatar-section--with-goal-image">');
+            out = out.replace(
+                /(<div class="speech">[\s\S]*?<\/div>)(\s*<\/div>)/,
+                `$1\n      <div class="speech-goal-image">${imgMatch[0]}</div>$2`
+            );
+            out = out.replace(
+                /<\/style>/,
+                `
+    .avatar-section--with-goal-image {
+      align-items: stretch;
+      gap: 10px;
+    }
+    .avatar-section--with-goal-image .speech {
+      flex: 1;
+      min-width: 0;
+    }
+    .speech-goal-image {
+      width: 96px;
+      min-width: 96px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #86efac;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .speech-goal-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  </style>`
+            );
+        }
+    }
 
     const portfolioYieldText = formatPercentValue(facts.portfolioYield);
     out = out.replace(
@@ -1504,7 +1609,15 @@ function applyGoalFactsToTemplate(html, goal) {
         const yearTaxLife = toNum(summary.tax_deduction_2026 ?? details.tax_deduction_2026 ?? facts.taxYearAmount);
         const totalTaxLife = toNum(summary.total_tax_deductions ?? details.total_tax_deductions ?? facts.totalTax);
         const inst = resolvePrimaryGoalInstrument(goal);
-        const lifeYield = inst.yield > 0 ? inst.yield : toNum(summary.investment_yield_percent ?? facts.portfolioYield);
+        // В карточке LIFE показываем именно тариф страхового продукта (а не доходность портфеля).
+        // Если тариф не пришел из данных, используем согласованный дефолт 1,44% в год.
+        const lifeTariff = toNum(
+            details.tariff_percent ??
+                details.annual_tariff_percent ??
+                details.rate_percent ??
+                summary.tariff_percent ??
+                summary.annual_tariff_percent
+        ) || 1.44;
         const lifeShare = inst.share > 0 ? `${Math.round(inst.share)}%` : '100%';
         const programName = details.program_name || inst.name || 'Подушка безопасности';
         const productTypeLabel = 'Страхование жизни';
@@ -1552,7 +1665,7 @@ function applyGoalFactsToTemplate(html, goal) {
         );
         out = out.replace(
             /<div class="life-yield-big">[\s\S]*?<\/div>/,
-            `<div class="life-yield-big">${formatPercentValue(lifeYield)}</div>`
+            `<div class="life-yield-big">${formatPercentValue(lifeTariff)}</div>`
         );
         out = out.replace(
             /<p>Подушка безопасности — это понятный страховой продукт:[\s\S]*?<\/p>/,

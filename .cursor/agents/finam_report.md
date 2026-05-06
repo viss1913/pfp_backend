@@ -18,8 +18,9 @@ description: PDF и HTML отчёта PFP для проекта Финам (proj
 - **Страницы целей — два листа в одном HTML** (превью: `body` с `flex-direction: column` + `gap`, `@media print` — `page-break-after` у `article.page`):
   - [`goal-page-pension-finam.html`](src/reports/finam/goal-page-pension-finam.html) (**PENSION**, «Достойная пенсия»): госпенсия, дефицит дохода, пассивный доход, капитал к пенсии, **план накопления** (цепочка шагов со **стрелками** SVG, не таблица), инструмент, на стр. 1 — **столбиковая диаграмма «состав капитала»** (свои / доход+софин+вычеты / итого); на стр. 2 — **две компактные карточки** налоговых вычетов (сумма за календарный год / за весь период), **софинансирование** (два столбца), **линейный график** капитала (демо-SVG, в проде — помесячный массив). **Разбивка вычетов по ПДС / ИИС / НСЖ / квартира / ипотека** — только отдельным листом [`tax-planning-block-finam.html`](src/reports/finam/tax-planning-block-finam.html), не вшивать таблицу в этот goal-файл. В `<head>` — комментарии с именами полей бэка.
   - [`goal-page-passive-income-finam.html`](src/reports/finam/goal-page-passive-income-finam.html) (**PASSIVE_INCOME**): без госпенсии; стр. 1 — пассивный доход к пенсии (две метрики), капитал, план со стрелками, **два круговых портфеля** (начальный капитал / пополнения, 30/40/30, демо); стр. 2 — **состав капитала** (три столбца), примечание что **вычеты и софинансирование опциональны** (0 ₽ / скрыть на бэке), блок льгот — те же **две компактные карточки** вычетов + софин, **график капитала**. Детализация налогов по строкам — как у пенсии, через [`tax-planning-block-finam.html`](src/reports/finam/tax-planning-block-finam.html). Типографика выровнена под fin-reserve: основной текст в облачках **~8.5px**, не дробить кегль ниже **~5.5px** без необходимости.
+  - [`goal-page-education-finam.html`](src/reports/finam/goal-page-education-finam.html) (**OTHER / «Образование ребёнка»**): **2 листа** — стр. 1 объединяет цель/горизонт, цепочку накопления и два пирога структуры (начальный капитал + пополнения) в компактном режиме; стр. 2 — столбики «состав капитала» и опциональный блок вычетов/софинансирования (`#education-benefits-dynamic`, скрывать если льгот нет).
 - **Остальные goal-страницы** (сценарии OTHER / INVESTMENT и т. д.): полный список имён файлов — [`FINAM_REPORT_ORDER.txt`](src/reports/finam/FINAM_REPORT_ORDER.txt) (`goal-page-house`, `goal-page-business`, `goal-page-capital`, `goal-page-travel`, `goal-page-car` и др.).
-- **Заготовки / доработка по контенту** (по необходимости): `goal-page-save-grow-finam.html`, `goal-page-education-finam.html`, `goal-page-apartment-finam.html`.
+- **Заготовки / доработка по контенту** (по необходимости): `goal-page-save-grow-finam.html`, `goal-page-apartment-finam.html`.
 - **Сводный портфель** (не одна цель): [`portfolio-page-finam.html`](src/reports/finam/portfolio-page-finam.html) — ИИ вводит; по каждой цели — облачко ИИ + **таблица инструментов**; стр. 2 — пирог + легенда + комментарий ИИ.
 - **Итоговый портфель одним листом**: [`portfolio-final-page-finam.html`](src/reports/finam/portfolio-final-page-finam.html) — **два среза**: начальный капитал и портфель пополнений; у каждого **donut** (градиенты, белые швы между секторами), **линейная шкала долей** (`flex-grow` по %), легенда с **%**, отдельная **таблица** (₽ и ₽/мес), ввод и финальный комментарий ИИ. Превью: `body` с `justify-content: center`.
 - **Налоговое планирование (детализация вычетов)** — отдельный лист [`tax-planning-block-finam.html`](src/reports/finam/tax-planning-block-finam.html): таблицы по ПДС / ИИС / НСЖ + доп. вычеты (квартира, ипотека) в колонках «за год» и «за весь период». **Не дублировать** эту разметку внутри [`goal-page-pension-finam.html`](src/reports/finam/goal-page-pension-finam.html) / [`goal-page-passive-income-finam.html`](src/reports/finam/goal-page-passive-income-finam.html) — там только **две компактные карточки** итогов вычетов; детализация — этим файлом или вставкой из билдера PDF.
@@ -47,6 +48,9 @@ description: PDF и HTML отчёта PFP для проекта Финам (proj
 ## Финам в коде (когда дойдём до интеграции)
 
 - **`FINAM_PROJECT_ID = 14`** — [`reportPdfService.js`](src/services/reportPdfService.js): опциональная страница **`buildComonAutofollowPageHtml`**, вставка перед блоком «инфляц…» или после сводной.
+- **PDF-пайплайн (актуально):** генерация отчёта идёт **по страницам** (`pageHtmlList`) с последующим merge PDF через [`mergePdfBuffers`](src/utils/mergePdfBuffers.js) в [`reportPdfService.js`](src/services/reportPdfService.js), а не единым контейнером iframe/srcdoc (это раздувало размер и давало визуальные артефакты).
+- **Масштаб в PDF:** при per-page рендере используется `renderHtmlToPdfBuffer(html, { pdfScale: 1.3333333333, preferCssPageSize: false })` в [`renderHtmlToPdfBuffer.js`](src/utils/renderHtmlToPdfBuffer.js) — это сохраняет A4-визуал как в старом потоке.
+- **Растры Финам:** в `buildFinamFullPageHtmlList` есть режим `finamRasterRefMode`; для PDF сейчас стабильно использовать `dataUrl` (чтобы локальные картинки/иконки не пропадали в Chromium), `fileUrl` — только осознанно и после визуальной проверки.
 - Тема отчёта: **`default`**, не `rostech` — [`themeResolver.js`](src/reports/themes/themeResolver.js).
 - Comon: [`projectComonShowcaseSettings.js`](src/utils/projectComonShowcaseSettings.js); детали — [`comon_finam`](.cursor/agents/comon_finam.md).
 - Роутер PDF по целям сейчас знает **FIN_RESERVE, LIFE, PENSION, INVESTMENT, OTHER**; **`PASSIVE_INCOME`** в данных калькулятора есть — при макете пассивного дохода может понадобиться маппинг в сервисе.
@@ -66,6 +70,57 @@ python -m http.server 8765
 ```
 
 Открыть, например: `http://127.0.0.1:8765/goal-page-pension-finam.html`, `goal-page-passive-income-finam.html`, `goal-page-life-finam.html`, `page-2-finam.html`, `portfolio-page-finam.html`, `portfolio-final-page-finam.html`, `tax-planning-block-finam.html`.
+
+## PROD parity (обязательно для правок)
+
+Если задача про расхождения "шаблон vs PDF на проде", **нельзя** ориентироваться только на сырые `src/reports/finam/*.html`.
+Сначала смотреть **финальный HTML после всех appliers**, потом PDF.
+
+### Почему так
+
+- Продовый PDF собирается не из "чистого шаблона", а из:
+  - HTML-шаблона,
+  - серверных подстановок,
+  - post-processing в [`buildFinamReportHtml.js`](src/reports/finam/buildFinamReportHtml.js),
+  - динамических аплаеров из [`finamPdfPageAppliers.js`](src/reports/finam/finamPdfPageAppliers.js),
+  - разбиения на листы `article.page`.
+- Из-за этого локальный `goal-page-*.html`, открытый напрямую через `http.server`, может сильно отличаться от итогового PDF.
+
+### Обязательный workflow для агента
+
+1. Внести правки в шаблон/билдер.
+2. Получить финальный HTML отчета через API:
+   - `GET /api/pfp/reports/:clientId/html` (или `?inline=1`).
+3. Проверить результат в `tmp/report-client-<id>-final.html` и `tmp/report-client-<id>-pages/page-XX.html`.
+4. Сверить с PDF для того же клиента.
+5. Только после этого фиксировать итог и пушить.
+
+### Команды/скрипты
+
+- Финальный HTML:
+  - `npm run fetch:report-html`
+  - скрипт: [`scripts/fetch_report_html.js`](scripts/fetch_report_html.js)
+- PDF:
+  - `npm run fetch:report-pdf`
+  - скрипт: [`scripts/fetch_report_pdf.js`](scripts/fetch_report_pdf.js)
+
+Нужные env:
+- `PFP_BASE`
+- `PFP_TEST_EMAIL`
+- `PFP_TEST_PASSWORD`
+- `PFP_CLIENT_ID`
+- опционально: `PFP_INCLUDE_COVER`, `PFP_INCLUDE_SUMMARY`, `PFP_GOAL_TYPES`
+
+### Стоп-правило
+
+Если правка проверена только на "сыром" шаблоне (`src/reports/finam/*.html`) и не проверена через финальный HTML API, задача считается **не завершенной**.
+
+### Актуальный кейс "Образование" (OTHER)
+
+- Шаблон [`goal-page-education-finam.html`](src/reports/finam/goal-page-education-finam.html) должен оставаться в формате **2 страницы**:
+  - стр.1: цель + план + пироги портфеля,
+  - стр.2: состав капитала + льготы.
+- Не возвращать промежуточную "пустую" страницу только под пироги.
 
 ## Карта файлов (прод-код)
 
@@ -120,3 +175,8 @@ python -m http.server 8765
 - Нельзя мержить изменение, если есть хоть один визуальный дефект из п.1 на любом из проверочных кейсов.
 - Если правка затрагивает структуру `article.page`, графики или блоки с динамическими данными — проверка PDF обязательна, не только HTML.
 - При повторяющемся дефекте добавить в этот файл отдельный пункт «постоянное правило», чтобы ошибка не возвращалась.
+
+### 5) Постоянные правила по pie-блоку целей
+
+- Для блока «Структура портфеля» в goal-страницах цвет сегментов задавать **по типу инструмента** (DEPOSIT/BOND/STOCK/ETF), а не только по индексу списка — иначе при 1 инструменте можно получить неверную «семантику» цвета.
+- Для кейсов с 1–2 инструментами включать компактный режим карточек (`.pie-card`, `.pie-svg-wrap`, `.pie-legend-row`), чтобы «Портфель пополнений» не раздувался по высоте на весь лист.

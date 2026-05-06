@@ -6,7 +6,7 @@
   <title>Квартира — Финансовый план</title>
   <!--
     Финам PDF: OTHER, сценарий «Квартира» (накопление на взнос / сделку, goal_name / параметры на бэке). Две страницы.
-    Суммы в номинале без отдельного блока инфляции в макете (как договорились для жилья в линейке Финам).
+    Целевая стоимость формируется с учётом инфляции в расчёте; отдельный инфляционный блок в макете не выводим.
     Стр.1: цена/цель, срок до сделки, накопительный план, пироги начальный капитал / пополнения.
     Стр.2: состав капитала; #apartment-benefits-dynamic — вычеты/софин при ненулевых полях (как у других целей);
       график накоплений по schedule[].
@@ -122,41 +122,14 @@
     .speech p { font-size: 9.5px; font-weight: 400; color: #222222; line-height: 1.5; }
     .speech em { font-style: normal; font-weight: 700; color: #000000; }
 
-    .apartment-hero {
-      display: flex; gap: 9px; align-items: stretch; margin-bottom: 9px;
-    }
-
-    .apartment-hero-main {
-      flex: 1; min-width: 0;
-      padding: 8px 10px; border-radius: 6px;
-      background: #f0f9ff; border: 1px solid #7dd3fc;
-    }
-
-    .apartment-tag {
-      font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
-      text-transform: uppercase; color: #0369a1;
-      display: inline-block; padding: 2px 6px; border-radius: 3px;
-      background: #e0f2fe; border: 1px solid #38bdf8;
-      margin-bottom: 4px;
-    }
-
-    .apartment-hero-title {
-      font-size: 11.5px; font-weight: 700; color: #0c4a6e; line-height: 1.2;
-      margin-bottom: 3px;
-    }
-
-    .apartment-hero-sub {
-      font-size: 12px; font-weight: 400; color: #4b5563; line-height: 1.45;
-    }
-
-    .apartment-hero-image {
+    .avatar-goal-image {
       width: 96px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
       background: #e0f2fe; border: 1px solid #38bdf8;
       display: flex; align-items: center; justify-content: center;
       min-height: 74px;
     }
 
-    .apartment-hero-image img {
+    .avatar-goal-image img {
       width: 100%; height: 100%; object-fit: cover;
       display: block;
     }
@@ -730,19 +703,9 @@
     <div class="avatar-section">
       <div class="avatar"><span class="avatar-text">ИИ</span></div>
       <div class="speech">
-        <p>Цель <em>«Квартира»</em>: копим на <em>взнос и сопутствующие расходы</em> к дате сделки. Стоимость объекта и целевая «подушка» подставляются с бэка; в макете суммы <em>без отдельного блока инфляции</em>. Налоговые вычеты и софинансирование (если есть в сценарии) — на второй странице.</p>
+        <p>Цель <em>«Квартира»</em>: копим на <em>взнос и сопутствующие расходы</em> к дате сделки. Стоимость объекта и целевая сумма подставляются с бэка уже <em>с учётом инфляции</em>; отдельный инфляционный блок в макете не выводим. Налоговые вычеты и софинансирование (если есть в сценарии) — на второй странице.</p>
       </div>
-    </div>
-
-    <div class="apartment-hero">
-      <div class="apartment-hero-main">
-        <div class="apartment-tag">Жильё</div>
-        <div class="apartment-hero-title">Покупка квартиры</div>
-        <div class="apartment-hero-sub">
-          План накопления: уже имеющиеся средства, ежемесячные взносы в портфель с заданной доходностью и структурой инструментов. Дальше — сколько нужно накопить к дате и как это собирается по шагам.
-        </div>
-      </div>
-      <div class="apartment-hero-image">
+      <div class="avatar-goal-image">
         <img src="../../../assets/reports/goal-cards/kvartira.webp" alt=""
              onerror="this.replaceWith(Object.assign(document.createElement('span'),{style:'font-size: 11px;color:#0369a1;padding:6px;text-align:center;line-height:1.35',innerHTML:'Картинка<br>цели'}))">
       </div>
@@ -752,7 +715,7 @@
     <div class="metrics-2">
       <div class="metric">
         <div class="metric-value">3,6<span> млн ₽</span></div>
-        <div class="metric-desc">Накопить к дате сделки<br>(взнос / целевая сумма, номинал)</div>
+        <div class="metric-desc">Накопить к дате сделки<br>(взнос / целевая сумма, с учётом инфляции)</div>
       </div>
       <div class="metric">
         <div class="metric-value">8<span> лет</span></div>
@@ -999,7 +962,7 @@
     <div class="section-label">График капитала</div>
     <div class="chart-card">
       <div class="chart-header">
-        <div class="chart-title">Накопление на квартиру: апр. 2026 → апр. 2034 (номинал · демо для вёрстки)</div>
+        <div class="chart-title">Накопление на квартиру: апр. 2026 → апр. 2034 (с учётом инфляции · демо для вёрстки)</div>
         <div class="chart-legend">
           <div class="chart-legend-item">
             <div class="legend-line"></div>

@@ -32,6 +32,27 @@ function escapeAttr(s) {
         .replace(/>/g, '&gt;');
 }
 
+/**
+ * Параллельный мап с ограничением — порядок результатов совпадает с `items`.
+ * Для PDF: один общий Chromium, несколько вкладок одновременно (быстрее, чем строго по одной).
+ */
+async function mapWithConcurrency(items, concurrency, mapper) {
+    if (!items.length) return [];
+    const n = Math.min(Math.max(Number(concurrency) || 1, 1), 32, items.length);
+    const results = new Array(items.length);
+    let next = 0;
+    async function worker() {
+        while (true) {
+            const i = next;
+            next += 1;
+            if (i >= items.length) break;
+            results[i] = await mapper(items[i], i);
+        }
+    }
+    await Promise.all(Array.from({ length: n }, () => worker()));
+    return results;
+}
+
 function buildFramesContainerHtml(pageHtmlList) {
     const frames = pageHtmlList
         .map((html, idx) => {
@@ -200,16 +221,19 @@ class ReportPdfService {
         });
         // Вариант с iframe/srcdoc заметно раздувает итоговый PDF.
         // Рендерим каждый HTML-лист отдельно и склеиваем готовые PDF-страницы.
-        const pagePdfBuffers = [];
-        for (const pageHtml of htmlPkg.pageHtmlList || []) {
-            // Масштаб 595x842 -> A4 без промежуточного iframe (он ломает часть SVG/диаграмм).
-            pagePdfBuffers.push(
-                await renderHtmlToPdfBuffer(pageHtml, {
-                    pdfScale: 1.3333333333,
-                    preferCssPageSize: false,
-                })
-            );
-        }
+        // Последовательный цикл даёт ~N×(навигация+pdf) — на длинных отчётах это ощутимо;
+        // параллелим вкладки в одном браузере (лимит через REPORT_PDF_RENDER_CONCURRENCY).
+        const renderConcurrency = Math.min(
+            Math.max(Number(process.env.REPORT_PDF_RENDER_CONCURRENCY) || 4, 1),
+            16
+        );
+        const list = htmlPkg.pageHtmlList || [];
+        const pagePdfBuffers = await mapWithConcurrency(list, renderConcurrency, (pageHtml) =>
+            renderHtmlToPdfBuffer(pageHtml, {
+                pdfScale: 1.3333333333,
+                preferCssPageSize: false,
+            })
+        );
         const pdfBuffer = await mergePdfBuffers(pagePdfBuffers);
         return {
             pdfBuffer,

@@ -41,6 +41,11 @@ const COVER_RENDER_SPEC = {
         height_percent: 100,
         object_fit: 'cover',
         display: 'block',
+        /**
+         * Небольшой кроп, чтобы убрать белые поля на обложках,
+         * если агент загрузил картинку с внутренними отступами.
+         */
+        zoom_scale: 1.12,
     },
     /** Два линейных градиента как в Figma (buildCoverHtml) */
     gradients: {
@@ -350,6 +355,8 @@ async function buildReportCoverHtml(options = {}) {
       width: ${S.background_image.width_percent}%;
       height: ${S.background_image.height_percent}%;
       object-fit: ${S.background_image.object_fit};
+      transform: scale(${S.background_image.zoom_scale});
+      transform-origin: center center;
       display: ${S.background_image.display};
     }
 
