@@ -1,5 +1,6 @@
 const reportService = require('./reportService');
 const { injectReportPdfEmbeddedFont } = require('../utils/reportPdfFonts');
+const { injectReportPdfPageFillA4 } = require('../utils/injectReportPdfPageFillA4');
 const { renderHtmlToPdfBuffer } = require('../utils/renderHtmlToPdfBuffer');
 const { mergePdfBuffers } = require('../utils/mergePdfBuffers');
 const pdfSettingsService = require('./pdfSettingsService');
@@ -428,7 +429,7 @@ class ReportPdfService {
             toc = buildRostechPensionOnlyToc({ hasCover: includeCover, goal: pensionGoal });
         }
 
-        const pageHtmlListForPdf = pageHtmlList.map((h) => injectReportPdfEmbeddedFont(h));
+        const pageHtmlListForPdf = pageHtmlList.map((h) => injectReportPdfPageFillA4(injectReportPdfEmbeddedFont(h)));
         const mergedHtml = buildFramesContainerHtml(pageHtmlListForPdf);
         return { mergedHtml, toc, pageHtmlList: pageHtmlListForPdf };
     }
