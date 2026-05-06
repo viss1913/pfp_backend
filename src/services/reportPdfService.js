@@ -1,6 +1,7 @@
 const reportService = require('./reportService');
 const { injectReportPdfEmbeddedFont } = require('../utils/reportPdfFonts');
 const { renderHtmlToPdfBuffer } = require('../utils/renderHtmlToPdfBuffer');
+const { mergePdfBuffers } = require('../utils/mergePdfBuffers');
 const pdfSettingsService = require('./pdfSettingsService');
 const macroService = require('./macroService');
 const { buildReportCoverHtml } = require('../reports/cover/buildCoverHtml');
@@ -197,7 +198,13 @@ class ReportPdfService {
             goalTypes,
             preloadedReport,
         });
-        const pdfBuffer = await renderHtmlToPdfBuffer(htmlPkg.mergedHtml);
+        // Вариант с iframe/srcdoc заметно раздувает итоговый PDF.
+        // Рендерим каждый HTML-лист отдельно и склеиваем готовые PDF-страницы.
+        const pagePdfBuffers = [];
+        for (const pageHtml of htmlPkg.pageHtmlList || []) {
+            pagePdfBuffers.push(await renderHtmlToPdfBuffer(pageHtml));
+        }
+        const pdfBuffer = await mergePdfBuffers(pagePdfBuffers);
         return {
             pdfBuffer,
             toc: htmlPkg.toc,
