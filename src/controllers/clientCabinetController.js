@@ -623,6 +623,8 @@ class ClientCabinetController {
             const includeCover = req.query.includeCover !== '0' && req.query.includeCover !== 'false';
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
             const goalTypes = req.query.goalTypes || null;
+            const forceRegenerate =
+                req.query.forceRegenerate === '1' || req.query.forceRegenerate === 'true';
 
             const brandingAgentId =
                 client.agent_id != null && client.agent_id !== ''
