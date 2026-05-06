@@ -806,6 +806,20 @@ function applyPassiveIncomePortfolioStructure(html, goal, facts) {
         /<div class="pie-legend-row">\s*<span class="pie-dot pie-dot--(?:dep|bond|stock)"[\s\S]*?<\/div>\s*/g,
         ''
     );
+    // На кейсах с 1-2 инструментами не раздуваем карточки по высоте.
+    if (Math.max(initialSegments.length, monthlySegments.length) <= 2) {
+        out = out.replace(
+            /<\/style>/,
+            `
+    .pie-row { align-items: flex-start; }
+    .pie-card { padding: 6px 7px 8px; }
+    .pie-card-title { margin-bottom: 4px; }
+    .pie-svg-wrap { width: 78px; height: 78px; margin-bottom: 4px; }
+    .pie-legend { gap: 2px; }
+    .pie-legend-row { font-size: 11px; line-height: 1.25; }
+  </style>`
+        );
+    }
     if (!initialSegments.length && !monthlySegments.length) {
         console.warn(`[buildFinamReportHtml] ${goalType || 'GOAL'}: no portfolio instruments for pie blocks`);
     }
