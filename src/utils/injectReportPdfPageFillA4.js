@@ -41,6 +41,15 @@ article.page > .content:not(:has(.spacer)) > footer.footer:last-child {
 article.page > .content:not(:has(.spacer)) > .page-tail:last-child {
   margin-top: auto !important;
 }
+/*
+  Многостраничные goal-шаблоны в одном файле: для «стр. 1» стоит
+  article.page:first-of-type .spacer { flex: 0 0 8px }. После splitFinamPage4IntoStandalonePages
+  в документе один article — он всегда first-of-type, спейсер остаётся 8px → дыра под футером на каждом листе PDF.
+*/
+article.page .spacer {
+  flex: 1 1 auto !important;
+  min-height: 8px !important;
+}
 </style>`;
 
 function injectReportPdfPageFillA4(html) {
