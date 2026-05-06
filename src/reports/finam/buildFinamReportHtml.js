@@ -83,7 +83,12 @@ async function buildFinamRasterSrc(absPath, opts = {}) {
     if (canReencode && size >= reencodeMinBytes) {
         try {
             const sharp = require('sharp');
-            const buf = await sharp(absPath).rotate().webp({ quality: 78, effort: 4 }).toBuffer();
+            const buf = await sharp(absPath)
+                .rotate()
+                // Для PDF-версии не тащим "исходники в мегабайтах": ограничиваем фактическое разрешение.
+                .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 62, effort: 5, smartSubsample: true })
+                .toBuffer();
             return `data:image/webp;base64,${buf.toString('base64')}`;
         } catch (err) {
             console.warn('[buildFinamRasterSrc] sharp reencode failed:', absPath, err?.message || err);

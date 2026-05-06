@@ -326,7 +326,8 @@ class ReportPdfService {
                 goalTypes,
                 projectId,
                 inflationPageHtml,
-                finamRasterRefMode: 'fileUrl',
+                // Для production PDF держим dataUrl + reencode (file:// оставили как опцию в билдере).
+                finamRasterRefMode: 'dataUrl',
             });
             pageHtmlList.push(...finamPages);
         } else {
