@@ -118,7 +118,11 @@ async function renderHtmlToPdfBuffer(html, options = {}) {
     try {
         page.setDefaultNavigationTimeout(pdfNavTimeoutMs);
         page.setDefaultTimeout(pdfNavTimeoutMs);
-        await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+        // Шаблоны отчёта (обложка, Финам, Ростех) сверстаны под холст 595×842 (как в PDF pt).
+        // Viewport 794×1123 оставлял узкий блок контента по центру и «рвало» первые страницы в PDF.
+        const vw = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_WIDTH) || 595, 320), 1600);
+        const vh = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_HEIGHT) || 842, 400), 2400);
+        await page.setViewport({ width: vw, height: vh, deviceScaleFactor: 1 });
         await page.setContent(html, {
             waitUntil: 'load',
             timeout: pdfNavTimeoutMs,

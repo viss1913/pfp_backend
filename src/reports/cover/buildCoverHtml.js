@@ -329,6 +329,10 @@ async function buildReportCoverHtml(options = {}) {
     html, body {
       margin: 0;
       padding: 0;
+      width: ${S.canvas.width_px}px;
+      height: ${S.canvas.height_px}px;
+      overflow: hidden;
+      background: ${S.canvas.background};
     }
 
     .report-cover {
