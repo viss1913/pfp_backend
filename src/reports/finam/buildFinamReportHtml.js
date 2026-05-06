@@ -645,6 +645,21 @@ function finamInstrumentTypeLabel(productTypeRaw) {
 
 const PASSIVE_PIE_COLORS = ['#d8b4fe', '#2563eb', '#7c3aed', '#10b981', '#f59e0b'];
 
+function resolvePassivePieColor(item, idx) {
+    const type = String(item?.product_type || item?.instrument_type || '')
+        .trim()
+        .toUpperCase();
+    const name = String(item?.name || '')
+        .trim()
+        .toLowerCase();
+
+    if (type === 'DEPOSIT' || name.includes('депозит') || name.includes('вклад')) return '#d8b4fe';
+    if (type === 'BOND' || name.includes('облиг')) return '#2563eb';
+    if (type === 'STOCK' || name.includes('акци')) return '#7c3aed';
+    if (type === 'ETF' || name.includes('etf') || name.includes('фонд')) return '#10b981';
+    return PASSIVE_PIE_COLORS[idx % PASSIVE_PIE_COLORS.length];
+}
+
 function buildPassivePieSegments(instruments, totalFallback = 0) {
     const rows = Array.isArray(instruments) ? instruments : [];
     if (!rows.length) return [];
@@ -675,7 +690,7 @@ function buildPassivePieSegments(instruments, totalFallback = 0) {
                 pct,
                 amount: item.amount > 0 ? item.amount : amountFromPct,
                 yieldPct: item.yieldPct,
-                color: PASSIVE_PIE_COLORS[idx % PASSIVE_PIE_COLORS.length],
+                color: resolvePassivePieColor(rows[idx], idx),
             };
         })
         .filter((item) => item.pct > 0.001);
