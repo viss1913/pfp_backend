@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const db = require('../../config/database');
 const aiService = require('../../services/aiService');
 const { resolveGoalTemplateFile, resolveOtherGoalTemplateFile } = require('./finamGoalTemplates');
@@ -46,58 +47,106 @@ function imageDataUrlFromLocalFile(absPath) {
     }
 }
 
+function escapeSrcAttr(value) {
+    return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+async function replaceAllWithAsync(str, regex, asyncReplacer) {
+    const parts = [];
+    let last = 0;
+    const flags = regex.flags.includes('g') ? regex.flags : `${regex.flags}g`;
+    const r = new RegExp(regex.source, flags);
+    let m;
+    while ((m = r.exec(str)) !== null) {
+        parts.push(str.slice(last, m.index));
+        parts.push(await asyncReplacer(m));
+        last = r.lastIndex;
+    }
+    parts.push(str.slice(last));
+    return parts.join('');
+}
+
 /**
- * Подменяет относительные пути к goal-cards и плейсхолдеры на data URL — иначе в PDF/srcdoc картинки не грузятся.
+ * @param {string} absPath
+ * @param {{ rasterRefMode?: 'dataUrl'|'fileUrl', reencodeMinBytes?: number }} opts
  */
-function inlineFinamRasterImages(html, repoRoot = FINAM_REPO_ROOT) {
+async function buildFinamRasterSrc(absPath, opts = {}) {
+    const rasterRefMode = opts.rasterRefMode || 'dataUrl';
+    const reencodeMinBytes = opts.reencodeMinBytes ?? 65536;
+    if (!fs.existsSync(absPath)) return null;
+    if (rasterRefMode === 'fileUrl') {
+        return pathToFileURL(absPath).href;
+    }
+    const ext = path.extname(absPath).toLowerCase();
+    const size = fs.statSync(absPath).size;
+    const canReencode = ['.webp', '.png', '.jpg', '.jpeg'].includes(ext);
+    if (canReencode && size >= reencodeMinBytes) {
+        try {
+            const sharp = require('sharp');
+            const buf = await sharp(absPath).rotate().webp({ quality: 78, effort: 4 }).toBuffer();
+            return `data:image/webp;base64,${buf.toString('base64')}`;
+        } catch (err) {
+            console.warn('[buildFinamRasterSrc] sharp reencode failed:', absPath, err?.message || err);
+        }
+    }
+    return imageDataUrlFromLocalFile(absPath);
+}
+
+/**
+ * Подменяет относительные пути к goal-cards и плейсхолдеры на data URL или file:// (для Puppeteer на сервере).
+ * Для dataUrl крупные webp/png/jpeg пережимаются в WebP (меньше base64 в PDF).
+ * @param {{ rasterRefMode?: 'dataUrl'|'fileUrl', reencodeMinBytes?: number }} [opts]
+ */
+async function inlineFinamRasterImages(html, repoRoot = FINAM_REPO_ROOT, opts = {}) {
     if (!html || typeof html !== 'string') return html;
+    const rasterRefMode = opts.rasterRefMode || 'dataUrl';
+    const rasterOpts = { rasterRefMode, reencodeMinBytes: opts.reencodeMinBytes };
+
     let out = html;
-    out = out.replace(
-        /src="\.\.\/\.\.\/\.\.\/assets\/reports\/goal-cards\/([^"]+)"/gi,
-        (match, filename) => {
-            const normalized = String(filename).replace(/\\/g, '/');
-            const abs = path.join(repoRoot, 'assets', 'reports', 'goal-cards', path.basename(normalized));
-            const dataUrl = imageDataUrlFromLocalFile(abs);
-            return dataUrl ? `src="${dataUrl}"` : match;
-        }
-    );
-    // Инлайнинг картинок для Плана действий (Action Plan) из src/reports/finam/assets/todo
-    out = out.replace(
-        /src="\.\/assets\/todo\/([^"]+)"/gi,
-        (match, filename) => {
-            const abs = path.join(__dirname, 'assets', 'todo', filename);
-            const dataUrl = imageDataUrlFromLocalFile(abs);
-            return dataUrl ? `src="${dataUrl}"` : match;
-        }
-    );
-    out = out.replace(
-        /<div class="life-hero-image">\s*<div class="ph">[\s\S]*?<\/div>\s*<\/div>/i,
-        () => {
-            const abs = path.join(repoRoot, 'assets', 'reports', 'goal-cards', 'lifeinsurance.webp');
-            const dataUrl = imageDataUrlFromLocalFile(abs);
-            if (!dataUrl) {
-                return '<div class="life-hero-image"><div class="ph">./assets/<br>goal-life.webp<br><br>LIFE</div></div>';
-            }
-            return `<div class="life-hero-image"><img src="${dataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"/></div>`;
-        }
-    );
-    out = out.replace(
-        /src="\.\/assets\/sber-life-logo\.png"/gi,
-        (match) => {
-            const abs = path.join(__dirname, 'assets', 'sber-life-logo.png');
-            const dataUrl = imageDataUrlFromLocalFile(abs);
-            return dataUrl ? `src="${dataUrl}"` : match;
-        }
-    );
-    out = out.replace(
+    out = await replaceAllWithAsync(out, /src="\.\.\/\.\.\/\.\.\/assets\/reports\/goal-cards\/([^"]+)"/gi, async (m) => {
+        const normalized = String(m[1]).replace(/\\/g, '/');
+        const abs = path.join(repoRoot, 'assets', 'reports', 'goal-cards', path.basename(normalized));
+        const src = await buildFinamRasterSrc(abs, rasterOpts);
+        return src ? `src="${escapeSrcAttr(src)}"` : m[0];
+    });
+
+    out = await replaceAllWithAsync(out, /src="\.\/assets\/todo\/([^"]+)"/gi, async (m) => {
+        const abs = path.join(__dirname, 'assets', 'todo', m[1]);
+        const src = await buildFinamRasterSrc(abs, rasterOpts);
+        return src ? `src="${escapeSrcAttr(src)}"` : m[0];
+    });
+
+    const lifeRe = /<div class="life-hero-image">\s*<div class="ph">[\s\S]*?<\/div>\s*<\/div>/i;
+    const lifeMatch = out.match(lifeRe);
+    if (lifeMatch) {
+        const abs = path.join(repoRoot, 'assets', 'reports', 'goal-cards', 'lifeinsurance.webp');
+        const src = await buildFinamRasterSrc(abs, rasterOpts);
+        const replacement = src
+            ? `<div class="life-hero-image"><img src="${escapeSrcAttr(
+                  src
+              )}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"/></div>`
+            : '<div class="life-hero-image"><div class="ph">./assets/<br>goal-life.webp<br><br>LIFE</div></div>';
+        out = out.replace(lifeRe, replacement);
+    }
+
+    out = await replaceAllWithAsync(out, /src="\.\/assets\/sber-life-logo\.png"/gi, async (m) => {
+        const abs = path.join(__dirname, 'assets', 'sber-life-logo.png');
+        const src = await buildFinamRasterSrc(abs, rasterOpts);
+        return src ? `src="${escapeSrcAttr(src)}"` : m[0];
+    });
+
+    out = await replaceAllWithAsync(
+        out,
         /<div class="goal-image">\s*<div class="goal-image-placeholder">\.\/assets\/<br>([^<]+)<\/div>\s*<\/div>/gi,
-        (match, fnameRaw) => {
-            const key = String(fnameRaw).trim();
+        async (m) => {
+            const key = String(m[1]).trim();
             const file = FINAM_GOAL_CARD_PLACEHOLDER_MAP[key] || 'drugoe.webp';
             const abs = path.join(repoRoot, 'assets', 'reports', 'goal-cards', file);
-            const dataUrl = imageDataUrlFromLocalFile(abs);
-            if (!dataUrl) return match;
-            return `<div class="goal-image"><img src="${dataUrl}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:4px;"/></div>`;
+            const src = await buildFinamRasterSrc(abs, rasterOpts);
+            if (!src) return m[0];
+            return `<div class="goal-image"><img src="${escapeSrcAttr(
+                src
+            )}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:4px;"/></div>`;
         }
     );
     return out;
@@ -2555,27 +2604,35 @@ async function buildFinamFullPageHtmlList({
     finamAiAvatarUrl = null,
     projectId = null,
     inflationPageHtml = null,
+    finamRasterRefMode,
 }) {
     let avatarUrl = finamAiAvatarUrl;
     if (!avatarUrl && projectId != null) {
         avatarUrl = await fetchAiB2cAvatarUrl(projectId);
     }
 
-    const withInline = (pageHtml) => inlineFinamRasterImages(pageHtml, FINAM_REPO_ROOT);
+    const rasterRefMode =
+        process.env.PFP_PDF_FINAM_RASTER === 'dataUrl'
+            ? 'dataUrl'
+            : finamRasterRefMode === 'fileUrl'
+              ? 'fileUrl'
+              : 'dataUrl';
+    const rasterOpts = { rasterRefMode };
+    const withInline = async (pageHtml) => inlineFinamRasterImages(pageHtml, FINAM_REPO_ROOT, rasterOpts);
 
     const pages = [];
     if (includeSummary) {
-        pages.push(withInline(await readTemplate('page-2-finam.html')));
+        pages.push(await withInline(await readTemplate('page-2-finam.html')));
         let page3 = await readTemplate('page-3-family-finam.html');
         page3 = applyFinamPage3FamilyFactsFromReport(page3, report);
         page3 = await applyFinamPage3FamilyAi(page3, report, projectId);
-        pages.push(withInline(page3));
+        pages.push(await withInline(page3));
         let page4 = await readTemplate('page-4-targets-finam.html');
         const rawGoalsForPage4 = filterGoalsByTypes(report?.goals_detailed || [], goalTypes);
         const orderedForPage4 = orderFinamGoalsForPdf(rawGoalsForPage4);
         page4 = applyFinamPage4TargetsFromReport(page4, orderedForPage4);
         for (const page4Part of splitFinamPage4IntoStandalonePages(page4)) {
-            pages.push(withInline(page4Part));
+            pages.push(await withInline(page4Part));
         }
     }
 
@@ -2587,7 +2644,7 @@ async function buildFinamFullPageHtmlList({
         let goalHtml = applyGoalFactsToTemplate(raw, goal);
         goalHtml = await applyFinamGoalAiSpeech(goalHtml, goal, projectId);
         for (const goalPart of splitFinamPage4IntoStandalonePages(goalHtml)) {
-            pages.push(withInline(goalPart));
+            pages.push(await withInline(goalPart));
         }
     }
 
@@ -2595,38 +2652,38 @@ async function buildFinamFullPageHtmlList({
     portfolioFinal = applyFinamPortfolioFinalPage(portfolioFinal, report);
     portfolioFinal = await applyFinamPortfolioFinalAi(portfolioFinal, report, projectId);
     for (const portfolioPart of splitFinamPage4IntoStandalonePages(portfolioFinal)) {
-        pages.push(withInline(portfolioPart));
+        pages.push(await withInline(portfolioPart));
     }
 
     let actionPlan = await readTemplate('action-plan-finam.html');
     actionPlan = applyFinamActionPlanPage(actionPlan, report);
-    pages.push(withInline(actionPlan));
+    pages.push(await withInline(actionPlan));
 
     let taxPlanning = await readTemplate('tax-planning-block-finam.html');
     taxPlanning = applyFinamTaxPlanningPage(taxPlanning, report);
-    pages.push(withInline(taxPlanning));
+    pages.push(await withInline(taxPlanning));
 
     let comonAutofollow = await readTemplate('comon-autofollow-finam.html');
     comonAutofollow = applyFinamComonAutofollowPage(comonAutofollow, report);
-    pages.push(withInline(comonAutofollow));
+    pages.push(await withInline(comonAutofollow));
 
     let iduStrategies = await readTemplate('idu-strategies-finam.html');
     iduStrategies = applyFinamIduStrategiesPage(iduStrategies);
-    pages.push(withInline(iduStrategies));
+    pages.push(await withInline(iduStrategies));
 
-    pages.push(withInline(await readTemplate('finam-new-clients-promo-finam.html')));
+    pages.push(await withInline(await readTemplate('finam-new-clients-promo-finam.html')));
 
     if (inflationPageHtml && String(inflationPageHtml).trim()) {
-        pages.push(withInline(String(inflationPageHtml)));
+        pages.push(await withInline(String(inflationPageHtml)));
     }
 
     for (let ri = 1; ri <= 5; ri += 1) {
-        pages.push(withInline(await readTemplate(`risk-declaration-preview-${ri}.html`)));
+        pages.push(await withInline(await readTemplate(`risk-declaration-preview-${ri}.html`)));
     }
 
     const replenMerged = buildRepleneshmentPageHtml(report);
     for (const replenPart of splitFinamPage4IntoStandalonePages(replenMerged)) {
-        pages.push(withInline(replenPart));
+        pages.push(await withInline(replenPart));
     }
 
     if (!avatarUrl) return pages;

@@ -326,6 +326,7 @@ class ReportPdfService {
                 goalTypes,
                 projectId,
                 inflationPageHtml,
+                finamRasterRefMode: 'fileUrl',
             });
             pageHtmlList.push(...finamPages);
         } else {

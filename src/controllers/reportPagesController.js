@@ -141,7 +141,7 @@ class ReportPagesController {
 
             if (isFinamProject) {
                 if (pageType === 'REPLENESHMENT') {
-                    const html = inlineFinamRasterImages(buildRepleneshmentPageHtml(report), FINAM_REPO_ROOT);
+                    const html = await inlineFinamRasterImages(buildRepleneshmentPageHtml(report), FINAM_REPO_ROOT);
                     res.setHeader('Content-Type', 'text/html; charset=utf-8');
                     res.setHeader('Cache-Control', 'private, no-store');
                     res.send(html);
@@ -157,7 +157,7 @@ class ReportPagesController {
                         html = applyFinamPortfolioFinalPage(html, report);
                         html = await applyFinamPortfolioFinalAi(html, report, projectId);
                     }
-                    html = applyFinamAiAvatarHtml(inlineFinamRasterImages(html, FINAM_REPO_ROOT), finamB2cAvatarUrl);
+                    html = applyFinamAiAvatarHtml(await inlineFinamRasterImages(html, FINAM_REPO_ROOT), finamB2cAvatarUrl);
                     res.setHeader('Content-Type', 'text/html; charset=utf-8');
                     res.setHeader('Cache-Control', 'private, no-store');
                     res.send(html);
@@ -247,7 +247,7 @@ class ReportPagesController {
                 }
                 const rawHtml = await fs.promises.readFile(path.join(__dirname, `../reports/finam/${fileName}`), 'utf-8');
                 html = applyFinamAiAvatarHtml(
-                    inlineFinamRasterImages(applyGoalFactsToTemplate(rawHtml, goalForTemplate), FINAM_REPO_ROOT),
+                    await inlineFinamRasterImages(applyGoalFactsToTemplate(rawHtml, goalForTemplate), FINAM_REPO_ROOT),
                     finamB2cAvatarUrl
                 );
             } else {

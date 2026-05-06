@@ -10,6 +10,20 @@ function buildReportPdfFontInjectionHtml() {
     if (cachedReportPdfFontInjectionHtml !== null) {
         return cachedReportPdfFontInjectionHtml;
     }
+    const subsetNormal = path.join(REPO_ROOT_FOR_PDF_FONTS, 'assets', 'fonts', 'DejaVuSans-PdfSubset.woff2');
+    const subsetBold = path.join(REPO_ROOT_FOR_PDF_FONTS, 'assets', 'fonts', 'DejaVuSans-Bold-PdfSubset.woff2');
+    if (fs.existsSync(subsetNormal)) {
+        const normalB64 = fs.readFileSync(subsetNormal).toString('base64');
+        const boldB64 = fs.existsSync(subsetBold) ? fs.readFileSync(subsetBold).toString('base64') : normalB64;
+        cachedReportPdfFontInjectionHtml = `<style data-pfp-pdf-font="1">
+@font-face{font-family:PfpPdfSans;src:url(data:font/woff2;base64,${normalB64}) format('woff2');font-weight:400;font-style:normal;font-display:block;}
+@font-face{font-family:PfpPdfSans;src:url(data:font/woff2;base64,${boldB64}) format('woff2');font-weight:700;font-style:normal;font-display:block;}
+body{font-family:PfpPdfSans,'DejaVu Sans',sans-serif!important;}
+svg text{font-family:PfpPdfSans,'DejaVu Sans',sans-serif!important;}
+</style>`;
+        return cachedReportPdfFontInjectionHtml;
+    }
+
     const normalPath = path.join(REPO_ROOT_FOR_PDF_FONTS, 'assets', 'fonts', 'DejaVuSans.ttf');
     const boldPath = path.join(REPO_ROOT_FOR_PDF_FONTS, 'assets', 'fonts', 'DejaVuSans-Bold.ttf');
     if (!fs.existsSync(normalPath)) {
