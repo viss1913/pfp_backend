@@ -23,6 +23,8 @@ body {
   background: transparent !important;
 }
 article.page {
+  width: 100% !important;
+  max-width: 210mm !important;
   min-height: 297mm !important;
   height: 297mm !important;
   max-height: 297mm !important;
@@ -38,20 +40,14 @@ article.page::before {
   display: none !important;
 }
 /*
-  Лист растянут на A4, но единственный ребёнок .content по умолчанию flex: 0 1 auto — остаётся
-  по высоте контента; снизу видна только «клетка» article. Растягиваем .content на всю колонку.
-  Футер прижимаем к низу только если внутри нет .spacer (там уже flex:1 разносит блоки).
+  Лист на всю ширину A4 (viewport 794px); .content тянем на высоту листа.
+  Не ставим margin-top:auto на футер — при коротком контенте получался огромный зазор над футером.
+  Ниже контента остаётся клетка до низа листа; спейсер на goal-страницах по-прежнему жмёт блоки вниз.
 */
 article.page > .content {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   align-self: stretch !important;
-}
-article.page > .content:not(:has(.spacer)) > footer.footer:last-child {
-  margin-top: auto !important;
-}
-article.page > .content:not(:has(.spacer)) > .page-tail:last-child {
-  margin-top: auto !important;
 }
 /*
   Многостраничные goal-шаблоны в одном файле: для «стр. 1» стоит

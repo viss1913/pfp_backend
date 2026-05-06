@@ -94,16 +94,16 @@ async function closeSharedPuppeteerBrowser() {
 }
 
 /**
- * Обложка (buildCoverHtml) верстается в 210×297 mm ≈ 794×1123 px при 96dpi.
- * Viewport 595×842 обрезал холст → белые поля справа/снизу на первом листе.
+ * Обложка и внутренние листы Finam: 210×297 mm ≈ 794×1123 px при 96dpi.
+ * Viewport 595×842 давал узкий холст → контент «мелкий», поля по бокам в PDF.
  */
 function resolvePdfViewportWidthHeight(html) {
     const h = String(html || '');
     if (h.includes('data-report-page="cover"')) {
         return { width: 794, height: 1123 };
     }
-    const vw = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_WIDTH) || 595, 320), 1600);
-    const vh = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_HEIGHT) || 842, 400), 2400);
+    const vw = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_WIDTH) || 794, 320), 1600);
+    const vh = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_HEIGHT) || 1123, 400), 2400);
     return { width: vw, height: vh };
 }
 
