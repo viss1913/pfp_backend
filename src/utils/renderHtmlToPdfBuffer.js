@@ -94,6 +94,20 @@ async function closeSharedPuppeteerBrowser() {
 }
 
 /**
+ * Обложка (buildCoverHtml) верстается в 210×297 mm ≈ 794×1123 px при 96dpi.
+ * Viewport 595×842 обрезал холст → белые поля справа/снизу на первом листе.
+ */
+function resolvePdfViewportWidthHeight(html) {
+    const h = String(html || '');
+    if (h.includes('data-report-page="cover"')) {
+        return { width: 794, height: 1123 };
+    }
+    const vw = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_WIDTH) || 595, 320), 1600);
+    const vh = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_HEIGHT) || 842, 400), 2400);
+    return { width: vw, height: vh };
+}
+
+/**
  * Рендер одного HTML-документа в PDF (A4), тот же стек, что и отчёт PFP.
  * @param {string} html
  * @param {{ pdfScale?: number, preferCssPageSize?: boolean }} [options]
@@ -118,10 +132,7 @@ async function renderHtmlToPdfBuffer(html, options = {}) {
     try {
         page.setDefaultNavigationTimeout(pdfNavTimeoutMs);
         page.setDefaultTimeout(pdfNavTimeoutMs);
-        // Шаблоны отчёта (обложка, Финам, Ростех) сверстаны под холст 595×842 (как в PDF pt).
-        // Viewport 794×1123 оставлял узкий блок контента по центру и «рвало» первые страницы в PDF.
-        const vw = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_WIDTH) || 595, 320), 1600);
-        const vh = Math.min(Math.max(Number(process.env.REPORT_PDF_VIEWPORT_HEIGHT) || 842, 400), 2400);
+        const { width: vw, height: vh } = resolvePdfViewportWidthHeight(html);
         await page.setViewport({ width: vw, height: vh, deviceScaleFactor: 1 });
         await page.setContent(html, {
             waitUntil: 'load',

@@ -305,6 +305,13 @@ async function buildReportCoverHtml(options = {}) {
     const D = S.date;
     const br = Tb.border_radius_px;
     const gradCss = gradientsToCssBackgroundImage(S.gradients.overlay_layers);
+    const bandLeftPct = ((Tb.left_px / S.canvas.width_px) * 100).toFixed(6);
+    const bandTopPct = ((Tb.top_px / S.canvas.height_px) * 100).toFixed(6);
+    const bandWidthPct = ((Tb.width_px / S.canvas.width_px) * 100).toFixed(6);
+    const bandMinHpct = ((Tb.min_height_px / S.canvas.height_px) * 100).toFixed(6);
+    const dateLeftPct = ((D.left_px / S.canvas.width_px) * 100).toFixed(6);
+    const dateTopPct = ((D.top_px / S.canvas.height_px) * 100).toFixed(6);
+    const titleWidthOfBandPct = ((Tt.width_px / Tb.width_px) * 100).toFixed(6);
 
     return `<!DOCTYPE html>
 <html lang="ru">
@@ -326,30 +333,34 @@ async function buildReportCoverHtml(options = {}) {
 
     * { box-sizing: border-box; }
 
+    /*
+     * Холст макета 595×842 (pt), но при печати A4 + preferCSSPageSize физическая страница — 210×297 mm.
+     * Фиксированные px на html/body давали «карточку» в углу и белые поля справа/снизу.
+     */
     html, body {
       margin: 0;
       padding: 0;
-      width: ${S.canvas.width_px}px;
-      height: ${S.canvas.height_px}px;
+      width: 210mm;
+      height: 297mm;
       overflow: hidden;
       background: ${S.canvas.background};
     }
 
     .report-cover {
       position: relative;
-      width: ${S.canvas.width_px}px;
-      height: ${S.canvas.height_px}px;
+      width: 210mm;
+      height: 297mm;
       background: ${S.canvas.background};
       overflow: ${S.canvas.overflow};
       font-family: ${S.font.family_stack_css};
     }
 
     .report-cover__bg-wrap {
-      position: ${S.background_layer.position};
-      left: ${S.background_layer.left_px}px;
-      top: ${S.background_layer.top_px}px;
-      width: ${S.background_layer.width_px}px;
-      height: ${S.background_layer.height_px}px;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
       pointer-events: ${S.background_layer.pointer_events};
       overflow: hidden;
     }
@@ -374,10 +385,10 @@ async function buildReportCoverHtml(options = {}) {
 
     .report-cover__title-band {
       position: ${Tb.position};
-      left: ${Tb.left_px}px;
-      top: ${Tb.top_px}px;
-      width: ${Tb.width_px}px;
-      min-height: ${Tb.min_height_px}px;
+      left: ${bandLeftPct}%;
+      top: ${bandTopPct}%;
+      width: ${bandWidthPct}%;
+      min-height: ${bandMinHpct}%;
       box-sizing: ${Tb.box_sizing};
       display: ${Tb.display};
       align-items: ${Tb.align_items};
@@ -389,7 +400,7 @@ async function buildReportCoverHtml(options = {}) {
 
     .report-cover__title {
       margin: ${Tt.margin_css};
-      width: ${Tt.width_px}px;
+      width: ${titleWidthOfBandPct}%;
       max-width: ${Tt.max_width_css};
       font-size: ${Tt.font_size_px}px;
       line-height: ${Tt.line_height_px}px;
@@ -400,8 +411,8 @@ async function buildReportCoverHtml(options = {}) {
 
     .report-cover__date {
       position: ${D.position};
-      left: ${D.left_px}px;
-      top: ${D.top_px}px;
+      left: ${dateLeftPct}%;
+      top: ${dateTopPct}%;
       margin: ${D.margin_css};
       font-size: ${D.font_size_px}px;
       line-height: ${D.line_height_px}px;
