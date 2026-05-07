@@ -46,17 +46,18 @@ article.page::before {
 }
 /*
   Лист на всю ширину A4 (viewport 794px); .content тянем на высоту листа.
-  Не ставим margin-top:auto на футер — при коротком контенте получался огромный зазор над футером.
-  Ниже контента остаётся клетка до низа листа; спейсер на goal-страницах по-прежнему жмёт блоки вниз.
+  Раньше: width calc(100%/zoom) + margin auto давало ~11% «полей» слева/справа внутри листа.
+  Сейчас: .content на всю ширину, только zoom — бока без искусственной колонки (риск клипа по overflow).
 */
 article.page > .content {
   flex: 1 1 auto !important;
   min-height: 0 !important;
+  align-self: stretch !important;
   box-sizing: border-box !important;
-  width: calc(100% / ${CONTENT_ZOOM}) !important;
-  max-width: calc(100% / ${CONTENT_ZOOM}) !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
   zoom: ${CONTENT_ZOOM};
 }
 /*
