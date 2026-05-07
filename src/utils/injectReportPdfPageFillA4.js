@@ -36,8 +36,8 @@ article.page {
   flex-direction: column !important;
   background-color: transparent !important;
   background-image: none !important;
-  padding-left: 7px !important;
-  padding-right: 7px !important;
+  padding-left: 22px !important;
+  padding-right: 22px !important;
 }
 /* Клетка только на html (full-bleed A4); в шаблонах дублируется в ::before — убираем муар */
 article.page::before {
