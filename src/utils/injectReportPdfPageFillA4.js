@@ -5,8 +5,11 @@
  */
 const MARK = 'data-pfp-pdf-page-fill-a4';
 
-/** Масштаб текста/вёрстки внутри листа (1.3 ≈ «в 1,3 раза»). Chromium PDF: zoom + узкая колонка, чтобы визуально заполнить ширину без клипа. */
+/** Масштаб текста/вёрстки внутри листа (1.3 ≈ «в 1,3 раза»). Chromium PDF: zoom на .content. */
 const CONTENT_ZOOM = 1.3;
+
+/** Горизонтальные поля листа (перебивают шаблонные px у article.page). Синхрон с page-2 / goal: было 36px в макете. */
+const PAGE_PAD_X = 36;
 
 const STYLE = `<style ${MARK}="1">
 html {
@@ -36,8 +39,8 @@ article.page {
   flex-direction: column !important;
   background-color: transparent !important;
   background-image: none !important;
-  padding-left: 22px !important;
-  padding-right: 22px !important;
+  padding-left: ${PAGE_PAD_X}px !important;
+  padding-right: ${PAGE_PAD_X}px !important;
 }
 /* Клетка только на html (full-bleed A4); в шаблонах дублируется в ::before — убираем муар */
 article.page::before {
