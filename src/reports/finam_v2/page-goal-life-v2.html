@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Защита жизни — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: var(--finam-v2-color-surface);
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 18px 32px 14px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .finam-v2-life__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-life__header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .finam-v2-life__header-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 1px;
+      background: var(--finam-v2-color-navy-deep);
+      flex-shrink: 0;
+    }
+
+    .finam-v2-life__header-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-life__pill {
+      background: var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 8.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border-radius: var(--finam-v2-radius-pill);
+    }
+
+    .finam-v2-life__rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 8px;
+    }
+
+    .finam-v2-life__ai-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-life__avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+      background: #e2e8f0;
+    }
+
+    .finam-v2-life__avatar img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .finam-v2-life__bubble {
+      flex: 1;
+      min-width: 0;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 8px 12px;
+      position: relative;
+    }
+
+    .finam-v2-life__bubble::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 13px;
+      width: 10px;
+      height: 10px;
+      background: #f1f5f9;
+      border-left: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+      transform: rotate(45deg);
+    }
+
+    .finam-v2-life__bubble p {
+      font-size: 10.5px;
+      line-height: 1.38;
+      color: #334155;
+      position: relative;
+      z-index: 1;
+    }
+
+    .finam-v2-life__bubble strong,
+    .finam-v2-life__comment strong {
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-life__hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 150px;
+      gap: 12px;
+      align-items: stretch;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--finam-v2-color-border);
+    }
+
+    .finam-v2-life__kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-life__title {
+      font-family: var(--finam-v2-font-display);
+      font-optical-sizing: auto;
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-life__subtitle {
+      font-size: 10.5px;
+      line-height: 1.38;
+      color: #334155;
+      max-width: 34em;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-life__product-line {
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    .finam-v2-life__product-line strong {
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-life__hero-image {
+      align-self: start;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--finam-v2-color-border);
+      background: #f8fafc;
+      height: 112px;
+    }
+
+    .finam-v2-life__hero-image img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .finam-v2-life__section-kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-life__risk-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 9px;
+    }
+
+    .finam-v2-life__risk {
+      min-width: 0;
+      padding: 8px 6px;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      background: #fff;
+      text-align: center;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    .finam-v2-life__risk svg {
+      width: 17px;
+      height: 17px;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-life__risk-name {
+      font-size: 9.5px;
+      line-height: 1.18;
+      color: #475569;
+      min-height: 24px;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-life__risk-value {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .finam-v2-life__premium {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-life__kpi {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      background: #f8fafc;
+      padding: 8px 10px;
+      text-align: center;
+    }
+
+    .finam-v2-life__kpi-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 3px;
+    }
+
+    .finam-v2-life__kpi-value {
+      font-size: 16px;
+      line-height: 1;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-life__product {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 132px;
+      gap: 12px;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 9px 12px;
+      margin-bottom: 9px;
+    }
+
+    .finam-v2-life__product-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-life__product-name {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-life__product-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 8rem;
+      gap: 8px;
+      font-size: 9px;
+      line-height: 1.28;
+      padding: 3px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .finam-v2-life__product-row:last-child {
+      border-bottom: none;
+    }
+
+    .finam-v2-life__product-row span:first-child {
+      color: #64748b;
+    }
+
+    .finam-v2-life__product-row span:last-child {
+      color: var(--finam-v2-color-text);
+      font-weight: 600;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-life__rate {
+      border-left: 1px solid var(--finam-v2-color-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding-left: 12px;
+      text-align: center;
+    }
+
+    .finam-v2-life__rate-value {
+      font-family: var(--finam-v2-font-display);
+      font-optical-sizing: auto;
+      font-size: 34px;
+      line-height: 1;
+      color: var(--finam-v2-color-navy-deep);
+      letter-spacing: -0.04em;
+      font-weight: 600;
+    }
+
+    .finam-v2-life__rate-sub {
+      margin-top: 5px;
+      font-size: 8.5px;
+      line-height: 1.25;
+      color: #64748b;
+    }
+
+    .finam-v2-life__tax {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 95px 78px;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid #d1fae5;
+      border-radius: 10px;
+      background: #ecfdf5;
+      padding: 9px 12px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-life__tax-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #166534;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-life__tax-text {
+      font-size: 9.5px;
+      line-height: 1.28;
+      color: #166534;
+    }
+
+    .finam-v2-life__tax-metric {
+      border-left: 1px solid #bbf7d0;
+      padding-left: 12px;
+      text-align: right;
+    }
+
+    .finam-v2-life__tax-value {
+      font-size: 15px;
+      line-height: 1;
+      font-weight: 700;
+      color: #166534;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .finam-v2-life__tax-label {
+      margin-top: 3px;
+      font-size: 8.5px;
+      line-height: 1.22;
+      color: #166534;
+    }
+
+    .finam-v2-life__comment {
+      flex: 1;
+      min-width: 0;
+      background: #ecfdf5;
+      border: 1px solid #d1fae5;
+      border-radius: 12px;
+      padding: 8px 12px;
+      position: relative;
+    }
+
+    .finam-v2-life__comment::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 13px;
+      width: 10px;
+      height: 10px;
+      background: #ecfdf5;
+      border-left: 1px solid #d1fae5;
+      border-bottom: 1px solid #d1fae5;
+      transform: rotate(45deg);
+    }
+
+    .finam-v2-life__comment p {
+      font-size: 10px;
+      line-height: 1.36;
+      color: #334155;
+      position: relative;
+      z-index: 1;
+    }
+
+    .finam-v2-life__grow {
+      flex: 1;
+      min-height: 2px;
+    }
+
+    .finam-v2-life__footer-rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 6px;
+    }
+
+    .finam-v2-life__footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      color: var(--finam-v2-color-text-muted);
+      line-height: 1.35;
+    }
+
+    .finam-v2-life__footer-right {
+      text-align: right;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Маппинг LIFE (prod: src/reports/finam/goal-page-life-finam.html):
+    • details.risks[] -> карточки покрытия, max 5 на листе.
+    • details.annual_premium / summary.monthly_replenishment -> взнос год/месяц.
+    • product/program fields -> инструмент в портфеле; tariff/yield -> крупный KPI справа.
+    • summary.total_tax_benefit / taxYearAmount -> блок налоговых вычетов.
+    • Картинка цели: assets/goal-lifeinsurance.webp (копия assets/reports/goal-cards/lifeinsurance.webp для локального превью);
+      в PDF позже инлайнить как data URL.
+  -->
+  <article class="finam-v2-page">
+    <header class="finam-v2-life__header">
+      <div class="finam-v2-life__header-left">
+        <span class="finam-v2-life__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-life__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-life__pill">Защита жизни</span>
+    </header>
+    <hr class="finam-v2-life__rule" />
+
+    <div class="finam-v2-life__ai-row">
+      <div class="finam-v2-life__avatar" role="img" aria-label="ИИ-ассистент">
+        <img src="assets/avatar-ai-finam-v2.svg" width="42" height="42" alt="" decoding="async" />
+      </div>
+      <div class="finam-v2-life__bubble">
+        <p>
+          Цель <strong>«Защита жизни»</strong> закрывает семейный downside: пять ключевых рисков уже
+          переведены в понятные лимиты выплат и регулярный взнос.
+        </p>
+      </div>
+    </div>
+
+    <section class="finam-v2-life__hero">
+      <div>
+        <div class="finam-v2-life__kicker">Life · Сбер</div>
+        <h1 class="finam-v2-life__title">Защита жизни</h1>
+        <p class="finam-v2-life__subtitle">
+          Программа «Подушка безопасности» с фиксированным тарифом и расширенным покрытием ключевых рисков.
+        </p>
+        <p class="finam-v2-life__product-line">
+          Продукт: <strong>Подушка безопасности · Сбер Страхование Жизни</strong>
+        </p>
+      </div>
+      <div class="finam-v2-life__hero-image">
+        <img
+          src="assets/goal-lifeinsurance.webp"
+          width="150"
+          height="112"
+          alt=""
+          decoding="async"
+        />
+      </div>
+    </section>
+
+    <p class="finam-v2-life__section-kicker">5 семейных рисков уже закрыты лимитами</p>
+    <div class="finam-v2-life__risk-grid">
+      <div class="finam-v2-life__risk">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3l7 4v5c0 5-3 9-7 11-4-2-7-6-7-11V7l7-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <div class="finam-v2-life__risk-name">Уход из жизни</div>
+        <div class="finam-v2-life__risk-value">2,3 млн ₽</div>
+      </div>
+      <div class="finam-v2-life__risk">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5" />
+          <path d="M5 21v-1a7 7 0 0 1 14 0v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <div class="finam-v2-life__risk-name">Инвалидность I–II гр.</div>
+        <div class="finam-v2-life__risk-value">2,3 млн ₽</div>
+      </div>
+      <div class="finam-v2-life__risk">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 1 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <div class="finam-v2-life__risk-name">Уход из жизни НС</div>
+        <div class="finam-v2-life__risk-value">4,5 млн ₽</div>
+      </div>
+      <div class="finam-v2-life__risk">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 17h10M6 17l1-6a3 3 0 0 1 3-2h4a3 3 0 0 1 3 2l1 6M8 17v2M16 17v2M9 13h.01M15 13h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <div class="finam-v2-life__risk-name">Уход из жизни ДТП</div>
+        <div class="finam-v2-life__risk-value">6,8 млн ₽</div>
+      </div>
+      <div class="finam-v2-life__risk">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8 12l8-8a3 3 0 0 1 4 4l-8 8M8 12l-3 3a3 3 0 0 0 4 4l3-3M8 12l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div class="finam-v2-life__risk-name">Травмы</div>
+        <div class="finam-v2-life__risk-value">675 000 ₽</div>
+      </div>
+    </div>
+
+    <div class="finam-v2-life__premium">
+      <div class="finam-v2-life__kpi">
+        <div class="finam-v2-life__kpi-label">Взнос в год</div>
+        <div class="finam-v2-life__kpi-value">32&nbsp;400 ₽</div>
+      </div>
+      <div class="finam-v2-life__kpi">
+        <div class="finam-v2-life__kpi-label">Пополнение в мес</div>
+        <div class="finam-v2-life__kpi-value">2&nbsp;700 ₽</div>
+      </div>
+    </div>
+
+    <section class="finam-v2-life__product">
+      <div>
+        <div class="finam-v2-life__product-title">Инструмент закрывает риск, а не просто добавляет взнос</div>
+        <div class="finam-v2-life__product-name">Подушка безопасности · Сбер Страхование Жизни</div>
+        <div class="finam-v2-life__product-row"><span>Тип продукта</span><span>Страхование жизни</span></div>
+        <div class="finam-v2-life__product-row"><span>Доля в цели</span><span>100%</span></div>
+        <div class="finam-v2-life__product-row"><span>Начальная сумма</span><span>32&nbsp;400 ₽</span></div>
+        <div class="finam-v2-life__product-row"><span>Ежемесячное пополнение</span><span>2&nbsp;700 ₽</span></div>
+        <div class="finam-v2-life__product-row"><span>Периодичность</span><span>Ежемесячно</span></div>
+      </div>
+      <div class="finam-v2-life__rate">
+        <div class="finam-v2-life__rate-value">1,44%</div>
+        <div class="finam-v2-life__rate-sub">тариф<br />в год</div>
+      </div>
+    </section>
+
+    <section class="finam-v2-life__tax">
+      <div>
+        <div class="finam-v2-life__tax-title">Налоговый эффект снижает стоимость защиты</div>
+        <p class="finam-v2-life__tax-text">
+          По модели плана: суммарный вычет <strong>63&nbsp;180 ₽</strong>; оценка на 2026 год —
+          <strong>4&nbsp;212 ₽</strong>.
+        </p>
+      </div>
+      <div class="finam-v2-life__tax-metric">
+        <div class="finam-v2-life__tax-value">63&nbsp;180 ₽</div>
+        <div class="finam-v2-life__tax-label">всего вычет</div>
+      </div>
+      <div class="finam-v2-life__tax-metric">
+        <div class="finam-v2-life__tax-value">+4&nbsp;212 ₽</div>
+        <div class="finam-v2-life__tax-label">в 2026</div>
+      </div>
+    </section>
+
+    <div class="finam-v2-life__ai-row">
+      <div class="finam-v2-life__avatar" role="img" aria-label="ИИ-ассистент">
+        <img src="assets/avatar-ai-finam-v2.svg" width="42" height="42" alt="" decoding="async" />
+      </div>
+      <div class="finam-v2-life__comment">
+        <p>
+          <strong>Ключевой вывод:</strong> защита уже структурирована. Следующий шаг — сверить лимиты
+          с реальными обязательствами семьи и оставить в плане только покрытие, которое защищает критичный риск.
+        </p>
+      </div>
+    </div>
+
+    <div class="finam-v2-life__grow"></div>
+    <hr class="finam-v2-life__footer-rule" />
+    <footer class="finam-v2-life__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-life__footer-right">Информация не является инвестиционной рекомендацией</span>
+    </footer>
+  </article>
+</body>
+</html>

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Дорожная карта — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <link rel="stylesheet" href="page-wow-shared.css?v=finam-v2-wow-1" />
+  <style>
+    .finam-v2-roadmap__hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 150px;
+      gap: 16px;
+      align-items: stretch;
+      margin-bottom: 14px;
+    }
+
+    .finam-v2-roadmap__headline {
+      max-width: 360px;
+      margin-bottom: 9px;
+    }
+
+    .finam-v2-roadmap__lead {
+      max-width: 350px;
+      margin-bottom: 0;
+    }
+
+    .finam-v2-roadmap__takeaway {
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 11px 12px;
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 118px;
+    }
+
+    .finam-v2-roadmap__takeaway-label {
+      font-size: 8px;
+      line-height: 1.2;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-roadmap__takeaway-value {
+      font-family: var(--finam-v2-font-display);
+      font-size: 36px;
+      line-height: 0.95;
+      letter-spacing: -0.045em;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-roadmap__takeaway-text {
+      font-size: 9px;
+      line-height: 1.25;
+      color: #475569;
+    }
+
+    .finam-v2-roadmap__thesis {
+      display: grid;
+      grid-template-columns: 118px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      border-top: 2px solid var(--finam-v2-color-navy-deep);
+      border-bottom: 1px solid var(--finam-v2-color-border);
+      padding: 10px 0;
+      margin-bottom: 14px;
+    }
+
+    .finam-v2-roadmap__thesis-kicker {
+      font-size: 8px;
+      line-height: 1.25;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      font-weight: 800;
+    }
+
+    .finam-v2-roadmap__thesis-text {
+      font-size: 12px;
+      line-height: 1.34;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 650;
+    }
+
+    .finam-v2-roadmap__matrix {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      margin-bottom: 13px;
+    }
+
+    .finam-v2-roadmap__matrix-head,
+    .finam-v2-roadmap__row {
+      display: grid;
+      grid-template-columns: 52px minmax(0, 1fr) minmax(0, 0.92fr) 106px;
+    }
+
+    .finam-v2-roadmap__matrix-head {
+      background: #f1f5f9;
+      color: var(--finam-v2-color-navy-deep);
+      font-size: 8px;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      font-weight: 800;
+    }
+
+    .finam-v2-roadmap__matrix-head span,
+    .finam-v2-roadmap__cell {
+      padding: 8px 10px;
+      border-right: 1px solid #e2e8f0;
+    }
+
+    .finam-v2-roadmap__matrix-head span:last-child,
+    .finam-v2-roadmap__cell:last-child {
+      border-right: none;
+    }
+
+    .finam-v2-roadmap__row {
+      min-height: 78px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .finam-v2-roadmap__priority {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .finam-v2-roadmap__num {
+      display: inline-flex;
+      width: 24px;
+      height: 24px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--finam-v2-color-navy-deep);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .finam-v2-roadmap__action-title {
+      font-size: 11px;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-roadmap__action-text,
+    .finam-v2-roadmap__effect-text {
+      font-size: 8.8px;
+      line-height: 1.28;
+      color: #475569;
+    }
+
+    .finam-v2-roadmap__effect-text strong {
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 800;
+    }
+
+    .finam-v2-roadmap__cta-cell {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .finam-v2-roadmap__button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      padding: 5px 10px 6px;
+      border-radius: var(--finam-v2-radius-pill);
+      background: var(--finam-v2-color-navy);
+      border: 1px solid var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 8.5px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .finam-v2-roadmap__button--ghost {
+      background: #fff;
+      border-color: #b6c7dd;
+      color: var(--finam-v2-color-navy);
+    }
+
+    .finam-v2-roadmap__cta-note {
+      margin-top: 6px;
+      font-size: 8px;
+      line-height: 1.25;
+      color: #64748b;
+    }
+
+    .finam-v2-roadmap__cta-note a {
+      color: var(--finam-v2-color-accent-blue);
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .finam-v2-roadmap__cadence {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0;
+      margin-bottom: 12px;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+
+    .finam-v2-roadmap__cadence-card {
+      padding: 8px 10px;
+      min-height: 60px;
+      border-right: 1px solid var(--finam-v2-color-border);
+    }
+
+    .finam-v2-roadmap__cadence-card:last-child {
+      border-right: none;
+    }
+
+    .finam-v2-roadmap__cadence-title {
+      font-size: 8px;
+      line-height: 1.2;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      font-weight: 800;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-roadmap__cadence-text {
+      font-size: 8.8px;
+      line-height: 1.25;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+  <article class="finam-v2-page">
+    <header class="finam-v2-wow__header">
+      <div class="finam-v2-wow__header-left">
+        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-wow__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-wow__pill">План действий</span>
+    </header>
+    <hr class="finam-v2-wow__rule" />
+
+    <section class="finam-v2-roadmap__hero">
+      <div>
+        <p class="finam-v2-wow__eyebrow">Следующие решения</p>
+        <h1 class="finam-v2-wow__headline finam-v2-roadmap__headline">
+          Ваш путь к финансовым целям начинается с четырёх управленческих шагов
+        </h1>
+        <p class="finam-v2-wow__lead finam-v2-roadmap__lead">
+          Страница фиксирует не «список задач», а порядок внедрения плана: сначала устойчивость
+          бюджета, затем защита семьи, налоговый контур и инвестиционная реализация.
+        </p>
+      </div>
+      <aside class="finam-v2-roadmap__takeaway">
+        <div>
+          <div class="finam-v2-roadmap__takeaway-label">Фокус внедрения</div>
+          <div class="finam-v2-roadmap__takeaway-value">90</div>
+        </div>
+        <p class="finam-v2-roadmap__takeaway-text">
+          дней достаточно, чтобы перевести финансовый план из расчёта в рабочий режим контроля.
+        </p>
+      </aside>
+    </section>
+
+    <section class="finam-v2-roadmap__thesis">
+      <div class="finam-v2-roadmap__thesis-kicker">Ключевой вывод</div>
+      <p class="finam-v2-roadmap__thesis-text">
+        Оптимальная последовательность — закрыть кассовые разрывы до продажи инвестиций,
+        зафиксировать страховую защиту и только затем наращивать долгосрочный капитал.
+      </p>
+    </section>
+
+    <section class="finam-v2-roadmap__matrix" aria-label="План действий">
+      <div class="finam-v2-roadmap__matrix-head">
+        <span>№</span>
+        <span>Решение</span>
+        <span>Эффект для клиента</span>
+        <span>Действие</span>
+      </div>
+      <div class="finam-v2-roadmap__row">
+        <div class="finam-v2-roadmap__cell finam-v2-roadmap__priority">
+          <span class="finam-v2-roadmap__num">1</span>
+        </div>
+        <div class="finam-v2-roadmap__cell">
+          <div class="finam-v2-roadmap__action-title">Сформировать ликвидный резерв</div>
+          <p class="finam-v2-roadmap__action-text">
+            Открыть отдельный накопительный счёт и закрепить правило регулярного пополнения.
+          </p>
+        </div>
+        <div class="finam-v2-roadmap__cell">
+          <p class="finam-v2-roadmap__effect-text">
+            <strong>Снижает риск кассового разрыва</strong> и защищает портфель от вынужденной продажи активов.
+          </p>
+        </div>
+        <div class="finam-v2-roadmap__cell finam-v2-roadmap__cta-cell">
+          <span class="finam-v2-roadmap__button finam-v2-roadmap__button--ghost">Открыть счёт</span>
+          <p class="finam-v2-roadmap__cta-note">Накопительный счёт в банке</p>
+        </div>
+      </div>
+      <div class="finam-v2-roadmap__row">
+        <div class="finam-v2-roadmap__cell finam-v2-roadmap__priority">
+          <span class="finam-v2-roadmap__num">2</span>
+        </div>
+        <div class="finam-v2-roadmap__cell">
+          <div class="finam-v2-roadmap__action-title">Подключить страховую защиту жизни</div>
+          <p class="finam-v2-roadmap__action-text">
+            Закрыть ключевые риски семьи: травма, инвалидность, уход из жизни и потеря дохода.
+          </p>
+        </div>
+        <div class="finam-v2-roadmap__cell">
+          <p class="finam-v2-roadmap__effect-text">
+            <strong>Стабилизирует семейный капитал</strong> и не даёт форс-мажору сломать долгосрочные цели.
+          </p>
+        </div>
+        <div class="finam-v2-roadmap__cell finam-v2-roadmap__cta-cell">
+          <a
+            class="finam-v2-roadmap__button"
+            href="https://sberbank-insurance.ru/podushka-bezopasnosti"
+            target="_blank"
+            rel="noopener"
+          >Оформить НСЖ</a>
+          <p class="finam-v2-roadmap__cta-note">Подбор покрытия и тарифа</p>
+        </div>
+      </div>
+      <div class="finam-v2-roadmap__row">
+        <div class="finam-v2-roadmap__cell finam-v2-roadmap__priority">
+          <span class="finam-v2-roadmap__num">3</span>
+        </div>
+        <div class="finam-v2-roadmap__cell">
+          <div class="finam-v2-roadmap__action-title">Открыть ПДС</div>
+          <p class="finam-v2-roadmap__action-text">
+            Запустить долгий пенсионный контур с налоговыми вычетами и софинансированием.
+          </p>
+        </div>
+        <div class="finam-v2-roadmap__cell">
+          <p class="finam-v2-roadmap__effect-text">
+            <strong>Ускоряет рост капитала</strong> за счёт налогового эффекта и регулярной дисциплины.
+          </p>
+        </div>
+        <div class="finam-v2-roadmap__cell finam-v2-roadmap__cta-cell">
+          <a
+            class="finam-v2-roadmap__button"
+            href="https://www.finam.ru/products/pds/"
+            target="_blank"
+            rel="noopener"
+          >Открыть ПДС</a>
+          <p class="finam-v2-roadmap__cta-note">Первый взнос после резерва</p>
+        </div>
+      </div>
+      <div class="finam-v2-roadmap__row">
+        <div class="finam-v2-roadmap__cell finam-v2-roadmap__priority">
+          <span class="finam-v2-roadmap__num">4</span>
+        </div>
+        <div class="finam-v2-roadmap__cell">
+          <div class="finam-v2-roadmap__action-title">Открыть брокерский счёт</div>
+          <p class="finam-v2-roadmap__action-text">
+            Перевести инвестиционную часть плана в портфель с понятным риск-профилем.
+          </p>
+        </div>
+        <div class="finam-v2-roadmap__cell">
+          <p class="finam-v2-roadmap__effect-text">
+            <strong>Даёт доступ к инструментам роста</strong> и позволяет регулярно ребалансировать цели.
+          </p>
+        </div>
+        <div class="finam-v2-roadmap__cell finam-v2-roadmap__cta-cell">
+          <a
+            class="finam-v2-roadmap__button"
+            href="https://www.finam.ru/open/order/russia/"
+            target="_blank"
+            rel="noopener"
+          >Открыть счёт</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="finam-v2-roadmap__cadence">
+      <div class="finam-v2-roadmap__cadence-card">
+        <div class="finam-v2-roadmap__cadence-title">Месяц 1</div>
+        <p class="finam-v2-roadmap__cadence-text">
+          Фиксируем бюджет, лимиты обязательств и минимальный размер резерва.
+        </p>
+      </div>
+      <div class="finam-v2-roadmap__cadence-card">
+        <div class="finam-v2-roadmap__cadence-title">Квартал</div>
+        <p class="finam-v2-roadmap__cadence-text">
+          Сверяем план и факт: свободный поток, резерв, страховая защита, взносы.
+        </p>
+      </div>
+      <div class="finam-v2-roadmap__cadence-card">
+        <div class="finam-v2-roadmap__cadence-title">Год</div>
+        <p class="finam-v2-roadmap__cadence-text">
+          Пересчитываем сценарии, налоговый эффект и структуру инвестиционного портфеля.
+        </p>
+      </div>
+    </section>
+
+    <hr class="finam-v2-wow__footer-rule" />
+    <footer class="finam-v2-wow__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-wow__footer-right">План действий используется как основа сопровождения</span>
+    </footer>
+  </article>
+</body>
+</html>

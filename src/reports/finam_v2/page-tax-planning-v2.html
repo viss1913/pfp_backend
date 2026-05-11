@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Налоговое планирование — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: var(--finam-v2-color-surface);
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 18px 32px 12px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .finam-v2-tax__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-tax__header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .finam-v2-tax__header-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 1px;
+      background: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-tax__header-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-tax__pill {
+      background: var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 8.5px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border-radius: var(--finam-v2-radius-pill);
+    }
+
+    .finam-v2-tax__rule,
+    .finam-v2-tax__footer-rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+    }
+
+    .finam-v2-tax__rule {
+      margin: 0 0 11px;
+    }
+
+    .finam-v2-tax__hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 178px;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+
+    .finam-v2-tax__eyebrow,
+    .finam-v2-tax__section-label {
+      font-size: 8.5px;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+    }
+
+    .finam-v2-tax__eyebrow {
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-tax__headline {
+      font-family: var(--finam-v2-font-display);
+      font-size: 31px;
+      line-height: 1.02;
+      letter-spacing: -0.04em;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      max-width: 330px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-tax__lead {
+      font-size: 10.5px;
+      line-height: 1.34;
+      color: #475569;
+      max-width: 355px;
+    }
+
+    .finam-v2-tax__profile {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 12px;
+      background: #f8fafc;
+      overflow: hidden;
+    }
+
+    .finam-v2-tax__profile-row {
+      display: grid;
+      grid-template-columns: 20px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+      padding: 7px 9px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .finam-v2-tax__profile-row:last-child {
+      border-bottom: none;
+    }
+
+    .finam-v2-tax__profile-icon {
+      width: 17px;
+      height: 17px;
+      border: 1px solid #b6c7dd;
+      border-radius: 50%;
+      color: var(--finam-v2-color-navy);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 800;
+    }
+
+    .finam-v2-tax__profile-label {
+      font-size: 8px;
+      line-height: 1.15;
+      color: #64748b;
+      margin-bottom: 2px;
+    }
+
+    .finam-v2-tax__profile-value {
+      font-size: 8.8px;
+      line-height: 1.15;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-tax__kpis {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 1px solid var(--finam-v2-color-border);
+      border-bottom: 1px solid var(--finam-v2-color-border);
+      margin-bottom: 12px;
+    }
+
+    .finam-v2-tax__kpi {
+      min-height: 58px;
+      padding: 8px 10px 7px;
+      border-right: 1px solid var(--finam-v2-color-border);
+      text-align: center;
+    }
+
+    .finam-v2-tax__kpi:last-child {
+      border-right: none;
+    }
+
+    .finam-v2-tax__kpi-label {
+      min-height: 19px;
+      font-size: 8px;
+      line-height: 1.18;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-tax__kpi-value {
+      font-family: var(--finam-v2-font-display);
+      font-size: 19px;
+      line-height: 1;
+      letter-spacing: -0.035em;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-tax__main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) 180px;
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+
+    .finam-v2-tax__table-card,
+    .finam-v2-tax__insight-card,
+    .finam-v2-tax__chart-card,
+    .finam-v2-tax__compliance-card {
+      background: #fff;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 12px;
+      box-shadow: var(--finam-v2-shadow-card);
+    }
+
+    .finam-v2-tax__table-card {
+      overflow: hidden;
+    }
+
+    .finam-v2-tax__table-title,
+    .finam-v2-tax__side-title,
+    .finam-v2-tax__chart-title {
+      font-size: 8.5px;
+      line-height: 1.2;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 800;
+    }
+
+    .finam-v2-tax__table-title {
+      padding: 9px 10px 7px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    .finam-v2-tax__table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.6px;
+    }
+
+    .finam-v2-tax__table th {
+      background: #f1f5f9;
+      color: #475569;
+      font-size: 8px;
+      line-height: 1.15;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 800;
+      text-align: left;
+      padding: 6px 8px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .finam-v2-tax__table td {
+      padding: 7px 8px;
+      border-bottom: 1px solid #eef2f7;
+      vertical-align: middle;
+      color: #334155;
+      line-height: 1.22;
+    }
+
+    .finam-v2-tax__table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .finam-v2-tax__source {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 750;
+    }
+
+    .finam-v2-tax__bar {
+      width: 70px;
+      height: 5px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+      margin-top: 3px;
+    }
+
+    .finam-v2-tax__bar-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--finam-v2-color-navy);
+    }
+
+    .finam-v2-tax__num {
+      white-space: nowrap;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-tax__role {
+      font-size: 8px;
+      color: #64748b;
+    }
+
+    .finam-v2-tax__side {
+      display: grid;
+      gap: 8px;
+    }
+
+    .finam-v2-tax__insight-card {
+      padding: 9px 10px;
+      min-height: 62px;
+    }
+
+    .finam-v2-tax__side-title {
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-tax__side-text {
+      font-size: 8.8px;
+      line-height: 1.28;
+      color: #475569;
+    }
+
+    .finam-v2-tax__side-text strong {
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-tax__bottom {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) 180px;
+      gap: 14px;
+      align-items: stretch;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-tax__chart-card {
+      padding: 10px 12px 8px;
+    }
+
+    .finam-v2-tax__chart-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-tax__chart-note {
+      max-width: 150px;
+      font-size: 8px;
+      line-height: 1.18;
+      color: #64748b;
+      text-align: right;
+    }
+
+    .finam-v2-tax__chart {
+      width: 100%;
+      height: 112px;
+      display: block;
+    }
+
+    .finam-v2-tax__axis,
+    .finam-v2-tax__chart-label {
+      font-size: 8px;
+      fill: #64748b;
+      font-family: var(--finam-v2-font-stack);
+    }
+
+    .finam-v2-tax__chart-value {
+      font-size: 8.5px;
+      fill: var(--finam-v2-color-navy-deep);
+      font-family: var(--finam-v2-font-stack);
+      font-weight: 800;
+    }
+
+    .finam-v2-tax__compliance-card {
+      padding: 10px;
+      background: #f8fafc;
+    }
+
+    .finam-v2-tax__compliance-list {
+      display: grid;
+      gap: 7px;
+      margin-top: 7px;
+    }
+
+    .finam-v2-tax__compliance-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      font-size: 8.8px;
+      line-height: 1.2;
+      color: #475569;
+    }
+
+    .finam-v2-tax__compliance-value {
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-tax__disclaimer {
+      border-top: 2px solid var(--finam-v2-color-navy-deep);
+      border-bottom: 1px solid var(--finam-v2-color-border);
+      padding: 8px 0;
+      font-size: 9px;
+      line-height: 1.3;
+      color: #334155;
+      margin-bottom: 9px;
+    }
+
+    .finam-v2-tax__disclaimer strong {
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-tax__footer-rule {
+      margin: auto 0 6px;
+    }
+
+    .finam-v2-tax__footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 8px;
+      color: var(--finam-v2-color-text-muted);
+      line-height: 1.35;
+    }
+
+    .finam-v2-tax__footer-right {
+      text-align: right;
+      max-width: 250px;
+    }
+  </style>
+</head>
+<body>
+  <article class="finam-v2-page">
+    <header class="finam-v2-tax__header">
+      <div class="finam-v2-tax__header-left">
+        <span class="finam-v2-tax__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-tax__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-tax__pill">Налоговая стратегия</span>
+    </header>
+    <hr class="finam-v2-tax__rule" />
+
+    <section class="finam-v2-tax__hero">
+      <div>
+        <p class="finam-v2-tax__eyebrow">Налоговая стратегия и оптимизация капитала</p>
+        <h1 class="finam-v2-tax__headline">Налоговое планирование</h1>
+        <p class="finam-v2-tax__lead">
+          Налоговая структура показывает, где план уже использует льготы, а где есть резерв для
+          роста капитала после налогов.
+        </p>
+      </div>
+      <aside class="finam-v2-tax__profile" aria-label="Профиль налоговой стратегии">
+        <div class="finam-v2-tax__profile-row">
+          <span class="finam-v2-tax__profile-icon">%</span>
+          <div>
+            <div class="finam-v2-tax__profile-label">Маржинальная ставка НДФЛ</div>
+            <div class="finam-v2-tax__profile-value">13-15%</div>
+          </div>
+        </div>
+        <div class="finam-v2-tax__profile-row">
+          <span class="finam-v2-tax__profile-icon">15</span>
+          <div>
+            <div class="finam-v2-tax__profile-label">Горизонт оптимизации</div>
+            <div class="finam-v2-tax__profile-value">15+ лет</div>
+          </div>
+        </div>
+        <div class="finam-v2-tax__profile-row">
+          <span class="finam-v2-tax__profile-icon">✓</span>
+          <div>
+            <div class="finam-v2-tax__profile-label">Доступные льготы</div>
+            <div class="finam-v2-tax__profile-value">ПДС · ИИС · НСЖ · дети</div>
+          </div>
+        </div>
+        <div class="finam-v2-tax__profile-row">
+          <span class="finam-v2-tax__profile-icon">↗</span>
+          <div>
+            <div class="finam-v2-tax__profile-label">Оценка эффективности</div>
+            <div class="finam-v2-tax__profile-value">87 / 100</div>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="finam-v2-tax__kpis" aria-label="Ключевые налоговые показатели">
+      <div class="finam-v2-tax__kpi">
+        <div class="finam-v2-tax__kpi-label">Возврат НДФЛ за год</div>
+        <div class="finam-v2-tax__kpi-value">77 тыс ₽</div>
+      </div>
+      <div class="finam-v2-tax__kpi">
+        <div class="finam-v2-tax__kpi-label">Возврат НДФЛ за весь срок</div>
+        <div class="finam-v2-tax__kpi-value">1,9 млн ₽</div>
+      </div>
+      <div class="finam-v2-tax__kpi">
+        <div class="finam-v2-tax__kpi-label">Доля льготных активов</div>
+        <div class="finam-v2-tax__kpi-value">72%</div>
+      </div>
+    </section>
+
+    <section class="finam-v2-tax__main">
+      <div class="finam-v2-tax__table-card">
+        <div class="finam-v2-tax__table-title">Структура налоговых льгот</div>
+        <table class="finam-v2-tax__table" aria-label="Структура налоговых льгот">
+          <thead>
+            <tr>
+              <th style="width: 38%;">Источник</th>
+              <th style="width: 16%;">Доля</th>
+              <th style="width: 18%;">Год</th>
+              <th style="width: 18%;">Период</th>
+              <th style="width: 10%;">Роль</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="finam-v2-tax__source">ПДС</span></td>
+              <td>
+                <span class="finam-v2-tax__num">41%</span>
+                <div class="finam-v2-tax__bar"><div class="finam-v2-tax__bar-fill" style="width: 41%;"></div></div>
+              </td>
+              <td class="finam-v2-tax__num">32 тыс</td>
+              <td class="finam-v2-tax__num">0,8 млн</td>
+              <td class="finam-v2-tax__role">Пенсия</td>
+            </tr>
+            <tr>
+              <td><span class="finam-v2-tax__source">ИИС</span></td>
+              <td>
+                <span class="finam-v2-tax__num">26%</span>
+                <div class="finam-v2-tax__bar"><div class="finam-v2-tax__bar-fill" style="width: 26%;"></div></div>
+              </td>
+              <td class="finam-v2-tax__num">20 тыс</td>
+              <td class="finam-v2-tax__num">0,6 млн</td>
+              <td class="finam-v2-tax__role">Рост</td>
+            </tr>
+            <tr>
+              <td><span class="finam-v2-tax__source">НСЖ</span></td>
+              <td>
+                <span class="finam-v2-tax__num">20%</span>
+                <div class="finam-v2-tax__bar"><div class="finam-v2-tax__bar-fill" style="width: 20%;"></div></div>
+              </td>
+              <td class="finam-v2-tax__num">15,6 тыс</td>
+              <td class="finam-v2-tax__num">0,3 млн</td>
+              <td class="finam-v2-tax__role">Защита</td>
+            </tr>
+            <tr>
+              <td><span class="finam-v2-tax__source">Детские вычеты</span></td>
+              <td>
+                <span class="finam-v2-tax__num">13%</span>
+                <div class="finam-v2-tax__bar"><div class="finam-v2-tax__bar-fill" style="width: 13%;"></div></div>
+              </td>
+              <td class="finam-v2-tax__num">9,8 тыс</td>
+              <td class="finam-v2-tax__num">0,2 млн</td>
+              <td class="finam-v2-tax__role">Семья</td>
+            </tr>
+            <tr>
+              <td><strong>Итого</strong></td>
+              <td class="finam-v2-tax__num">100%</td>
+              <td class="finam-v2-tax__num">77,4 тыс</td>
+              <td class="finam-v2-tax__num">1,9 млн</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <aside class="finam-v2-tax__side" aria-label="Почему работает налоговая структура">
+        <section class="finam-v2-tax__insight-card">
+          <div class="finam-v2-tax__side-title">Годовой возврат НДФЛ</div>
+          <p class="finam-v2-tax__side-text">
+            <strong>ПДС и ИИС</strong> используют единый лимит базы и могут вернуть часть НДФЛ.
+          </p>
+        </section>
+        <section class="finam-v2-tax__insight-card">
+          <div class="finam-v2-tax__side-title">Отложенное налогообложение</div>
+          <p class="finam-v2-tax__side-text">
+            Отложенное налогообложение снижает ежегодную утечку капитала.
+          </p>
+        </section>
+        <section class="finam-v2-tax__insight-card">
+          <div class="finam-v2-tax__side-title">Документы и сроки</div>
+          <p class="finam-v2-tax__side-text">
+            Эффект льгот сохраняется только при корректных документах и соблюдении сроков подачи.
+          </p>
+        </section>
+      </aside>
+    </section>
+
+    <section class="finam-v2-tax__bottom">
+      <div class="finam-v2-tax__chart-card">
+        <div class="finam-v2-tax__chart-head">
+          <div class="finam-v2-tax__chart-title">Эффект капитала после налогов</div>
+          <p class="finam-v2-tax__chart-note">Льготы дают заметный эффект только при регулярных взносах и документах.</p>
+        </div>
+        <svg class="finam-v2-tax__chart" viewBox="0 0 330 112" role="img" aria-label="Прогноз капитала после налогов">
+          <line x1="28" y1="92" x2="314" y2="92" stroke="#cbd5e1" stroke-width="1" />
+          <line x1="28" y1="18" x2="28" y2="92" stroke="#cbd5e1" stroke-width="1" />
+          <line x1="28" y1="74" x2="314" y2="74" stroke="#eef2f7" stroke-width="1" />
+          <line x1="28" y1="54" x2="314" y2="54" stroke="#eef2f7" stroke-width="1" />
+          <line x1="28" y1="34" x2="314" y2="34" stroke="#eef2f7" stroke-width="1" />
+          <polyline
+            points="28,86 64,82 100,76 136,66 172,54 208,40 244,27 280,18 314,12"
+            fill="none"
+            stroke="#002a4a"
+            stroke-width="2.4"
+          />
+          <polyline
+            points="28,88 64,85 100,80 136,74 172,66 208,58 244,50 280,43 314,36"
+            fill="none"
+            stroke="#94a3b8"
+            stroke-width="1.6"
+            stroke-dasharray="4 4"
+          />
+          <circle cx="314" cy="12" r="3" fill="#002a4a" />
+          <circle cx="314" cy="36" r="3" fill="#94a3b8" />
+          <text x="31" y="105" class="finam-v2-tax__axis">0</text>
+          <text x="154" y="105" class="finam-v2-tax__axis">10 лет</text>
+          <text x="288" y="105" class="finam-v2-tax__axis">20 лет</text>
+          <text x="216" y="22" class="finam-v2-tax__chart-value">56,6 млн ₽</text>
+          <text x="216" y="43" class="finam-v2-tax__chart-label">54,7 млн ₽ без льгот</text>
+        </svg>
+      </div>
+
+      <aside class="finam-v2-tax__compliance-card">
+        <div class="finam-v2-tax__side-title">Риски и соблюдение требований</div>
+        <div class="finam-v2-tax__compliance-list">
+          <div class="finam-v2-tax__compliance-row">
+            <span>Регуляторный статус</span>
+            <span class="finam-v2-tax__compliance-value">Предварит.</span>
+          </div>
+          <div class="finam-v2-tax__compliance-row">
+            <span>Диверсификация льгот</span>
+            <span class="finam-v2-tax__compliance-value">Средняя</span>
+          </div>
+          <div class="finam-v2-tax__compliance-row">
+            <span>Документальная готовность</span>
+            <span class="finam-v2-tax__compliance-value">Проверить</span>
+          </div>
+          <div class="finam-v2-tax__compliance-row">
+            <span>Аудитоустойчивость</span>
+            <span class="finam-v2-tax__compliance-value">Зависит</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <p class="finam-v2-tax__disclaimer">
+      <strong>Важно:</strong> расчёт налогового эффекта является модельной оценкой на базе параметров финансового плана.
+      Он не заменяет индивидуальную налоговую консультацию и требует проверки документов перед подачей.
+    </p>
+
+    <hr class="finam-v2-tax__footer-rule" />
+    <footer class="finam-v2-tax__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-tax__footer-right">Налоговая стратегия показывает оценочный эффект льгот и не является налоговой консультацией</span>
+    </footer>
+  </article>
+</body>
+</html>

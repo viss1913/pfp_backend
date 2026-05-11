@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Инфляция и ставки — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <link rel="stylesheet" href="page-wow-shared.css?v=finam-v2-tail" />
+  <style>
+    @page { size: 595px 842px; margin: 0; }
+  </style>
+</head>
+<body>
+  <article class="finam-v2-page">
+    <header class="finam-v2-wow__header">
+      <div class="finam-v2-wow__header-left">
+        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-wow__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-wow__pill">Инфляция</span>
+    </header>
+    <hr class="finam-v2-wow__rule" />
+
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide">
+      <div>
+        <p class="finam-v2-wow__eyebrow">Макроусловия плана</p>
+        <h1 class="finam-v2-wow__headline">Инфляция показывает, какую доходность должен обгонять капитал</h1>
+        <p class="finam-v2-wow__lead">
+          Эта страница связывает расчёт целей с рыночным фоном: инфляцией, ключевой ставкой,
+          кривой ОФЗ и корпоративным облигационным контуром.
+        </p>
+      </div>
+      <aside class="finam-v2-tail__kpi-stack">
+        <div class="finam-v2-tail__kpi">
+          <div class="finam-v2-tail__kpi-value">7,8%</div>
+          <div class="finam-v2-tail__kpi-label">инфляция год к году, пример</div>
+        </div>
+        <div class="finam-v2-tail__kpi">
+          <div class="finam-v2-tail__kpi-value">16,0%</div>
+          <div class="finam-v2-tail__kpi-label">ключевая ставка, пример</div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="finam-v2-tail__chart-card">
+      <p class="finam-v2-tail__section-title">Динамика инфляции и ставок</p>
+      <svg class="finam-v2-tail__chart" viewBox="0 0 520 150" role="img" aria-label="Инфляция и ключевая ставка">
+        <line x1="34" y1="124" x2="500" y2="124" stroke="#cbd5e1" />
+        <line x1="34" y1="22" x2="34" y2="124" stroke="#cbd5e1" />
+        <line x1="34" y1="98" x2="500" y2="98" stroke="#eef2f7" />
+        <line x1="34" y1="72" x2="500" y2="72" stroke="#eef2f7" />
+        <line x1="34" y1="46" x2="500" y2="46" stroke="#eef2f7" />
+        <polyline points="34,112 92,102 150,84 208,62 266,55 324,68 382,82 440,92 500,88" fill="none" stroke="#c2410c" stroke-width="2.4" stroke-linecap="round" />
+        <polyline points="34,86 92,78 150,66 208,42 266,34 324,38 382,44 440,50 500,54" fill="none" stroke="#002a4a" stroke-width="2.4" stroke-linecap="round" />
+        <text x="36" y="141" class="finam-v2-tail__axis">2022</text>
+        <text x="246" y="141" class="finam-v2-tail__axis">2024</text>
+        <text x="474" y="141" class="finam-v2-tail__axis">2026</text>
+        <text x="402" y="51" class="finam-v2-tail__chart-value">ключевая ставка</text>
+        <text x="402" y="88" class="finam-v2-tail__chart-value">инфляция</text>
+      </svg>
+    </section>
+
+    <section class="finam-v2-tail__card-grid finam-v2-tail__card-grid--4">
+      <div class="finam-v2-tail__note-card">
+        <p class="finam-v2-tail__section-title">ОФЗ 2 года</p>
+        <div class="finam-v2-tail__kpi-value">14,8%</div>
+        <p class="finam-v2-tail__body-text">короткий участок кривой</p>
+      </div>
+      <div class="finam-v2-tail__note-card">
+        <p class="finam-v2-tail__section-title">ОФЗ 5 лет</p>
+        <div class="finam-v2-tail__kpi-value">13,9%</div>
+        <p class="finam-v2-tail__body-text">средний срок портфеля</p>
+      </div>
+      <div class="finam-v2-tail__note-card">
+        <p class="finam-v2-tail__section-title">ОФЗ 10 лет</p>
+        <div class="finam-v2-tail__kpi-value">13,2%</div>
+        <p class="finam-v2-tail__body-text">долгий ориентир ставки</p>
+      </div>
+      <div class="finam-v2-tail__note-card">
+        <p class="finam-v2-tail__section-title">Корп. индекс</p>
+        <div class="finam-v2-tail__kpi-value">+2-3 п.п.</div>
+        <p class="finam-v2-tail__body-text">премия к ОФЗ за риск</p>
+      </div>
+    </section>
+
+    <section class="finam-v2-wow__insight">
+      <strong>Вывод для плана:</strong> если цель долгосрочная, важна не номинальная доходность сама по себе, а доходность после инфляции, налогов и комиссий.
+    </section>
+
+    <p class="finam-v2-tail__disclaimer finam-v2-tail__page-note">
+      Значения на странице являются примером макро-среза. В будущей интеграции v2 они должны подставляться из тех же индикаторов, что и v1: ИПЦ, ключевая ставка, кривая ОФЗ и индекс корпоративных облигаций.
+    </p>
+
+    <hr class="finam-v2-wow__footer-rule" />
+    <footer class="finam-v2-wow__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-wow__footer-right">Макроусловия объясняют сценарий, но не гарантируют результат</span>
+    </footer>
+  </article>
+</body>
+</html>

@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Достойная пенсия — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: var(--finam-v2-color-surface);
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 32px 10px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .finam-v2-pension__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-pension__header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .finam-v2-pension__header-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 1px;
+      background: var(--finam-v2-color-navy-deep);
+      flex-shrink: 0;
+    }
+
+    .finam-v2-pension__header-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-pension__pill {
+      background: var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 8.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border-radius: var(--finam-v2-radius-pill);
+    }
+
+    .finam-v2-pension__rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 8px;
+    }
+
+    .finam-v2-pension__ai-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-pension__avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+      background: #e2e8f0;
+    }
+
+    .finam-v2-pension__avatar img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .finam-v2-pension__bubble {
+      flex: 1;
+      min-width: 0;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 8px 12px;
+      position: relative;
+    }
+
+    .finam-v2-pension__bubble--green {
+      background: #ecfdf5;
+      border-color: #d1fae5;
+    }
+
+    .finam-v2-pension__bubble::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 13px;
+      width: 10px;
+      height: 10px;
+      background: #f1f5f9;
+      border-left: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+      transform: rotate(45deg);
+    }
+
+    .finam-v2-pension__bubble--green::before {
+      background: #ecfdf5;
+      border-color: #d1fae5;
+    }
+
+    .finam-v2-pension__bubble p {
+      font-size: 10.5px;
+      line-height: 1.36;
+      color: #334155;
+      position: relative;
+      z-index: 1;
+    }
+
+    .finam-v2-pension__bubble strong,
+    .finam-v2-pension__text strong,
+    .finam-v2-pension__table strong {
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-pension__hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 156px;
+      gap: 12px;
+      align-items: stretch;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-pension__kicker,
+    .finam-v2-pension__section-kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-pension__title {
+      font-family: var(--finam-v2-font-display);
+      font-optical-sizing: auto;
+      font-size: 27px;
+      line-height: 1.06;
+      letter-spacing: -0.03em;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 7px;
+    }
+
+    .finam-v2-pension__text {
+      font-size: 10.2px;
+      line-height: 1.38;
+      color: #334155;
+    }
+
+    .finam-v2-pension__hero-image {
+      align-self: start;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--finam-v2-color-border);
+      background: #f8fafc;
+      height: 116px;
+    }
+
+    .finam-v2-pension__hero-image img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .finam-v2-pension__grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-pension__card {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+    }
+
+    .finam-v2-pension__card--green {
+      background: #ecfdf5;
+      border-color: #d1fae5;
+    }
+
+    .finam-v2-pension__card-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 7px;
+    }
+
+    .finam-v2-pension__row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 7rem;
+      gap: 8px;
+      font-size: 9px;
+      line-height: 1.28;
+      padding: 3px 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .finam-v2-pension__row:last-child {
+      border-bottom: none;
+    }
+
+    .finam-v2-pension__row span:first-child {
+      color: #64748b;
+    }
+
+    .finam-v2-pension__row span:last-child {
+      color: var(--finam-v2-color-text);
+      font-weight: 700;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-pension__big-value {
+      font-family: var(--finam-v2-font-display);
+      font-optical-sizing: auto;
+      font-size: 35px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 600;
+      text-align: center;
+      margin: 7px 0 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-pension__big-sub {
+      font-size: 8.8px;
+      color: #64748b;
+      text-align: center;
+      line-height: 1.28;
+    }
+
+    .finam-v2-pension__capital {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 190px;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid #d1fae5;
+      border-radius: 10px;
+      background: #ecfdf5;
+      padding: 9px 12px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-pension__capital .finam-v2-pension__section-kicker {
+      color: #166534;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-pension__capital-value {
+      font-family: var(--finam-v2-font-display);
+      font-size: 34px;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      color: #166534;
+      font-weight: 600;
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-pension__plan {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-pension__metric {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 9px;
+      background: #fff;
+      padding: 7px 6px;
+      text-align: center;
+    }
+
+    .finam-v2-pension__metric svg {
+      width: 17px;
+      height: 17px;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-pension__metric-label {
+      font-size: 8.5px;
+      line-height: 1.15;
+      color: #64748b;
+      min-height: 17px;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-pension__metric-value {
+      font-size: 10.5px;
+      line-height: 1.1;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .finam-v2-pension__product {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 134px;
+      gap: 12px;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 12px;
+      margin-bottom: 2px;
+    }
+
+    .finam-v2-pension__product-name {
+      font-size: 13px;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-pension__rate {
+      border-left: 1px solid var(--finam-v2-color-border);
+      padding-left: 12px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .finam-v2-pension__rate-value {
+      font-family: var(--finam-v2-font-display);
+      font-size: 36px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 600;
+    }
+
+    .finam-v2-pension__rate-sub {
+      margin-top: 5px;
+      font-size: 8.5px;
+      line-height: 1.25;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .finam-v2-pension__bars {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-pension__bar-row {
+      display: grid;
+      grid-template-columns: 7rem minmax(0, 1fr) 5.5rem 3.5rem;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 9px;
+      color: #475569;
+    }
+
+    .finam-v2-pension__bar-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .finam-v2-pension__bar-track {
+      height: 14px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .finam-v2-pension__bar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    .finam-v2-pension__bar-val,
+    .finam-v2-pension__bar-pct {
+      text-align: right;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .finam-v2-pension__benefits {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-pension__benefit {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 9px;
+      background: #fff;
+      padding: 8px 10px;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 8px;
+      align-items: center;
+    }
+
+    .finam-v2-pension__benefit svg {
+      width: 22px;
+      height: 22px;
+      color: var(--finam-v2-color-accent-blue);
+    }
+
+    .finam-v2-pension__benefit-label {
+      font-size: 8.5px;
+      line-height: 1.18;
+      color: #64748b;
+      margin-bottom: 2px;
+    }
+
+    .finam-v2-pension__benefit-value {
+      font-size: 13px;
+      line-height: 1;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-pension__chart {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 10px 12px 8px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-pension__chart-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-pension__chart-title {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-pension__chart-total {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--finam-v2-color-accent-blue);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-pension__method-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 150px;
+      gap: 10px;
+      align-items: stretch;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 12px;
+      background: #fff;
+      padding: 8px 10px;
+      margin-bottom: 7px;
+    }
+
+    .finam-v2-pension__method-score {
+      border-left: 1px solid var(--finam-v2-color-border);
+      padding-left: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .finam-v2-pension__method-score-value {
+      font-family: var(--finam-v2-font-display);
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-pension__method-score-label {
+      margin-top: 5px;
+      font-size: 8.4px;
+      line-height: 1.25;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .finam-v2-pension__formula {
+      border-radius: 10px;
+      background: linear-gradient(135deg, #002a4a 0%, #1e6bb8 100%);
+      color: #fff;
+      padding: 8px 10px;
+      margin-bottom: 7px;
+    }
+
+    .finam-v2-pension__formula-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.8;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-pension__formula-main {
+      font-size: 13px;
+      line-height: 1.32;
+      font-weight: 700;
+    }
+
+    .finam-v2-pension__formula-note {
+      margin-top: 6px;
+      font-size: 9px;
+      line-height: 1.35;
+      opacity: 0.86;
+    }
+
+    .finam-v2-pension__steps {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .finam-v2-pension__step {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 9px;
+      background: #fff;
+      padding: 7px;
+      min-height: 84px;
+    }
+
+    .finam-v2-pension__step-num {
+      display: inline-flex;
+      width: 18px;
+      height: 18px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-pension__step-title {
+      font-size: 9px;
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-pension__step-text {
+      font-size: 8.5px;
+      line-height: 1.28;
+      color: #475569;
+    }
+
+    .finam-v2-pension__method-chart {
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+      margin-bottom: 7px;
+    }
+
+    .finam-v2-pension__method-bars {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+      height: 106px;
+      margin-top: 6px;
+      padding: 0 18px;
+    }
+
+    .finam-v2-pension__method-bar {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      height: 100%;
+      text-align: center;
+      gap: 5px;
+    }
+
+    .finam-v2-pension__method-bar-fill {
+      width: 46px;
+      min-height: 10px;
+      border-radius: 5px 5px 2px 2px;
+      background: var(--finam-v2-color-navy);
+    }
+
+    .finam-v2-pension__method-bar-value {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-pension__method-bar-label {
+      font-size: 8.4px;
+      line-height: 1.12;
+      color: #475569;
+    }
+
+    .finam-v2-pension__method-columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .finam-v2-pension__method-list {
+      margin: 0;
+      padding-left: 14px;
+      font-size: 8.8px;
+      line-height: 1.34;
+      color: #475569;
+    }
+
+    .finam-v2-pension__grow {
+      flex: 1;
+      min-height: 2px;
+    }
+
+    .finam-v2-pension__footer-rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 6px;
+    }
+
+    .finam-v2-pension__footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      color: var(--finam-v2-color-text-muted);
+      line-height: 1.35;
+    }
+
+    .finam-v2-pension__footer-right {
+      text-align: right;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Маппинг PENSION (prod: src/reports/finam/goal-page-pension-finam.html):
+    Стр. 1: retirement_year, state_pension_monthly_today/future, pension_gap_future,
+    inflation_rate, required_capital_at_retirement.
+    Стр. 2: initial_capital, monthly_replenishment, target_months/years_to_retirement,
+    accumulation_yield_percent, projected_capital_at_retirement, instrument_name,
+    capital_own / capital_yield_cofin_tax / capital_total, tax/cofinancing totals, schedule[] для графика.
+    Стр. 3: методика расчёта госпенсии: fixed_payment_today/future, ipk_current,
+    ipk_forecast, ipk_total, point_cost_today/future, indexation_rate,
+    years_to_retirement, desired_pension_income, pension_gap_future.
+    Картинка цели: assets/goal-pension.webp (копия assets/reports/goal-cards/gospensiya.webp для локального превью).
+  -->
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-pension__header">
+      <div class="finam-v2-pension__header-left">
+        <span class="finam-v2-pension__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-pension__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-pension__pill">Достойная пенсия · 1/3</span>
+    </header>
+    <hr class="finam-v2-pension__rule" />
+
+    <div class="finam-v2-pension__ai-row">
+      <div class="finam-v2-pension__avatar" role="img" aria-label="ИИ-ассистент">
+        <img src="assets/avatar-ai-finam-v2.svg" width="42" height="42" alt="" decoding="async" />
+      </div>
+      <div class="finam-v2-pension__bubble">
+        <p>
+          Главный вывод по цели <strong>«Достойная пенсия»</strong>: государственная выплата не закрывает
+          желаемый уровень дохода, поэтому план должен собрать отдельный капитал.
+        </p>
+      </div>
+    </div>
+
+    <section class="finam-v2-pension__hero">
+      <div>
+        <div class="finam-v2-pension__kicker">Пенсия · Ренессанс</div>
+        <h1 class="finam-v2-pension__title">Достойная пенсия</h1>
+        <p class="finam-v2-pension__text">
+          Цель — сохранить покупательную способность с учётом инфляции и к моменту выхода на пенсию
+          получать около <strong>607&nbsp;000 ₽/мес</strong>.
+        </p>
+      </div>
+      <div class="finam-v2-pension__hero-image">
+        <img src="assets/goal-pension.webp" width="156" height="116" alt="" decoding="async" />
+      </div>
+    </section>
+
+    <div class="finam-v2-pension__grid-2">
+      <section class="finam-v2-pension__card">
+        <div class="finam-v2-pension__card-title">Госпенсия</div>
+        <div class="finam-v2-pension__row"><span>Год выхода на пенсию</span><span>2055</span></div>
+        <div class="finam-v2-pension__row"><span>Прогноз в сегодняшних рублях</span><span>47&nbsp;282 ₽</span></div>
+        <div class="finam-v2-pension__row"><span>Прогноз с учётом инфляции</span><span>229&nbsp;589 ₽</span></div>
+        <div class="finam-v2-pension__row"><span>Инфляция модели</span><span>5,6%</span></div>
+      </section>
+      <section class="finam-v2-pension__card">
+        <div class="finam-v2-pension__card-title">Разрыв, который нужно закрыть капиталом</div>
+        <p class="finam-v2-pension__text">
+          Госпенсии не хватает до желаемого уровня: нехватка дохода к выходу на пенсию —
+          <strong>77&nbsp;718 ₽</strong> в сегодняшних рублях.
+        </p>
+        <div class="finam-v2-pension__big-value">377&nbsp;376 ₽</div>
+        <div class="finam-v2-pension__big-sub">пассивный доход к пенсии в месяц</div>
+      </section>
+    </div>
+
+    <section class="finam-v2-pension__capital">
+      <div>
+        <div class="finam-v2-pension__section-kicker">Капитал, который покупает будущий доход</div>
+        <p class="finam-v2-pension__text">
+          Ориентир доходности для выплат — вклад/облигации 8% в год. Тогда для нужного
+          пассивного дохода потребуется капитал примерно <strong>56,6 млн ₽</strong>.
+        </p>
+      </div>
+      <div class="finam-v2-pension__capital-value">56,6 млн ₽</div>
+    </section>
+
+    <p class="finam-v2-pension__section-kicker">5 параметров, которые держат цель в траектории</p>
+    <div class="finam-v2-pension__plan">
+      <div class="finam-v2-pension__metric">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 19V7l8-4 8 4v12M8 19v-6h8v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div class="finam-v2-pension__metric-label">Начальный капитал</div>
+        <div class="finam-v2-pension__metric-value">93&nbsp;408 ₽</div>
+      </div>
+      <div class="finam-v2-pension__metric">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+          <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <div class="finam-v2-pension__metric-label">Пополнение в месяц</div>
+        <div class="finam-v2-pension__metric-value">6&nbsp;249 ₽</div>
+      </div>
+      <div class="finam-v2-pension__metric">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5" />
+          <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <div class="finam-v2-pension__metric-label">Срок</div>
+        <div class="finam-v2-pension__metric-value">29 лет</div>
+      </div>
+      <div class="finam-v2-pension__metric">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 19V5M4 19h16M8 17l3-6 4 3 5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div class="finam-v2-pension__metric-label">Доходность портфеля</div>
+        <div class="finam-v2-pension__metric-value">14%</div>
+      </div>
+      <div class="finam-v2-pension__metric">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3v18M7 8h7a3 3 0 0 1 0 6H9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <div class="finam-v2-pension__metric-label">Капитал к пенсии</div>
+        <div class="finam-v2-pension__metric-value">56,6 млн</div>
+      </div>
+    </div>
+
+    <section class="finam-v2-pension__product">
+      <div>
+        <div class="finam-v2-pension__section-kicker">Основной инструмент накопления капитала</div>
+        <div class="finam-v2-pension__product-name">ПДС НПФ Ренессанс</div>
+        <div class="finam-v2-pension__row"><span>Тип</span><span>ПДС</span></div>
+        <div class="finam-v2-pension__row"><span>Доля в цели</span><span>100%</span></div>
+        <div class="finam-v2-pension__row"><span>Начальная сумма</span><span>93&nbsp;408 ₽</span></div>
+        <div class="finam-v2-pension__row"><span>Ежемесячное пополнение</span><span>6&nbsp;249 ₽</span></div>
+      </div>
+      <div class="finam-v2-pension__rate">
+        <div class="finam-v2-pension__rate-value">14%</div>
+        <div class="finam-v2-pension__rate-sub">годовых накопление</div>
+      </div>
+    </section>
+
+    <div class="finam-v2-pension__grow"></div>
+    <hr class="finam-v2-pension__footer-rule" />
+    <footer class="finam-v2-pension__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-pension__footer-right">Продолжение цели на следующей странице</span>
+    </footer>
+  </article>
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-pension__header">
+      <div class="finam-v2-pension__header-left">
+        <span class="finam-v2-pension__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-pension__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-pension__pill">Достойная пенсия · 2/3</span>
+    </header>
+    <hr class="finam-v2-pension__rule" />
+
+    <div class="finam-v2-pension__ai-row">
+      <div class="finam-v2-pension__avatar" role="img" aria-label="ИИ-ассистент">
+        <img src="assets/avatar-ai-finam-v2.svg" width="42" height="42" alt="" decoding="async" />
+      </div>
+      <div class="finam-v2-pension__bubble finam-v2-pension__bubble--green">
+        <p>
+          На этой странице видно качество капитала: собственные взносы запускают план, а основной эффект
+          создают время, инвестиционный доход, налоговые вычеты и софинансирование.
+        </p>
+      </div>
+    </div>
+
+    <p class="finam-v2-pension__section-kicker">Основной вклад создаёт время, а не только взносы</p>
+    <section class="finam-v2-pension__bars">
+      <div class="finam-v2-pension__bar-row">
+        <span>Собственные средства</span>
+        <div class="finam-v2-pension__bar-track">
+          <div class="finam-v2-pension__bar-fill" style="width: 30.2%; background: #002a4a;"></div>
+        </div>
+        <span class="finam-v2-pension__bar-val">17,1 млн ₽</span>
+        <span class="finam-v2-pension__bar-pct">30,2%</span>
+      </div>
+      <div class="finam-v2-pension__bar-row">
+        <span>Инвест. доход и льготы</span>
+        <div class="finam-v2-pension__bar-track">
+          <div class="finam-v2-pension__bar-fill" style="width: 69.8%; background: #4f8fd9;"></div>
+        </div>
+        <span class="finam-v2-pension__bar-val">39,5 млн ₽</span>
+        <span class="finam-v2-pension__bar-pct">69,8%</span>
+      </div>
+      <div class="finam-v2-pension__bar-row">
+        <span>Итоговый капитал</span>
+        <div class="finam-v2-pension__bar-track">
+          <div class="finam-v2-pension__bar-fill" style="width: 100%; background: #166534;"></div>
+        </div>
+        <span class="finam-v2-pension__bar-val">56,6 млн ₽</span>
+        <span class="finam-v2-pension__bar-pct">100%</span>
+      </div>
+    </section>
+
+    <section class="finam-v2-pension__capital" style="grid-template-columns: 1fr; text-align: center;">
+      <div>
+        <div class="finam-v2-pension__section-kicker">Итоговый капитал к пенсии</div>
+        <div class="finam-v2-pension__capital-value" style="text-align: center;">56&nbsp;606&nbsp;399 ₽</div>
+      </div>
+    </section>
+
+    <p class="finam-v2-pension__section-kicker">Софинансирование и вычеты</p>
+    <div class="finam-v2-pension__benefits">
+      <div class="finam-v2-pension__benefit">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h7M9 17h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div>
+          <div class="finam-v2-pension__benefit-label">Налоговый вычет за 2027 год</div>
+          <div class="finam-v2-pension__benefit-value">17&nbsp;910 ₽</div>
+        </div>
+      </div>
+      <div class="finam-v2-pension__benefit">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h7M9 17h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div>
+          <div class="finam-v2-pension__benefit-label">Налоговые вычеты за весь период</div>
+          <div class="finam-v2-pension__benefit-value">697&nbsp;659 ₽</div>
+        </div>
+      </div>
+      <div class="finam-v2-pension__benefit">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M18 8v6M15 11h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <div>
+          <div class="finam-v2-pension__benefit-label">Софинансирование за 2027 год</div>
+          <div class="finam-v2-pension__benefit-value">36&nbsp;000 ₽</div>
+        </div>
+      </div>
+      <div class="finam-v2-pension__benefit">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M18 8v6M15 11h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <div>
+          <div class="finam-v2-pension__benefit-label">Всего софинансирование за период плана</div>
+          <div class="finam-v2-pension__benefit-value">360&nbsp;000 ₽</div>
+        </div>
+      </div>
+    </div>
+
+    <section class="finam-v2-pension__chart">
+      <div class="finam-v2-pension__chart-head">
+        <div class="finam-v2-pension__chart-title">Прогноз капитала: 2026 — 2055</div>
+        <div class="finam-v2-pension__chart-total">56,6 млн ₽</div>
+      </div>
+      <svg viewBox="0 0 500 210" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="finamV2PensionChartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1e6bb8" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#1e6bb8" stop-opacity="0.01"/>
+          </linearGradient>
+        </defs>
+        <line x1="44" y1="172" x2="486" y2="172" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="44" y1="136" x2="486" y2="136" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="44" y1="100" x2="486" y2="100" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="44" y1="64" x2="486" y2="64" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="44" y1="28" x2="486" y2="28" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="44" y1="28" x2="44" y2="172" stroke="#cbd5e1" stroke-width="1"/>
+        <line x1="44" y1="172" x2="486" y2="172" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="38" y="175" font-size="8" fill="#64748b" text-anchor="end">0</text>
+        <text x="38" y="139" font-size="8" fill="#64748b" text-anchor="end">15м</text>
+        <text x="38" y="103" font-size="8" fill="#64748b" text-anchor="end">30м</text>
+        <text x="38" y="67" font-size="8" fill="#64748b" text-anchor="end">45м</text>
+        <text x="38" y="31" font-size="8" fill="#64748b" text-anchor="end">60м</text>
+        <path d="M44,170 L88,166 L132,160 L176,151 L220,138 L264,121 L308,100 L352,76 L396,52 L440,35 L486,22 L486,172 L44,172 Z" fill="url(#finamV2PensionChartGrad)"/>
+        <polyline points="44,170 88,166 132,160 176,151 220,138 264,121 308,100 352,76 396,52 440,35 486,22" fill="none" stroke="#1e6bb8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <g fill="#fff" stroke="#1e6bb8" stroke-width="1.6">
+          <circle cx="44" cy="170" r="3"/>
+          <circle cx="132" cy="160" r="3"/>
+          <circle cx="220" cy="138" r="3"/>
+          <circle cx="308" cy="100" r="3"/>
+          <circle cx="396" cy="52" r="3"/>
+          <circle cx="486" cy="22" r="3"/>
+        </g>
+        <text x="44" y="193" font-size="8" fill="#64748b" text-anchor="middle">2026</text>
+        <text x="132" y="193" font-size="8" fill="#64748b" text-anchor="middle">2032</text>
+        <text x="220" y="193" font-size="8" fill="#64748b" text-anchor="middle">2038</text>
+        <text x="308" y="193" font-size="8" fill="#64748b" text-anchor="middle">2044</text>
+        <text x="396" y="193" font-size="8" fill="#64748b" text-anchor="middle">2050</text>
+        <text x="486" y="193" font-size="8" fill="#64748b" text-anchor="middle">2055</text>
+      </svg>
+    </section>
+
+    <div class="finam-v2-pension__ai-row">
+      <div class="finam-v2-pension__avatar" role="img" aria-label="ИИ-ассистент">
+        <img src="assets/avatar-ai-finam-v2.svg" width="42" height="42" alt="" decoding="async" />
+      </div>
+      <div class="finam-v2-pension__bubble finam-v2-pension__bubble--green">
+        <p>
+          <strong>Ключевой вывод:</strong> самый большой вклад даёт время. Собственные взносы запускают план,
+          но итоговый капитал формируется в основном за счёт инвестиционного дохода на длинном горизонте.
+        </p>
+      </div>
+    </div>
+
+    <div class="finam-v2-pension__grow"></div>
+    <hr class="finam-v2-pension__footer-rule" />
+    <footer class="finam-v2-pension__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-pension__footer-right">Методика расчёта госпенсии на следующей странице</span>
+    </footer>
+  </article>
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-pension__header">
+      <div class="finam-v2-pension__header-left">
+        <span class="finam-v2-pension__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-pension__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-pension__pill">Достойная пенсия · 3/3</span>
+    </header>
+    <hr class="finam-v2-pension__rule" />
+
+    <div class="finam-v2-pension__ai-row">
+      <div class="finam-v2-pension__avatar" role="img" aria-label="ИИ-ассистент">
+        <img src="assets/avatar-ai-finam-v2.svg" width="42" height="42" alt="" decoding="async" />
+      </div>
+      <div class="finam-v2-pension__bubble">
+        <p>
+          Госпенсия в отчёте — не обещание выплаты, а модельный ориентир. Она нужна, чтобы увидеть
+          пенсионный разрыв и понять, какой доход должен закрывать личный капитал.
+        </p>
+      </div>
+    </div>
+
+    <section class="finam-v2-pension__method-hero">
+      <div>
+        <div class="finam-v2-pension__kicker">Методика расчёта госпенсии</div>
+        <h1 class="finam-v2-pension__title">Как рассчитан прогноз государственной пенсии</h1>
+        <p class="finam-v2-pension__text">
+          Сначала оцениваем пенсионные права в сегодняшних рублях: фиксированную выплату и пенсионные
+          коэффициенты. Затем индексируем результат до года выхода на пенсию и сравниваем с желаемым доходом.
+        </p>
+      </div>
+      <aside class="finam-v2-pension__method-score">
+        <div class="finam-v2-pension__method-score-value">47&nbsp;282 ₽</div>
+        <div class="finam-v2-pension__method-score-label">оценка госпенсии в сегодняшних рублях</div>
+      </aside>
+    </section>
+
+    <section class="finam-v2-pension__formula" aria-label="Формула расчёта государственной пенсии">
+      <div class="finam-v2-pension__formula-title">Базовая логика</div>
+      <div class="finam-v2-pension__formula-main">
+        Госпенсия = фиксированная выплата + ИПК × стоимость ИПК
+      </div>
+      <p class="finam-v2-pension__formula-note">
+        Входы модели: фиксированная выплата 8&nbsp;907 ₽, прогноз ИПК 263,4,
+        стоимость ИПК 145,69 ₽. Сегодня: 8&nbsp;907 + 263,4 × 145,69 ≈ 47&nbsp;282 ₽.
+        К году пенсии: 47&nbsp;282 ₽ × (1 + 5,6%)<sup>29</sup> ≈ 229&nbsp;589 ₽/мес.
+      </p>
+    </section>
+
+    <p class="finam-v2-pension__section-kicker">4 шага расчёта</p>
+    <section class="finam-v2-pension__steps">
+      <article class="finam-v2-pension__step">
+        <span class="finam-v2-pension__step-num">1</span>
+        <div class="finam-v2-pension__step-title">Права сегодня</div>
+        <p class="finam-v2-pension__step-text">Берём фиксированную выплату, ИПК и стоимость одного ИПК по текущим правилам.</p>
+      </article>
+      <article class="finam-v2-pension__step">
+        <span class="finam-v2-pension__step-num">2</span>
+        <div class="finam-v2-pension__step-title">Год пенсии</div>
+        <p class="finam-v2-pension__step-text">Определяем горизонт до выхода на пенсию: в этом сценарии — 29 лет, до 2055 года.</p>
+      </article>
+      <article class="finam-v2-pension__step">
+        <span class="finam-v2-pension__step-num">3</span>
+        <div class="finam-v2-pension__step-title">Индексация</div>
+        <p class="finam-v2-pension__step-text">Переводим сегодняшнюю оценку в будущие рубли через модельную индексацию 5,6% в год.</p>
+      </article>
+      <article class="finam-v2-pension__step">
+        <span class="finam-v2-pension__step-num">4</span>
+        <div class="finam-v2-pension__step-title">Разрыв дохода</div>
+        <p class="finam-v2-pension__step-text">Сравниваем госпенсию с желаемым доходом и считаем, что должен закрыть личный капитал.</p>
+      </article>
+    </section>
+
+    <section class="finam-v2-pension__method-chart">
+      <div class="finam-v2-pension__chart-head">
+        <div class="finam-v2-pension__chart-title">От госпенсии к личному пенсионному капиталу</div>
+        <div class="finam-v2-pension__chart-total">разрыв 377,4 тыс ₽/мес</div>
+      </div>
+      <div class="finam-v2-pension__method-bars" aria-label="Сравнение желаемого дохода, госпенсии и разрыва">
+        <div class="finam-v2-pension__method-bar">
+          <div class="finam-v2-pension__method-bar-value">607&nbsp;000 ₽</div>
+          <div class="finam-v2-pension__method-bar-fill" style="height: 86px; background: #002a4a;"></div>
+          <div class="finam-v2-pension__method-bar-label">желаемый доход на пенсии</div>
+        </div>
+        <div class="finam-v2-pension__method-bar">
+          <div class="finam-v2-pension__method-bar-value">229&nbsp;589 ₽</div>
+          <div class="finam-v2-pension__method-bar-fill" style="height: 33px; background: #7aa6d6;"></div>
+          <div class="finam-v2-pension__method-bar-label">прогноз госпенсии</div>
+        </div>
+        <div class="finam-v2-pension__method-bar">
+          <div class="finam-v2-pension__method-bar-value">377&nbsp;376 ₽</div>
+          <div class="finam-v2-pension__method-bar-fill" style="height: 54px; background: #1e6bb8;"></div>
+          <div class="finam-v2-pension__method-bar-label">доход из личного капитала</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="finam-v2-pension__method-columns">
+      <div class="finam-v2-pension__card">
+        <div class="finam-v2-pension__card-title">Что учитываем</div>
+        <ul class="finam-v2-pension__method-list">
+          <li>текущую оценку пенсионных прав;</li>
+          <li>год выхода на пенсию и горизонт расчёта;</li>
+          <li>модельную индексацию 5,6% в год;</li>
+          <li>желаемый уровень дохода клиента.</li>
+        </ul>
+      </div>
+      <div class="finam-v2-pension__card">
+        <div class="finam-v2-pension__card-title">Что не гарантируем</div>
+        <ul class="finam-v2-pension__method-list">
+          <li>будущие правила СФР и пенсионного законодательства;</li>
+          <li>фактический стаж, зарплату и будущие ИПК;</li>
+          <li>точную индексацию и размер выплаты;</li>
+          <li>покупательную способность без пересчёта плана.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="finam-v2-pension__capital" style="padding: 8px 10px; margin-bottom: 4px;">
+      <div>
+        <div class="finam-v2-pension__section-kicker">Вывод для финансового плана</div>
+        <p class="finam-v2-pension__text">
+          Методика показывает не точную будущую выплату, а масштаб задачи. Чтобы закрыть разрыв
+          около <strong>377&nbsp;376 ₽/мес</strong>, план формирует личный пенсионный капитал.
+        </p>
+      </div>
+      <div class="finam-v2-pension__capital-value">56,6 млн ₽</div>
+    </section>
+
+    <div class="finam-v2-pension__grow"></div>
+    <hr class="finam-v2-pension__footer-rule" />
+    <footer class="finam-v2-pension__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-pension__footer-right">Расчёт госпенсии является модельным ориентиром</span>
+    </footer>
+  </article>
+</body>
+</html>

@@ -1,0 +1,66 @@
+Finam Report v2 — порядок макетов (черновик).
+
+Типографика: Source Serif 4 (заголовки) + Source Sans 3 (тело) — <link> в page-cover / page-intro, tokens.css только переменные.
+  Если «как раньше»: Ctrl+F5 или инкогнито; без доступа к fonts.googleapis.com загрузятся системные Times / Segoe.
+
+Локальный просмотр из каталога src/reports/finam_v2:
+  python -m http.server 8766
+  Все макеты в одном окне: http://127.0.0.1:8766/preview-merged.html
+  По отдельности: http://127.0.0.1:8766/page-cover-v2.html
+                  http://127.0.0.1:8766/page-intro-v2.html
+                  http://127.0.0.1:8766/page-current-state-v2.html
+                  http://127.0.0.1:8766/page-goals-v2.html
+                  http://127.0.0.1:8766/page-executive-summary-v2.html
+                  http://127.0.0.1:8766/page-goal-fin-reserve-v2.html
+                  http://127.0.0.1:8766/page-goal-life-v2.html
+                  http://127.0.0.1:8766/page-goal-pension-v2.html
+                  http://127.0.0.1:8766/page-goal-passive-income-v2.html
+                  http://127.0.0.1:8766/page-goal-save-grow-v2.html
+                  http://127.0.0.1:8766/page-goal-other-v2.html
+                  http://127.0.0.1:8766/page-portfolio-summary-v2.html
+                  http://127.0.0.1:8766/page-tax-planning-v2.html
+                  http://127.0.0.1:8766/page-comon-autofollow-v2.html
+                  http://127.0.0.1:8766/page-idu-strategies-v2.html
+                  http://127.0.0.1:8766/page-finam-offers-v2.html
+                  http://127.0.0.1:8766/page-inflation-v2.html
+                  http://127.0.0.1:8766/page-scenarios-v2.html
+                  http://127.0.0.1:8766/page-roadmap-v2.html
+                  http://127.0.0.1:8766/page-detailed-plan-v2.html
+                  http://127.0.0.1:8766/page-risk-declaration-v2.html
+                  http://127.0.0.1:8766/page-partner-value-v2.html
+  Скриншоты: из корня репо при запущенном сервере на 8766 —
+    node scripts/finam_v2_preview_screenshots.js
+    (или FINAM_V2_PREVIEW_URL=http://127.0.0.1:8766)
+
+Ассеты:
+  assets/cover-bg.png — фон нижней зоны обложки (дом у озера)
+  assets/icon-roadmap.png, icon-control.png, icon-freedom.png — иконки трёх карточек на page-intro-v2
+  assets/avatar-ai-finam-v2.svg — аватар ИИ на page-current-state-v2 (можно заменить на фото/data URL)
+  assets/goal-reserve.webp, goal-lifeinsurance.webp, goal-pension.webp,
+  goal-passive-income.webp, goal-save-grow.webp, goal-other-*.webp — локальные копии goal-cards для v2-превью
+
+Страницы:
+  1. page-cover-v2.html — обложка
+  2. page-intro-v2.html — введение
+  3. page-current-state-v2.html — текущее состояние (McKinsey-style; аналог prod page-3-family-finam)
+  4. page-goals-v2.html — диагностика портфеля целей: Защита / Накопления / Пенсия, распределение, таблица (сейчас + инфляция), «Что важно»
+  5. page-executive-summary-v2.html — управленческий вывод после диагностики целей: главный вывод, риск, рекомендуемый сценарий
+  6. page-goal-fin-reserve-v2.html — цель FIN_RESERVE / Финансовый резерв, перед LIFE
+  7. page-goal-life-v2.html — цель LIFE / Защита жизни, после финансового резерва
+  8. page-goal-pension-v2.html — цель PENSION / Достойная пенсия, 3 листа в одном HTML, включая методику расчёта госпенсии
+  9. page-goal-passive-income-v2.html — цель PASSIVE_INCOME / Пассивный доход, 2 листа в одном HTML, без госпенсии
+  10. page-goal-save-grow-v2.html — цель «Сохранить и приумножить», 2 листа в одном HTML
+  11. page-goal-other-v2.html — крупная покупка (квартира, дом, образование и т.д.), 2 листа в одном HTML
+  12. page-portfolio-summary-v2.html — итоговый портфель: две allocation-диаграммы (старт/пополнение), ликвидность, риски, принципы, 2 листа в одном HTML
+  13. page-tax-planning-v2.html — налоговое планирование: KPI, структура льгот, after-tax impact, compliance, один лист
+  14. page-comon-autofollow-v2.html — автоследование Comon, 2 листа в одном HTML
+  15. page-idu-strategies-v2.html — ДУ / стратегии Финам Фонды, 2 листа в одном HTML
+  16. page-finam-offers-v2.html — спецпредложения Финам для новых клиентов
+  17. page-inflation-v2.html — инфляция, ключевая ставка, ОФЗ и корпоративный облигационный контур
+  18. page-scenarios-v2.html — базовый / стресс / оптимистичный сценарии
+  19. page-roadmap-v2.html — дорожная карта 90 дней / 12 месяцев / 3 года
+  20. page-detailed-plan-v2.html — подробный план пополнений, 2 листа в одном HTML
+  21. page-risk-declaration-v2.html — декларация о рисках: продукты, компании, матрица Риск/Доходность, продуктовые риски, протокол контроля, 5 листов в одном HTML
+  22. page-partner-value-v2.html — партнёрская ценность (может скрываться в клиентском PDF)
+
+Интеграция в PDF/API — отдельная задача (buildFinamReportV2*, FINAM_REPORT_VERSION).

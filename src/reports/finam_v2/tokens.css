@@ -1,0 +1,36 @@
+/**
+ * Finam Report v2 — только переменные и цвета.
+ * Шрифты подключаются в HTML через <link> (быстрее и без залипания кеша на @import).
+ */
+:root {
+  --finam-v2-color-navy: #003d6b;
+  --finam-v2-color-navy-deep: #002a4a;
+  --finam-v2-color-text: #0f172a;
+  --finam-v2-color-text-muted: #475569;
+  --finam-v2-color-border: #e2e8f0;
+  --finam-v2-color-surface: #ffffff;
+  --finam-v2-color-accent-soft: #e6f0ff;
+  --finam-v2-color-accent-blue: #1e6bb8;
+  --finam-v2-color-check: #0b6bcb;
+  --finam-v2-color-positive: #166534;
+  --finam-v2-color-positive-soft: #ecfdf5;
+  --finam-v2-color-warning: #b45309;
+  --finam-v2-color-warning-soft: #fff7ed;
+  --finam-v2-color-danger: #b91c1c;
+  --finam-v2-color-danger-soft: #fef2f2;
+  --finam-v2-font-stack: 'Source Sans 3', 'Source Sans', 'Segoe UI', system-ui, -apple-system,
+    BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --finam-v2-font-display: 'Source Serif 4', 'Source Serif', 'Times New Roman', Times, Georgia, serif;
+  --finam-v2-page-pad-x: 40px;
+  --finam-v2-page-pad-y: 32px;
+  --finam-v2-radius-card: 10px;
+  --finam-v2-radius-pill: 999px;
+  --finam-v2-font-size-body: 10.5px;
+  --finam-v2-font-size-caption: 8.5px;
+  --finam-v2-font-size-label: 9px;
+  --finam-v2-font-size-section: 9px;
+  --finam-v2-font-size-kpi: 22px;
+  --finam-v2-line-body: 1.38;
+  --finam-v2-line-tight: 1.16;
+  --finam-v2-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
