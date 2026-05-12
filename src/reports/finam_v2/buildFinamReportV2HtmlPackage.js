@@ -901,8 +901,9 @@ async function buildFinamReportV2HtmlPackage({
     includeSummary = true,
     goalTypes = null,
     includePartnerValue = false,
+    advisor = null,
 } = {}) {
-    const model = buildV2Model(report, { goalTypes });
+    const model = buildV2Model(report, { goalTypes, advisor });
     return buildFinamV2TemplatePackage({
         model,
         includeCover,

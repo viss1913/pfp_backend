@@ -4,6 +4,7 @@ const { injectReportPdfPageFillA4 } = require('../utils/injectReportPdfPageFillA
 const { renderHtmlToPdfBuffer } = require('../utils/renderHtmlToPdfBuffer');
 const { mergePdfBuffers } = require('../utils/mergePdfBuffers');
 const pdfSettingsService = require('./pdfSettingsService');
+const agentService = require('./agentService');
 const macroService = require('./macroService');
 const { buildReportCoverHtml } = require('../reports/cover/buildCoverHtml');
 const { buildComonAutofollowPageHtml } = require('../reports/summary/buildSummaryOverviewHtml');
@@ -19,6 +20,29 @@ const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 
 const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'RENT', 'INVESTMENT', 'OTHER'];
+
+function buildAdvisorFromAgent(agent) {
+    if (!agent) return null;
+    const parts = [agent.last_name, agent.first_name, agent.middle_name]
+        .map((part) => (part == null ? '' : String(part).trim()))
+        .filter(Boolean);
+    return {
+        fullName: parts.join(' ') || 'Финансовый консультант',
+        email: String(agent.email || agent.email_corp || '').trim(),
+        phone: String(agent.phone || '').trim(),
+    };
+}
+
+async function resolveReportAdvisor({ agentId, brandingAgentId, projectId }) {
+    const rawId =
+        brandingAgentId !== undefined
+            ? brandingAgentId
+            : agentId;
+    const id = rawId != null && rawId !== '' ? Number(rawId) : NaN;
+    if (!Number.isFinite(id) || id <= 0) return null;
+    const agent = await agentService.getAgentById(id, projectId);
+    return buildAdvisorFromAgent(agent);
+}
 
 function normalizeGoalTypes(goalTypesRaw) {
     if (!goalTypesRaw) return null;
@@ -304,6 +328,7 @@ class ReportPdfService {
         } else {
             pdfSettings = await pdfSettingsService.getByAgentId(agentId, projectId);
         }
+        const reportAdvisor = await resolveReportAdvisor({ agentId, brandingAgentId, projectId });
 
         const pageHtmlList = [];
         let toc = null;
@@ -394,6 +419,7 @@ class ReportPdfService {
                     includeCover,
                     includeSummary,
                     goalTypes,
+                    advisor: reportAdvisor || undefined,
                 });
                 pageHtmlList.push(...finamV2Pkg.pageHtmlList);
                 toc = finamV2Pkg.toc;
