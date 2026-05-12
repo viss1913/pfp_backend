@@ -409,6 +409,246 @@ function replaceCurrentStatePage(html, { model, helpers }) {
     return out;
 }
 
+function formatPercentValue(value, digits = 1) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '—';
+    return `${n.toLocaleString('ru-RU', { maximumFractionDigits: digits })}%`;
+}
+
+function moneyNoCurrencyHtml(helpers, value, opts = {}) {
+    return moneyHtml(helpers, value, opts)
+        .replace(/&nbsp;₽\/мес$/, '')
+        .replace(/&nbsp;₽$/, '');
+}
+
+function inlineGoalIconSvg(pageType) {
+    const pathByType = {
+        [FINAM_REPORT_V2_PAGE_TYPES.GOAL_FIN_RESERVE]: '<path d="M12 3l8 4v6c0 5-8 8-8 8s-8-3-8-8V7l8-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />',
+        [FINAM_REPORT_V2_PAGE_TYPES.GOAL_LIFE]: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />',
+        [FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION]: '<path d="M12 8v8M8 12h8M4 19h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />',
+        [FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME]: '<path d="M4 19V5M4 19h16M8 17l3-6 4 3 5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />',
+        [FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW]: '<path d="M4 18h4l10-10M9 5h4v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />',
+    };
+    return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">${pathByType[pageType] || '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />'}</svg>`;
+}
+
+function groupIconSvg(groupId) {
+    const paths = {
+        protection: '<path d="M12 3l7 4v5c0 5-3 9-7 11-4-2-7-6-7-11V7l7-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />',
+        savings: '<rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5" /><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />',
+        pension: '<path d="M4 19V5M4 19h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><path d="M7 15l4-5 3 3 5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />',
+    };
+    return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">${paths[groupId] || paths.savings}</svg>`;
+}
+
+function insightIconSvg() {
+    return '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>';
+}
+
+function takeawayIconSvg() {
+    return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" /><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>';
+}
+
+function buildGoalsPillarsHtml(diagnostics, helpers) {
+    const groups = Array.isArray(diagnostics?.groups) ? diagnostics.groups : [];
+    return `<div class="finam-v2-goals__pillars">
+      ${groups.map((group) => {
+        const rows = (group.goals || []).slice(0, 3).map((goal) => `<div class="finam-v2-goals__pillar-line">
+          <span>${escapeHtml(goal.title)}</span>
+          <span>${moneyHtml(helpers, goal.monthly)}</span>
+        </div>`).join('\n        ');
+        const rest = (group.goals || []).length > 3
+            ? `<div class="finam-v2-goals__pillar-line">
+          <span>Ещё ${(group.goals || []).length - 3}</span>
+          <span>ц.</span>
+        </div>`
+            : '';
+        return `<div class="finam-v2-goals__pillar">
+        <div class="finam-v2-goals__pillar-head">
+          ${groupIconSvg(group.id)}
+          <span class="finam-v2-goals__pillar-title">${escapeHtml(group.title)}</span>
+        </div>
+        ${rows || '<div class="finam-v2-goals__pillar-line"><span>Нет целей</span><span>—</span></div>'}
+        ${rest}
+        <div class="finam-v2-goals__pillar-total">
+          <span>Итого</span>
+          <span>${moneyHtml(helpers, group.monthly, { perMonth: true })}</span>
+        </div>
+      </div>`;
+    }).join('\n      ')}
+    </div>`;
+}
+
+function buildGoalsDistributionHtml(diagnostics, helpers) {
+    const colors = ['#002a4a', '#1e6bb8', '#93c5fd'];
+    const groups = (Array.isArray(diagnostics?.groups) ? diagnostics.groups : []).filter((group) => group.monthly > 0);
+    const segments = groups.length
+        ? groups.map((group, index) => `<div class="finam-v2-goals__stack-seg" style="width: ${Math.max(group.percent, 0).toFixed(3)}%; background: ${colors[index % colors.length]};"></div>`).join('\n          ')
+        : '<div class="finam-v2-goals__stack-seg" style="width: 100%; background: #cbd5e1;"></div>';
+    const legend = groups.length
+        ? groups.map((group) => `<div class="finam-v2-goals__legend-row"><strong>${escapeHtml(formatPercentValue(group.percent))}</strong> ${escapeHtml(group.title)} — ${moneyHtml(helpers, group.monthly, { perMonth: true })}</div>`).join('\n          ')
+        : '<div class="finam-v2-goals__legend-row"><strong>—</strong> Цели с пополнениями не найдены</div>';
+    const insights = (Array.isArray(diagnostics?.insights) ? diagnostics.insights : [])
+        .slice(0, 4)
+        .map((text) => `<li>
+            ${insightIconSvg()}
+            <span>${escapeHtml(text)}</span>
+          </li>`)
+        .join('\n          ');
+
+    return `<div class="finam-v2-goals__dist">
+      <div class="finam-v2-goals__dist-left">
+        <div class="finam-v2-goals__stack-wrap" aria-hidden="true">
+          ${segments}
+        </div>
+        <div class="finam-v2-goals__legend">
+          ${legend}
+        </div>
+      </div>
+      <div class="finam-v2-goals__insights">
+        <div class="finam-v2-goals__insights-title">Что меняет решение</div>
+        <ul>
+          ${insights || `<li>${insightIconSvg()}<span>После добавления целей здесь появятся расчётные выводы.</span></li>`}
+        </ul>
+      </div>
+    </div>`;
+}
+
+function buildGoalsTableRowsHtml(diagnostics, helpers) {
+    const rows = Array.isArray(diagnostics?.tableRows) ? diagnostics.tableRows : [];
+    const body = rows.map((row) => `<tr>
+            <td>
+              <div class="finam-v2-goals__cell-goal">
+                ${inlineGoalIconSvg(row.pageType)}
+                <strong>${escapeHtml(row.title)}</strong>
+              </div>
+            </td>
+            <td class="num">${escapeHtml(row.term || '—')}</td>
+            <td class="num">${row.monthly > 0 ? moneyNoCurrencyHtml(helpers, row.monthly) : '—'}</td>
+            <td class="num">${row.capital > 0 ? moneyNoCurrencyHtml(helpers, row.capital, { short: true }) : '—'}</td>
+            <td class="num">${row.costNow > 0 ? moneyNoCurrencyHtml(helpers, row.costNow, { short: true }) : '—'}</td>
+            <td class="num">${row.costFuture > 0 ? moneyNoCurrencyHtml(helpers, row.costFuture, { short: true }) : '—'}</td>
+          </tr>`).join('\n          ');
+    const rest = diagnostics?.remainingCount > 0
+        ? `<tr><td colspan="6">Ещё ${Number(diagnostics.remainingCount).toLocaleString('ru-RU')} ${pluralRu(diagnostics.remainingCount, 'цель', 'цели', 'целей')} показаны в детальных разделах отчёта.</td></tr>`
+        : '';
+    return body || rest ? `${body}${rest ? `\n          ${rest}` : ''}` : '<tr><td colspan="6">Цели не найдены</td></tr>';
+}
+
+function buildGoalsTakeawaysHtml(diagnostics) {
+    const takeaways = (Array.isArray(diagnostics?.takeaways) ? diagnostics.takeaways : []).slice(0, 3);
+    return `<div class="finam-v2-goals__takeaways">
+      ${takeaways.map((text) => `<div class="finam-v2-goals__takeaway">
+        ${takeawayIconSvg()}
+        <p>${escapeHtml(text)}</p>
+      </div>`).join('\n      ') || `<div class="finam-v2-goals__takeaway">${takeawayIconSvg()}<p>После расчёта целей здесь появятся управленческие выводы.</p></div>`}
+    </div>`;
+}
+
+function replaceGoalsPage(html, { model, helpers }) {
+    const diagnostics = model?.goalsDiagnostics || {};
+    let out = String(html || '');
+
+    out = out.replace(
+        /<h1 class="finam-v2-goals__hero">[\s\S]*?<\/h1>/,
+        `<h1 class="finam-v2-goals__hero">${escapeHtml(diagnostics.headline || 'Портфель целей сформирован по расчётам')}</h1>`
+    );
+    out = out.replace(
+        /<p class="finam-v2-goals__sub">[\s\S]*?<\/p>/,
+        `<p class="finam-v2-goals__sub">${escapeHtml(diagnostics.subline || 'Цифры на странице собраны из расчётной модели клиента.')}</p>`
+    );
+    out = out.replace(
+        /<div class="finam-v2-goals__pillars">[\s\S]*?<\/div>\s*\n\s*<p class="finam-v2-goals__section-kicker">Распределение ежемесячного ресурса<\/p>/,
+        `${buildGoalsPillarsHtml(diagnostics, helpers)}\n\n    <p class="finam-v2-goals__section-kicker">Распределение ежемесячного ресурса</p>`
+    );
+    out = out.replace(
+        /<div class="finam-v2-goals__dist">[\s\S]*?<\/div>\s*\n\s*<p class="finam-v2-goals__section-kicker">Ключевые цели \(детализация\)<\/p>/,
+        `${buildGoalsDistributionHtml(diagnostics, helpers)}\n\n    <p class="finam-v2-goals__section-kicker">Ключевые цели (детализация)</p>`
+    );
+    out = out.replace(
+        /(<tbody>\s*)[\s\S]*?(\s*<\/tbody>)/,
+        (_match, before, after) => `${before}${buildGoalsTableRowsHtml(diagnostics, helpers)}${after}`
+    );
+    out = out.replace(
+        /<div class="finam-v2-goals__takeaways">[\s\S]*?<\/div>\s*\n\s*<div class="finam-v2-goals__grow"><\/div>/,
+        `${buildGoalsTakeawaysHtml(diagnostics)}\n\n    <div class="finam-v2-goals__grow"></div>`
+    );
+    return out;
+}
+
+function buildExecutiveSplitHtml(decision) {
+    return `<section class="finam-v2-wow__split">
+      <div class="finam-v2-wow__insight">
+        <strong>Ключевой вывод:</strong> ${escapeHtml(decision.keyInsight || 'План требует регулярного пересчёта по фактическим данным клиента.')}
+      </div>
+      <div class="finam-v2-wow__score">
+        <div class="finam-v2-wow__score-value">${escapeHtml(decision.sustainabilityIndex || '—')}</div>
+        <div class="finam-v2-wow__score-label">индекс финансовой устойчивости из 10</div>
+      </div>
+    </section>`;
+}
+
+function buildExecutiveCardsHtml(decision) {
+    const titleByKind = {
+        risk: 'Главный риск',
+        lever: 'Главный рычаг',
+        effect: 'Главный эффект',
+    };
+    const classByKind = {
+        risk: ' finam-v2-wow__card--warn',
+        lever: ' finam-v2-wow__card--green',
+        effect: '',
+    };
+    const cards = Array.isArray(decision?.cards) ? decision.cards.slice(0, 3) : [];
+    return `<div class="finam-v2-wow__grid-3">
+      ${cards.map((card) => `<section class="finam-v2-wow__card${classByKind[card.kind] || ''}">
+        <div class="finam-v2-wow__card-title">${escapeHtml(titleByKind[card.kind] || card.title || 'Показатель')}</div>
+        <div class="finam-v2-wow__metric">${escapeHtml(card.metric || '—')}</div>
+        <p class="finam-v2-wow__metric-sub">${escapeHtml(card.body || '')}</p>
+      </section>`).join('\n      ')}
+    </div>`;
+}
+
+function buildExecutiveRowsHtml(decision) {
+    const rows = Array.isArray(decision?.decisionRows) ? decision.decisionRows.slice(0, 3) : [];
+    return rows.map((row) => `<tr>
+          <td><strong>${escapeHtml(row.decision || 'Решение')}</strong></td>
+          <td>${escapeHtml(row.why || '—')}</td>
+          <td>${escapeHtml(row.nextStep || '—')}</td>
+        </tr>`).join('\n        ') || '<tr><td colspan="3">Сценарий будет собран после расчёта плана.</td></tr>';
+}
+
+function replaceExecutiveSummaryPage(html, { model }) {
+    const decision = model?.executiveDecision || {};
+    let out = String(html || '');
+
+    out = out.replace(
+        /<h1 class="finam-v2-wow__headline">[\s\S]*?<\/h1>/,
+        `<h1 class="finam-v2-wow__headline">${escapeHtml(decision.headline || 'Управленческий вывод собран из расчётов')}</h1>`
+    );
+    out = out.replace(
+        /<p class="finam-v2-wow__lead">[\s\S]*?<\/p>/,
+        `<p class="finam-v2-wow__lead">${escapeHtml(decision.lead || 'Страница использует заранее подготовленные сценарии и фактические цифры клиента.')}</p>`
+    );
+    out = out.replace(
+        /<section class="finam-v2-wow__split">[\s\S]*?<\/section>/,
+        buildExecutiveSplitHtml(decision)
+    );
+    out = out.replace(
+        /<div class="finam-v2-wow__grid-3">[\s\S]*?<\/div>\s*\n\s*<table class="finam-v2-wow__table">/,
+        `${buildExecutiveCardsHtml(decision)}\n\n    <table class="finam-v2-wow__table">`
+    );
+    out = out.replace(
+        /(<tbody>\s*)[\s\S]*?(\s*<\/tbody>)/,
+        (_match, before, after) => `${before}${buildExecutiveRowsHtml(decision)}${after}`
+    );
+    out = out.replace(
+        /(<section class="finam-v2-wow__card finam-v2-wow__card--soft">\s*<div class="finam-v2-wow__card-title">Рекомендованный сценарий<\/div>\s*<p class="finam-v2-wow__card-body">)[\s\S]*?(<\/p>\s*<\/section>)/,
+        (_match, before, after) => `${before}\n        ${escapeHtml(decision.recommendedScenario || 'Следующий шаг зависит от фактического cash flow и приоритетов целей.')}\n      ${after}`
+    );
+    return out;
+}
+
 function replaceCommonSamples(html, { model, helpers }) {
     const portfolioValue = formatMoneyWith(helpers, model?.portfolio?.projectedTotal || 0, { short: true });
     const initialValue = formatMoneyWith(helpers, model?.portfolio?.initialTotal || 0, { short: true });
@@ -520,10 +760,20 @@ function replaceGoalSamples(html, { pageType, goal, helpers }) {
 }
 
 function applyTemplateData(html, context = {}) {
-    let out = replaceCommonSamples(html, context);
+    const isStructuredSummaryPage = [
+        FINAM_REPORT_V2_PAGE_TYPES.GOALS,
+        FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY,
+    ].includes(context.pageType);
+    let out = isStructuredSummaryPage ? String(html || '') : replaceCommonSamples(html, context);
     out = replaceGoalSamples(out, context);
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.CURRENT_STATE) {
         out = replaceCurrentStatePage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOALS) {
+        out = replaceGoalsPage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY) {
+        out = replaceExecutiveSummaryPage(out, context);
     }
     return out;
 }
