@@ -4,14 +4,16 @@ const path = require('path');
 const FINAM_V2_DIR = __dirname;
 
 const PRODUCTION_PAGE_STYLE = `<style data-finam-v2-production="1">
-@page { size: 595px 842px; margin: 0; }
+@page { size: A4; margin: 0; }
 html, body {
   margin: 0 !important;
   padding: 0 !important;
-  width: 595px !important;
-  min-width: 595px !important;
-  max-width: 595px !important;
-  min-height: 842px !important;
+  width: 794px !important;
+  min-width: 794px !important;
+  max-width: 794px !important;
+  height: 1123px !important;
+  min-height: 1123px !important;
+  max-height: 1123px !important;
   background: #fff !important;
 }
 body {
@@ -21,6 +23,8 @@ body {
 .finam-v2-page {
   margin: 0 !important;
   flex-shrink: 0 !important;
+  transform: scale(1.3333333333);
+  transform-origin: top left;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }

@@ -59,7 +59,7 @@ async function mapWithConcurrency(items, concurrency, mapper) {
     return results;
 }
 
-function buildFramesContainerHtml(pageHtmlList) {
+function buildFramesContainerHtml(pageHtmlList, { isFinamV2 = false } = {}) {
     const frames = pageHtmlList
         .map((html, idx) => {
             const srcDoc = escapeAttr(html);
@@ -91,10 +91,10 @@ function buildFramesContainerHtml(pageHtmlList) {
       break-after: auto;
     }
     .pdf-page > iframe {
-      width: 595px;
-      height: 842px;
-      transform: scale(1.3333333333);
-      transform-origin: top left;
+      width: ${isFinamV2 ? 794 : 595}px;
+      height: ${isFinamV2 ? 1123 : 842}px;
+      ${isFinamV2 ? '' : 'transform: scale(1.3333333333);'}
+      ${isFinamV2 ? '' : 'transform-origin: top left;'}
       border: 0;
       display: block;
     }
@@ -243,12 +243,13 @@ class ReportPdfService {
             ),
             16
         );
-        // Обложка и листы v2 сверстаны под 595×842. Масштаб чуть ниже 4/3,
-        // иначе Chromium иногда отдаёт второй пустой лист из-за дробного переполнения A4.
+        // Листы Finam v2 уже обёрнуты как A4-холст: 595×842 шаблон
+        // масштабируется CSS-трансформом внутри HTML, а не Puppeteer scale.
         const reportPdfScale = (() => {
-            const n = Number(isFinamV2Package ? process.env.FINAM_REPORT_V2_PDF_SCALE : process.env.REPORT_PDF_SCALE);
+            if (isFinamV2Package) return 1;
+            const n = Number(process.env.REPORT_PDF_SCALE);
             if (Number.isFinite(n) && n > 0) return Math.min(Math.max(n, 0.1), 2);
-            return isFinamV2Package ? 1.332 : 1;
+            return 1;
         })();
         const reportPreferCssPageSize =
             process.env.REPORT_PDF_PREFER_CSS_PAGE_SIZE != null
@@ -468,7 +469,7 @@ class ReportPdfService {
         const pageHtmlListForPdf = isFinamReportV2
             ? pageHtmlListWithFonts
             : pageHtmlListWithFonts.map((h) => injectReportPdfPageFillA4(h));
-        const mergedHtml = buildFramesContainerHtml(pageHtmlListForPdf);
+        const mergedHtml = buildFramesContainerHtml(pageHtmlListForPdf, { isFinamV2: isFinamReportV2 });
         return { mergedHtml, toc, pageHtmlList: pageHtmlListForPdf, reportSchemaVersion };
     }
 
