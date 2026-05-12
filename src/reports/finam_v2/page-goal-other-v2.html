@@ -398,7 +398,7 @@
 
     .finam-v2-other__risk {
       display: grid;
-      grid-template-columns: 122px minmax(0, 1fr);
+      grid-template-columns: 140px minmax(0, 1fr);
       gap: 10px;
       align-items: center;
       border: 1px solid #bfdbfe;
@@ -415,6 +415,7 @@
       border: 1px solid #dbeafe;
       padding: 5px 7px;
       text-align: center;
+      min-width: 0;
     }
 
     .finam-v2-other__risk-label {
@@ -429,11 +430,12 @@
 
     .finam-v2-other__risk-value {
       font-family: var(--finam-v2-font-display);
-      font-size: 18px;
-      line-height: 1;
+      font-size: 15.5px;
+      line-height: 1.05;
       letter-spacing: -0.03em;
       color: var(--finam-v2-color-navy-deep);
       font-weight: 600;
+      overflow-wrap: anywhere;
     }
 
     .finam-v2-other__risk-text {
@@ -580,6 +582,12 @@
       border-radius: 50%;
       position: relative;
       box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+    }
+
+    .finam-v2-other__donut svg {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
 
     .finam-v2-other__donut--initial {

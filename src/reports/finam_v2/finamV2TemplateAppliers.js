@@ -1161,10 +1161,29 @@ function buildConicGradient(rows) {
     return `conic-gradient(${segments.join(', ')})`;
 }
 
+function buildDonutSvg(rows, className) {
+    const safeRows = Array.isArray(rows) ? rows : [];
+    let cursor = 0;
+    const segments = safeRows
+        .filter((row) => finite(row.percent, 0) > 0)
+        .map((row, idx) => {
+            const percent = Math.max(0, Math.min(100, finite(row.percent, 0)));
+            const dashOffset = -cursor;
+            cursor += percent;
+            return `<circle cx="50" cy="50" r="38" fill="none" stroke="${safeCssColor(row.color, idx === 0 ? '#002a4a' : '#94a3b8')}" stroke-width="20" pathLength="100" stroke-dasharray="${percent.toFixed(3)} ${(100 - percent).toFixed(3)}" stroke-dashoffset="${dashOffset.toFixed(3)}" />`;
+        })
+        .join('');
+    return `<svg class="${escapeHtml(className || '')}" viewBox="0 0 100 100" width="82" height="82" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="50" cy="50" r="38" fill="none" stroke="#e2e8f0" stroke-width="20" />
+              <g transform="rotate(-90 50 50)">${segments}</g>
+            </svg>`;
+}
+
 function buildAllocationHtml(prefix, kind, title, sub, centerHtml, rows) {
     const safeRows = allocationRows(rows, 0);
     return `<div class="finam-v2-${prefix}__allocation">
-          <div class="finam-v2-${prefix}__donut" style="background: ${escapeHtml(buildConicGradient(safeRows))};">
+          <div class="finam-v2-${prefix}__donut" style="background: transparent;">
+            ${buildDonutSvg(safeRows, `finam-v2-${prefix}__donut-svg`)}
             <div class="finam-v2-${prefix}__donut-center">${centerHtml}</div>
           </div>
           <div>
@@ -1995,7 +2014,8 @@ function portfolioDonutHtml({ title, sub, centerValue, centerSub, rows, monthly 
     return `<div class="finam-v2-portfolio__donut-card">
           <p class="finam-v2-portfolio__section-kicker">${escapeHtml(title)}</p>
           <div class="finam-v2-portfolio__donut-row">
-            <div class="finam-v2-portfolio__donut${monthly ? ' finam-v2-portfolio__donut--monthly' : ''}" style="background:${escapeHtml(buildConicGradient(safeRows))};" aria-hidden="true">
+            <div class="finam-v2-portfolio__donut${monthly ? ' finam-v2-portfolio__donut--monthly' : ''}" style="background: transparent;" aria-hidden="true">
+              ${buildDonutSvg(safeRows, 'finam-v2-portfolio__donut-svg')}
               <div class="finam-v2-portfolio__donut-center">${escapeHtml(centerValue)}<small>${escapeHtml(centerSub)}</small></div>
             </div>
             <div>
