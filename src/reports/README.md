@@ -23,7 +23,7 @@
 - **Обложка** — `cover/buildCoverHtml.js`: `buildReportCoverHtml`, `buildCoverLayoutPayload`, дата `formatCoverDateRu` (TZ: `REPORT_PDF_TZ` / `Europe/Moscow`).
 - **Сводная** — `summary/buildSummaryOverviewHtml.js`: `SUMMARY_RENDER_SPEC`, `buildReportSummaryOverviewHtml`, `buildSummaryLayoutPayload`. Сток: `assets/reports/summary/`. Карточки целей по типу: `assets/reports/goal-cards/` (см. `goal-cards/README.txt`).
 - **Страницы целей** — `goalPages/buildGoalPagesHtml.js`: единая точка входа **`buildGoalPageHtml({ goalType, goal, clientName, options })`**. Брендинг (фон, лого, цвета) сейчас совпадает со сводной — опции из `summary_*` в `agent_report_pdf_settings`, прокидываются из `reportPdfService` и превью.
-- **Finam Report v2** — `finam_v2/buildFinamReportV2Html.js`: отдельный экспериментальный билдер для wow-страниц (`Управленческий вывод`, `Сценарии`, `Дорожная карта`, `Партнёрская ценность`) из `finamReportV2Contract.js`; статические страницы и goal-шаблоны лежат рядом (`PORTFOLIO_SUMMARY`, `TAX_PLANNING`, `COMON_AUTOFOLLOW`, `IDU_STRATEGIES`, `FINAM_OFFERS`, `INFLATION`, `RISK_DECLARATION`, `DETAILED_PLAN`, `FIN_RESERVE`, `LIFE`, `PENSION` на 3 листа с методикой расчёта госпенсии, `PASSIVE_INCOME`, `INVESTMENT`, `OTHER`). Пока не подключён к продовому v1 PDF/API.
+- **Finam Report v2** — `finam_v2/buildFinamReportV2HtmlPackage.js`: production-вход для PDF/API при project-scoped настройке `system_settings.report_finam = 2`; строит `pageHtmlList`, `toc`, adapter из текущего `reportService.getClientReportData()` и v2-страницы без моковых клиентских цифр. `buildFinamReportV2Html.js` остаётся экспериментальным билдером wow-страниц, статические HTML-макеты лежат рядом как дизайн-референс. Переключение: `PUT /api/pfp/settings/report_finam` с телом `{ "value": 2 }` (роль agent/admin), при смене сбрасывается кеш `clients.report_pdf_*`. Опционально сильнее БД: env `FINAM_REPORT_VERSION=1|2` и при необходимости `FINAM_REPORT_VERSION_PROJECT_IDS` (CSV; если версия задана без списка — по умолчанию только проект `14`), см. `finam/reportVersionResolver.js`.
 
 Хвостовые v2-блоки после налогового планирования:
 
@@ -45,7 +45,8 @@
 - **`summary/buildSummaryPdfLayoutModel.js`** — `buildSummaryPdfLayoutModel`: продолжение целей, распределение капитала, подсказки вёрстки. В ответе отчёта клиента: **`pdf_summary_layout`** (`reportService.getClientReportData`).
 - **`summary/previewMockPayload.json`** — мок отчёта для превью в ЛК: **`GET /api/pfp/pdf-settings/summary-preview-html`** и **`GET /api/pfp/pdf-settings/pages/:pageType/preview-html`**. Для превью страниц целей в `goals[]` должна быть цель на каждый из `FIN_RESERVE`, `LIFE`, `INVESTMENT`, `OTHER`.
 - **`summary/preview-default.html`** — зафиксированный снимок сводной с дефолтным брендингом. Пересборка: `node scripts/render_summary_preview_default.mjs`.
-- **`finam_v2/finamReportV2Contract.js`** — черновой JSON-контракт `reportSchemaVersion: "finam-v2.0"` для будущего отчёта v2 (`client`, `advisor`, `pages[]`/wow-блоки/сценарии/roadmap/декларация о рисках, `companies[]`, `products[]`, `riskDeclaration.riskRegister[]`).
+- **`finam_v2/finamReportV2Contract.js`** — JSON-контракт `reportSchemaVersion: "finam-v2.0"` для отчёта v2 (`client`, `advisor`, `pages[]`/wow-блоки/сценарии/roadmap/декларация о рисках, `companies[]`, `products[]`, `riskDeclaration.riskRegister[]`).
+- **`finam_v2/buildFinamReportV2HtmlPackage.js`** — серверный composer v2: выбирает страницы по реальным целям клиента, инлайнит локальные ассеты v2 и отдаёт HTML-листы в общий Puppeteer pipeline.
 
 Заливка карточек целей в R2: **`npm run seed:pdf-goal-cards-r2`** (ключи `pdf-report-goal-cards/…`, в layout — `public_url` при настроенном публичном base).
 
@@ -75,9 +76,9 @@
 | HTML одной страницы по клиенту | `reportPagesController`: `GET .../reports/:clientId/pages/:pageType/html` |
 | Маршруты | `src/routes/reportRoutes.js` — префикс **`/api/pfp/reports`** (вместе с `pfpMiddleware` в `routes/index.js`) |
 
-Query у **`/pdf`**: **`includeCover`**, **`includeSummary`** (по умолчанию включаются; отключение: `0` / `false`), **`goalTypes`** — подмножество `FIN_RESERVE,LIFE,INVESTMENT,OTHER`.
+Query у **`/pdf`**: **`includeCover`**, **`includeSummary`** (по умолчанию включаются; отключение: `0` / `false`), **`goalTypes`** — подмножество `FIN_RESERVE,LIFE,PENSION,PASSIVE_INCOME,INVESTMENT,OTHER`.
 
-**`pageType`** (превью и HTML страницы): `SUMMARY` | `FIN_RESERVE` | `LIFE` | `INVESTMENT` | `OTHER`. Алиасы пути для HTML см. `reportPagesController` (например `fin-reserve`, `investment`).
+**`pageType`** (превью и HTML страницы): `SUMMARY` | `FIN_RESERVE` | `LIFE` | `PENSION` | `PASSIVE_INCOME` | `INVESTMENT` | `OTHER`; при `report_finam = 2` также v2-типы `cover`, `intro`, `currentState`, `goals`, `portfolioSummary`, `scenarios`, `roadmap`, `riskDeclaration` и др. Алиасы пути для HTML см. `reportPagesController`.
 
 ---
 

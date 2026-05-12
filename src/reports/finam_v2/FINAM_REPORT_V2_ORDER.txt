@@ -63,4 +63,7 @@ Finam Report v2 — порядок макетов (черновик).
   21. page-risk-declaration-v2.html — декларация о рисках: продукты, компании, матрица Риск/Доходность, продуктовые риски, протокол контроля, 5 листов в одном HTML
   22. page-partner-value-v2.html — партнёрская ценность (может скрываться в клиентском PDF)
 
-Интеграция в PDF/API — отдельная задача (buildFinamReportV2*, FINAM_REPORT_VERSION).
+Интеграция в PDF/API:
+  system_settings.report_finam = 1 или нет настройки — текущий Finam v1.
+  system_settings.report_finam = 2 — серверный composer buildFinamReportV2HtmlPackage.js.
+  Статические HTML из этого списка остаются дизайн-референсом; production composer подставляет реальные данные клиента и не должен выводить моковые цифры.

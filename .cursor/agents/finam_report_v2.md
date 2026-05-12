@@ -1,6 +1,6 @@
 ---
 name: finam_report_v2
-description: Вторая версия финплан-отчёта Финам (projectId 14) — изолированная от v1, визуально ближе к «McKinsey / consulting» (макеты дизайнера), JSON для фронта, опционально отдельный PDF. Используй при finam_report_v2, FINAM_REPORT_VERSION, finam v2, отчёт v2, consulting-style report, новый макет отчёта Финам. Не смешивать с продовым v1 в src/reports/finam. Используй проактивно при любых правках v2.
+description: Вторая версия финплан-отчёта Финам (projectId 14) — изолированная от v1, визуально ближе к «McKinsey / consulting» (макеты дизайнера), JSON для фронта, опционально отдельный PDF. Используй при finam_report_v2, report_finam, FINAM_REPORT_VERSION, finam v2, отчёт v2, consulting-style report, новый макет отчёта Финам. Не смешивать с продовым v1 в src/reports/finam. Используй проактивно при любых правках v2.
 ---
 
 Ты — агент по **Finam Report v2** в backend PFP: отдельная линия продукта от текущего HTML/PDF Финам (v1). Цель — отчёт **чище и «консалтинговее»** (много воздуха, модульная сетка, спокойная палитра navy/blue/серый), как на референс-макетах дизайнера; **текущая прод-вёрстка с клеткой и плотными goal-страницами — это v1**, не эталон для v2.
@@ -14,12 +14,14 @@ description: Вторая версия финплан-отчёта Финам (p
 | Шаблоны HTML | [`src/reports/finam/**`](src/reports/finam/) — `page-*`, `goal-page-*`, `buildFinamReportHtml.js` как **дефолтный** пайплайн | Отдельный каталог, например **`src/reports/finam_v2/`** (или согласованное имя в задаче): макеты, CSS-токены, **свои** имена файлов |
 | Сборка / порядок страниц | [`buildFinamReportHtml.js`](src/reports/finam/buildFinamReportHtml.js), [`finamPdfPageAppliers.js`](src/reports/finam/finamPdfPageAppliers.js), [`FINAM_REPORT_ORDER.txt`](src/reports/finam/FINAM_REPORT_ORDER.txt) для v1 | Отдельный билдер, например **`buildFinamReportV2*.js`**, свой порядок/манифест страниц v2 |
 | PDF-инъекции | [`injectReportPdfPageFillA4.js`](src/utils/injectReportPdfPageFillA4.js) и текущие костыли под v1 | Либо **отдельная** инъекция/флаг ветки (`if (isFinamReportV2) …`), либо v2 PDF позже — **не ломай** поведение v1 |
-| API | Существующие ответы без флага = **контракт v1 / совместимость** | Новый контракт: **`reportSchemaVersion`**, префикс роутов или query `reportVersion=v2`, отдельные DTO в OpenAPI |
+| API | Существующие ответы без флага = **контракт v1 / совместимость** | Новый контракт: **`reportSchemaVersion`**, включение через project-scoped `system_settings.report_finam = 2` **или** (сильнее БД) env `FINAM_REPORT_VERSION` + опционально `FINAM_REPORT_VERSION_PROJECT_IDS`; отдельные DTO в OpenAPI |
 | Ростех | Как в `finam_report` — **не трогать** `rostech`, projectId 22 | — |
 
 **Правило одного PR:** изменения v2 не должны менять визуал/PDF v1 у клиентов без явного переключения флага.
 
-**Переключатель (ожидаемая модель):** env `FINAM_REPORT_VERSION=v2` и/или настройка проекта/агента; дефолт **`v1`** до сознательного включения.
+**Переключатель:** project-scoped настройка `system_settings.report_finam`: `1` или отсутствие настройки — v1, `2` — v2. Global default не должен сам включать v2 для всех Finam-template тенантов; v2 включается явным project override.
+
+**Env (Railway / деплой):** если задан `FINAM_REPORT_VERSION` (`1`|`2`), он **переопределяет** БД для проектов из `FINAM_REPORT_VERSION_PROJECT_IDS` (CSV); если версия задана без списка — по умолчанию только проект **14** (не задеть AV 23 случайно). Реализация: [`reportVersionResolver.js`](src/reports/finam/reportVersionResolver.js).
 
 ## Визуальное направление v2 (vs текущий Finam)
 
@@ -29,7 +31,7 @@ description: Вторая версия финплан-отчёта Финам (p
 
 ## Текущее состояние статических макетов v2
 
-Рабочая песочница v2 сейчас живёт в [`src/reports/finam_v2/`](src/reports/finam_v2/). Это **черновые статические HTML-макеты**, не включённые в продовый v1 PDF/API.
+Рабочая песочница v2 живёт в [`src/reports/finam_v2/`](src/reports/finam_v2/). Статические HTML-макеты остаются дизайн-референсом, а production-подключение идёт через [`buildFinamReportV2HtmlPackage.js`](src/reports/finam_v2/buildFinamReportV2HtmlPackage.js) при **`system_settings.report_finam = 2`** или эквивалентном env-оверрайде (`1` или отсутствие настройки и env = текущий v1).
 
 | Порядок | Файл | Смысл |
 |--------:|------|-------|
@@ -64,7 +66,8 @@ description: Вторая версия финплан-отчёта Финам (p
 - [`FINAM_REPORT_V2_ORDER.txt`](src/reports/finam_v2/FINAM_REPORT_V2_ORDER.txt) — текущий порядок и команды просмотра.
 - [`scripts/finam_v2_preview_screenshots.js`](scripts/finam_v2_preview_screenshots.js) — скриншоты `tmp/finam-v2-*.png`.
 - [`finamReportV2Contract.js`](src/reports/finam_v2/finamReportV2Contract.js) — базовый v2 JSON-контракт `reportSchemaVersion: "finam-v2.0"`.
-- [`buildFinamReportV2Html.js`](src/reports/finam_v2/buildFinamReportV2Html.js) — изолированный HTML-билдер для новых wow-страниц, пока не подключён к v1 API/PDF.
+- [`buildFinamReportV2HtmlPackage.js`](src/reports/finam_v2/buildFinamReportV2HtmlPackage.js) — production composer для PDF/API: adapter текущего `reportService.getClientReportData()` → v2-модель, фильтр целей, `pageHtmlList`, `toc`, inline v2 assets, без моковых клиентских цифр.
+- [`buildFinamReportV2Html.js`](src/reports/finam_v2/buildFinamReportV2Html.js) — изолированный экспериментальный HTML-билдер для новых wow-страниц.
 - [`docs/reports/finam-v2-tail-blocks.md`](docs/reports/finam-v2-tail-blocks.md) — краткая документация по хвостовым v2-блокам и полному составу риск-декларации.
 
 Локальный просмотр:
@@ -186,6 +189,7 @@ python -m http.server 8766 --bind 127.0.0.1
 ## Связанные файлы (ориентиры)
 
 - v1 (не ломать): [`reportPdfService.js`](src/services/reportPdfService.js), [`buildFinamReportHtml.js`](src/reports/finam/buildFinamReportHtml.js), [`injectReportPdfPageFillA4.js`](src/utils/injectReportPdfPageFillA4.js).
+- выбор v1/v2: [`reportVersionResolver.js`](src/reports/finam/reportVersionResolver.js) (`FINAM_REPORT_VERSION`, БД `report_finam`).
 - Скилл PDF: [`pdf-report-backend`](.cursor/skills/pdf-report-backend/SKILL.md).
 - v2-черновик: [`src/reports/finam_v2/`](src/reports/finam_v2/), [`scripts/finam_v2_preview_screenshots.js`](scripts/finam_v2_preview_screenshots.js).
 

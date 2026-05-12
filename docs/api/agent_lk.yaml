@@ -473,6 +473,7 @@ paths:
           Каждый диапазон: fromMonth, toMonthExcl, rateAnnual (годовая %). Для месяцев вне диапазонов используется ставка последнего диапазона.
         - **inflation_rate_year** — одна годовая инфляция % (используется, если матрица не задана).
         - **investment_expense_growth_annual** — рост расходов на инвестиции (% годовых); в расчётах переводится в месячную. Если не задан — используется investment_expense_growth_monthly (% в месяц).
+        - **report_finam** — версия отчёта для Finam-template проекта: `1` или отсутствие project override = текущий v1, `2` = Finam Report v2. Значение `2` задаётся только в контексте проекта. На стороне процесса env **`FINAM_REPORT_VERSION`** (`1`|`2`) и опционально **`FINAM_REPORT_VERSION_PROJECT_IDS`** могут переопределить БД (см. `src/reports/finam/reportVersionResolver.js`, OpenAPI `getReport.yaml`).
         - прочие ключи категорий `calculation`, `pension`, `passive-income` и т.д.
       parameters:
         - name: category
@@ -503,6 +504,7 @@ paths:
         - **inflation_rate_year** — число, одна годовая инфляция % (fallback при отсутствии матрицы).
         - **investment_expense_growth_annual** — число, рост расходов на инвестиции в % годовых (в расчётах — месячная доля).
         - **investment_expense_growth_monthly** — число, рост расходов на инвестиции в % в месяц (fallback).
+        - **report_finam** — число `1` или `2`; `2` включает Finam Report v2 через `buildFinamReportV2HtmlPackage.js`, при изменении backend сбрасывает `clients.report_pdf_*` для проекта. Env **`FINAM_REPORT_VERSION`** при необходимости сильнее записи в БД.
       parameters:
         - name: key
           in: path
@@ -565,6 +567,10 @@ paths:
                       - fromMonth: 24
                         toMonthExcl: 48
                         rateAnnual: 6.0
+              report_finam_v2:
+                summary: Включить Finam Report v2 для проекта
+                value:
+                  value: 2
       responses:
         '200':
           description: Обновлено

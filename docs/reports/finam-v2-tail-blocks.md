@@ -1,7 +1,8 @@
 # Finam Report v2: хвостовые блоки
 
 Документ фиксирует состав новых статических блоков `src/reports/finam_v2/`.
-Это черновик v2 и он не подключён к продовому v1 PDF/API.
+Статические HTML остаются дизайн-референсом; PDF/API подключаются через production composer
+`src/reports/finam_v2/buildFinamReportV2HtmlPackage.js` при **`system_settings.report_finam = 2`** или эквивалентном включении через env **`FINAM_REPORT_VERSION`** (см. `src/reports/finam/reportVersionResolver.js`; без `FINAM_REPORT_VERSION_PROJECT_IDS` при заданной версии — по умолчанию только проект **14**). Во всех остальных случаях — текущий v1.
 
 ## Правило изоляции
 

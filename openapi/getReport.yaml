@@ -34,6 +34,9 @@ paths:
       summary: Сгенерировать PDF отчёта клиента
       description: |
         Собирает HTML (обложка, сводная, страницы целей по наличию в отчёте) и отдаёт **application/pdf** (Puppeteer).
+        Для Finam-template проектов серверная настройка `system_settings.report_finam` выбирает версию:
+        `1` или отсутствие настройки — текущий v1, `2` — Finam Report v2 (`reportSchemaVersion: finam-v2.0`).
+        Переменные **`FINAM_REPORT_VERSION`** (`1`|`2`) и опционально **`FINAM_REPORT_VERSION_PROJECT_IDS`** (CSV id проектов) переопределяют БД; без CSV при заданной версии действует только проект **14**.
         Порядок страниц и фильтрация — query-параметры ниже.
       parameters:
         - name: clientId
@@ -57,7 +60,7 @@ paths:
           in: query
           required: false
           description: |
-            Подмножество страниц целей через запятую: `FIN_RESERVE`, `LIFE`, `INVESTMENT`, `OTHER`.
+            Подмножество страниц целей через запятую: `FIN_RESERVE`, `LIFE`, `PENSION`, `PASSIVE_INCOME`, `RENT`, `INVESTMENT`, `OTHER`.
             Без параметра — для каждого типа, если в `goals_detailed` есть цель, страница попадёт в PDF.
           schema:
             type: string
@@ -87,6 +90,70 @@ paths:
           description: Нет токена
         '500':
           description: Ошибка генерации (в т.ч. не выбрано ни одной страницы)
+
+  /pfp/reports/{clientId}/pdf-url:
+    get:
+      summary: Сгенерировать PDF отчёта клиента и вернуть URL
+      description: |
+        Генерирует PDF через тот же пайплайн, загружает файл в storage и кеширует ссылку в `clients.report_pdf_*`.
+        При смене `system_settings.report_finam` backend сбрасывает этот кеш; для ручной перегенерации используйте `forceRegenerate=1`.
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: includeCover
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: includeSummary
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: goalTypes
+          in: query
+          required: false
+          description: Подмножество страниц целей через запятую; v2 поддерживает `PASSIVE_INCOME` и `RENT`.
+          schema:
+            type: string
+        - name: forceRegenerate
+          in: query
+          required: false
+          description: `1` или `true` — игнорировать кеш и пересобрать PDF.
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: PDF уже готов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  pdf_url:
+                    type: string
+                  toc:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  compressed:
+                    type: boolean
+                  generated_at:
+                    type: string
+                    format: date-time
+        '202':
+          description: Генерация запущена
+        '400':
+          description: Некорректный clientId
 
   /pfp/reports/{clientId}/pdf/send-email:
     post:
@@ -174,6 +241,9 @@ paths:
       summary: HTML полного отчёта клиента (агентский контур)
       description: |
         Собирает полный HTML отчёта (обложка, сводная, страницы целей) без рендера PDF.
+        Для Finam-template проектов версия HTML/PDF выбирается настройкой `system_settings.report_finam`:
+        `1` — текущий v1, `2` — Finam Report v2.
+        **`FINAM_REPORT_VERSION`** / **`FINAM_REPORT_VERSION_PROJECT_IDS`** (см. PDF) могут переопределить БД.
         Удобно для предпросмотра в ЛК агента.
       parameters:
         - name: clientId
@@ -196,7 +266,7 @@ paths:
         - name: goalTypes
           in: query
           required: false
-          description: Подмножество страниц целей через запятую (как у PDF).
+          description: Подмножество страниц целей через запятую (как у PDF; v2 поддерживает `PASSIVE_INCOME` и `RENT`).
           schema:
             type: string
         - name: inline
@@ -239,6 +309,10 @@ paths:
                     items:
                       type: object
                       additionalProperties: true
+                  report_schema_version:
+                    type: string
+                    nullable: true
+                    description: Для Finam v2 — `finam-v2.0`; для v1/default обычно `null`.
                   generated_at:
                     type: string
                     format: date-time
@@ -278,7 +352,8 @@ paths:
       summary: PDF отчёта текущего клиента (ЛК B2C)
       description: |
         Генерация PDF по данным плана; визуальный стиль из `agent_report_pdf_settings` агента, указанного в `clients.agent_id`,
-        либо дефолты, если агент не привязан.
+        либо дефолты, если агент не привязан. Для Finam-template проектов версия выбирается настройкой
+        `system_settings.report_finam`: `1` — v1, `2` — Finam Report v2; те же env **`FINAM_REPORT_VERSION`** / **`FINAM_REPORT_VERSION_PROJECT_IDS`** переопределяют БД.
       parameters:
         - name: includeCover
           in: query
@@ -295,7 +370,7 @@ paths:
         - name: goalTypes
           in: query
           required: false
-          description: Подмножество страниц целей через запятую (как у агентского PDF).
+          description: Подмножество страниц целей через запятую (как у агентского PDF; v2 поддерживает `PASSIVE_INCOME` и `RENT`).
           schema:
             type: string
         - name: disposition
@@ -325,11 +400,47 @@ paths:
         '500':
           description: Ошибка генерации PDF
 
+  /my/plan/report/pdf-url:
+    get:
+      summary: URL PDF отчёта текущего клиента (ЛК B2C)
+      description: |
+        Генерирует PDF текущего клиента, загружает файл в storage и возвращает URL.
+        Использует тот же выбор версии, что агентские PDF/HTML: `system_settings.report_finam` и env **`FINAM_REPORT_VERSION`** / **`FINAM_REPORT_VERSION_PROJECT_IDS`**.
+      parameters:
+        - name: includeCover
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: includeSummary
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: goalTypes
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: forceRegenerate
+          in: query
+          required: false
+          schema:
+            type: string
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: PDF уже готов
+        '202':
+          description: Генерация запущена
+
   /my/plan/report/html:
     get:
       summary: HTML отчёта текущего клиента (ЛК B2C)
       description: |
         Возвращает HTML-представление отчёта для фронтового предпросмотра без рендера PDF.
+        Для Finam-template проектов версия выбирается настройкой `system_settings.report_finam` (и теми же env **`FINAM_REPORT_VERSION`** / **`FINAM_REPORT_VERSION_PROJECT_IDS`**, что у PDF).
         Полезно, когда нужно быстро показать страницы в веб-интерфейсе и отдельно запускать экспорт в PDF.
       parameters:
         - name: includeCover
@@ -347,7 +458,7 @@ paths:
         - name: goalTypes
           in: query
           required: false
-          description: Подмножество страниц целей через запятую (как у PDF-эндпоинтов).
+          description: Подмножество страниц целей через запятую (как у PDF-эндпоинтов; v2 поддерживает `PASSIVE_INCOME` и `RENT`).
           schema:
             type: string
         - name: inline
@@ -391,6 +502,10 @@ paths:
                     items:
                       type: object
                       additionalProperties: true
+                  report_schema_version:
+                    type: string
+                    nullable: true
+                    description: Для Finam v2 — `finam-v2.0`; для v1/default обычно `null`.
                   generated_at:
                     type: string
                     format: date-time
@@ -409,6 +524,10 @@ paths:
       description: |
         Полный HTML одной страницы A4 для печати или отладки. Данные — из расчёта клиента (`goals_detailed` и т.д.).
         Значения `pageType` совпадают с превью в pdf-settings (`SUMMARY`, `FIN_RESERVE`, …); допускаются синонимы пути (см. реализацию `reportPagesController`).
+        При `system_settings.report_finam = 2` (или эквивалент через env **`FINAM_REPORT_VERSION`**) доступны v2-типы: `cover`, `intro`, `currentState`, `goals`,
+        `executiveSummary`, `portfolioSummary`, `taxPlanning`, `comonAutofollow`, `iduStrategies`,
+        `finamOffers`, `inflation`, `scenarios`, `roadmap`, `detailedPlan`, `riskDeclaration`, `partnerValue`.
+        Query `goalId` выбирает конкретную цель, если у клиента несколько целей одного типа; `goalTypes` фильтрует набор целей для v2-модели.
       parameters:
         - name: clientId
           in: path
@@ -424,8 +543,45 @@ paths:
               - SUMMARY
               - FIN_RESERVE
               - LIFE
+              - PENSION
+              - PASSIVE_INCOME
+              - RENT
               - INVESTMENT
               - OTHER
+              - goalFinReserve
+              - goalLife
+              - goalPension
+              - goalPassiveIncome
+              - goalSaveGrow
+              - goalOther
+              - cover
+              - intro
+              - currentState
+              - goals
+              - executiveSummary
+              - portfolioSummary
+              - taxPlanning
+              - comonAutofollow
+              - iduStrategies
+              - finamOffers
+              - inflation
+              - scenarios
+              - roadmap
+              - detailedPlan
+              - riskDeclaration
+              - partnerValue
+        - name: goalId
+          in: query
+          required: false
+          description: ID конкретной цели для goal-страниц v1/v2.
+          schema:
+            type: integer
+        - name: goalTypes
+          in: query
+          required: false
+          description: Подмножество целей для v2 page model.
+          schema:
+            type: string
       security:
         - bearerAuth: []
       responses:
@@ -462,21 +618,6 @@ components:
       schema:
         type: string
         example: pk_default_pfp_2026
-    projectKeyAuth:
-      type: apiKey
-      in: header
-      name: x-project-key
-      description: Public Project Key for multi-tenancy context
-  parameters:
-    ProjectKeyHeader:
-      name: x-project-key
-      in: header
-      required: false
-      description: Public key to identify the project project context
-      schema:
-        type: string
-        example: pk_default_pfp_2026
-
   schemas:
     ReportResponse:
       type: object

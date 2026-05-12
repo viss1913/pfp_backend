@@ -10,10 +10,15 @@ const { buildComonAutofollowPageHtml } = require('../reports/summary/buildSummar
 const { buildInflationPageFinamHtml } = require('../reports/finam/buildInflationPageFinamHtml');
 const { buildFinamFullPageHtmlList } = require('../reports/finam/buildFinamReportHtml');
 const { isFinamTemplateProject } = require('../reports/finam/finamTemplateProjects');
+const {
+    FINAM_REPORT_VERSION_V2,
+    resolveFinamReportVersion,
+} = require('../reports/finam/reportVersionResolver');
+const { buildFinamReportV2HtmlPackage } = require('../reports/finam_v2/buildFinamReportV2HtmlPackage');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('../reports/themes/reportRenderers');
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
 
-const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'OTHER'];
+const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'RENT', 'INVESTMENT', 'OTHER'];
 
 function normalizeGoalTypes(goalTypesRaw) {
     if (!goalTypesRaw) return null;
@@ -229,14 +234,18 @@ class ReportPdfService {
             16
         );
         const list = htmlPkg.pageHtmlList || [];
+        const isFinamV2Package = htmlPkg.reportSchemaVersion === 'finam-v2.0';
         // Обложка и листы сверстаны под @page 595×842 (или A4 margin 0). Раньше было preferCSSPageSize: false
         // и scale 1.333 — Chrome игнорировал размер страницы из CSS, обложка уезжала «картинка в белой рамке».
         const reportPdfScale = (() => {
             const n = Number(process.env.REPORT_PDF_SCALE);
             if (Number.isFinite(n) && n > 0) return Math.min(Math.max(n, 0.1), 2);
-            return 1;
+            return isFinamV2Package ? 1.3333333333 : 1;
         })();
-        const reportPreferCssPageSize = process.env.REPORT_PDF_PREFER_CSS_PAGE_SIZE !== '0';
+        const reportPreferCssPageSize =
+            process.env.REPORT_PDF_PREFER_CSS_PAGE_SIZE != null
+                ? process.env.REPORT_PDF_PREFER_CSS_PAGE_SIZE !== '0'
+                : !isFinamV2Package;
         const pagePdfBuffers = await mapWithConcurrency(list, renderConcurrency, (pageHtml) =>
             renderHtmlToPdfBuffer(pageHtml, {
                 pdfScale: reportPdfScale,
@@ -249,6 +258,7 @@ class ReportPdfService {
             toc: htmlPkg.toc,
             pageHtmlList: htmlPkg.pageHtmlList,
             mergedHtml: htmlPkg.mergedHtml,
+            reportSchemaVersion: htmlPkg.reportSchemaVersion || null,
         };
     }
 
@@ -268,6 +278,8 @@ class ReportPdfService {
                 : await reportService.getClientReportData(clientId, projectId);
         const themeKey = resolveReportThemeKey(projectId);
         const isFinamProject = themeKey !== 'rostech' && isFinamTemplateProject(projectId);
+        const finamReportVersion = await resolveFinamReportVersion({ projectId, themeKey });
+        const isFinamReportV2 = isFinamProject && finamReportVersion === FINAM_REPORT_VERSION_V2;
 
         let pdfSettings;
         if (brandingAgentId !== undefined) {
@@ -285,7 +297,9 @@ class ReportPdfService {
         }
 
         const pageHtmlList = [];
-        if (includeCover) {
+        let toc = null;
+        let reportSchemaVersion = null;
+        if (includeCover && !isFinamReportV2) {
             pageHtmlList.push(
                 await buildReportCoverHtml({
                     coverTitle: pdfSettings?.cover_title,
@@ -350,7 +364,7 @@ class ReportPdfService {
             );
         }
 
-        const shouldIncludeComonAutofollowPage = isFinamProject;
+        const shouldIncludeComonAutofollowPage = isFinamProject && !isFinamReportV2;
         const comonAutofollowPageHtml = shouldIncludeComonAutofollowPage
             ? await buildComonAutofollowPageHtml({
                 reportPayload: {
@@ -365,17 +379,29 @@ class ReportPdfService {
             : null;
 
         if (isFinamProject) {
-            const inflationPageHtml = await buildFinamInflationPageHtml();
-            const finamPages = await buildFinamFullPageHtmlList({
-                report,
-                includeSummary,
-                goalTypes,
-                projectId,
-                inflationPageHtml,
-                // В per-page рендере стабильнее держать dataUrl (иначе часть локальных картинок в Chromium может пропадать).
-                finamRasterRefMode: 'dataUrl',
-            });
-            pageHtmlList.push(...finamPages);
+            if (isFinamReportV2) {
+                const finamV2Pkg = await buildFinamReportV2HtmlPackage({
+                    report,
+                    includeCover,
+                    includeSummary,
+                    goalTypes,
+                });
+                pageHtmlList.push(...finamV2Pkg.pageHtmlList);
+                toc = finamV2Pkg.toc;
+                reportSchemaVersion = finamV2Pkg.reportSchemaVersion || null;
+            } else {
+                const inflationPageHtml = await buildFinamInflationPageHtml();
+                const finamPages = await buildFinamFullPageHtmlList({
+                    report,
+                    includeSummary,
+                    goalTypes,
+                    projectId,
+                    inflationPageHtml,
+                    // В per-page рендере стабильнее держать dataUrl (иначе часть локальных картинок в Chromium может пропадать).
+                    finamRasterRefMode: 'dataUrl',
+                });
+                pageHtmlList.push(...finamPages);
+            }
         } else {
             for (const goalType of targetGoalTypes) {
                 const goal = (report.goals_detailed || []).find((g) => g.goal_type === goalType);
@@ -423,7 +449,6 @@ class ReportPdfService {
             throw new Error('No pages selected for PDF generation');
         }
 
-        let toc = null;
         if (isRostechPensionOnly) {
             const pensionGoal = (report.goals_detailed || []).find((g) => String(g?.goal_type).toUpperCase() === 'PENSION');
             toc = buildRostechPensionOnlyToc({ hasCover: includeCover, goal: pensionGoal });
@@ -431,7 +456,7 @@ class ReportPdfService {
 
         const pageHtmlListForPdf = pageHtmlList.map((h) => injectReportPdfPageFillA4(injectReportPdfEmbeddedFont(h)));
         const mergedHtml = buildFramesContainerHtml(pageHtmlListForPdf);
-        return { mergedHtml, toc, pageHtmlList: pageHtmlListForPdf };
+        return { mergedHtml, toc, pageHtmlList: pageHtmlListForPdf, reportSchemaVersion };
     }
 
 }

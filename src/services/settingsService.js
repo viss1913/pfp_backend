@@ -2,6 +2,7 @@ const settingsRepository = require('../repositories/settingsRepository');
 const tax2ndflRepository = require('../repositories/tax2ndflRepository');
 const pdsSettingsRepository = require('../repositories/pdsSettingsRepository');
 const pdsCofinIncomeBracketsRepository = require('../repositories/pdsCofinIncomeBracketsRepository');
+const db = require('../config/database');
 
 // Ключи, которые настраиваются агентом на уровне проекта (без глобальных дефолтов)
 const AGENT_OWNED_SETTING_KEYS = [
@@ -9,7 +10,8 @@ const AGENT_OWNED_SETTING_KEYS = [
     'inflation_rate_matrix',
     'investment_expense_growth_monthly',
     'investment_expense_growth_annual',
-    'passive_income_yield'
+    'passive_income_yield',
+    'report_finam'
 ];
 
 const AGENT_OWNED_DEFAULTS = {
@@ -17,7 +19,8 @@ const AGENT_OWNED_DEFAULTS = {
     inflation_rate_matrix: { description: 'Матрица инфляции по месяцам', category: 'calculation' },
     investment_expense_growth_monthly: { description: 'Рост расходов на инвестиции (% в месяц)', category: 'calculation' },
     investment_expense_growth_annual: { description: 'Рост расходов на инвестиции (% годовых)', category: 'calculation' },
-    passive_income_yield: { description: 'Линии доходности пассивного дохода', category: 'passive_income' }
+    passive_income_yield: { description: 'Линии доходности пассивного дохода', category: 'passive_income' },
+    report_finam: { description: 'Версия отчёта Финам: 1 — текущий, 2 — v2', category: 'report' }
 };
 
 class SettingsService {
@@ -61,13 +64,36 @@ class SettingsService {
             if (projectId && AGENT_OWNED_SETTING_KEYS.includes(key)) {
                 const meta = AGENT_OWNED_DEFAULTS[key] || { description: key, category: 'calculation' };
                 await settingsRepository.create({ key, value, description: meta.description, category: meta.category }, projectId);
+                await this._afterSettingUpdated(key, projectId);
                 return this.getSettingByKey(key, projectId);
             }
             throw { status: 404, message: `Setting not found: ${key}. Check key name or run migrations.` };
         }
 
+        if (projectId && setting.project_id == null && AGENT_OWNED_SETTING_KEYS.includes(key)) {
+            const meta = AGENT_OWNED_DEFAULTS[key] || { description: key, category: setting.category || 'calculation' };
+            await settingsRepository.create({ key, value, description: meta.description, category: meta.category }, projectId);
+            await this._afterSettingUpdated(key, projectId);
+            return this.getSettingByKey(key, projectId);
+        }
+
         await settingsRepository.updateByKey(key, value, projectId);
+        await this._afterSettingUpdated(key, projectId);
         return this.getSettingByKey(key, projectId);
+    }
+
+    async _afterSettingUpdated(key, projectId = null) {
+        if (String(key) !== 'report_finam') return;
+        const patch = {
+            report_pdf_status: null,
+            report_pdf_url: null,
+            report_pdf_generated_at: null,
+            report_pdf_error: null,
+            report_pdf_updated_at: db.fn.now(),
+        };
+        const q = db('clients');
+        if (projectId) q.where('project_id', projectId);
+        await q.update(patch);
     }
 
     async createSetting(data, isAdmin, projectId = null) {
@@ -81,6 +107,7 @@ class SettingsService {
         }
 
         const id = await settingsRepository.create(data, projectId);
+        await this._afterSettingUpdated(data.key, projectId);
         return this.getSettingByKey(data.key, projectId);
     }
 
@@ -93,6 +120,7 @@ class SettingsService {
         if (!setting) throw { status: 404, message: 'Setting not found' };
 
         await settingsRepository.delete(key, projectId);
+        await this._afterSettingUpdated(key, projectId);
         return { success: true };
     }
 

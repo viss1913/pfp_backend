@@ -21,6 +21,11 @@ const {
     inlineFinamRasterImages,
 } = require('../reports/finam/buildFinamReportHtml');
 const { isFinamTemplateProject } = require('../reports/finam/finamTemplateProjects');
+const {
+    FINAM_REPORT_VERSION_V2,
+    resolveFinamReportVersion,
+} = require('../reports/finam/reportVersionResolver');
+const { buildFinamReportV2PageHtml } = require('../reports/finam_v2/buildFinamReportV2HtmlPackage');
 const { applyFinamPortfolioFinalPage, applyFinamTaxPlanningPage } = require('../reports/finam/finamPdfPageAppliers');
 
 function escapeHtml(s) {
@@ -61,14 +66,36 @@ function normalizePageType(pageType) {
     if (s === 'life' || s === 'life-protection' || s === 'life-protect') return 'LIFE';
     if (s === 'pension') return 'PENSION';
     if (s === 'passive_income' || s === 'passive-income' || s === 'passiveincome') return 'PASSIVE_INCOME';
+    if (s === 'rent') return 'RENT';
     if (s === 'investment' || s === 'grow-wealth' || s === 'save-and-grow') return 'INVESTMENT';
     if (s === 'other' || s === 'apartment' || s === 'house') return 'OTHER';
     if (s === 'repleneshment' || s === 'replenishment') return 'REPLENESHMENT';
-    if (s === 'tax' || s === 'tax-planning') return 'TAX_PLANNING';
+    if (s === 'tax' || s === 'tax-planning' || s === 'taxplanning') return 'TAX_PLANNING';
     if (s === 'portfolio-final' || s === 'portfolio_final') return 'PORTFOLIO_FINAL';
+    if (s === 'cover') return 'cover';
+    if (s === 'intro') return 'intro';
+    if (s === 'current-state' || s === 'currentstate') return 'currentState';
+    if (s === 'goals') return 'goals';
+    if (s === 'executive-summary' || s === 'executivesummary') return 'executiveSummary';
+    if (s === 'portfolio-summary' || s === 'portfoliosummary') return 'portfolioSummary';
+    if (s === 'comon-autofollow' || s === 'comonautofollow') return 'comonAutofollow';
+    if (s === 'idu-strategies' || s === 'idustrategies') return 'iduStrategies';
+    if (s === 'finam-offers' || s === 'finamoffers') return 'finamOffers';
+    if (s === 'inflation') return 'inflation';
+    if (s === 'scenarios') return 'scenarios';
+    if (s === 'roadmap') return 'roadmap';
+    if (s === 'detailed-plan' || s === 'detailedplan') return 'detailedPlan';
+    if (s === 'risk-declaration' || s === 'riskdeclaration') return 'riskDeclaration';
+    if (s === 'partner-value' || s === 'partnervalue') return 'partnerValue';
+    if (s === 'goal-fin-reserve' || s === 'goalfinreserve') return 'goalFinReserve';
+    if (s === 'goal-life' || s === 'goallife') return 'goalLife';
+    if (s === 'goal-pension' || s === 'goalpension') return 'goalPension';
+    if (s === 'goal-passive-income' || s === 'goalpassiveincome') return 'goalPassiveIncome';
+    if (s === 'goal-save-grow' || s === 'goalsavegrow') return 'goalSaveGrow';
+    if (s === 'goal-other' || s === 'goalother') return 'goalOther';
 
     const upper = String(pageType).trim().toUpperCase();
-    if (['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'INVESTMENT', 'OTHER'].includes(upper)) return upper;
+    if (['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'RENT', 'INVESTMENT', 'OTHER'].includes(upper)) return upper;
     return '';
 }
 
@@ -133,6 +160,24 @@ class ReportPagesController {
             const clientName = report?.client_info?.first_name || report?.client_info?.full_name || '—';
             const themeKey = resolveReportThemeKey(projectId);
             const isFinamProject = themeKey !== 'rostech' && isFinamTemplateProject(projectId);
+            const finamReportVersion = await resolveFinamReportVersion({ projectId, themeKey });
+
+            if (isFinamProject && finamReportVersion === FINAM_REPORT_VERSION_V2) {
+                const html = await buildFinamReportV2PageHtml({
+                    report,
+                    pageType: rawPageType || pageType,
+                    goalId: req.query.goalId ? Number(req.query.goalId) : null,
+                    goalTypes: req.query.goalTypes || null,
+                });
+                if (!html) {
+                    res.status(404).json({ error: `No Finam v2 page for pageType ${pageType}` });
+                    return;
+                }
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.setHeader('Cache-Control', 'private, no-store');
+                res.send(html);
+                return;
+            }
 
             let finamB2cAvatarUrl = null;
             if (isFinamProject && projectId != null) {

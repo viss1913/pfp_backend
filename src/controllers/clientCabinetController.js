@@ -701,7 +701,7 @@ class ClientCabinetController {
                     ? Number(client.agent_id)
                     : null;
 
-            const { mergedHtml, pageHtmlList, toc } = await reportPdfService.generateClientReportHtmlPackage({
+            const { mergedHtml, pageHtmlList, toc, reportSchemaVersion } = await reportPdfService.generateClientReportHtmlPackage({
                 clientId: Number(clientId),
                 agentId: null,
                 brandingAgentId,
@@ -722,6 +722,7 @@ class ClientCabinetController {
                 html: mergedHtml,
                 pages: pageHtmlList,
                 toc: Array.isArray(toc) ? toc : [],
+                report_schema_version: reportSchemaVersion || null,
                 generated_at: new Date().toISOString(),
             });
         } catch (err) {

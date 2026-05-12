@@ -864,8 +864,8 @@ class CalculationService {
 
             const consolidatedPortfolio = await portfolioAggregator.aggregate(results, context);
 
-            // Calculate Age
-            const birthDate = new Date(client.birth_date);
+            // Возраст для сводки: только clientData (дефолт birth_date уже выше), не сырой client — иначе crash при client === undefined
+            const birthDate = new Date(clientData.birth_date || '1985-01-01');
             const ageDifMs = Date.now() - birthDate.getTime();
             const ageDate = new Date(ageDifMs);
             const age = Math.abs(ageDate.getUTCFullYear() - 1970);

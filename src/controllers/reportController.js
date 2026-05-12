@@ -300,7 +300,7 @@ class ReportController {
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
             const goalTypes = req.query.goalTypes || null;
 
-            const { mergedHtml, pageHtmlList, toc } = await reportPdfService.generateClientReportHtmlPackage({
+            const { mergedHtml, pageHtmlList, toc, reportSchemaVersion } = await reportPdfService.generateClientReportHtmlPackage({
                 clientId,
                 projectId,
                 includeCover,
@@ -320,6 +320,7 @@ class ReportController {
                 html: mergedHtml,
                 pages: pageHtmlList,
                 toc: Array.isArray(toc) ? toc : [],
+                report_schema_version: reportSchemaVersion || null,
                 generated_at: new Date().toISOString(),
             });
         } catch (error) {

@@ -12,6 +12,29 @@ const updateSettingSchema = Joi.object({
     value: Joi.alternatives().try(Joi.string(), Joi.number(), Joi.object()).required()
 });
 
+function isReportFinamKey(key) {
+    return String(key || '').trim() === 'report_finam';
+}
+
+function canManageReportFinam(user = {}) {
+    const role = String(user.role || '').toLowerCase();
+    return Boolean(user.isAdmin) || ['agent', 'admin', 'super_admin'].includes(role);
+}
+
+function validateReportFinamAccess(req, key, value) {
+    if (!isReportFinamKey(key)) return null;
+    if (!canManageReportFinam(req.user)) {
+        return { status: 403, error: 'Only agent or admin can update report_finam' };
+    }
+    if (value !== undefined && ![1, 2].includes(Number(value))) {
+        return { status: 400, error: 'report_finam must be 1 or 2' };
+    }
+    if (Number(value) === 2 && !(req.projectId || req.user?.projectId)) {
+        return { status: 400, error: 'report_finam=2 must be set in project context' };
+    }
+    return null;
+}
+
 // Схемы валидации для налоговых ставок 2НДФЛ
 const taxBracketSchema = Joi.object({
     income_from: Joi.number().min(0).required(),
@@ -100,6 +123,11 @@ class SettingsController {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
+            const reportFinamError = validateReportFinamAccess(req, key, req.body.value);
+            if (reportFinamError) {
+                return res.status(reportFinamError.status).json({ error: reportFinamError.error });
+            }
+
             const updated = await settingsService.updateSetting(key, req.body.value, isAdmin, projectId);
             res.json(updated);
         } catch (err) {
@@ -117,6 +145,11 @@ class SettingsController {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
+            const reportFinamError = validateReportFinamAccess(req, req.body.key, req.body.value);
+            if (reportFinamError) {
+                return res.status(reportFinamError.status).json({ error: reportFinamError.error });
+            }
+
             const created = await settingsService.createSetting(req.body, isAdmin, projectId);
             res.status(201).json(created);
         } catch (err) {
@@ -129,6 +162,11 @@ class SettingsController {
             const { key } = req.params;
             const isAdmin = req.user.isAdmin;
             const projectId = req.projectId || req.user?.projectId;
+
+            const reportFinamError = validateReportFinamAccess(req, key);
+            if (reportFinamError) {
+                return res.status(reportFinamError.status).json({ error: reportFinamError.error });
+            }
 
             await settingsService.deleteSetting(key, isAdmin, projectId);
             res.status(204).send();
