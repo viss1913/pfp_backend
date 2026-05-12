@@ -1015,19 +1015,87 @@ function replacePensionGoalPage(html, context) {
     return out;
 }
 
-function riskProfileLabelForGoal(goal) {
-    const raw = goal?.risk_profile_extended || goal?.risk_profile_details?.risk_profile_extended || goal?.risk_profile_details?.risk_profile || goal?.risk_profile;
-    return labelFromMap(raw, {
-        conservative: 'Консервативный',
-        moderately_conservative: 'Умеренно-консервативный',
-        moderate: 'Умеренный',
-        moderately_aggressive: 'Умеренно-агрессивный',
-        aggressive: 'Агрессивный',
-        low: 'Низкий',
-        medium: 'Средний',
-        high: 'Высокий',
-    }, raw ? String(raw) : 'По анкете клиента');
+const RISK_PROFILE_DETAILS = {
+    conservative: {
+        label: 'Консервативный',
+        description: 'Главный приоритет — сохранность капитала. Портфель делает упор на защитные инструменты, а доходность используется аккуратно, без резких просадок.',
+    },
+    moderately_conservative: {
+        label: 'Умеренно-консервативный',
+        description: 'Основа портфеля остаётся защитной, но небольшая доля рыночных инструментов добавляет потенциал роста. Подходит, когда важна устойчивость суммы.',
+    },
+    balanced: {
+        label: 'Сбалансированный',
+        description: 'Портфель держит равновесие между сохранностью и ростом капитала. Рыночные инструменты работают на доходность, а защитная часть сглаживает колебания.',
+    },
+    moderately_aggressive: {
+        label: 'Умеренно агрессивный',
+        description: 'Доля рыночных инструментов выше, чтобы ускорить рост капитала. Возможны заметные колебания, поэтому важны горизонт инвестирования и регулярный контроль.',
+    },
+    aggressive: {
+        label: 'Агрессивный',
+        description: 'Фокус на максимальном долгосрочном росте. Портфель допускает высокую волатильность и просадки, поэтому требует длинного горизонта и дисциплины.',
+    },
+};
+
+function rawRiskProfileForGoal(goal) {
+    const extended = goal?.risk_profile_extended || goal?.risk_profile_details?.risk_profile_extended;
+    if (extended !== undefined && extended !== null && String(extended).trim()) {
+        return { raw: extended, isExtended: true };
+    }
+    return {
+        raw: goal?.risk_profile_details?.risk_profile || goal?.risk_profile,
+        isExtended: false,
+    };
 }
+
+function normalizeRiskProfileKey(raw, isExtended = false) {
+    const value = String(raw || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (!value) return null;
+    if (value === '1') return 'conservative';
+    if (value === '2') return isExtended ? 'moderately_conservative' : 'balanced';
+    if (value === '3') return isExtended ? 'balanced' : 'aggressive';
+    if (value === '4') return 'moderately_aggressive';
+    if (value === '5') return 'aggressive';
+    if (value.includes('moderately_conservative') || value.includes('moderate_conservative') || /умер.*консер/.test(value)) return 'moderately_conservative';
+    if (value.includes('conservative') || /консервативн/.test(value) || value === 'low') return 'conservative';
+    if (value.includes('balanced') || value === 'moderate' || value === 'medium' || /сбаланс/.test(value) || /умеренны[ий]/.test(value)) return 'balanced';
+    if (value === '4' || value.includes('moderately_aggressive') || value.includes('moderate_aggressive') || /умер.*агрессив/.test(value)) return 'moderately_aggressive';
+    if (value.includes('aggressive') || value === 'high' || /агрессив/.test(value)) return 'aggressive';
+    return null;
+}
+
+function riskProfileDetailsForGoal(goal) {
+    const { raw, isExtended } = rawRiskProfileForGoal(goal);
+    const key = normalizeRiskProfileKey(raw, isExtended);
+    return key ? RISK_PROFILE_DETAILS[key] : {
+        label: raw ? String(raw) : 'По анкете клиента',
+        description: 'Профиль берётся из риск-анкеты клиента и определяет допустимую долю рыночных инструментов в портфеле цели.',
+    };
+}
+
+function riskProfileLabelForGoal(goal) {
+    return riskProfileDetailsForGoal(goal).label;
+}
+
+function replaceRiskProfileBlock(html, prefix, goal) {
+    const risk = riskProfileDetailsForGoal(goal);
+    let out = String(html || '');
+    out = out.replace(
+        new RegExp(`<div class="finam-v2-${escapeRegExp(prefix)}__row"><span>Риск-профиль<\\/span><span>[\\s\\S]*?<\\/span><\\/div>`),
+        `<div class="finam-v2-${prefix}__row"><span>Риск-профиль</span><span>${escapeHtml(risk.label)}</span></div>`
+    );
+    out = out.replace(
+        new RegExp(`<div class="finam-v2-${escapeRegExp(prefix)}__risk-value">[\\s\\S]*?<\\/div>`),
+        `<div class="finam-v2-${prefix}__risk-value">${escapeHtml(risk.label)}</div>`
+    );
+    out = out.replace(
+        new RegExp(`<p class="finam-v2-${escapeRegExp(prefix)}__risk-text">[\\s\\S]*?<\\/p>`),
+        `<p class="finam-v2-${prefix}__risk-text">${escapeHtml(risk.description)}</p>`
+    );
+    return out;
+}
+
 
 function otherSubtype(goal) {
     const raw = `${goal?.goal_title_raw || ''} ${goal?.goal_name || ''} ${goal?.name || ''}`.toLowerCase();
@@ -1178,6 +1246,7 @@ function replaceInvestmentGoalArtifacts(html, context, prefix) {
     if ((out.match(/<article\b[^>]*\bfinam-v2-page\b[^>]*>/g) || []).length > 1) {
         return replaceFinamV2PageArticles(out, (articleHtml) => replaceInvestmentGoalArtifacts(articleHtml, context, prefix));
     }
+    out = replaceRiskProfileBlock(out, prefix, goal);
     if (!out.includes('· 2/2')) return out;
 
     const data = normalizeInvestmentGoalArtifacts(goal);
@@ -1219,7 +1288,7 @@ function normalizeOtherGoal(goal, helpers) {
         targetYear: targetYearFromGoal(goal, months),
         inflation: maybeFinite(s.inflation_rate),
         yieldPercent: maybeFinite(s.accumulation_yield_percent ?? goal?.pdf_metrics?.portfolio_yield_percent),
-        riskProfile: riskProfileLabelForGoal(goal),
+        riskProfile: riskProfileDetailsForGoal(goal),
         tax,
         cofin,
         composition,
@@ -1278,7 +1347,7 @@ function replaceOtherGoalPage(html, context) {
     </div>`, 1);
         out = out.replace(/<div class="finam-v2-other__capital-value">[\s\S]*?<\/div>/, `<div class="finam-v2-other__capital-value">${projectedHtml}</div>`);
         out = replaceFirstMatches(out, /<div class="finam-v2-other__metric-value">[\s\S]*?<\/div>/g, [`<div class="finam-v2-other__metric-value">${initialHtml}</div>`, `<div class="finam-v2-other__metric-value">${monthlyHtml}</div>`, `<div class="finam-v2-other__metric-value">${escapeHtml(monthsLabel)}</div>`, `<div class="finam-v2-other__metric-value">${yieldHtml}</div>`]);
-        out = out.replace(/<div class="finam-v2-other__risk-value">[\s\S]*?<\/div>/, `<div class="finam-v2-other__risk-value">${escapeHtml(other.riskProfile)}</div>`);
+        out = replaceRiskProfileBlock(out, 'other', goal);
     } else {
         out = out.replace(/<div class="finam-v2-other__bubble finam-v2-other__bubble--green">[\s\S]*?<\/div>\s*<\/div>\s*<p class="finam-v2-other__section-kicker">/, `<div class="finam-v2-other__bubble finam-v2-other__bubble--green"><p>Стартовый капитал, пополнения и портфель собирают целевую сумму <strong>${projectedHtml}</strong>.</p></div>\n    </div>\n\n    <p class="finam-v2-other__section-kicker">`);
         out = replaceNthElementByClass(out, 'finam-v2-other__bars', buildGoalBarsHtml('other', bars), 1);

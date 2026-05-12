@@ -652,19 +652,22 @@
 
     .finam-v2-passive-income__donut-center {
       position: absolute;
-      inset: 0;
+      inset: 15px;
       z-index: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
-      color: #fff;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      color: var(--finam-v2-color-navy-deep);
       font-weight: 700;
       font-size: 12px;
-      line-height: 1;
+      line-height: 1.05;
       font-variant-numeric: tabular-nums;
-      text-shadow: 0 1px 3px rgba(0, 42, 74, 0.65);
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
     }
 
     .finam-v2-passive-income__donut-center small {
@@ -673,7 +676,7 @@
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: rgba(255, 255, 255, 0.88);
+      color: #64748b;
     }
 
     .finam-v2-passive-income__legend {
@@ -847,12 +850,12 @@
     <section class="finam-v2-passive-income__risk">
       <div class="finam-v2-passive-income__risk-badge">
         <div class="finam-v2-passive-income__risk-label">Риск-профиль</div>
-        <div class="finam-v2-passive-income__risk-value">Умеренно высокий</div>
+        <div class="finam-v2-passive-income__risk-value">Сбалансированный</div>
       </div>
       <div>
         <p class="finam-v2-passive-income__risk-text">
-          Длинный горизонт позволяет держать долю рыночных инструментов выше, но перед стартом выплат
-          портфель должен постепенно уходить в более защитную структуру.
+          Портфель держит равновесие между сохранностью и ростом капитала.
+          Рыночные инструменты работают на доходность, а защитная часть сглаживает колебания.
         </p>
       </div>
     </section>

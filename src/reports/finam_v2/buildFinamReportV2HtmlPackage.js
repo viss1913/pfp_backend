@@ -196,26 +196,25 @@ function filterGoals(goals, goalTypesRaw) {
 }
 
 function riskProfileLabel(goal) {
+    const extended = goal?.risk_profile_extended || goal?.risk_profile_details?.risk_profile_extended;
+    const isExtended = extended !== undefined && extended !== null && String(extended).trim();
     const raw =
-        goal?.risk_profile_extended ||
-        goal?.risk_profile_details?.risk_profile_extended ||
+        extended ||
         goal?.risk_profile_details?.risk_profile ||
         goal?.risk_profile;
-    const s = String(raw || '').toUpperCase();
-    const labels = {
-        CONSERVATIVE: 'Консервативный',
-        MODERATELY_CONSERVATIVE: 'Умеренно-консервативный',
-        MODERATE: 'Умеренный',
-        MODERATELY_AGGRESSIVE: 'Умеренно-агрессивный',
-        AGGRESSIVE: 'Агрессивный',
-        LOW: 'Низкий',
-        MEDIUM: 'Средний',
-        HIGH: 'Высокий',
-        '1': 'Консервативный',
-        '2': 'Умеренный',
-        '3': 'Агрессивный',
-    };
-    return labels[s] || (raw ? String(raw) : 'По анкете клиента');
+    const value = String(raw || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    if (!value) return 'По анкете клиента';
+    if (value === '1') return 'Консервативный';
+    if (value === '2') return isExtended ? 'Умеренно-консервативный' : 'Сбалансированный';
+    if (value === '3') return isExtended ? 'Сбалансированный' : 'Агрессивный';
+    if (value === '4') return 'Умеренно агрессивный';
+    if (value === '5') return 'Агрессивный';
+    if (value.includes('moderately_conservative') || value.includes('moderate_conservative') || /умер.*консер/.test(value)) return 'Умеренно-консервативный';
+    if (value.includes('conservative') || /консервативн/.test(value) || value === 'low') return 'Консервативный';
+    if (value.includes('balanced') || value === 'moderate' || value === 'medium' || /сбаланс/.test(value) || /умеренны[ий]/.test(value)) return 'Сбалансированный';
+    if (value.includes('moderately_aggressive') || value.includes('moderate_aggressive') || /умер.*агрессив/.test(value)) return 'Умеренно агрессивный';
+    if (value.includes('aggressive') || value === 'high' || /агрессив/.test(value)) return 'Агрессивный';
+    return String(raw);
 }
 
 function pickGoalTarget(goal) {

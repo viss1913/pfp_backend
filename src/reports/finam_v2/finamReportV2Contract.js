@@ -100,7 +100,7 @@ const FINAM_REPORT_V2_SAMPLE_PAYLOAD = Object.freeze({
         horizon: '10 лет',
         monthlyContribution: '50 тыс ₽',
         expectedReturn: '11,0%',
-        riskProfile: 'Умеренный',
+        riskProfile: 'Сбалансированный',
         initialCapitalAllocation: [
             { assetClass: 'Облигации', percent: 30, value: '1,5 млн ₽' },
             { assetClass: 'Акции / фонды', percent: 26, value: '1,3 млн ₽' },
