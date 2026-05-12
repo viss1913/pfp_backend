@@ -1115,7 +1115,7 @@ function fileToDataUrl(relativePath) {
     const abs = path.join(__dirname, relativePath);
     if (!fs.existsSync(abs)) return relativePath;
     const ext = path.extname(abs).toLowerCase();
-    const mime = ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : 'image/jpeg';
+    const mime = ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : ext === '.svg' ? 'image/svg+xml' : 'image/jpeg';
     return `data:${mime};base64,${fs.readFileSync(abs).toString('base64')}`;
 }
 
@@ -1334,6 +1334,7 @@ function replaceOtherGoalPage(html, context) {
     const yieldHtml = formatPercentHtml(other.yieldPercent);
     const inflationHtml = formatPercentHtml(other.inflation);
     const assetUrl = fileToDataUrl(`assets/${other.subtype.asset}`);
+    const aiAvatarUrl = fileToDataUrl('assets/avatar-ai-finam-v2.svg');
     const bars = [
         { label: 'Стартовый капитал', valueHtml: moneyHtml(helpers, other.initial, { short: true }), percent: barPct(other.initial, other.composition.total), color: '#002a4a' },
         { label: 'Пополнения', valueHtml: moneyHtml(helpers, other.composition.replenishments, { short: true }), percent: barPct(other.composition.replenishments, other.composition.total), color: '#1e6bb8' },
@@ -1350,7 +1351,7 @@ function replaceOtherGoalPage(html, context) {
         out = out.replace(/<h1 class="finam-v2-other__title">[\s\S]*?<\/h1>\s*/, '');
         out = out.replace(/<div class="finam-v2-other__ai-row">[\s\S]*?<\/div>\s*<\/div>\s*<div class="finam-v2-other__hero-visual">/, `<div class="finam-v2-other__ai-row">
           <div class="finam-v2-other__avatar" role="img" aria-label="ИИ-ассистент">
-            <img src="assets/avatar-ai-finam-v2.png" width="42" height="42" alt="" decoding="async" />
+            <img src="${escapeHtml(aiAvatarUrl)}" width="42" height="42" alt="" decoding="async" />
           </div>
           <div class="finam-v2-other__bubble">
             <p>Стоимость цели в текущих деньгах — <strong>${nowHtml}</strong>; с учётом инфляции к ${escapeHtml(other.targetYear)} году ориентир становится <strong>${futureHtml}</strong>.</p>
