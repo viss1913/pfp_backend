@@ -923,7 +923,7 @@ function buildV2Model(report = {}, options = {}) {
 function buildBaseCss() {
     const tokensCss = readLocalCss('tokens.css');
     const coverBg = localAssetDataUrl('assets/cover-bg.png');
-    const aiAvatar = localAssetDataUrl('assets/avatar-ai-finam-v2.svg');
+    const aiAvatar = localAssetDataUrl('assets/avatar-ai-finam-v2.png');
     return `
 ${tokensCss}
 @page { size: 595px 842px; margin: 0; }

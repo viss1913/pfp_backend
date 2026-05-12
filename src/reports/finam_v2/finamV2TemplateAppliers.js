@@ -1334,7 +1334,7 @@ function replaceOtherGoalPage(html, context) {
     const yieldHtml = formatPercentHtml(other.yieldPercent);
     const inflationHtml = formatPercentHtml(other.inflation);
     const assetUrl = fileToDataUrl(`assets/${other.subtype.asset}`);
-    const aiAvatarUrl = fileToDataUrl('assets/avatar-ai-finam-v2.svg');
+    const aiAvatarUrl = fileToDataUrl('assets/avatar-ai-finam-v2.png');
     const bars = [
         { label: 'Стартовый капитал', valueHtml: moneyHtml(helpers, other.initial, { short: true }), percent: barPct(other.initial, other.composition.total), color: '#002a4a' },
         { label: 'Пополнения', valueHtml: moneyHtml(helpers, other.composition.replenishments, { short: true }), percent: barPct(other.composition.replenishments, other.composition.total), color: '#1e6bb8' },
