@@ -914,10 +914,10 @@ function replacePensionGoalPage(html, context) {
     const capitalShort = escapeHtml(formatShortMoneyNoCurrency(helpers, p.capital));
     const targetFutureHtml = moneyHtml(helpers, p.targetFuture, { perMonth: true });
     const targetPresentHtml = moneyHtml(helpers, p.targetPresent, { perMonth: true });
-    const stateTodayHtml = moneyHtml(helpers, p.stateToday);
-    const stateFutureHtml = moneyHtml(helpers, p.stateFuture);
-    const gapTodayHtml = moneyHtml(helpers, p.gapToday);
-    const gapFutureHtml = moneyHtml(helpers, p.gapFuture);
+    const stateTodayHtml = moneyHtml(helpers, p.stateToday, { perMonth: true });
+    const stateFutureHtml = moneyHtml(helpers, p.stateFuture, { perMonth: true });
+    const gapTodayHtml = moneyHtml(helpers, p.gapToday, { perMonth: true });
+    const gapFutureHtml = moneyHtml(helpers, p.gapFuture, { perMonth: true });
     const initialHtml = moneyHtml(helpers, p.initial);
     const monthlyHtml = moneyHtml(helpers, p.monthly);
     const monthlyPerMonthHtml = moneyHtml(helpers, p.monthly, { perMonth: true });
@@ -925,7 +925,6 @@ function replacePensionGoalPage(html, context) {
     const accumulationYieldHtml = formatPercentHtml(p.accumulationYield);
     const inflationHtml = formatPercentHtml(p.inflation);
     const payoutYieldHtml = formatPercentHtml(p.payoutYield);
-    const providerSuffix = p.provider ? ` · ${escapeHtml(p.provider)}` : '';
     const bars = [
         { label: 'Собственные средства', valueHtml: moneyHtml(helpers, p.composition.own, { short: true }), percent: barPct(p.composition.own, p.composition.total), color: '#002a4a' },
         { label: 'Инвест. доход и льготы', valueHtml: moneyHtml(helpers, p.composition.extra, { short: true }), percent: barPct(p.composition.extra, p.composition.total), color: '#4f8fd9' },
@@ -940,21 +939,26 @@ function replacePensionGoalPage(html, context) {
     const ipk = p.statePension.ipkTotal ?? p.statePension.ipkCurrent;
     const fixed = p.statePension.fixedPaymentToday;
     const point = p.statePension.pointCostToday;
+    const pensionHeroNarrativeHtml = `Вы хотели бы получать <strong>${targetPresentHtml}</strong> в ${escapeHtml(p.retirementYear)} г. С учётом инфляции ${inflationHtml} это уже <strong>${targetFutureHtml}</strong>. По моим расчётам гос. пенсия составит <strong>${stateTodayHtml}</strong> в сегодняшних рублях, а с учётом инфляции — <strong>${stateFutureHtml}</strong>. Я создала план, как получать <strong>${gapFutureHtml}</strong> дополнительно.`;
 
     let out = String(html || '');
     if ((out.match(/<article\b[^>]*\bfinam-v2-page\b[^>]*>/g) || []).length > 1) return replaceFinamV2PageArticles(out, (articleHtml) => replacePensionGoalPage(articleHtml, context));
     const pageNo = out.includes('· 2/3') ? 2 : out.includes('· 3/3') ? 3 : 1;
     if (pageNo === 1) {
-        out = out.replace(/<div class="finam-v2-pension__bubble">[\s\S]*?<\/div>\s*<\/div>\s*<section class="finam-v2-pension__hero">/, `<div class="finam-v2-pension__bubble"><p>Прогноз госпенсии ${stateFutureHtml} не закрывает желаемый доход ${targetFutureHtml}; цель собирает личный капитал.</p></div>\n    </div>\n\n    <section class="finam-v2-pension__hero">`);
-        out = out.replace(/<div class="finam-v2-pension__kicker">Пенсия[\s\S]*?<\/div>/, `<div class="finam-v2-pension__kicker">Пенсия${providerSuffix}</div>`);
-        out = out.replace(/<h1 class="finam-v2-pension__title">Достойная пенсия<\/h1>/, `<h1 class="finam-v2-pension__title">${title}</h1>`);
-        out = out.replace(/получать около <strong>[\s\S]*?<\/strong>\./, `получать около <strong>${targetFutureHtml}</strong>.`);
+        out = out.replace(
+            /<div class="finam-v2-pension__ai-row">[\s\S]*?<\/div>\s*\n\s*<section class="finam-v2-pension__hero">/,
+            `<h1 class="finam-v2-pension__page-title">Цель - ${title}</h1>\n\n    <section class="finam-v2-pension__hero">`
+        );
+        out = out.replace(/<h1 class="finam-v2-pension__page-title">[\s\S]*?<\/h1>/, `<h1 class="finam-v2-pension__page-title">Цель - ${title}</h1>`);
+        out = out.replace(/<div class="finam-v2-pension__kicker">Пенсия[\s\S]*?<\/div>/, '<div class="finam-v2-pension__kicker">Пенсия</div>');
+        out = out.replace(/<h1 class="finam-v2-pension__title">[\s\S]*?<\/h1>\s*/, '');
+        out = out.replace(/<p class="finam-v2-pension__text">\s*[\s\S]*?\s*<\/p>\s*<\/div>\s*<div class="finam-v2-pension__hero-image">/, `<p class="finam-v2-pension__text">${pensionHeroNarrativeHtml}</p>\n      </div>\n      <div class="finam-v2-pension__hero-image">`);
         out = replaceNthElementByClass(out, 'finam-v2-pension__grid-2', `<div class="finam-v2-pension__grid-2">
-      <section class="finam-v2-pension__card"><div class="finam-v2-pension__card-title">Госпенсия</div>${pensionRow('Год выхода на пенсию', escapeHtml(p.retirementYear))}${pensionRow('Прогноз сегодня', stateTodayHtml)}${pensionRow('С учётом инфляции', stateFutureHtml)}${pensionRow('Инфляция модели', inflationHtml)}</section>
-      <section class="finam-v2-pension__card"><div class="finam-v2-pension__card-title">Пенсионный разрыв</div><p class="finam-v2-pension__text">Нехватка дохода в сегодняшних рублях — <strong>${gapTodayHtml}</strong>.</p><div class="finam-v2-pension__big-value">${gapFutureHtml}</div><div class="finam-v2-pension__big-sub">личный доход к пенсии в месяц</div></section>
+      <section class="finam-v2-pension__card"><div class="finam-v2-pension__card-title">Госпенсия</div>${pensionRow('Год выхода на пенсию', escapeHtml(p.retirementYear))}${pensionRow('Прогноз сегодня', stateTodayHtml)}${pensionRow(`Прогноз с инфляцией ${inflationHtml}`, stateFutureHtml)}${pensionRow('Инфляция модели', inflationHtml)}</section>
+      <section class="finam-v2-pension__card"><div class="finam-v2-pension__card-title">Пенсионный разрыв</div><p class="finam-v2-pension__text">Нехватка дохода сегодня — <strong>${gapTodayHtml}</strong>. С учётом инфляции к пенсии:</p><div class="finam-v2-pension__big-value">${gapFutureHtml}</div><div class="finam-v2-pension__big-sub">дополнительный доход в месяц</div></section>
     </div>`, 1);
         out = out.replace(/<div class="finam-v2-pension__capital-value">[\s\S]*?<\/div>/, `<div class="finam-v2-pension__capital-value">${capitalHtml}</div>`);
-        out = out.replace(/Ориентир доходности для выплат[\s\S]*?потребуется капитал примерно <strong>[\s\S]*?<\/strong>\./, `Ориентир доходности для выплат — ${payoutYieldHtml} в год; требуемый капитал — <strong>${capitalHtml}</strong>.`);
+        out = out.replace(/Ориентир доходности для выплат[\s\S]*?потребуется капитал примерно <strong>[\s\S]*?<\/strong>\./, `Для получения дополнительного дохода ${gapFutureHtml} понадобится капитал <strong>${capitalHtml}</strong>. В плане считаем, что его можно инвестировать под ${payoutYieldHtml} годовых в депозиты, облигации и другие консервативные инструменты.`);
         out = replaceFirstMatches(out, /<div class="finam-v2-pension__metric-value">[\s\S]*?<\/div>/g, [`<div class="finam-v2-pension__metric-value">${initialHtml}</div>`, `<div class="finam-v2-pension__metric-value">${monthlyHtml}</div>`, `<div class="finam-v2-pension__metric-value">${escapeHtml(yearsLabel)}</div>`, `<div class="finam-v2-pension__metric-value">${accumulationYieldHtml}</div>`, `<div class="finam-v2-pension__metric-value">${capitalShort}</div>`]);
         out = out.replace(/<div class="finam-v2-pension__product-name">[\s\S]*?<\/div>/, `<div class="finam-v2-pension__product-name">${escapeHtml(p.instrumentName)}</div>`);
         out = out.replace(/<div class="finam-v2-pension__rate-value">[\s\S]*?<\/div>/, `<div class="finam-v2-pension__rate-value">${accumulationYieldHtml}</div>`);
@@ -976,7 +980,7 @@ function replacePensionGoalPage(html, context) {
     } else {
         out = out.replace(/<div class="finam-v2-pension__bubble">[\s\S]*?<\/div>\s*<\/div>\s*<section class="finam-v2-pension__method-hero">/, `<div class="finam-v2-pension__bubble"><p>Госпенсия — модельный ориентир: год ${escapeHtml(p.retirementYear)}, оценка сегодня ${stateTodayHtml}, прогноз ${stateFutureHtml}.</p></div>\n    </div>\n\n    <section class="finam-v2-pension__method-hero">`);
         out = out.replace(/<div class="finam-v2-pension__method-score-value">[\s\S]*?<\/div>/, `<div class="finam-v2-pension__method-score-value">${stateTodayHtml}</div>`);
-        out = out.replace(/<p class="finam-v2-pension__formula-note">[\s\S]*?<\/p>/, `<p class="finam-v2-pension__formula-note">Фиксированная выплата ${fixed != null ? moneyHtml(helpers, fixed) : '—'}, ИПК ${escapeHtml(formatNumberRu(ipk, 1))}, стоимость ИПК ${point != null ? moneyHtml(helpers, point) : '—'}. Индексация ${inflationHtml} на ${escapeHtml(yearsLabel)} даёт около ${stateFutureHtml}/мес.</p>`);
+        out = out.replace(/<p class="finam-v2-pension__formula-note">[\s\S]*?<\/p>/, `<p class="finam-v2-pension__formula-note">Фиксированная выплата ${fixed != null ? moneyHtml(helpers, fixed) : '—'}, ИПК ${escapeHtml(formatNumberRu(ipk, 1))}, стоимость ИПК ${point != null ? moneyHtml(helpers, point) : '—'}. Индексация ${inflationHtml} на ${escapeHtml(yearsLabel)} даёт около ${stateFutureHtml}.</p>`);
         out = out.replace(/Определяем горизонт до выхода на пенсию:[\s\S]*?<\/p>/, `Определяем горизонт: ${escapeHtml(yearsLabel)}, до ${escapeHtml(p.retirementYear)} года.</p>`);
         out = out.replace(/модельную индексацию 5,6% в год/g, `модельную индексацию ${inflationHtml} в год`);
         out = out.replace(/<div class="finam-v2-pension__chart-total">разрыв[\s\S]*?<\/div>/, `<div class="finam-v2-pension__chart-total">разрыв ${moneyHtml(helpers, p.gapFuture, { short: true, perMonth: true })}</div>`);
@@ -996,7 +1000,7 @@ function replacePensionGoalPage(html, context) {
         out = out.replace(/607&nbsp;000(?:&nbsp;|\s)₽/g, targetFutureHtml);
         out = out.replace(/229&nbsp;589(?:&nbsp;|\s)₽/g, stateFutureHtml);
         out = out.replace(/377&nbsp;376(?:&nbsp;|\s)₽/g, gapFutureHtml);
-        out = out.replace(/Чтобы закрыть разрыв\s+около <strong>[\s\S]*?<\/strong>/, `Чтобы закрыть разрыв около <strong>${gapFutureHtml}</strong>`);
+        out = out.replace(/Чтобы закрыть разрыв\s+около <strong>[\s\S]*?<\/strong>, план формирует личный пенсионный капитал\./, `Чтобы закрыть разрыв около <strong>${gapFutureHtml}</strong>, нужен дополнительный капитал ${capitalHtml}; в плане он работает под ${payoutYieldHtml} годовых в консервативных инструментах.`);
         out = out.replace(/<div class="finam-v2-pension__chart-total">разрыв[\s\S]*?<\/div>/, `<div class="finam-v2-pension__chart-total">разрыв ${moneyHtml(helpers, p.gapFuture, { short: true, perMonth: true })}</div>`);
     }
     return out;
@@ -1524,6 +1528,18 @@ function moneyNoCurrencyHtml(helpers, value, opts = {}) {
         .replace(/&nbsp;₽$/, '');
 }
 
+function isPensionMonthlyCostRow(row) {
+    return row?.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION;
+}
+
+function goalCostHtml(row, field, helpers) {
+    const value = finite(row?.[field], 0);
+    if (value <= 0) return '—';
+    return isPensionMonthlyCostRow(row)
+        ? moneyHtml(helpers, value, { short: true, perMonth: true })
+        : moneyNoCurrencyHtml(helpers, value, { short: true });
+}
+
 function inlineGoalIconSvg(pageType) {
     const pathByType = {
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_FIN_RESERVE]: '<path d="M12 3l8 4v6c0 5-8 8-8 8s-8-3-8-8V7l8-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />',
@@ -1629,8 +1645,8 @@ function buildGoalsTableRowsHtml(diagnostics, helpers) {
             <td class="num">${escapeHtml(row.term || '—')}</td>
             <td class="num">${row.monthly > 0 ? moneyNoCurrencyHtml(helpers, row.monthly) : '—'}</td>
             <td class="num">${row.capital > 0 ? moneyNoCurrencyHtml(helpers, row.capital, { short: true }) : '—'}</td>
-            <td class="num">${row.costNow > 0 ? moneyNoCurrencyHtml(helpers, row.costNow, { short: true }) : '—'}</td>
-            <td class="num">${row.costFuture > 0 ? moneyNoCurrencyHtml(helpers, row.costFuture, { short: true }) : '—'}</td>
+            <td class="num">${goalCostHtml(row, 'costNow', helpers)}</td>
+            <td class="num">${goalCostHtml(row, 'costFuture', helpers)}</td>
           </tr>`).join('\n          ');
     const rest = diagnostics?.remainingCount > 0
         ? `<tr><td colspan="6">Ещё ${Number(diagnostics.remainingCount).toLocaleString('ru-RU')} ${pluralRu(diagnostics.remainingCount, 'цель', 'цели', 'целей')} показаны в детальных разделах отчёта.</td></tr>`
