@@ -75,13 +75,12 @@ function calculateAugNextYearEffectivenessPercent(monthlySchedule) {
     const k0 =
         toNum(first.total_capital) -
         toNum(first.replenishment) -
-        toNum(first.tax_deduction) -
         toNum(first.cofinancing);
     const kEnd = toNum(rows[rows.length - 1].total_capital);
     const replenishmentSum = rows.reduce((sum, row) => sum + toNum(row.replenishment), 0);
     const taxSum = rows.reduce((sum, row) => sum + toNum(row.tax_deduction), 0);
     const cofinancingSum = rows.reduce((sum, row) => sum + toNum(row.cofinancing), 0);
-    const investmentIncome = kEnd - k0 - replenishmentSum - taxSum - cofinancingSum;
+    const investmentIncome = kEnd - k0 - replenishmentSum - cofinancingSum;
 
     const weightedReplenishments = rows.reduce((sum, row) => {
         const monthsLeft = Math.max(monthsBetween(toDate(row.date), endDate) + 1, 0);
@@ -121,7 +120,6 @@ function extractPensionPlanFacts(monthlySchedule, fallback = {}) {
         initialFromSchedule =
             toNum(first.total_capital) -
             toNum(first.replenishment) -
-            toNum(first.tax_deduction) -
             toNum(first.cofinancing);
     }
     const firstRegular = schedule.find((row) => row && row.date && !isScheduleInitialLumpRow(row)) || null;
@@ -163,7 +161,6 @@ function calculateOwnFundsFromSchedule(monthlySchedule, fallbackOwnFunds = 0) {
     const initialFromSchedule =
         toNum(first.total_capital) -
         toNum(first.replenishment) -
-        toNum(first.tax_deduction) -
         toNum(first.cofinancing);
     const replenishmentSum = schedule.reduce((sum, row) => sum + toNum(row.replenishment), 0);
     return Math.max(initialFromSchedule + replenishmentSum, 0);
@@ -729,7 +726,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
               </div>
               <div style="display:flex;justify-content:center;gap:14px;margin-top:6px;font-size:10px;color:#424242;line-height:1.2;">
                 <span><span style="display:inline-block;width:8px;height:8px;background:#9f9f9f;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Собственные средства</span>
-                <span><span style="display:inline-block;width:8px;height:8px;background:#000000;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Процентный доход, софинансирование, вычеты</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#000000;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Процентный доход и софинансирование</span>
                 <span><span style="display:inline-block;width:8px;height:8px;background:#722257;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Итого капитал</span>
               </div>
               <div style="margin-top:12px;border:1px solid #8a2d69;border-radius:8px;padding:6px 10px;text-align:center;font-size:16px;line-height:1.15;color:#722257;font-weight:700;">

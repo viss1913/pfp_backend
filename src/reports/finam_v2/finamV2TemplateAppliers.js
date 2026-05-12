@@ -761,10 +761,11 @@ function scheduleYearAmount(goal, fieldName) {
     return { year, amount };
 }
 
-function capitalComposition({ initial, monthly, months, total, tax = 0, cofin = 0 }) {
+function capitalComposition({ initial, monthly, months, total, cofin = 0 }) {
     const own = Math.max(0, finite(initial, 0) + finite(monthly, 0) * Math.max(0, Math.round(finite(months, 0))));
     const extra = Math.max(0, finite(total, 0) - own);
-    const investment = Math.max(0, extra - finite(tax, 0) - finite(cofin, 0));
+    // Tax refunds are displayed as benefits, but only cofinancing is included in projected capital.
+    const investment = Math.max(0, extra - finite(cofin, 0));
     return {
         own,
         replenishments: Math.max(0, finite(monthly, 0) * Math.max(0, Math.round(finite(months, 0)))),
@@ -936,7 +937,7 @@ function replacePensionGoalPage(html, context) {
     const payoutYieldHtml = formatPercentHtml(p.payoutYield);
     const bars = [
         { label: 'Собственные средства', valueHtml: moneyHtml(helpers, p.composition.own, { short: true }), percent: barPct(p.composition.own, p.composition.total), color: '#002a4a' },
-        { label: 'Инвест. доход и льготы', valueHtml: moneyHtml(helpers, p.composition.extra, { short: true }), percent: barPct(p.composition.extra, p.composition.total), color: '#4f8fd9' },
+        { label: 'Инвест. доход и софинанс.', valueHtml: moneyHtml(helpers, p.composition.extra, { short: true }), percent: barPct(p.composition.extra, p.composition.total), color: '#4f8fd9' },
         { label: 'Итоговый капитал', valueHtml: moneyHtml(helpers, p.composition.total, { short: true }), percent: 100, color: '#166534' },
     ];
     const methodBars = [
@@ -973,7 +974,7 @@ function replacePensionGoalPage(html, context) {
         out = out.replace(/<div class="finam-v2-pension__rate-value">[\s\S]*?<\/div>/, `<div class="finam-v2-pension__rate-value">${accumulationYieldHtml}</div>`);
         out = replaceFirstMatches(out, /<div class="finam-v2-pension__row"><span>(Тип|Доля в цели|Начальная сумма|Ежемесячное пополнение)<\/span><span>[\s\S]*?<\/span><\/div>/g, [pensionRow('Тип', escapeHtml(p.instrumentType)), pensionRow('Доля в цели', escapeHtml(p.shareLabel)), pensionRow('Начальная сумма', initialHtml), pensionRow('Ежемесячное пополнение', monthlyHtml)]);
     } else if (pageNo === 2) {
-        out = out.replace(/<div class="finam-v2-pension__bubble finam-v2-pension__bubble--green">[\s\S]*?<\/div>\s*<\/div>\s*<p class="finam-v2-pension__section-kicker">/, `<div class="finam-v2-pension__bubble finam-v2-pension__bubble--green"><p>Собственные взносы и льготы дают базу, итоговая сумма <strong>${capitalHtml}</strong> идёт из графика цели.</p></div>\n    </div>\n\n    <p class="finam-v2-pension__section-kicker">`);
+        out = out.replace(/<div class="finam-v2-pension__bubble finam-v2-pension__bubble--green">[\s\S]*?<\/div>\s*<\/div>\s*<p class="finam-v2-pension__section-kicker">/, `<div class="finam-v2-pension__bubble finam-v2-pension__bubble--green"><p>Собственные взносы, инвестиционный доход и софинансирование дают базу; итоговая сумма <strong>${capitalHtml}</strong> идёт из графика цели.</p></div>\n    </div>\n\n    <p class="finam-v2-pension__section-kicker">`);
         out = replaceNthElementByClass(out, 'finam-v2-pension__bars', buildGoalBarsHtml('pension', bars), 1);
         out = out.replace(/<div class="finam-v2-pension__capital-value"[^>]*>[\s\S]*?<\/div>/, `<div class="finam-v2-pension__capital-value" style="text-align: center;">${moneyHtml(helpers, p.capital)}</div>`);
         out = replaceGoalBenefitsBlock(out, 'pension', buildGoalBenefitsHtml('pension', 'Софинансирование и вычеты', [
@@ -1339,7 +1340,7 @@ function replaceOtherGoalPage(html, context) {
         { label: 'Стартовый капитал', valueHtml: moneyHtml(helpers, other.initial, { short: true }), percent: barPct(other.initial, other.composition.total), color: '#002a4a' },
         { label: 'Пополнения', valueHtml: moneyHtml(helpers, other.composition.replenishments, { short: true }), percent: barPct(other.composition.replenishments, other.composition.total), color: '#1e6bb8' },
         { label: 'Инвест. доход', valueHtml: moneyHtml(helpers, other.composition.investment || other.composition.extra, { short: true }), percent: barPct(other.composition.investment || other.composition.extra, other.composition.total), color: '#4f8fd9' },
-        { label: 'Целевая сумма', valueHtml: moneyHtml(helpers, other.composition.total, { short: true }), percent: 100, color: '#166534' },
+        { label: 'Итоговый капитал', valueHtml: moneyHtml(helpers, other.composition.total, { short: true }), percent: 100, color: '#166534' },
     ];
     let out = String(html || '');
     if ((out.match(/<article\b[^>]*\bfinam-v2-page\b[^>]*>/g) || []).length > 1) return replaceFinamV2PageArticles(out, (articleHtml) => replaceOtherGoalPage(articleHtml, context));
@@ -1365,11 +1366,11 @@ function replaceOtherGoalPage(html, context) {
       <section class="finam-v2-other__card"><div class="finam-v2-other__card-title">Параметры цели</div>${otherRow('Подтип цели', escapeHtml(other.subtype.label))}${otherRow('Плановая дата', escapeHtml(other.targetYear))}${otherRow('Стоимость сейчас', nowHtml)}${otherRow('Инфляция модели', inflationHtml)}</section>
       <section class="finam-v2-other__card"><div class="finam-v2-other__card-title">Сумма с учётом инфляции</div><p class="finam-v2-other__text">На дату реализации эта сумма становится ориентиром для пополнений.</p><div class="finam-v2-other__big-value">${futureHtml}</div><div class="finam-v2-other__big-sub">целевой капитал к ${escapeHtml(other.targetYear)} году</div></section>
     </div>`, 1);
-        out = out.replace(/<div class="finam-v2-other__capital-value">[\s\S]*?<\/div>/, `<div class="finam-v2-other__capital-value">${projectedHtml}</div>`);
+        out = out.replace(/<div class="finam-v2-other__capital-value">[\s\S]*?<\/div>/, `<div class="finam-v2-other__capital-value">${futureHtml}</div>`);
         out = replaceFirstMatches(out, /<div class="finam-v2-other__metric-value">[\s\S]*?<\/div>/g, [`<div class="finam-v2-other__metric-value">${initialHtml}</div>`, `<div class="finam-v2-other__metric-value">${monthlyHtml}</div>`, `<div class="finam-v2-other__metric-value">${escapeHtml(monthsLabel)}</div>`, `<div class="finam-v2-other__metric-value">${yieldHtml}</div>`]);
         out = replaceRiskProfileBlock(out, 'other', goal);
     } else {
-        out = out.replace(/<div class="finam-v2-other__bubble finam-v2-other__bubble--green">[\s\S]*?<\/div>\s*<\/div>\s*<p class="finam-v2-other__section-kicker">/, `<div class="finam-v2-other__bubble finam-v2-other__bubble--green"><p>Стартовый капитал, пополнения и портфель собирают целевую сумму <strong>${projectedHtml}</strong>.</p></div>\n    </div>\n\n    <p class="finam-v2-other__section-kicker">`);
+        out = out.replace(/<div class="finam-v2-other__bubble finam-v2-other__bubble--green">[\s\S]*?<\/div>\s*<\/div>\s*<p class="finam-v2-other__section-kicker">/, `<div class="finam-v2-other__bubble finam-v2-other__bubble--green"><p>Стартовый капитал, пополнения и портфель формируют прогнозный капитал <strong>${projectedHtml}</strong>.</p></div>\n    </div>\n\n    <p class="finam-v2-other__section-kicker">`);
         out = replaceNthElementByClass(out, 'finam-v2-other__bars', buildGoalBarsHtml('other', bars), 1);
         out = replaceGoalBenefitsBlock(out, 'other', buildGoalBenefitsHtml('other', 'Налоговые вычеты и софинансирование', [
             { kind: 'tax', label: 'Налоговый эффект', amount: other.tax },
@@ -2465,7 +2466,8 @@ function taxSummary(model) {
     const totalCofinancing = finite(totals.total_cofinancing, 0);
     const totalStateBenefits = finite(totals.total_state_benefits, totalDeductions + totalCofinancing);
     const projected = finite(model?.portfolio?.projectedTotal, 0);
-    const withoutBenefits = Math.max(0, projected - totalStateBenefits);
+    const capitalizedBenefits = totalCofinancing;
+    const withoutBenefits = Math.max(0, projected - capitalizedBenefits);
     return {
         year,
         rows,
@@ -2474,6 +2476,7 @@ function taxSummary(model) {
         totalDeductions,
         totalCofinancing,
         totalStateBenefits,
+        capitalizedBenefits,
         projected,
         withoutBenefits,
     };
@@ -2504,7 +2507,7 @@ function buildTaxRowsHtml(summary, helpers) {
 }
 
 function taxProjectionSvg(summary, helpers) {
-    const finalWith = Math.max(summary.projected, summary.totalStateBenefits, 1);
+    const finalWith = Math.max(summary.projected, 1);
     const finalWithout = Math.max(summary.withoutBenefits, 0);
     const max = Math.max(finalWith, finalWithout, 1);
     const x0 = 28;
@@ -2519,7 +2522,7 @@ function taxProjectionSvg(summary, helpers) {
         const y = y0 - (value / max) * (y0 - y1);
         return `${x.toFixed(1)},${y.toFixed(1)}`;
     }).join(' ');
-    return `<svg class="finam-v2-tax__chart" viewBox="0 0 330 112" role="img" aria-label="Прогноз капитала после налогов">
+    return `<svg class="finam-v2-tax__chart" viewBox="0 0 330 112" role="img" aria-label="Прогноз капитала с учетом софинансирования">
           <line x1="28" y1="92" x2="314" y2="92" stroke="#cbd5e1" stroke-width="1" />
           <line x1="28" y1="18" x2="28" y2="92" stroke="#cbd5e1" stroke-width="1" />
           <line x1="28" y1="74" x2="314" y2="74" stroke="#eef2f7" stroke-width="1" />
@@ -2533,7 +2536,7 @@ function taxProjectionSvg(summary, helpers) {
           <text x="154" y="105" class="finam-v2-tax__axis">середина</text>
           <text x="286" y="105" class="finam-v2-tax__axis">срок</text>
           <text x="198" y="22" class="finam-v2-tax__chart-value">${moneyHtml(helpers, finalWith, { short: true })}</text>
-          <text x="198" y="43" class="finam-v2-tax__chart-label">${moneyHtml(helpers, finalWithout, { short: true })} без льгот</text>
+          <text x="198" y="43" class="finam-v2-tax__chart-label">${moneyHtml(helpers, finalWithout, { short: true })} без софинансирования</text>
         </svg>`;
 }
 
@@ -2588,7 +2591,7 @@ function buildTaxPlanningArticle(model, helpers) {
 
     <section class="finam-v2-tax__bottom">
       <div class="finam-v2-tax__chart-card">
-        <div class="finam-v2-tax__chart-head"><div class="finam-v2-tax__chart-title">Эффект капитала после льгот</div><p class="finam-v2-tax__chart-note">Сравнение итогового капитала с учётом НДФЛ и софинансирования и без них.</p></div>
+        <div class="finam-v2-tax__chart-head"><div class="finam-v2-tax__chart-title">Эффект капитала от софинансирования</div><p class="finam-v2-tax__chart-note">Капитал сравнивается с ПДС-софинансированием и без него; вычеты показаны отдельно как налоговый эффект.</p></div>
         ${taxProjectionSvg(s, helpers)}
       </div>
       <aside class="finam-v2-tax__compliance-card">

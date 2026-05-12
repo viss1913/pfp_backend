@@ -94,12 +94,11 @@ class PdsCofinancingService {
         });
 
         const totalCofinancingWithInvestment = firstPass.stateCapital;
-        const totalTaxCapital = firstPass.taxCapital;
 
         let recommendedReplenishment = initialReplenishment;
         if (capitalGap > 0) {
-            // Subtract BOTH State Co-financing AND Tax Refunds from the gap
-            const newCapitalGap = capitalGap - (totalCofinancingWithInvestment + totalTaxCapital);
+            // Only state cofinancing reduces the capital gap; tax refunds are reported separately.
+            const newCapitalGap = capitalGap - totalCofinancingWithInvestment;
             if (newCapitalGap > 0 && portfolioYieldMonthly !== undefined) {
                 recommendedReplenishment = this._recalculateReplenishment(
                     newCapitalGap,
@@ -131,7 +130,7 @@ class PdsCofinancingService {
 
         let finalNewCapitalGap = 0;
         if (capitalGap > 0) {
-            finalNewCapitalGap = Math.max(0, capitalGap - (secondPass.stateCapital + secondPass.taxCapital));
+            finalNewCapitalGap = Math.max(0, capitalGap - secondPass.stateCapital);
         }
 
         return {
@@ -145,7 +144,8 @@ class PdsCofinancingService {
             new_capital_gap: Math.round(finalNewCapitalGap * 100) / 100,
             actualUsedCofinancingPerYear: secondPass.actualUsedInYear, // Возвращаем, сколько реально задействовали в этой цели
             total_tax_deductions_nominal: Math.round(secondPass.totalTaxRefundNominal * 100) / 100,
-            total_tax_deductions_with_investment: Math.round(secondPass.taxCapital * 100) / 100
+            // Legacy field name: refunds are not reinvested, so this equals nominal deductions.
+            total_tax_deductions_with_investment: Math.round(secondPass.totalTaxRefundNominal * 100) / 100
         };
     }
 
@@ -174,7 +174,7 @@ class PdsCofinancingService {
 
         let clientCapital = pdsInitialCapital;
         let stateCapital = 0;
-        let taxCapital = 0; // Accumulated tax refunds with investment
+        let taxCapital = 0; // Tax refunds are tracked for reporting, not reinvested into capital.
         let totalCofinNominal = 0;
         let totalTaxRefundNominal = 0;
         const actualUsedInYear = {}; // Сколько бонуса ПДС привязали к этой конкретной цели по годам
@@ -208,7 +208,7 @@ class PdsCofinancingService {
             // --- YEAR SHIFT REPORTING ---
             if (year > currentYear && monthIndex > 0) {
                 const capitalAtYearEnd = clientCapital + stateCapital;
-                const percentageIncome = capitalAtYearEnd - capitalAtYearStart - clientContribThisYear - cofinPaidThisYear - taxRefundThisYear;
+                const percentageIncome = capitalAtYearEnd - capitalAtYearStart - clientContribThisYear - cofinPaidThisYear;
 
                 // 1. Calculate Cofinancing earned for previous year (for report)
                 let cofinForPrevYear = 0;
@@ -277,7 +277,6 @@ class PdsCofinancingService {
             // --- GROWTH ---
             clientCapital = clientCapital * (1 + pdsYieldMonthly);
             stateCapital = stateCapital * (1 + pdsYieldMonthly);
-            taxCapital = taxCapital * (1 + pdsYieldMonthly); // Tax refunds also grow
 
             if (monthIndex < termMonths - 1) {
                 const monthlyContribution = monthlyPdsReplenishment * Math.pow(1 + monthlyGrowthRate, monthIndex);
@@ -296,9 +295,7 @@ class PdsCofinancingService {
 
                         const refund = dedRes.refundAmount;
                         if (refund > 0) {
-                            // Reinvest into Client Capital
-                            clientCapital += refund;
-                            // Track for reporting
+                            // Track for reporting; refunds are not reinvested into goal capital.
                             taxCapital += refund;
                             totalTaxRefundNominal += refund;
                             taxRefundThisYear += refund;
@@ -341,7 +338,7 @@ class PdsCofinancingService {
 
         // --- FINAL REPORT (Last Year) ---
         const capitalAtYearEnd = clientCapital + stateCapital;
-        const percentageIncome = capitalAtYearEnd - capitalAtYearStart - clientContribThisYear - cofinPaidThisYear - taxRefundThisYear;
+        const percentageIncome = capitalAtYearEnd - capitalAtYearStart - clientContribThisYear - cofinPaidThisYear;
         let cofinForThisYear = 0;
         let projectedTaxRefund = 0;
 

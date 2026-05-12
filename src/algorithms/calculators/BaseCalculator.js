@@ -257,7 +257,8 @@ class BaseCalculator {
                 );
                 monthCofin = cofin;
                 monthRefund = refund;
-                currentBalance += (cofin + refund);
+                // Tax refunds are reported as benefits, but only PDS cofinancing increases invested capital.
+                currentBalance += cofin;
                 totalCofinancing += cofin;
                 totalTaxRefund += refund;
                 totalStateBenefit += (cofin + refund);
