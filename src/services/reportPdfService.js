@@ -158,6 +158,10 @@ async function loadMacroHistorySafe(slug, from, to) {
 }
 
 async function buildFinamInflationPageHtml() {
+    return await buildInflationPageFinamHtml(await loadFinamInflationMacroData());
+}
+
+async function loadFinamInflationMacroData() {
     const to = toIsoDateOnly(new Date());
     const fromYear = new Date();
     fromYear.setFullYear(fromYear.getFullYear() - 1);
@@ -167,14 +171,14 @@ async function buildFinamInflationPageHtml() {
     from10y.setFullYear(from10y.getFullYear() - 10);
     const from10yIso = toIsoDateOnly(from10y);
 
-    return await buildInflationPageFinamHtml({
+    return {
         keyRateSeries: await loadMacroHistorySafe('cbr_key_rate', from, to),
         cpiYoySeries: await loadMacroHistorySafe('russia_cpi_inflation_yoy', from10yIso, to),
         ofz2Series: await loadMacroHistorySafe('moex_ofz_gcurve_2y', from, to),
         ofz5Series: await loadMacroHistorySafe('moex_ofz_gcurve_5y', from, to),
         ofz10Series: await loadMacroHistorySafe('moex_ofz_gcurve_10y', from, to),
         corpIndexSeries: await loadMacroHistorySafe('moex_rucbicp', from, to),
-    });
+    };
 }
 
 function buildRostechPensionOnlyToc({ hasCover, goal }) {
@@ -420,6 +424,7 @@ class ReportPdfService {
                     includeSummary,
                     goalTypes,
                     advisor: reportAdvisor || undefined,
+                    macroData: await loadFinamInflationMacroData(),
                 });
                 pageHtmlList.push(...finamV2Pkg.pageHtmlList);
                 toc = finamV2Pkg.toc;

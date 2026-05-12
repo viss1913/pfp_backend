@@ -916,6 +916,8 @@ function buildV2Model(report = {}, options = {}) {
         portfolio: portfolioModel,
         taxBenefits: report?.overall_plan?.tax_benefits || {},
         comonShowcase: report?.comon_showcase || null,
+        macroData: options.macroData || report?.macroData || report?.macro_data || {},
+        riskDeclaration: report?.riskDeclaration || report?.risk_declaration || {},
     };
 }
 
@@ -1451,8 +1453,9 @@ async function buildFinamReportV2HtmlPackage({
     goalTypes = null,
     includePartnerValue = false,
     advisor = null,
+    macroData = null,
 } = {}) {
-    const model = buildV2Model(report, { goalTypes, advisor });
+    const model = buildV2Model(report, { goalTypes, advisor, macroData });
     return buildFinamV2TemplatePackage({
         model,
         includeCover,
@@ -1462,8 +1465,8 @@ async function buildFinamReportV2HtmlPackage({
     });
 }
 
-async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goalTypes = null } = {}) {
-    const model = buildV2Model(report, { goalTypes });
+async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goalTypes = null, macroData = null } = {}) {
+    const model = buildV2Model(report, { goalTypes, macroData });
     const normalized = String(pageType || '').trim();
     const lower = normalized.toLowerCase();
     const upper = normalized.toUpperCase();
@@ -1490,7 +1493,12 @@ async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goa
         ['tax', 'tax-planning', 'taxplanning'].includes(lower) ||
         normalized === FINAM_REPORT_V2_PAGE_TYPES.TAX_PLANNING
     ) return renderTemplatePage(FINAM_REPORT_V2_PAGE_TYPES.TAX_PLANNING);
-    if (upper === 'REPLENESHMENT' || upper === 'REPLENISHMENT' || normalized === FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN) {
+    if (
+        upper === 'REPLENESHMENT' ||
+        upper === 'REPLENISHMENT' ||
+        ['detailed-plan', 'detailedplan', 'repleneshment', 'replenishment'].includes(lower) ||
+        normalized === FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN
+    ) {
         return renderTemplatePage(FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN);
     }
 
@@ -1528,6 +1536,21 @@ async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goa
         return renderTemplatePage(requestedGoalPageType, goal);
     }
 
+    const tailPageAliases = {
+        'comon-autofollow': FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW,
+        comonautofollow: FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW,
+        'idu-strategies': FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES,
+        idustrategies: FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES,
+        'finam-offers': FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
+        finamoffers: FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
+        inflation: FINAM_REPORT_V2_PAGE_TYPES.INFLATION,
+        scenarios: FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS,
+        roadmap: FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
+        'risk-declaration': FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,
+        riskdeclaration: FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,
+        'partner-value': FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE,
+        partnervalue: FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE,
+    };
     const staticRenderers = {
         [FINAM_REPORT_V2_PAGE_TYPES.COVER]: FINAM_REPORT_V2_PAGE_TYPES.COVER,
         [FINAM_REPORT_V2_PAGE_TYPES.INTRO]: FINAM_REPORT_V2_PAGE_TYPES.INTRO,
@@ -1540,10 +1563,11 @@ async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goa
         [FINAM_REPORT_V2_PAGE_TYPES.INFLATION]: FINAM_REPORT_V2_PAGE_TYPES.INFLATION,
         [FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS]: FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS,
         [FINAM_REPORT_V2_PAGE_TYPES.ROADMAP]: FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
+        [FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN]: FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN,
         [FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION]: FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,
         [FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE]: FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE,
     };
-    const templatePageType = staticRenderers[normalized];
+    const templatePageType = staticRenderers[normalized] || tailPageAliases[lower];
     return templatePageType ? renderTemplatePage(templatePageType) : null;
 }
 

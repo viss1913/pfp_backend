@@ -29,13 +29,13 @@
 
 | Файл | Листов | Смысл |
 |------|------:|-------|
-| `finam_v2/page-comon-autofollow-v2.html` | 2 | Автоследование Comon |
-| `finam_v2/page-idu-strategies-v2.html` | 2 | ДУ / стратегии Финам Фонды |
+| `finam_v2/page-comon-autofollow-v2.html` | 2 | Автоследование Comon из `report.comon_showcase.items[]` |
+| `finam_v2/page-idu-strategies-v2.html` | 2 | ДУ / стратегии Финам Фонды из v2-каталога |
 | `finam_v2/page-finam-offers-v2.html` | 1 | Спецпредложения Финам |
-| `finam_v2/page-inflation-v2.html` | 1 | Инфляция и ставки |
+| `finam_v2/page-inflation-v2.html` | 1 | Инфляция и ставки из macro history |
 | `finam_v2/page-scenarios-v2.html` | 1 | Базовый / стресс / оптимистичный сценарии |
 | `finam_v2/page-roadmap-v2.html` | 1 | Дорожная карта 90 дней / 12 месяцев / 3 года |
-| `finam_v2/page-detailed-plan-v2.html` | 2 | Подробный план пополнений |
+| `finam_v2/page-detailed-plan-v2.html` | 2 | Подробный план пополнений по всем не-LIFE целям |
 | `finam_v2/page-risk-declaration-v2.html` | 5 | Декларация о рисках: продуктовая экспозиция, компании, матрица `Риск / Доходность`, рыночные/продуктовые риски, протокол контроля |
 
 ---
@@ -49,7 +49,7 @@
 - **`finam_v2/buildFinamReportV2HtmlPackage.js`** — тонкий production-вход v2: строит модель из данных отчёта и передаёт её в template composer.
 - **`finam_v2/finamV2PageComposer.js`** — собирает секции по реальным целям клиента, режет многостраничные шаблоны на физические A4-листы, отдаёт `pageHtmlList`, `pages`, `toc`.
 - **`finam_v2/finamV2TemplateLoader.js`** — читает HTML-шаблоны, инлайнит `tokens.css`/локальные ассеты и готовит страницы под Puppeteer.
-- **`finam_v2/finamV2TemplateAppliers.js`** — подставляет реальные клиентские ФИО/дату/ключевые суммы/цели поверх шаблонов, чтобы в production не уходили демо-ФИО/email/ключевые мок-суммы.
+- **`finam_v2/finamV2TemplateAppliers.js`** — подставляет реальные клиентские ФИО/дату/ключевые суммы/цели поверх шаблонов, а также динамику хвоста v2: налоги/софинансирование, Comon, ДУ, инфляцию, detailed plan и дисклеймер рисков, чтобы в production не уходили демо-ФИО/email/ключевые мок-суммы.
 
 Заливка карточек целей в R2: **`npm run seed:pdf-goal-cards-r2`** (ключи `pdf-report-goal-cards/…`, в layout — `public_url` при настроенном публичном base).
 

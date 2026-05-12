@@ -11,6 +11,10 @@ function escapeHtml(value) {
         .replace(/'/g, '&#39;');
 }
 
+function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, '&#96;');
+}
+
 function replaceAll(s, from, to) {
     if (!from) return s;
     if (from instanceof RegExp) return String(s).replace(from, String(to == null ? '' : to));
@@ -2183,6 +2187,579 @@ function replacePortfolioSummaryPage(html, { model, helpers }) {
     });
 }
 
+function tailPageHeader(pillText) {
+    return `<header class="finam-v2-wow__header">
+      <div class="finam-v2-wow__header-left">
+        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-wow__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-wow__pill">${escapeHtml(pillText)}</span>
+    </header>
+    <hr class="finam-v2-wow__rule" />`;
+}
+
+function tailFooter(rightText) {
+    return `<hr class="finam-v2-wow__footer-rule" />
+    <footer class="finam-v2-wow__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-wow__footer-right">${escapeHtml(rightText)}</span>
+    </footer>`;
+}
+
+function firstBenefitYear(tax) {
+    const years = [];
+    ['pds_benefits', 'iis_benefits', 'nsj_benefits', 'children_benefits', 'totals'].forEach((key) => {
+        Object.keys(tax?.[key] || {}).forEach((field) => {
+            const match = String(field).match(/_(20\d{2})$/);
+            if (match && finite(tax[key][field], 0) > 0) years.push(Number(match[1]));
+        });
+    });
+    return years.length ? Math.min(...years) : new Date().getFullYear() + 1;
+}
+
+function taxSourceRows(tax) {
+    const year = firstBenefitYear(tax);
+    const cats = [
+        { key: 'pds_benefits', label: 'ПДС', role: 'Пенсия' },
+        { key: 'iis_benefits', label: 'ИИС', role: 'Рост' },
+        { key: 'nsj_benefits', label: 'НСЖ', role: 'Защита' },
+        { key: 'children_benefits', label: 'Детские вычеты', role: 'Семья' },
+    ];
+    const rows = cats.map((cat) => {
+        const bucket = tax?.[cat.key] || {};
+        return {
+            ...cat,
+            year,
+            yearAmount: finite(bucket[`deduction_${year}`], 0),
+            periodAmount: finite(bucket.total_deductions, 0),
+        };
+    }).filter((row) => row.yearAmount > 0 || row.periodAmount > 0);
+    const periodBase = rows.reduce((sum, row) => sum + row.periodAmount, 0) || rows.reduce((sum, row) => sum + row.yearAmount, 0);
+    return {
+        year,
+        rows: rows.map((row) => ({
+            ...row,
+            percent: periodBase > 0 ? (Math.max(row.periodAmount, row.yearAmount) / periodBase) * 100 : 0,
+        })),
+    };
+}
+
+function taxSummary(model) {
+    const tax = model?.taxBenefits || {};
+    const totals = tax.totals || {};
+    const { year, rows } = taxSourceRows(tax);
+    const deductionYear = finite(totals[`deduction_${year}`], rows.reduce((sum, row) => sum + row.yearAmount, 0));
+    const cofinYear = finite(totals[`cofinancing_${year}`], finite(tax?.pds_benefits?.[`cofinancing_${year}`], 0));
+    const totalDeductions = finite(totals.total_deductions, rows.reduce((sum, row) => sum + row.periodAmount, 0));
+    const totalCofinancing = finite(totals.total_cofinancing, 0);
+    const totalStateBenefits = finite(totals.total_state_benefits, totalDeductions + totalCofinancing);
+    const projected = finite(model?.portfolio?.projectedTotal, 0);
+    const withoutBenefits = Math.max(0, projected - totalStateBenefits);
+    return {
+        year,
+        rows,
+        deductionYear,
+        cofinYear,
+        totalDeductions,
+        totalCofinancing,
+        totalStateBenefits,
+        projected,
+        withoutBenefits,
+    };
+}
+
+function buildTaxRowsHtml(summary, helpers) {
+    const bodyRows = summary.rows.map((row) => `<tr>
+              <td><span class="finam-v2-tax__source">${escapeHtml(row.label)}</span></td>
+              <td>
+                <span class="finam-v2-tax__num">${formatPercentHtml(row.percent)}</span>
+                <div class="finam-v2-tax__bar"><div class="finam-v2-tax__bar-fill" style="width: ${Math.max(0, Math.min(100, row.percent)).toFixed(1)}%;"></div></div>
+              </td>
+              <td class="finam-v2-tax__num">${moneyHtml(helpers, row.yearAmount, { short: true })}</td>
+              <td class="finam-v2-tax__num">${moneyHtml(helpers, row.periodAmount, { short: true })}</td>
+              <td class="finam-v2-tax__role">${escapeHtml(row.role)}</td>
+            </tr>`);
+    if (!bodyRows.length) {
+        bodyRows.push('<tr><td colspan="5">По расчёту нет доступных налоговых льгот для отображения.</td></tr>');
+    }
+    bodyRows.push(`<tr>
+              <td><strong>Итого</strong></td>
+              <td class="finam-v2-tax__num">${summary.rows.length ? '100%' : '0%'}</td>
+              <td class="finam-v2-tax__num">${moneyHtml(helpers, summary.deductionYear, { short: true })}</td>
+              <td class="finam-v2-tax__num">${moneyHtml(helpers, summary.totalDeductions, { short: true })}</td>
+              <td></td>
+            </tr>`);
+    return bodyRows.join('\n');
+}
+
+function taxProjectionSvg(summary, helpers) {
+    const finalWith = Math.max(summary.projected, summary.totalStateBenefits, 1);
+    const finalWithout = Math.max(summary.withoutBenefits, 0);
+    const max = Math.max(finalWith, finalWithout, 1);
+    const x0 = 28;
+    const x1 = 314;
+    const y0 = 92;
+    const y1 = 18;
+    const steps = 8;
+    const points = (final) => Array.from({ length: steps + 1 }, (_, idx) => {
+        const t = idx / steps;
+        const x = x0 + (x1 - x0) * t;
+        const value = final * (0.08 + 0.92 * Math.pow(t, 1.25));
+        const y = y0 - (value / max) * (y0 - y1);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    return `<svg class="finam-v2-tax__chart" viewBox="0 0 330 112" role="img" aria-label="Прогноз капитала после налогов">
+          <line x1="28" y1="92" x2="314" y2="92" stroke="#cbd5e1" stroke-width="1" />
+          <line x1="28" y1="18" x2="28" y2="92" stroke="#cbd5e1" stroke-width="1" />
+          <line x1="28" y1="74" x2="314" y2="74" stroke="#eef2f7" stroke-width="1" />
+          <line x1="28" y1="54" x2="314" y2="54" stroke="#eef2f7" stroke-width="1" />
+          <line x1="28" y1="34" x2="314" y2="34" stroke="#eef2f7" stroke-width="1" />
+          <polyline points="${points(finalWith)}" fill="none" stroke="#002a4a" stroke-width="2.4" />
+          <polyline points="${points(finalWithout)}" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="4 4" />
+          <circle cx="314" cy="${(y0 - (finalWith / max) * (y0 - y1)).toFixed(1)}" r="3" fill="#002a4a" />
+          <circle cx="314" cy="${(y0 - (finalWithout / max) * (y0 - y1)).toFixed(1)}" r="3" fill="#94a3b8" />
+          <text x="31" y="105" class="finam-v2-tax__axis">сейчас</text>
+          <text x="154" y="105" class="finam-v2-tax__axis">середина</text>
+          <text x="286" y="105" class="finam-v2-tax__axis">срок</text>
+          <text x="198" y="22" class="finam-v2-tax__chart-value">${moneyHtml(helpers, finalWith, { short: true })}</text>
+          <text x="198" y="43" class="finam-v2-tax__chart-label">${moneyHtml(helpers, finalWithout, { short: true })} без льгот</text>
+        </svg>`;
+}
+
+function buildTaxPlanningArticle(model, helpers) {
+    const s = taxSummary(model);
+    const availableLabels = s.rows.map((row) => row.label).join(' · ') || 'льготы не выявлены';
+    const horizon = model?.portfolio?.horizonLabel || maxGoalYears(model?.goals);
+    return `<article class="finam-v2-page">
+    <header class="finam-v2-tax__header">
+      <div class="finam-v2-tax__header-left">
+        <span class="finam-v2-tax__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-tax__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-tax__pill">Налоги и софинансирование</span>
+    </header>
+    <hr class="finam-v2-tax__rule" />
+
+    <section class="finam-v2-tax__hero">
+      <div>
+        <p class="finam-v2-tax__eyebrow">Налоговое планирование</p>
+        <h1 class="finam-v2-tax__headline">Льготы усиливают план, если подтверждены документами</h1>
+        <p class="finam-v2-tax__lead">Страница собрана из расчёта PFP: НДФЛ, ПДС, ИИС, НСЖ и детские вычеты показываются только как модельный эффект финансового плана.</p>
+      </div>
+      <aside class="finam-v2-tax__profile">
+        <div class="finam-v2-tax__profile-row"><span class="finam-v2-tax__profile-icon">%</span><div><div class="finam-v2-tax__profile-label">Налоговый период</div><div class="finam-v2-tax__profile-value">${escapeHtml(s.year)} год</div></div></div>
+        <div class="finam-v2-tax__profile-row"><span class="finam-v2-tax__profile-icon">T</span><div><div class="finam-v2-tax__profile-label">Горизонт оптимизации</div><div class="finam-v2-tax__profile-value">${escapeHtml(horizon)}</div></div></div>
+        <div class="finam-v2-tax__profile-row"><span class="finam-v2-tax__profile-icon">✓</span><div><div class="finam-v2-tax__profile-label">Доступные льготы</div><div class="finam-v2-tax__profile-value">${escapeHtml(availableLabels)}</div></div></div>
+        <div class="finam-v2-tax__profile-row"><span class="finam-v2-tax__profile-icon">+</span><div><div class="finam-v2-tax__profile-label">Софинансирование</div><div class="finam-v2-tax__profile-value">${moneyHtml(helpers, s.totalCofinancing, { short: true })}</div></div></div>
+      </aside>
+    </section>
+
+    <section class="finam-v2-tax__kpis" aria-label="Ключевые налоговые показатели">
+      <div class="finam-v2-tax__kpi"><div class="finam-v2-tax__kpi-label">Возврат НДФЛ за год</div><div class="finam-v2-tax__kpi-value">${moneyHtml(helpers, s.deductionYear, { short: true })}</div></div>
+      <div class="finam-v2-tax__kpi"><div class="finam-v2-tax__kpi-label">Возврат НДФЛ за весь срок</div><div class="finam-v2-tax__kpi-value">${moneyHtml(helpers, s.totalDeductions, { short: true })}</div></div>
+      <div class="finam-v2-tax__kpi"><div class="finam-v2-tax__kpi-label">Льготы и софинансирование</div><div class="finam-v2-tax__kpi-value">${moneyHtml(helpers, s.totalStateBenefits, { short: true })}</div></div>
+    </section>
+
+    <section class="finam-v2-tax__main">
+      <div class="finam-v2-tax__table-card">
+        <div class="finam-v2-tax__table-title">Структура налоговых льгот</div>
+        <table class="finam-v2-tax__table" aria-label="Структура налоговых льгот">
+          <thead><tr><th style="width: 38%;">Источник</th><th style="width: 16%;">Доля</th><th style="width: 18%;">Год</th><th style="width: 18%;">Период</th><th style="width: 10%;">Роль</th></tr></thead>
+          <tbody>${buildTaxRowsHtml(s, helpers)}</tbody>
+        </table>
+      </div>
+      <aside class="finam-v2-tax__side" aria-label="Почему работает налоговая структура">
+        <section class="finam-v2-tax__insight-card"><div class="finam-v2-tax__side-title">Годовой возврат НДФЛ</div><p class="finam-v2-tax__side-text">Показываем оценку на ближайший налоговый период по расчёту, без обещания фактического возврата.</p></section>
+        <section class="finam-v2-tax__insight-card"><div class="finam-v2-tax__side-title">Гос. софинансирование</div><p class="finam-v2-tax__side-text">Софинансирование учитывается отдельно от НДФЛ и зависит от правил программы.</p></section>
+        <section class="finam-v2-tax__insight-card"><div class="finam-v2-tax__side-title">Документы и сроки</div><p class="finam-v2-tax__side-text">Эффект сохраняется только при корректных документах и соблюдении сроков подачи.</p></section>
+      </aside>
+    </section>
+
+    <section class="finam-v2-tax__bottom">
+      <div class="finam-v2-tax__chart-card">
+        <div class="finam-v2-tax__chart-head"><div class="finam-v2-tax__chart-title">Эффект капитала после льгот</div><p class="finam-v2-tax__chart-note">Сравнение итогового капитала с учётом НДФЛ и софинансирования и без них.</p></div>
+        ${taxProjectionSvg(s, helpers)}
+      </div>
+      <aside class="finam-v2-tax__compliance-card">
+        <div class="finam-v2-tax__side-title">Что проверить перед подачей</div>
+        <div class="finam-v2-tax__compliance-list">
+          <div class="finam-v2-tax__compliance-row"><span>Статус продукта</span><span class="finam-v2-tax__compliance-value">Проверить</span></div>
+          <div class="finam-v2-tax__compliance-row"><span>Лимиты вычетов</span><span class="finam-v2-tax__compliance-value">По НК РФ</span></div>
+          <div class="finam-v2-tax__compliance-row"><span>Документы</span><span class="finam-v2-tax__compliance-value">Нужны</span></div>
+          <div class="finam-v2-tax__compliance-row"><span>Консультация</span><span class="finam-v2-tax__compliance-value">Желательна</span></div>
+        </div>
+      </aside>
+    </section>
+
+    <p class="finam-v2-tax__disclaimer"><strong>Важно:</strong> расчёт налогового эффекта является модельной оценкой на базе параметров финансового плана. Он не заменяет индивидуальную налоговую консультацию и требует проверки документов перед подачей.</p>
+    <hr class="finam-v2-tax__footer-rule" />
+    <footer class="finam-v2-tax__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-tax__footer-right">Налоговая стратегия показывает оценочный эффект льгот и не является налоговой консультацией</span>
+    </footer>
+  </article>`;
+}
+
+function replaceTaxPlanningPage(html, context) {
+    return replaceFinamV2PageArticles(html, () => buildTaxPlanningArticle(context.model, context.helpers));
+}
+
+function isLifeGoal(goal) {
+    return String(goal?.goal_type || '').toUpperCase() === 'LIFE' || Number(goal?.goal_type_id) === 5;
+}
+
+function scheduleRows(goal) {
+    return Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
+}
+
+function sameMonth(dateA, dateB) {
+    return dateA && dateB && dateA.getFullYear() === dateB.getFullYear() && dateA.getMonth() === dateB.getMonth();
+}
+
+function isInitialScheduleRow(row) {
+    return String(row?.schedule_row_kind || '').toUpperCase() === 'INITIAL_LUMP';
+}
+
+function rowCapitalValue(row) {
+    return maybeFinite(row?.total_capital ?? row?.capital ?? row?.balance);
+}
+
+function capitalForGoalAtMonth(goal, month) {
+    const rows = scheduleRows(goal)
+        .map((row) => ({ row, date: normalizeDate(row?.date) }))
+        .filter((item) => item.date)
+        .sort((a, b) => a.date - b.date);
+    let latest = null;
+    rows.forEach((item) => {
+        if (item.date <= month) latest = item.row;
+    });
+    const exact = rows.find((item) => sameMonth(item.date, month))?.row;
+    const value = rowCapitalValue(exact || latest);
+    return value == null ? finite(goalInitial(goal), 0) : value;
+}
+
+function buildDetailedPlanRows(model) {
+    const goals = (Array.isArray(model?.goals) ? model.goals : []).filter((goal) => !isLifeGoal(goal));
+    const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const latestDate = goals.flatMap((goal) => scheduleRows(goal).map((row) => normalizeDate(row?.date)).filter(Boolean))
+        .sort((a, b) => b - a)[0];
+    const availableMonths = latestDate ? Math.max(1, (latestDate.getFullYear() - start.getFullYear()) * 12 + latestDate.getMonth() - start.getMonth() + 1) : 24;
+    const monthsToShow = Math.min(Math.max(availableMonths, 1), 26);
+    const initialTotal = goals.reduce((sum, goal) => sum + finite(goalInitial(goal), 0), 0);
+    return Array.from({ length: monthsToShow }, (_, idx) => {
+        const month = addMonths(start, idx);
+        let replenishment = idx === 0 ? initialTotal : 0;
+        let tax = 0;
+        let cofinancing = 0;
+        let capital = 0;
+        goals.forEach((goal) => {
+            scheduleRows(goal).forEach((row) => {
+                const date = normalizeDate(row?.date);
+                if (!sameMonth(date, month)) return;
+                if (idx > 0 && !isInitialScheduleRow(row)) replenishment += finite(row?.replenishment, 0);
+                tax += finite(row?.tax_deduction, 0);
+                cofinancing += finite(row?.cofinancing, 0);
+            });
+            capital += capitalForGoalAtMonth(goal, month);
+        });
+        return { month, replenishment, tax, cofinancing, capital };
+    }).filter((row, idx) => idx === 0 || row.replenishment > 0 || row.tax > 0 || row.cofinancing > 0 || row.capital > 0);
+}
+
+function detailedRowHtml(row, helpers) {
+    return `<tr><td>${escapeHtml(`${MONTH_SHORT_RU[row.month.getMonth()]} ${row.month.getFullYear()}`)}</td><td class="finam-v2-tail__num">${moneyHtml(helpers, row.replenishment)}</td><td class="finam-v2-tail__num">${moneyHtml(helpers, row.tax)}</td><td class="finam-v2-tail__num">${moneyHtml(helpers, row.cofinancing)}</td><td class="finam-v2-tail__num">${moneyHtml(helpers, row.capital)}</td></tr>`;
+}
+
+function detailedTableHtml(rows, helpers, label) {
+    return `<table class="finam-v2-tail__table" aria-label="${escapeAttr(label)}">
+      <thead><tr><th style="width: 17%;">Дата</th><th style="width: 21%;">Пополнение</th><th style="width: 20%;">Налоговый вычет</th><th style="width: 20%;">Софинансирование</th><th style="width: 22%;">Итоговый капитал</th></tr></thead>
+      <tbody>${rows.map((row) => detailedRowHtml(row, helpers)).join('\n        ') || '<tr><td colspan="5">Расчётный график пополнений отсутствует.</td></tr>'}</tbody>
+    </table>`;
+}
+
+function buildDetailedPlanArticle(model, helpers, pageIndex) {
+    const rows = buildDetailedPlanRows(model);
+    const firstRows = rows.slice(0, 12);
+    const secondRows = rows.slice(12, 26);
+    const currentRows = pageIndex === 1 ? secondRows : firstRows;
+    const totalInitial = firstRows[0]?.replenishment || 0;
+    const monthly = (Array.isArray(model?.goals) ? model.goals : [])
+        .filter((goal) => !isLifeGoal(goal))
+        .reduce((sum, goal) => sum + finite(goalMonthly(goal), 0), 0);
+    if (pageIndex === 1) {
+        return `<article class="finam-v2-page">
+    ${tailPageHeader('Подробный план · 2/2')}
+    ${detailedTableHtml(currentRows, helpers, 'Подробный план пополнений, продолжение')}
+    <div class="finam-v2-tail__page-note"></div>
+    ${tailFooter('Продолжение календаря пополнений по всем целям без страхования жизни')}
+  </article>`;
+    }
+    return `<article class="finam-v2-page">
+    ${tailPageHeader('Подробный план · 1/2')}
+    <section class="finam-v2-tail__hero">
+      <div>
+        <p class="finam-v2-wow__eyebrow">График пополнений</p>
+        <h1 class="finam-v2-wow__headline">Таблица превращает стратегию в календарь действий</h1>
+        <p class="finam-v2-wow__lead">Первый месяц — текущий: в пополнении показан стартовый капитал по всем целям, кроме страхования жизни. Следующие строки показывают регулярные пополнения, вычеты, софинансирование и капитал из расчёта.</p>
+      </div>
+      <aside class="finam-v2-tail__kpi-stack">
+        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, totalInitial, { short: true })}</div><div class="finam-v2-tail__kpi-label">стартовый капитал в первом месяце</div></div>
+        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, monthly, { short: true })}</div><div class="finam-v2-tail__kpi-label">регулярное пополнение в расчёте</div></div>
+      </aside>
+    </section>
+    ${detailedTableHtml(currentRows, helpers, 'Подробный план пополнений')}
+    <section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> таблица агрегирует календарь по всем накопительным и инвестиционным целям, без потока страхования жизни.</section>
+    ${tailFooter('Таблица строится по календарю пополнений клиента')}
+  </article>`;
+}
+
+function replaceDetailedPlanPage(html, context) {
+    return replaceFinamV2PageArticles(html, (article, index) => {
+        const pageIndex = /Подробный план\s*·\s*2\/2/.test(article) ? 1 : index;
+        return buildDetailedPlanArticle(context.model, context.helpers, pageIndex);
+    });
+}
+
+function displayNumber(value, fallback = '—') {
+    const n = maybeFinite(value);
+    return n == null ? fallback : n.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+}
+
+function normalizeComonItems(model) {
+    const showcase = model?.comonShowcase || {};
+    const items = Array.isArray(showcase.items) ? showcase.items : Array.isArray(showcase.strategies) ? showcase.strategies : [];
+    return items.slice(0, 6).map((item) => ({
+        title: item.name || item.title || 'Стратегия Comon',
+        desc: item.description || [item.author ? `Автор: ${item.author}` : null, item.risk_level ? `риск: ${item.risk_level}` : null].filter(Boolean).join(', ') || 'Параметры стратегии берутся из витрины Comon.',
+        url: item.url || item.link || '',
+        minSum: maybeFinite(item.min_sum ?? item.minSum),
+        profit365: maybeFinite(item.profit_365_days_percent ?? item.profit365DaysPercent),
+        avgProfit: maybeFinite(item.annual_average_profit_percent ?? item.annualAverageProfitPercent),
+        followers: maybeFinite(item.follower_count ?? item.followers),
+        rating: maybeFinite(item.strategy_rating ?? item.rating),
+        tags: Array.isArray(item.tags) ? item.tags : [],
+    }));
+}
+
+function comonCardHtml(item) {
+    const yieldValue = item.profit365 ?? item.avgProfit;
+    const link = item.url ? `<a class="finam-v2-tail__chip" href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer">Смотреть</a>` : '';
+    const meta = [
+        item.minSum != null ? `Мин. вход: ${formatMoneyWith({}, item.minSum, { short: true })}` : null,
+        yieldValue != null ? `${displayNumber(yieldValue)}% / 12 мес` : null,
+        item.followers != null ? `${Math.round(item.followers).toLocaleString('ru-RU')} подписч.` : null,
+        item.rating != null ? `рейтинг ${displayNumber(item.rating)}` : null,
+    ].filter(Boolean);
+    return `<article class="finam-v2-tail__product-card">
+        <h2 class="finam-v2-tail__product-title">${escapeHtml(item.title)}</h2>
+        <p class="finam-v2-tail__product-text">${escapeHtml(item.desc)}</p>
+        <div class="finam-v2-tail__chip-row">
+          ${meta.slice(0, 3).map((text, idx) => `<span class="finam-v2-tail__chip${idx === 1 ? ' finam-v2-tail__chip--accent' : ''}">${escapeHtml(text)}</span>`).join('\n          ')}
+          ${link}
+        </div>
+      </article>`;
+}
+
+function buildComonArticle(model, pageIndex) {
+    const items = normalizeComonItems(model);
+    const chunk = pageIndex === 1 ? items.slice(3, 6) : items.slice(0, 3);
+    const disclaimer = String(model?.comonShowcase?.disclaimer_ru || '').trim() ||
+        'Историческая доходность стратегий Comon не гарантирует результат в будущем. Подключение стратегии требует отдельного клиентского решения и проверки документов.';
+    if (pageIndex === 1) {
+        return `<article class="finam-v2-page">
+    ${tailPageHeader('Comon · 2/2')}
+    <p class="finam-v2-wow__eyebrow">Продолжение подборки</p>
+    <h1 class="finam-v2-wow__headline">Стратегии остаются инструментом, а не заменой финансового плана</h1>
+    <p class="finam-v2-wow__lead">Карточки подставляются из витрины Comon. Перед подключением клиент отдельно сверяет риск, комиссии и документы.</p>
+    <section class="finam-v2-tail__card-grid">${chunk.map(comonCardHtml).join('\n      ') || '<article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Данные Comon</p><p class="finam-v2-tail__body-text">Дополнительные стратегии не переданы в расчёте.</p></article>'}</section>
+    <section class="finam-v2-tail__card-grid finam-v2-tail__card-grid--3">
+      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">До подключения</p><p class="finam-v2-tail__body-text">Проверяем лимит риска, комиссии, минимальную сумму и ликвидность клиентского портфеля.</p></div>
+      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">После подключения</p><p class="finam-v2-tail__body-text">Фиксируем дату контроля, максимальную просадку и правило отключения стратегии.</p></div>
+      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">В отчёте</p><p class="finam-v2-tail__body-text">Показываем ссылку на стратегию и поясняем, что доходность историческая.</p></div>
+    </section>
+    <p class="finam-v2-tail__disclaimer finam-v2-tail__page-note">${escapeHtml(disclaimer)}</p>
+    ${tailFooter('Информация не является индивидуальной инвестиционной рекомендацией')}
+  </article>`;
+    }
+    return `<article class="finam-v2-page">
+    ${tailPageHeader('Comon · 1/2')}
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide">
+      <div><p class="finam-v2-wow__eyebrow">Автоследование Comon</p><h1 class="finam-v2-wow__headline">Стратегии, которые можно подключать как управляемый контур портфеля</h1><p class="finam-v2-wow__lead">Блок показывает витрину вариантов для отдельного инвестиционного решения: риск, минимальный вход, историческую доходность и ссылку на стратегию.</p></div>
+      <aside class="finam-v2-tail__kpi-stack"><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${items.length}</div><div class="finam-v2-tail__kpi-label">стратегий в подборке</div></div><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">12+ мес</div><div class="finam-v2-tail__kpi-label">разумный горизонт оценки</div></div></aside>
+    </section>
+    <section class="finam-v2-wow__insight"><strong>Как читаем блок:</strong> сначала сверяем риск-профиль, минимальный вход, комиссии и допустимую просадку. Только после этого стратегия может стать частью портфеля.</section>
+    <p class="finam-v2-tail__section-title">Карточки для первичного отбора</p>
+    <section class="finam-v2-tail__card-grid">${chunk.map(comonCardHtml).join('\n      ') || '<article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Данные Comon</p><p class="finam-v2-tail__body-text">Витрина стратегий не передана в расчёте.</p></article>'}</section>
+    <section class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Критерии отбора</p><ul class="finam-v2-tail__mini-list"><li>Сравниваем риск стратегии с риск-профилем клиента и горизонтом конкретной цели.</li><li>Смотрим минимальный вход и не забираем деньги из финансового резерва.</li><li>Разделяем историческую доходность и ожидаемый результат: прошлое не гарантирует будущее.</li></ul></section>
+    ${tailFooter('Автоследование рассматривается после проверки риск-профиля')}
+  </article>`;
+}
+
+function replaceComonAutofollowPage(html, context) {
+    return replaceFinamV2PageArticles(html, (article, index) => {
+        const pageIndex = /Comon\s*·\s*2\/2/.test(article) ? 1 : index;
+        return buildComonArticle(context.model, pageIndex);
+    });
+}
+
+const FINAM_V2_IDU_STRATEGIES = [
+    { name: 'Валютная CNY', slug: 'currency-cny', yieldLabel: '10%', desc: 'Юаневые облигации эмитентов российского рынка.' },
+    { name: 'Новая Синергия', slug: 'synergy-new', yieldLabel: '55%', desc: 'Диверсификация и алгоритмы; на сайте также «Синергия NEW».' },
+    { name: 'M2 Всепогодная', slug: 'm2-all-weather', yieldLabel: '30%', desc: 'Облигации, акции, ОФЗ и алгоритмическая торговля фьючерсами.' },
+    { name: 'Алготраст', slug: 'algotrust', yieldLabel: '30%', desc: 'Автоматизированная торговля ликвидными фьючерсами Московской биржи.' },
+    { name: 'Ключевая ставка', slug: 'key-rate', yieldLabel: '45%', desc: 'ОФЗ и сценарии вокруг ключевой ставки Центрального банка.' },
+    { name: 'Валютный депозит', slug: 'currency-deposit', yieldLabel: '20%', desc: 'Инвалютные инструменты и выплаты по курсу ЦБ.' },
+    { name: 'Инвестиционный прирост', slug: 'investment-growth', yieldLabel: '18%', desc: 'Подход PAA: акции, облигации и денежный рынок РФ.' },
+    { name: 'Облигационная Максимум', slug: 'bond-maximum', yieldLabel: '20%', desc: 'Российские облигации и реинвестирование купонов.' },
+    { name: 'Авторская стратегия Юлии Афанасьевой', slug: null, yieldLabel: '33%', desc: 'Российские акции и облигации; актуальные параметры сверяются с витриной ДУ.' },
+];
+
+function iduCardHtml(item) {
+    const url = item.slug ? `https://funds.finam.ru/idu/${item.slug}/` : 'https://funds.finam.ru/';
+    return `<article class="finam-v2-tail__product-card">
+        <h2 class="finam-v2-tail__product-title">${escapeHtml(item.name)}</h2>
+        <p class="finam-v2-tail__product-text">${escapeHtml(item.desc)}</p>
+        <div class="finam-v2-tail__chip-row"><span class="finam-v2-tail__chip finam-v2-tail__chip--accent">Ожид. доходность: ${escapeHtml(item.yieldLabel)}</span><a class="finam-v2-tail__chip" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">Подробнее</a></div>
+      </article>`;
+}
+
+function buildIduArticle(pageIndex) {
+    const chunk = pageIndex === 1 ? FINAM_V2_IDU_STRATEGIES.slice(5) : FINAM_V2_IDU_STRATEGIES.slice(0, 5);
+    if (pageIndex === 1) {
+        return `<article class="finam-v2-page">
+    ${tailPageHeader('ДУ · 2/2')}
+    <p class="finam-v2-wow__eyebrow">Продолжение витрины</p>
+    <h1 class="finam-v2-wow__headline">ДУ выбирается под задачу капитала, а не по самой крупной цифре доходности</h1>
+    <p class="finam-v2-wow__lead">Для v2 показываем роль стратегии, риск, горизонт, валюту и ограничение по доле в портфеле.</p>
+    <section class="finam-v2-tail__card-grid">${chunk.map(iduCardHtml).join('\n      ')}
+      <article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Контроль доли</p><p class="finam-v2-tail__body-text">ДУ не должно съедать резерв и короткие цели. Доля ограничивается горизонтом и готовностью клиента к просадке.</p></article>
+      <article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Следующий шаг</p><p class="finam-v2-tail__body-text">После выбора кандидатов менеджер сверяет актуальные условия на сайте Финам Фонды и оформляет решение отдельно.</p></article>
+    </section>
+    <p class="finam-v2-tail__disclaimer finam-v2-tail__page-note">Ожидаемая доходность, минимальные суммы и описания стратегий являются ориентиром витрины. Они не заменяют договор, регламент доверительного управления и проверку актуальных условий.</p>
+    ${tailFooter('Информация не является индивидуальной инвестиционной рекомендацией')}
+  </article>`;
+    }
+    return `<article class="finam-v2-page">
+    ${tailPageHeader('ДУ · 1/2')}
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide">
+      <div><p class="finam-v2-wow__eyebrow">Доверительное управление</p><h1 class="finam-v2-wow__headline">Стратегии Финам Фонды как отдельный управляемый слой капитала</h1><p class="finam-v2-wow__lead">Блок ДУ показывает витрину решений, где управление портфелем передаётся профессиональному управляющему. Доходности ниже — ориентиры витрины, а не расчёт финансового плана.</p></div>
+      <aside class="finam-v2-tail__kpi-stack"><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${FINAM_V2_IDU_STRATEGIES.length}</div><div class="finam-v2-tail__kpi-label">стратегий в справочнике</div></div><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">ДУ</div><div class="finam-v2-tail__kpi-label">отдельно от Comon</div></div></aside>
+    </section>
+    <section class="finam-v2-tail__card-grid">${chunk.map(iduCardHtml).join('\n      ')}<article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Как использовать</p><p class="finam-v2-tail__body-text">Сначала выбираем роль стратегии в плане: валютный слой, облигационный контур, мультиактивный рост или тактический риск.</p></article></section>
+    ${tailFooter('Ожидаемая доходность не является гарантией результата')}
+  </article>`;
+}
+
+function replaceIduStrategiesPage(html) {
+    return replaceFinamV2PageArticles(html, (article, index) => {
+        const pageIndex = /ДУ\s*·\s*2\/2/.test(article) ? 1 : index;
+        return buildIduArticle(pageIndex);
+    });
+}
+
+function macroValue(row) {
+    return maybeFinite(row?.value ?? row?.numeric_value ?? row?.rate ?? row?.close);
+}
+
+function macroLatest(series) {
+    const rows = (Array.isArray(series) ? series : [])
+        .map((row) => ({ date: normalizeDate(row?.date), value: macroValue(row) }))
+        .filter((row) => row.date && row.value != null)
+        .sort((a, b) => a.date - b.date);
+    return rows[rows.length - 1] || null;
+}
+
+function macroSeriesPoints(series, maxCount = 9) {
+    const rows = (Array.isArray(series) ? series : [])
+        .map((row) => ({ date: normalizeDate(row?.date), value: macroValue(row) }))
+        .filter((row) => row.date && row.value != null)
+        .sort((a, b) => a.date - b.date);
+    return sampleIndexes(rows.length, Math.min(maxCount, rows.length)).map((idx) => rows[idx]);
+}
+
+function macroPercent(value) {
+    const n = maybeFinite(value);
+    return n == null ? 'н/д' : `${n.toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%`;
+}
+
+function inflationChartSvg(macro) {
+    const cpi = macroSeriesPoints(macro?.cpiYoySeries, 9);
+    const key = macroSeriesPoints(macro?.keyRateSeries, 9);
+    const points = cpi.length >= 2 ? cpi : key;
+    if (points.length < 2) {
+        return '<div class="finam-v2-tail__body-text">История макропоказателей временно недоступна. Страница обновится после синхронизации macro_indicators.</div>';
+    }
+    const allValues = [...cpi, ...key].map((row) => row.value);
+    const max = Math.max(...allValues, 1);
+    const min = Math.min(...allValues, 0);
+    const plot = { left: 34, right: 500, top: 22, bottom: 124 };
+    const yFor = (value) => plot.bottom - ((value - min) / Math.max(1, max - min)) * (plot.bottom - plot.top);
+    const xFor = (idx, length) => plot.left + (idx / Math.max(1, length - 1)) * (plot.right - plot.left);
+    const poly = (rows) => rows.map((row, idx) => `${xFor(idx, rows.length).toFixed(1)},${yFor(row.value).toFixed(1)}`).join(' ');
+    const firstYear = points[0].date.getFullYear();
+    const midYear = points[Math.floor(points.length / 2)].date.getFullYear();
+    const lastYear = points[points.length - 1].date.getFullYear();
+    return `<svg class="finam-v2-tail__chart" viewBox="0 0 520 150" role="img" aria-label="Инфляция и ключевая ставка">
+        <line x1="34" y1="124" x2="500" y2="124" stroke="#cbd5e1" />
+        <line x1="34" y1="22" x2="34" y2="124" stroke="#cbd5e1" />
+        <line x1="34" y1="98" x2="500" y2="98" stroke="#eef2f7" />
+        <line x1="34" y1="72" x2="500" y2="72" stroke="#eef2f7" />
+        <line x1="34" y1="46" x2="500" y2="46" stroke="#eef2f7" />
+        ${cpi.length >= 2 ? `<polyline points="${poly(cpi)}" fill="none" stroke="#c2410c" stroke-width="2.4" stroke-linecap="round" />` : ''}
+        ${key.length >= 2 ? `<polyline points="${poly(key)}" fill="none" stroke="#002a4a" stroke-width="2.4" stroke-linecap="round" />` : ''}
+        <text x="36" y="141" class="finam-v2-tail__axis">${escapeHtml(firstYear)}</text>
+        <text x="246" y="141" class="finam-v2-tail__axis">${escapeHtml(midYear)}</text>
+        <text x="474" y="141" class="finam-v2-tail__axis">${escapeHtml(lastYear)}</text>
+        <text x="370" y="51" class="finam-v2-tail__chart-value">ключевая ставка</text>
+        <text x="370" y="88" class="finam-v2-tail__chart-value">инфляция</text>
+      </svg>`;
+}
+
+function buildInflationArticle(model) {
+    const macro = model?.macroData || {};
+    const cpi = macroLatest(macro.cpiYoySeries);
+    const key = macroLatest(macro.keyRateSeries);
+    const ofz2 = macroLatest(macro.ofz2Series);
+    const ofz5 = macroLatest(macro.ofz5Series);
+    const ofz10 = macroLatest(macro.ofz10Series);
+    const corp = macroLatest(macro.corpIndexSeries);
+    return `<article class="finam-v2-page">
+    ${tailPageHeader('Инфляция')}
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide">
+      <div><p class="finam-v2-wow__eyebrow">Макроусловия плана</p><h1 class="finam-v2-wow__headline">Инфляция показывает, какую доходность должен обгонять капитал</h1><p class="finam-v2-wow__lead">Эта страница связывает расчёт целей с рыночным фоном: инфляцией, ключевой ставкой, кривой ОФЗ и корпоративным облигационным контуром.</p></div>
+      <aside class="finam-v2-tail__kpi-stack"><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${escapeHtml(macroPercent(cpi?.value))}</div><div class="finam-v2-tail__kpi-label">инфляция год к году</div></div><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${escapeHtml(macroPercent(key?.value))}</div><div class="finam-v2-tail__kpi-label">ключевая ставка</div></div></aside>
+    </section>
+    <section class="finam-v2-tail__chart-card"><p class="finam-v2-tail__section-title">Динамика инфляции и ставок</p>${inflationChartSvg(macro)}</section>
+    <section class="finam-v2-tail__card-grid finam-v2-tail__card-grid--4">
+      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">ОФЗ 2 года</p><div class="finam-v2-tail__kpi-value">${escapeHtml(macroPercent(ofz2?.value))}</div><p class="finam-v2-tail__body-text">короткий участок кривой</p></div>
+      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">ОФЗ 5 лет</p><div class="finam-v2-tail__kpi-value">${escapeHtml(macroPercent(ofz5?.value))}</div><p class="finam-v2-tail__body-text">средний срок портфеля</p></div>
+      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">ОФЗ 10 лет</p><div class="finam-v2-tail__kpi-value">${escapeHtml(macroPercent(ofz10?.value))}</div><p class="finam-v2-tail__body-text">долгий ориентир ставки</p></div>
+      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Корп. индекс</p><div class="finam-v2-tail__kpi-value">${escapeHtml(macroPercent(corp?.value))}</div><p class="finam-v2-tail__body-text">корпоративный облигационный контур</p></div>
+    </section>
+    <section class="finam-v2-wow__insight"><strong>Вывод для плана:</strong> если цель долгосрочная, важна не номинальная доходность сама по себе, а доходность после инфляции, налогов и комиссий.</section>
+    <p class="finam-v2-tail__disclaimer finam-v2-tail__page-note">Макроданные загружаются из внешних индикаторов PFP и используются как рыночный фон для сценариев. Они не гарантируют будущую доходность портфеля.</p>
+    ${tailFooter('Макроусловия объясняют сценарий, но не гарантируют результат')}
+  </article>`;
+}
+
+function replaceInflationPage(html, context) {
+    return replaceFinamV2PageArticles(html, () => buildInflationArticle(context.model));
+}
+
+const DEFAULT_RISK_LEGAL_NOTES = [
+    'Материалы декларации носят информационный характер и не являются индивидуальной инвестиционной рекомендацией (ИИР).',
+    'Прошлая доходность не гарантирует будущие результаты.',
+    'Финансовые, пенсионные, брокерские и страховые условия, порядок гарантий, комиссии, ограничения и выплаты определяются действующим законодательством РФ, правилами провайдеров и документами конкретных продуктов.',
+];
+
+function replaceRiskDeclarationPage(html, context) {
+    const notes = Array.isArray(context?.model?.riskDeclaration?.legalNotes) && context.model.riskDeclaration.legalNotes.length
+        ? context.model.riskDeclaration.legalNotes
+        : DEFAULT_RISK_LEGAL_NOTES;
+    const disclaimer = `<p class="finam-v2-tail__disclaimer">\n      ${notes.map((note) => escapeHtml(note)).join(' ')}\n    </p>`;
+    return String(html || '').replace(/<p class="finam-v2-tail__disclaimer">[\s\S]*?<\/p>/, disclaimer);
+}
+
 function replaceCommonSamples(html, { model, helpers }) {
     const portfolioValue = formatMoneyWith(helpers, model?.portfolio?.projectedTotal || 0, { short: true });
     const initialValue = formatMoneyWith(helpers, model?.portfolio?.initialTotal || 0, { short: true });
@@ -2311,6 +2888,24 @@ function applyTemplateData(html, context = {}) {
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.PORTFOLIO_SUMMARY) {
         out = replacePortfolioSummaryPage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.TAX_PLANNING) {
+        out = replaceTaxPlanningPage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW) {
+        out = replaceComonAutofollowPage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES) {
+        out = replaceIduStrategiesPage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.INFLATION) {
+        out = replaceInflationPage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN) {
+        out = replaceDetailedPlanPage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION) {
+        out = replaceRiskDeclarationPage(out, context);
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_FIN_RESERVE) {
         out = replaceFinReserveGoalPage(out, context);

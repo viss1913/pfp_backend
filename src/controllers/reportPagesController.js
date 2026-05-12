@@ -5,6 +5,7 @@ const fs = require('fs');
 const reportService = require('../services/reportService');
 const pdfSettingsService = require('../services/pdfSettingsService');
 const clientService = require('../services/clientService');
+const macroService = require('../services/macroService');
 
 const { buildReportSummaryOverviewHtml } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildGoalPageHtmlByTheme } = require('../reports/themes/reportRenderers');
@@ -99,6 +100,42 @@ function normalizePageType(pageType) {
     return '';
 }
 
+function toIsoDateOnly(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+}
+
+async function loadMacroHistorySafe(slug, from, to) {
+    try {
+        const rows = await macroService.getHistory(slug, from, to);
+        return Array.isArray(rows) ? rows : [];
+    } catch (err) {
+        console.warn(`[reportPagesController] macro history "${slug}" unavailable:`, err?.message || err);
+        return [];
+    }
+}
+
+async function loadFinamInflationMacroData() {
+    const to = toIsoDateOnly(new Date());
+    const fromYear = new Date();
+    fromYear.setFullYear(fromYear.getFullYear() - 1);
+    const from = toIsoDateOnly(fromYear);
+
+    const from10y = new Date();
+    from10y.setFullYear(from10y.getFullYear() - 10);
+    const from10yIso = toIsoDateOnly(from10y);
+
+    return {
+        keyRateSeries: await loadMacroHistorySafe('cbr_key_rate', from, to),
+        cpiYoySeries: await loadMacroHistorySafe('russia_cpi_inflation_yoy', from10yIso, to),
+        ofz2Series: await loadMacroHistorySafe('moex_ofz_gcurve_2y', from, to),
+        ofz5Series: await loadMacroHistorySafe('moex_ofz_gcurve_5y', from, to),
+        ofz10Series: await loadMacroHistorySafe('moex_ofz_gcurve_10y', from, to),
+        corpIndexSeries: await loadMacroHistorySafe('moex_rucbicp', from, to),
+    };
+}
+
 async function ensureClientReportAccess({ user, clientId, projectId }) {
     const client = await clientService.getFullClient(clientId, projectId);
     if (!client) {
@@ -163,11 +200,13 @@ class ReportPagesController {
             const finamReportVersion = await resolveFinamReportVersion({ projectId, themeKey });
 
             if (isFinamProject && finamReportVersion === FINAM_REPORT_VERSION_V2) {
+                const macroData = pageType === 'inflation' ? await loadFinamInflationMacroData() : null;
                 const html = await buildFinamReportV2PageHtml({
                     report,
                     pageType: rawPageType || pageType,
                     goalId: req.query.goalId ? Number(req.query.goalId) : null,
                     goalTypes: req.query.goalTypes || null,
+                    macroData,
                 });
                 if (!html) {
                     res.status(404).json({ error: `No Finam v2 page for pageType ${pageType}` });
