@@ -492,7 +492,7 @@ function replaceFinReserveGoalPage(html, context) {
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'reserve-ai-intro', `<div class="finam-v2-reserve__bubble" data-finam-v2-field="reserve-ai-intro">
         <p>Разбираем цель — <strong>${titleHtml}</strong>. Начальный капитал <strong>${initialHtml}</strong>, плановое пополнение <strong>${monthlyPerMonthHtml}</strong>; динамику ниже строим по фактическому графику цели.</p>
       </div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'reserve-title', `<h1 class="finam-v2-reserve__title" data-finam-v2-field="reserve-title">${titleHtml}</h1>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'reserve-page-title', `<h1 class="finam-v2-reserve__page-title" data-finam-v2-field="reserve-page-title">Цель - ${titleHtml}</h1>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'reserve-subtitle', `<p class="finam-v2-reserve__subtitle" data-finam-v2-field="reserve-subtitle">Подушка безопасности, срок формирования — ${escapeHtml(monthsLabel)}.</p>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'reserve-desc', `<p class="finam-v2-reserve__desc" data-finam-v2-field="reserve-desc">
           Начальный капитал <strong>${initialHtml}</strong> уже на месте. Пополнение
@@ -662,11 +662,11 @@ function replaceLifeGoalPage(html, context) {
     const maxCoverageHtml = moneyHtml(helpers, life.coverage, { short: true });
 
     let out = String(html || '');
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-page-title', `<h1 class="finam-v2-life__page-title" data-finam-v2-field="life-page-title">Цель - ${titleHtml}</h1>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-ai-intro', `<div class="finam-v2-life__bubble" data-finam-v2-field="life-ai-intro">
         <p>Цель <strong>«${titleHtml}»</strong> закрывает семейный downside: ${riskCount || 'ключевые'} ${riskCount ? riskWord : 'риски'} переведены в лимиты выплат, максимальное покрытие — <strong>${maxCoverageHtml}</strong>.</p>
       </div>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-kicker', `<div class="finam-v2-life__kicker" data-finam-v2-field="life-kicker">Life${providerSuffix}</div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-title', `<h1 class="finam-v2-life__title" data-finam-v2-field="life-title">${titleHtml}</h1>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-subtitle', `<p class="finam-v2-life__subtitle" data-finam-v2-field="life-subtitle">
           Программа «${escapeHtml(life.programName)}» с фактическим покрытием рисков и регулярным взносом по расчёту клиента.
         </p>`);
@@ -1260,7 +1260,16 @@ function replaceOtherGoalPage(html, context) {
         out = out.replace(/<div class="finam-v2-other__bubble">[\s\S]*?<\/div>\s*<\/div>\s*<section class="finam-v2-other__hero">/, `<h1 class="finam-v2-other__page-title">Цель - ${title}</h1>\n\n    <section class="finam-v2-other__hero">`);
         out = out.replace(/<div class="finam-v2-other__kicker">[\s\S]*?<\/div>/, `<div class="finam-v2-other__kicker">${escapeHtml(other.subtype.kicker)}</div>`);
         out = out.replace(/<h1 class="finam-v2-other__title">[\s\S]*?<\/h1>\s*/, '');
-        out = out.replace(/<p class="finam-v2-other__text">\s*[\s\S]*?\s*<\/p>\s*<\/div>\s*<div class="finam-v2-other__hero-visual">/, `<p class="finam-v2-other__text">ИИ показывает стоимость цели в текущих деньгах — <strong>${nowHtml}</strong>; с учётом инфляции к ${escapeHtml(other.targetYear)} году ориентир становится <strong>${futureHtml}</strong>.</p>\n      </div>\n      <div class="finam-v2-other__hero-visual">`);
+        out = out.replace(/<div class="finam-v2-other__ai-row">[\s\S]*?<\/div>\s*<\/div>\s*<div class="finam-v2-other__hero-visual">/, `<div class="finam-v2-other__ai-row">
+          <div class="finam-v2-other__avatar" role="img" aria-label="ИИ-ассистент">
+            <img src="assets/avatar-ai-finam-v2.png" width="42" height="42" alt="" decoding="async" />
+          </div>
+          <div class="finam-v2-other__bubble">
+            <p>Стоимость цели в текущих деньгах — <strong>${nowHtml}</strong>; с учётом инфляции к ${escapeHtml(other.targetYear)} году ориентир становится <strong>${futureHtml}</strong>.</p>
+          </div>
+        </div>
+      </div>
+      <div class="finam-v2-other__hero-visual">`);
         out = out.replace(/<img src="[^"]*" width="156" height="116" alt="" decoding="async" \/>/, `<img src="${assetUrl}" width="156" height="116" alt="" decoding="async" />`);
         out = out.replace(/<div class="finam-v2-other__visual-value">[\s\S]*?<\/div>/, `<div class="finam-v2-other__visual-value">${escapeHtml(formatShortMoneyNoCurrency(helpers, other.future))}</div>`);
         out = replaceNthElementByClass(out, 'finam-v2-other__grid-2', `<div class="finam-v2-other__grid-2">
