@@ -444,7 +444,7 @@
       <div class="finam-v2-reserve__avatar" role="img" aria-label="ИИ-ассистент">
         <img src="assets/avatar-ai-finam-v2.png" width="42" height="42" alt="" decoding="async" />
       </div>
-      <div class="finam-v2-reserve__bubble">
+      <div class="finam-v2-reserve__bubble" data-finam-v2-field="reserve-ai-intro">
         <p>
           Разбираем первую цель — <strong>финансовый резерв</strong>. Начальный капитал уже на месте; дальше
           смотрим, как он вырастет за 12 месяцев за счёт пополнений и процентов.
@@ -460,9 +460,9 @@
           </svg>
           Защита
         </div>
-        <h1 class="finam-v2-reserve__title">Финансовый резерв</h1>
-        <p class="finam-v2-reserve__subtitle">Подушка безопасности, срок формирования — 12 месяцев.</p>
-        <p class="finam-v2-reserve__desc">
+        <h1 class="finam-v2-reserve__title" data-finam-v2-field="reserve-title">Финансовый резерв</h1>
+        <p class="finam-v2-reserve__subtitle" data-finam-v2-field="reserve-subtitle">Подушка безопасности, срок формирования — 12 месяцев.</p>
+        <p class="finam-v2-reserve__desc" data-finam-v2-field="reserve-desc">
           Начальный капитал <strong>300&nbsp;000 ₽</strong> уже на месте. Пополнение
           <strong>5&nbsp;000 ₽/мес</strong> на вкладе с доходностью <strong>13%</strong> доведёт капитал до
           <strong>404&nbsp;185 ₽</strong> за 12 месяцев.
@@ -479,7 +479,7 @@
           <ellipse cx="12" cy="6" rx="7" ry="3" stroke="currentColor" stroke-width="1.5" />
           <path d="M5 6v9c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 10c0 1.7 3.1 3 7 3s7-1.3 7-3M5 14c0 1.7 3.1 3 7 3s7-1.3 7-3" stroke="currentColor" stroke-width="1.5" />
         </svg>
-        <div class="finam-v2-reserve__metric-value">300&nbsp;000 ₽</div>
+        <div class="finam-v2-reserve__metric-value" data-finam-v2-field="reserve-initial">300&nbsp;000 ₽</div>
         <div class="finam-v2-reserve__metric-label">Начальный капитал</div>
       </div>
       <div class="finam-v2-reserve__metric">
@@ -487,29 +487,29 @@
           <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
           <path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         </svg>
-        <div class="finam-v2-reserve__metric-value">5&nbsp;000 ₽/мес</div>
+        <div class="finam-v2-reserve__metric-value" data-finam-v2-field="reserve-monthly">5&nbsp;000 ₽/мес</div>
         <div class="finam-v2-reserve__metric-label">Пополнение</div>
       </div>
       <div class="finam-v2-reserve__metric">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 20V6m0 0h11l-2 4 2 4H5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <div class="finam-v2-reserve__metric-value">404&nbsp;185 ₽</div>
-        <div class="finam-v2-reserve__metric-label">Итог через 12 мес</div>
+        <div class="finam-v2-reserve__metric-value" data-finam-v2-field="reserve-final">404&nbsp;185 ₽</div>
+        <div class="finam-v2-reserve__metric-label" data-finam-v2-field="reserve-final-label">Итог через 12 мес</div>
       </div>
     </div>
 
     <section class="finam-v2-reserve__instrument">
       <div>
         <div class="finam-v2-reserve__section-kicker">Инструмент</div>
-        <div class="finam-v2-reserve__instrument-name">Банковский накопительный счёт</div>
-        <div class="finam-v2-reserve__instrument-row"><span>Тип</span><span>Вклад</span></div>
-        <div class="finam-v2-reserve__instrument-row"><span>Доля</span><span>100%</span></div>
-        <div class="finam-v2-reserve__instrument-row"><span>Начальная сумма</span><span>300&nbsp;000 ₽</span></div>
-        <div class="finam-v2-reserve__instrument-row"><span>Ежемесячное пополнение</span><span>5&nbsp;000 ₽</span></div>
+        <div class="finam-v2-reserve__instrument-name" data-finam-v2-field="reserve-instrument-name">Банковский накопительный счёт</div>
+        <div class="finam-v2-reserve__instrument-row" data-finam-v2-field="reserve-instrument-type"><span>Тип</span><span>Вклад</span></div>
+        <div class="finam-v2-reserve__instrument-row" data-finam-v2-field="reserve-instrument-share"><span>Доля</span><span>100%</span></div>
+        <div class="finam-v2-reserve__instrument-row" data-finam-v2-field="reserve-instrument-initial"><span>Начальная сумма</span><span>300&nbsp;000 ₽</span></div>
+        <div class="finam-v2-reserve__instrument-row" data-finam-v2-field="reserve-instrument-monthly"><span>Ежемесячное пополнение</span><span>5&nbsp;000 ₽</span></div>
       </div>
       <div class="finam-v2-reserve__rate">
-        <div class="finam-v2-reserve__rate-value">13%</div>
+        <div class="finam-v2-reserve__rate-value" data-finam-v2-field="reserve-yield">13%</div>
         <div class="finam-v2-reserve__rate-sub">годовых<br />доходность</div>
       </div>
     </section>
@@ -517,12 +517,12 @@
     <section class="finam-v2-reserve__chart">
       <div class="finam-v2-reserve__chart-head">
         <div>
-          <div class="finam-v2-reserve__chart-title">Рост капитала: июнь 2026 — май 2027</div>
+          <div class="finam-v2-reserve__chart-title" data-finam-v2-field="reserve-chart-title">Рост капитала: июнь 2026 — май 2027</div>
           <div class="finam-v2-reserve__chart-sub">Капитал, ₽</div>
         </div>
-        <div class="finam-v2-reserve__chart-total">404&nbsp;185 ₽</div>
+        <div class="finam-v2-reserve__chart-total" data-finam-v2-field="reserve-chart-total">404&nbsp;185 ₽</div>
       </div>
-      <svg viewBox="0 0 500 188" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <svg data-finam-v2-block="reserve-chart-svg" viewBox="0 0 500 188" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
           <linearGradient id="finamV2ReserveChartGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#1e6bb8" stop-opacity="0.14"/>
