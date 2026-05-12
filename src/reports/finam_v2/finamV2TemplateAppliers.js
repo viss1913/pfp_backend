@@ -1046,7 +1046,7 @@ function allocationRows(items, totalValue) {
         .map((item, idx) => ({
             label: item?.label || item?.name || item?.assetClass || 'Инструмент',
             percent: finite(item?.percent ?? item?.share ?? item?.value ?? item?.share_percent, 0),
-            amount: finite(item?.amount, 0),
+            amount: finite(item?.amount ?? item?.value, 0),
             color: item?.color || colors[idx % colors.length],
         }))
         .filter((item) => item.percent > 0 || item.amount > 0)
@@ -1748,6 +1748,441 @@ function replaceExecutiveSummaryPage(html, { model }) {
     return out;
 }
 
+function normalizePortfolioRows(items, totalValue, maxRows = 6) {
+    const colors = ['#002a4a', '#1e6bb8', '#7aa6d6', '#9fb7ca', '#cbd5e1', '#0f766e'];
+    const rows = (Array.isArray(items) ? items : [])
+        .map((item, idx) => ({
+            label: item?.label || item?.name || item?.assetClass || 'Инструмент',
+            percent: finite(item?.percent ?? item?.share ?? item?.share_percent, 0),
+            amount: finite(item?.value ?? item?.amount, 0),
+            role: item?.role || 'диверсификация портфеля',
+            yieldPercent: maybeFinite(item?.yieldPercent ?? item?.yield_percent ?? item?.yield),
+            color: item?.color || colors[idx % colors.length],
+        }))
+        .filter((item) => item.percent > 0 || item.amount > 0);
+    const amountSum = rows.reduce((sum, item) => sum + item.amount, 0);
+    const percentSum = rows.reduce((sum, item) => sum + item.percent, 0);
+    let normalized = rows;
+    if (rows.length && percentSum <= 0 && amountSum > 0) {
+        normalized = rows.map((item) => ({ ...item, percent: (item.amount / amountSum) * 100 }));
+    } else if (rows.length && Math.abs(percentSum - 100) > 0.01 && percentSum > 0) {
+        normalized = rows.map((item) => ({ ...item, percent: (item.percent / percentSum) * 100 }));
+    }
+    if (!rows.length && totalValue > 0) {
+        return [{ label: 'Портфель', percent: 100, amount: totalValue, role: 'капитал по целям', color: colors[0] }];
+    }
+    return compactPortfolioRows(normalized, maxRows, colors);
+}
+
+function compactPortfolioRows(rows, maxRows, colors) {
+    const list = Array.isArray(rows) ? rows : [];
+    if (list.length <= maxRows) return list;
+    const head = list.slice(0, Math.max(1, maxRows - 1));
+    const tail = list.slice(Math.max(1, maxRows - 1));
+    const amount = tail.reduce((sum, row) => sum + finite(row.amount, 0), 0);
+    const percent = tail.reduce((sum, row) => sum + finite(row.percent, 0), 0);
+    return [
+        ...head,
+        {
+            label: 'Прочее',
+            percent,
+            amount,
+            role: 'прочие инструменты портфеля',
+            color: colors[(maxRows - 1) % colors.length],
+        },
+    ];
+}
+
+function portfolioDonutHtml({ title, sub, centerValue, centerSub, rows, monthly = false }) {
+    const safeRows = normalizePortfolioRows(rows, 0, 5);
+    const note = safeRows.length
+        ? safeRows.slice(0, 4).map((row) => `${Math.round(finite(row.percent, 0))}% ${row.label}`).join(' · ')
+        : 'структура будет показана после расчёта';
+    return `<div class="finam-v2-portfolio__donut-card">
+          <p class="finam-v2-portfolio__section-kicker">${escapeHtml(title)}</p>
+          <div class="finam-v2-portfolio__donut-row">
+            <div class="finam-v2-portfolio__donut${monthly ? ' finam-v2-portfolio__donut--monthly' : ''}" style="background:${escapeHtml(buildConicGradient(safeRows))};" aria-hidden="true">
+              <div class="finam-v2-portfolio__donut-center">${escapeHtml(centerValue)}<small>${escapeHtml(centerSub)}</small></div>
+            </div>
+            <div>
+              <div class="finam-v2-portfolio__donut-title">${escapeHtml(sub)}</div>
+              <p class="finam-v2-portfolio__donut-note">${escapeHtml(note)}.</p>
+            </div>
+          </div>
+        </div>`;
+}
+
+function portfolioAllocationTableHtml(rows, helpers) {
+    const safeRows = normalizePortfolioRows(rows, 0, 6);
+    const body = safeRows.map((row) => `<tr>
+              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:${escapeHtml(row.color)};"></span>${escapeHtml(row.label)}</span></td>
+              <td class="finam-v2-portfolio__num">${formatPercentHtml(row.percent)}</td>
+              <td class="finam-v2-portfolio__num">${moneyHtml(helpers, row.amount, { short: true })}</td>
+              <td>${escapeHtml(row.role)}</td>
+            </tr>`).join('\n');
+    return `<table class="finam-v2-portfolio__table">
+          <thead>
+            <tr>
+              <th>Класс</th>
+              <th>Доля</th>
+              <th>Сумма</th>
+              <th>Роль</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${body || '<tr><td colspan="4">Портфель будет показан после расчёта.</td></tr>'}
+          </tbody>
+        </table>`;
+}
+
+function portfolioKpiHtml(model, helpers) {
+    const p = model?.portfolio || {};
+    const yieldText = maybeFinite(p.expectedReturn) != null ? formatPercentHtml(p.expectedReturn) : '—';
+    return `<section class="finam-v2-portfolio__kpi">
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Итоговый капитал</div>
+        <div class="finam-v2-portfolio__kpi-value">${moneyHtml(helpers, p.projectedTotal, { short: true })}</div>
+        <div class="finam-v2-portfolio__kpi-note">сумма по всем целям</div>
+      </div>
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Горизонт</div>
+        <div class="finam-v2-portfolio__kpi-value">${escapeHtml(p.horizonLabel || maxGoalYears(model?.goals))}</div>
+        <div class="finam-v2-portfolio__kpi-note">максимальный срок цели</div>
+      </div>
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Пополнение</div>
+        <div class="finam-v2-portfolio__kpi-value">${moneyHtml(helpers, p.monthlyTotal, { short: true })}</div>
+        <div class="finam-v2-portfolio__kpi-note">ежемесячно</div>
+      </div>
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Доходность</div>
+        <div class="finam-v2-portfolio__kpi-value">${yieldText}</div>
+        <div class="finam-v2-portfolio__kpi-note">средневзвешенная годовая</div>
+      </div>
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Риск-профиль</div>
+        <div class="finam-v2-portfolio__kpi-value">${escapeHtml(p.riskProfile || 'По анкете')}</div>
+        <div class="finam-v2-portfolio__kpi-note">по целям с портфелем</div>
+      </div>
+    </section>`;
+}
+
+function portfolioProjectionPoints(model) {
+    const byMonth = new Map();
+    (Array.isArray(model?.goals) ? model.goals : []).forEach((goal) => {
+        const schedule = Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
+        schedule.forEach((row) => {
+            const date = normalizeDate(row?.date);
+            const value = maybeFinite(row?.total_capital ?? row?.capital ?? row?.balance);
+            if (!date || value == null || value < 0) return;
+            const key = toMonthKey(date);
+            const current = byMonth.get(key) || { date: new Date(date.getFullYear(), date.getMonth(), 1), total: 0 };
+            current.total += value;
+            byMonth.set(key, current);
+        });
+    });
+    const actual = [...byMonth.values()].sort((a, b) => a.date - b.date);
+    if (actual.length > 1) return actual;
+
+    const p = model?.portfolio || {};
+    const months = Math.max(1, Math.round(finite(p.horizonMonths, 120)));
+    const steps = 6;
+    const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const initial = finite(p.initialTotal, 0);
+    const final = finite(p.projectedTotal, initial + finite(p.monthlyTotal, 0) * months);
+    const generated = [];
+    for (let i = 0; i < steps; i += 1) {
+        const t = i / Math.max(1, steps - 1);
+        generated.push({
+            date: addMonths(start, Math.round(months * t)),
+            total: initial + (final - initial) * t,
+        });
+    }
+    return generated;
+}
+
+function portfolioAxisLabel(value) {
+    const n = finite(value, 0);
+    if (Math.abs(n) >= 1000000) return `${(n / 1000000).toLocaleString('ru-RU', { maximumFractionDigits: 0 })}м`;
+    if (Math.abs(n) >= 1000) return `${Math.round(n / 1000).toLocaleString('ru-RU')}к`;
+    return Math.round(n).toLocaleString('ru-RU');
+}
+
+function buildPortfolioProjectionSvg(model) {
+    const points = portfolioProjectionPoints(model);
+    const plot = { left: 38, right: 486, top: 20, bottom: 120 };
+    const maxValue = Math.max(...points.map((p) => finite(p.total, 0)), finite(model?.portfolio?.projectedTotal, 0), 1);
+    const yFor = (value) => plot.bottom - (Math.max(0, finite(value, 0)) / maxValue) * (plot.bottom - plot.top);
+    const xFor = (idx) => plot.left + (idx / Math.max(1, points.length - 1)) * (plot.right - plot.left);
+    const coords = points.map((point, idx) => `${xFor(idx).toFixed(1)},${yFor(point.total).toFixed(1)}`).join(' ');
+    const area = `${coords} ${plot.right},${plot.bottom} ${plot.left},${plot.bottom}`;
+    const sample = sampleIndexes(points.length, 4);
+    const gridValues = [0, maxValue / 3, (maxValue * 2) / 3, maxValue];
+    return `<svg class="finam-v2-portfolio__chart" viewBox="0 0 500 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="finamV2PortfolioChartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1e6bb8" stop-opacity="0.14"/>
+            <stop offset="100%" stop-color="#1e6bb8" stop-opacity="0.01"/>
+          </linearGradient>
+        </defs>
+        ${gridValues.map((value) => {
+        const y = yFor(value).toFixed(1);
+        return `<line x1="${plot.left}" y1="${y}" x2="${plot.right}" y2="${y}" stroke="#e2e8f0" stroke-width="1"/><text x="32" y="${Number(y) + 3}" font-size="8" fill="#64748b" text-anchor="end">${escapeHtml(portfolioAxisLabel(value))}</text>`;
+    }).join('\n        ')}
+        <polygon points="${area}" fill="url(#finamV2PortfolioChartGrad)"/>
+        <polyline points="${coords}" fill="none" stroke="#1e6bb8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${sample.map((idx) => `<text x="${xFor(idx).toFixed(1)}" y="140" font-size="8" fill="#64748b" text-anchor="${idx === points.length - 1 ? 'end' : idx === 0 ? 'middle' : 'middle'}">${escapeHtml(idx === 0 ? 'сейчас' : String(points[idx].date.getFullYear()))}</text>`).join('\n        ')}
+      </svg>`;
+}
+
+function portfolioLadderHtml(model, helpers) {
+    const buckets = Array.isArray(model?.portfolio?.liquidityBuckets) ? model.portfolio.liquidityBuckets : [];
+    const icons = [
+        '<path d="M12 3l7 3v5c0 4-2.7 7.7-7 10-4.3-2.3-7-6-7-10V6l7-3z" stroke="currentColor" stroke-width="1.5"/>',
+        '<path d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+        '<path d="M4 19h16M6 16l4-5 3 3 5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>',
+    ];
+    return `<div class="finam-v2-portfolio__ladder">
+          ${buckets.slice(0, 3).map((bucket, idx) => `<div class="finam-v2-portfolio__ladder-row">
+            <div class="finam-v2-portfolio__round-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">${icons[idx] || icons[0]}</svg>
+            </div>
+            <div>
+              <div class="finam-v2-portfolio__row-title">${escapeHtml(bucket.name || 'Контур')}</div>
+              <div class="finam-v2-portfolio__row-sub">${escapeHtml(bucket.horizon || 'срок цели')}</div>
+            </div>
+            <div class="finam-v2-portfolio__row-value">${moneyHtml(helpers, bucket.value, { short: true })}</div>
+          </div>`).join('\n          ')}
+        </div>`;
+}
+
+function portfolioRiskHtml(model) {
+    const p = model?.portfolio || {};
+    const rows = normalizePortfolioRows(p.allocation, 0, 6);
+    const shareBy = (re) => rows.filter((row) => re.test(String(row.label).toLowerCase())).reduce((sum, row) => sum + finite(row.percent, 0), 0);
+    const market = Math.min(100, shareBy(/акци|фонд|stock|equity/));
+    const liquidity = Math.min(100, shareBy(/депозит|накоп|сч[её]т|ликвид/));
+    const insurance = Math.min(100, shareBy(/пдс|нпф|страх|нсж|исж/));
+    const diversification = Math.min(100, rows.length * 18);
+    const riskRows = [
+        ['Рынок', market, market >= 45 ? 'выс.' : market >= 20 ? 'средн.' : 'низк.'],
+        ['Ликвидность', liquidity, liquidity >= 20 ? 'хорош.' : 'контр.'],
+        ['Защита', insurance, insurance > 0 ? 'есть' : 'нет'],
+        ['Диверсиф.', diversification, rows.length >= 4 ? 'шир.' : 'узк.'],
+    ];
+    return `<div class="finam-v2-portfolio__risk">
+          <div class="finam-v2-portfolio__risk-score">
+            <strong>${formatPercentHtml(p.expectedReturn)}</strong>
+            <span>средневзвешенная доходность</span>
+          </div>
+          <div class="finam-v2-portfolio__risk-bars">
+            ${riskRows.map(([label, width, text]) => `<div class="finam-v2-portfolio__risk-row">
+              <span>${escapeHtml(label)}</span>
+              <div class="finam-v2-portfolio__risk-track"><div class="finam-v2-portfolio__risk-fill" style="width: ${Math.max(4, width)}%;"></div></div>
+              <strong>${escapeHtml(text)}</strong>
+            </div>`).join('\n            ')}
+          </div>
+        </div>`;
+}
+
+function portfolioObjectiveMapHtml(model) {
+    const rows = Array.isArray(model?.portfolio?.objectiveMapping) ? model.portfolio.objectiveMapping : [];
+    return `<table class="finam-v2-portfolio__map">
+          <tbody>
+            ${rows.slice(0, 4).map((row) => `<tr>
+              <td>${escapeHtml(row.title || 'Цель')}</td>
+              <td>${escapeHtml(row.text || 'связь с портфелем будет рассчитана')}</td>
+            </tr>`).join('\n            ') || '<tr><td>Цели</td><td>будут показаны после расчёта</td></tr>'}
+          </tbody>
+        </table>`;
+}
+
+function portfolioPrinciplesHtml(model) {
+    const principles = Array.isArray(model?.portfolio?.principles) ? model.portfolio.principles : [];
+    return `<section class="finam-v2-portfolio__principles">
+      ${principles.slice(0, 4).map((item, idx) => `<div class="finam-v2-portfolio__principle">
+        <div class="finam-v2-portfolio__principle-num">${String(idx + 1).padStart(2, '0')}</div>
+        <div class="finam-v2-portfolio__principle-title">${escapeHtml(item.title || 'Принцип')}</div>
+        <p class="finam-v2-portfolio__principle-text">${escapeHtml(item.text || '')}</p>
+      </div>`).join('\n      ')}
+    </section>`;
+}
+
+function buildPortfolioSummaryArticleOne(model, helpers) {
+    const p = model?.portfolio || {};
+    const initialRows = normalizePortfolioRows(p.initialAllocation, p.initialTotal, 5);
+    const monthlyRows = normalizePortfolioRows(p.monthlyAllocation, p.monthlyTotal, 5);
+    const allocationRowsForTable = normalizePortfolioRows(p.allocation && p.allocation.length ? p.allocation : p.initialAllocation, p.initialTotal, 6);
+    return `<article class="finam-v2-page">
+    <header class="finam-v2-portfolio__header">
+      <div class="finam-v2-portfolio__header-left">
+        <span class="finam-v2-portfolio__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-portfolio__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-portfolio__pill">Итоговый портфель · 1/2</span>
+    </header>
+    <hr class="finam-v2-portfolio__rule" />
+
+    <p class="finam-v2-portfolio__eyebrow">Сводка по портфелю</p>
+    <h1 class="finam-v2-portfolio__headline">Итоговый портфель: ${moneyHtml(helpers, p.projectedTotal, { short: true })} по всем целям</h1>
+    <p class="finam-v2-portfolio__lead">
+      Страница собрана из расчёта PFP: стартовый капитал, ежемесячные пополнения, срок плана и средневзвешенная доходность берутся из консолидированного портфеля клиента.
+    </p>
+
+    ${portfolioKpiHtml(model, helpers)}
+
+    <section class="finam-v2-portfolio__main">
+      <div class="finam-v2-portfolio__donut-stack">
+        ${portfolioDonutHtml({
+        title: 'Первоначальный капитал',
+        sub: 'Куда размещается капитал сейчас',
+        centerValue: formatShortMoneyNoCurrency(helpers, p.initialTotal),
+        centerSub: 'старт',
+        rows: initialRows,
+    })}
+        ${portfolioDonutHtml({
+        title: 'Ежемесячное пополнение',
+        sub: 'Куда идёт новый взнос',
+        centerValue: formatShortMoneyNoCurrency(helpers, p.monthlyTotal),
+        centerSub: 'в месяц',
+        rows: monthlyRows,
+        monthly: true,
+    })}
+      </div>
+      <div class="finam-v2-portfolio__table-card">
+        <p class="finam-v2-portfolio__section-kicker">Роль классов активов</p>
+        ${portfolioAllocationTableHtml(allocationRowsForTable, helpers)}
+      </div>
+    </section>
+
+    <section class="finam-v2-portfolio__why">
+      <div class="finam-v2-portfolio__card">
+        <div class="finam-v2-portfolio__card-title">Портфель из расчёта</div>
+        <p class="finam-v2-portfolio__card-text">Аллокации стартового капитала и пополнений подтягиваются из consolidated_portfolio.</p>
+      </div>
+      <div class="finam-v2-portfolio__card">
+        <div class="finam-v2-portfolio__card-title">Сроки связаны с целями</div>
+        <p class="finam-v2-portfolio__card-text">Горизонт берётся как максимальный срок среди целей клиента.</p>
+      </div>
+      <div class="finam-v2-portfolio__card">
+        <div class="finam-v2-portfolio__card-title">Доходность взвешена</div>
+        <p class="finam-v2-portfolio__card-text">Ставка считается по долям инструментов, а не как декоративная константа.</p>
+      </div>
+    </section>
+
+    <section class="finam-v2-portfolio__panel finam-v2-portfolio__projection">
+      <div class="finam-v2-portfolio__projection-head">
+        <p class="finam-v2-portfolio__section-kicker">Прогноз капитала</p>
+        <span class="finam-v2-portfolio__projection-note">база ${formatPercentHtml(p.expectedReturn)} годовых · горизонт ${escapeHtml(p.horizonLabel || '—')}</span>
+      </div>
+      ${buildPortfolioProjectionSvg(model)}
+    </section>
+
+    <div class="finam-v2-portfolio__grow"></div>
+    <hr class="finam-v2-portfolio__footer-rule" />
+    <footer class="finam-v2-portfolio__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-portfolio__footer-right">Итоговый портфель агрегирует инвестиционные цели клиента</span>
+    </footer>
+  </article>`;
+}
+
+function buildPortfolioSummaryArticleTwo(model, helpers) {
+    const p = model?.portfolio || {};
+    return `<article class="finam-v2-page">
+    <header class="finam-v2-portfolio__header">
+      <div class="finam-v2-portfolio__header-left">
+        <span class="finam-v2-portfolio__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-portfolio__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-portfolio__pill">Итоговый портфель · 2/2</span>
+    </header>
+    <hr class="finam-v2-portfolio__rule" />
+
+    <p class="finam-v2-portfolio__eyebrow">Операционная логика портфеля</p>
+    <h1 class="finam-v2-portfolio__headline">Как портфель обслуживает реальные цели клиента</h1>
+    <p class="finam-v2-portfolio__lead">
+      Второй лист раскладывает расчёт на операционные правила: где нужна ликвидность, как идёт пополнение, какие риски контролируются и какие цели поддерживает портфель.
+    </p>
+
+    <section class="finam-v2-portfolio__grid-2">
+      <div class="finam-v2-portfolio__panel">
+        <div class="finam-v2-portfolio__panel-head">
+          <p class="finam-v2-portfolio__section-kicker">Лестница ликвидности</p>
+          <span class="finam-v2-portfolio__panel-note">по срокам целей</span>
+        </div>
+        ${portfolioLadderHtml(model, helpers)}
+      </div>
+
+      <div class="finam-v2-portfolio__panel">
+        <div class="finam-v2-portfolio__panel-head">
+          <p class="finam-v2-portfolio__section-kicker">Поток пополнений</p>
+          <span class="finam-v2-portfolio__panel-note">${moneyHtml(helpers, p.monthlyTotal, { short: true })}/мес</span>
+        </div>
+        <div class="finam-v2-portfolio__flow">
+          <div class="finam-v2-portfolio__flow-step">
+            <div class="finam-v2-portfolio__flow-title">Доход</div>
+            <div class="finam-v2-portfolio__flow-sub">свободный поток</div>
+          </div>
+          <div class="finam-v2-portfolio__arrow">→</div>
+          <div class="finam-v2-portfolio__flow-step">
+            <div class="finam-v2-portfolio__flow-title">Пополнение</div>
+            <div class="finam-v2-portfolio__flow-sub">${escapeHtml(p.monthlyAllocation?.length || 0)} инструментов</div>
+          </div>
+          <div class="finam-v2-portfolio__arrow">→</div>
+          <div class="finam-v2-portfolio__flow-step">
+            <div class="finam-v2-portfolio__flow-title">Цели</div>
+            <div class="finam-v2-portfolio__flow-sub">${escapeHtml((model?.goals || []).length)} в плане</div>
+          </div>
+        </div>
+        <div class="finam-v2-portfolio__insight" style="margin: 11px 0 0;">
+          <strong>Правило:</strong> новый взнос распределяется по расчётной структуре портфеля и сверяется с целями при пересчёте.
+        </div>
+      </div>
+    </section>
+
+    <section class="finam-v2-portfolio__grid-2">
+      <div class="finam-v2-portfolio__panel">
+        <div class="finam-v2-portfolio__panel-head">
+          <p class="finam-v2-portfolio__section-kicker">Риск-контур</p>
+          <span class="finam-v2-portfolio__panel-note">${escapeHtml(p.riskProfile || 'по анкете')}</span>
+        </div>
+        ${portfolioRiskHtml(model)}
+      </div>
+
+      <div class="finam-v2-portfolio__panel">
+        <div class="finam-v2-portfolio__panel-head">
+          <p class="finam-v2-portfolio__section-kicker">Связь с целями</p>
+          <span class="finam-v2-portfolio__panel-note">капитал и сроки</span>
+        </div>
+        ${portfolioObjectiveMapHtml(model)}
+      </div>
+    </section>
+
+    ${portfolioPrinciplesHtml(model)}
+
+    <div class="finam-v2-portfolio__insight">
+      <strong>Итог:</strong> расчётный портфель ведёт к капиталу ${moneyHtml(helpers, p.projectedTotal, { short: true })} на горизонте ${escapeHtml(p.horizonLabel || '—')}; доходность портфеля — ${formatPercentHtml(p.expectedReturn)} годовых.
+    </div>
+
+    <div class="finam-v2-portfolio__grow"></div>
+    <hr class="finam-v2-portfolio__footer-rule" />
+    <footer class="finam-v2-portfolio__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-portfolio__footer-right">Не является индивидуальной инвестиционной рекомендацией</span>
+    </footer>
+  </article>`;
+}
+
+function replacePortfolioSummaryPage(html, { model, helpers }) {
+    return replaceFinamV2PageArticles(html, (article, index) => {
+        const pageIndex = /Итоговый портфель\s*·\s*2\/2/.test(article) ? 1 : index;
+        return pageIndex === 1
+            ? buildPortfolioSummaryArticleTwo(model, helpers)
+            : buildPortfolioSummaryArticleOne(model, helpers);
+    });
+}
+
 function replaceCommonSamples(html, { model, helpers }) {
     const portfolioValue = formatMoneyWith(helpers, model?.portfolio?.projectedTotal || 0, { short: true });
     const initialValue = formatMoneyWith(helpers, model?.portfolio?.initialTotal || 0, { short: true });
@@ -1873,6 +2308,9 @@ function applyTemplateData(html, context = {}) {
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY) {
         out = replaceExecutiveSummaryPage(out, context);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.PORTFOLIO_SUMMARY) {
+        out = replacePortfolioSummaryPage(out, context);
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_FIN_RESERVE) {
         out = replaceFinReserveGoalPage(out, context);

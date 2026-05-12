@@ -621,28 +621,210 @@ function allocationFromPortfolio(items, totalValue, { monthly = false } = {}) {
                 percent,
                 value,
                 yieldPercent: item.yield_percent ?? item.yield,
+                role: portfolioAssetRole(item.name || item.assetClass, item.product_type),
             };
         })
-        .filter((item) => item.percent > 0)
-        .slice(0, 6);
+        .filter((item) => item.percent > 0 || item.value > 0);
     const totalPercent = rows.reduce((sum, item) => sum + item.percent, 0);
-    if (rows.length && Math.abs(totalPercent - 100) > 0.01) {
-        return rows.map((item) => ({ ...item, percent: Math.round((item.percent / totalPercent) * 1000) / 10 }));
+    const totalAmount = rows.reduce((sum, item) => sum + item.value, 0);
+    let normalized = rows;
+    if (rows.length && totalPercent <= 0 && totalAmount > 0) {
+        normalized = rows.map((item) => ({ ...item, percent: Math.round((item.value / totalAmount) * 1000) / 10 }));
+    } else if (rows.length && totalPercent > 0 && Math.abs(totalPercent - 100) > 0.01) {
+        normalized = rows.map((item) => ({ ...item, percent: Math.round((item.percent / totalPercent) * 1000) / 10 }));
     }
     if (!rows.length && totalValue > 0) {
         return [{ label: monthly ? 'Ежемесячные пополнения' : 'Стартовый капитал', percent: 100, value: totalValue }];
     }
-    return rows;
+    return compactAllocationRows(normalized, 6);
+}
+
+function portfolioAssetRole(nameRaw, productTypeRaw) {
+    const text = `${nameRaw || ''} ${productTypeRaw || ''}`.toLowerCase();
+    if (/депозит|накоп|сч[её]т|deposit|saving/.test(text)) return 'ликвидность и короткий резерв';
+    if (/облигац|bond/.test(text)) return 'стабильность и купонный поток';
+    if (/акци|stock|equity|фонд/.test(text)) return 'рост капитала на длинном горизонте';
+    if (/пдс|нпф|пенси/.test(text)) return 'пенсионный контур и льготы';
+    if (/нсж|исж|life|страх/.test(text)) return 'страховая защита и снижение хвостовых рисков';
+    return 'диверсификация портфеля';
+}
+
+function portfolioHorizonMonths(goals) {
+    return (Array.isArray(goals) ? goals : []).reduce((max, goal) => {
+        const months = toFiniteNumber(goal?.summary?.target_months ?? goal?.summary?.term_months ?? goal?.term_months, 0);
+        return Math.max(max, months);
+    }, 0);
+}
+
+function formatHorizon(months) {
+    const n = Math.max(0, Math.round(toFiniteNumber(months, 0)));
+    if (n <= 0) return '—';
+    const years = Math.max(1, Math.round(n / 12));
+    if (years >= 20) return '20+ лет';
+    return `${years} ${years % 10 === 1 && years % 100 !== 11 ? 'год' : years % 10 >= 2 && years % 10 <= 4 && (years % 100 < 12 || years % 100 > 14) ? 'года' : 'лет'}`;
+}
+
+function totalProjectedCapitalFromGoals(goals) {
+    return (Array.isArray(goals) ? goals : []).reduce((sum, goal) => {
+        const summary = goal?.summary || {};
+        const type = goalType(goal);
+        const value =
+            summary.projected_capital_at_end ??
+            summary.projected_capital_at_retirement ??
+            summary.total_capital_at_end ??
+            summary.expected_cash_value ??
+            (type === 'RENT' ? summary.initial_capital : null) ??
+            0;
+        return sum + toFiniteNumber(value, 0);
+    }, 0);
+}
+
+function weightedYieldFromRows(rows, fallbackWeight = 0, weightMultiplier = 1) {
+    return (Array.isArray(rows) ? rows : []).reduce((acc, row) => {
+        const yieldPercent = toFiniteNumber(row?.yield_percent ?? row?.yield, NaN);
+        if (!Number.isFinite(yieldPercent)) return acc;
+        const baseWeight = toFiniteNumber(row?.amount, 0) || (fallbackWeight > 0 ? (fallbackWeight * toFiniteNumber(row?.share_percent ?? row?.share, 0)) / 100 : 0);
+        const weight = baseWeight * weightMultiplier;
+        if (weight <= 0) return acc;
+        acc.weight += weight;
+        acc.weightedYield += weight * yieldPercent;
+        return acc;
+    }, { weight: 0, weightedYield: 0 });
+}
+
+function calculatePortfolioYield({ portfolio, initialTotal, monthlyTotal, goals }) {
+    const initialYield = weightedYieldFromRows(portfolio.assets_allocation, initialTotal);
+    const monthlyYield = weightedYieldFromRows(portfolio.cash_flow_allocation, monthlyTotal, 12);
+    const combinedWeight = initialYield.weight + monthlyYield.weight;
+    if (combinedWeight > 0) {
+        return Math.round(((initialYield.weightedYield + monthlyYield.weightedYield) / combinedWeight) * 10) / 10;
+    }
+
+    const goalYield = (Array.isArray(goals) ? goals : []).reduce((acc, goal) => {
+        const y = toFiniteNumber(goal?.summary?.accumulation_yield_percent ?? goal?.pdf_metrics?.portfolio_yield_percent, NaN);
+        if (!Number.isFinite(y)) return acc;
+        const weight = Math.max(toFiniteNumber(pickGoalCapital(goal), 0), toFiniteNumber(pickGoalInitial(goal), 0), 1);
+        acc.weight += weight;
+        acc.weightedYield += weight * y;
+        return acc;
+    }, { weight: 0, weightedYield: 0 });
+    if (goalYield.weight > 0) return Math.round((goalYield.weightedYield / goalYield.weight) * 10) / 10;
+
+    return portfolio.estimated_portfolio_yield_percent;
+}
+
+function compactAllocationRows(rows, maxRows = 6) {
+    const list = Array.isArray(rows) ? rows.filter((row) => toFiniteNumber(row?.percent, 0) > 0 || toFiniteNumber(row?.value, 0) > 0) : [];
+    if (list.length <= maxRows) return list;
+    const head = list.slice(0, Math.max(1, maxRows - 1));
+    const tail = list.slice(Math.max(1, maxRows - 1));
+    const tailValue = tail.reduce((sum, item) => sum + toFiniteNumber(item.value, 0), 0);
+    const tailPercent = tail.reduce((sum, item) => sum + toFiniteNumber(item.percent, 0), 0);
+    const tailWeightedYield = tail.reduce((sum, item) => {
+        const value = toFiniteNumber(item.value, 0);
+        const y = toFiniteNumber(item.yieldPercent, NaN);
+        return Number.isFinite(y) && value > 0 ? sum + value * y : sum;
+    }, 0);
+    return [
+        ...head,
+        {
+            label: 'Прочее',
+            percent: Math.round(tailPercent * 10) / 10,
+            value: tailValue,
+            yieldPercent: tailValue > 0 && tailWeightedYield > 0 ? tailWeightedYield / tailValue : null,
+            role: 'прочие инструменты портфеля',
+        },
+    ];
+}
+
+function buildCombinedAllocation(initialAllocation, monthlyAllocation, monthlyTotal) {
+    const byName = new Map();
+    const add = (item, multiplier = 1) => {
+        const label = item?.label || 'Инструмент';
+        if (!byName.has(label)) {
+            byName.set(label, {
+                label,
+                value: 0,
+                weightedYield: 0,
+                role: item?.role || portfolioAssetRole(label),
+            });
+        }
+        const row = byName.get(label);
+        const value = toFiniteNumber(item?.value, 0) * multiplier;
+        row.value += value;
+        const y = toFiniteNumber(item?.yieldPercent, NaN);
+        if (Number.isFinite(y) && value > 0) row.weightedYield += value * y;
+    };
+    (Array.isArray(initialAllocation) ? initialAllocation : []).forEach((item) => add(item));
+    // Monthly money is annualized only for the combined role table; KPI still shows monthly contribution separately.
+    (Array.isArray(monthlyAllocation) ? monthlyAllocation : []).forEach((item) => add(item, 12));
+
+    const rows = [...byName.values()].filter((row) => row.value > 0).sort((a, b) => b.value - a.value);
+    const total = rows.reduce((sum, row) => sum + row.value, 0);
+    if (!rows.length || total <= 0) return [];
+    return compactAllocationRows(rows.map((row) => ({
+        ...row,
+        percent: Math.round((row.value / total) * 1000) / 10,
+        yieldPercent: row.value > 0 && row.weightedYield > 0 ? row.weightedYield / row.value : null,
+    })), 6);
+}
+
+function buildLiquidityBuckets(goals, projectedTotal) {
+    const rows = Array.isArray(goals) ? goals : [];
+    const reserve = rows
+        .filter((goal) => goalPageType(goal) === FINAM_REPORT_V2_PAGE_TYPES.GOAL_FIN_RESERVE)
+        .reduce((sum, goal) => sum + toFiniteNumber(pickGoalCapital(goal) || pickGoalTarget(goal), 0), 0);
+    const mid = rows
+        .filter((goal) => {
+            const months = goalMonths(goal);
+            return months > 0 && months <= 36 && goalPageType(goal) !== FINAM_REPORT_V2_PAGE_TYPES.GOAL_FIN_RESERVE;
+        })
+        .reduce((sum, goal) => sum + toFiniteNumber(pickGoalCapital(goal) || pickGoalTarget(goal), 0), 0);
+    const long = Math.max(0, toFiniteNumber(projectedTotal, 0) - reserve - mid);
+    return [
+        { name: 'Резерв', horizon: '0-6 месяцев', value: reserve },
+        { name: 'Средний горизонт', horizon: '1-3 года', value: mid },
+        { name: 'Долгий капитал', horizon: '3+ года', value: long },
+    ];
+}
+
+function buildObjectiveMapping(goals) {
+    const rows = (Array.isArray(goals) ? goals : []).slice(0, 4).map((goal) => {
+        const title = goalDisplayName(goal);
+        const term = pickGoalTerm(goal);
+        const capital = pickGoalCapital(goal) || pickGoalTarget(goal);
+        return {
+            title,
+            text: `${term}; расчётный капитал ${formatMoney(capital, { short: true })}.`,
+        };
+    });
+    return rows.length ? rows : [{ title: 'Портфель', text: 'Цели будут связаны с продуктами после расчёта.' }];
 }
 
 function buildV2Model(report = {}, options = {}) {
     const goals = filterGoals(report.goals_detailed || [], options.goalTypes).sort((a, b) => goalSortWeight(a) - goalSortWeight(b));
     const clientName = report?.client_info?.full_name || report?.client_info?.first_name || 'Клиент';
     const portfolio = report?.overall_plan?.pdf_metrics?.portfolio || {};
+    const consolidatedPortfolio = report?.overall_plan?.consolidated_portfolio || {};
+    const portfolioSource = {
+        ...portfolio,
+        assets_allocation: Array.isArray(portfolio.assets_allocation) && portfolio.assets_allocation.length
+            ? portfolio.assets_allocation
+            : consolidatedPortfolio.assets_allocation,
+        cash_flow_allocation: Array.isArray(portfolio.cash_flow_allocation) && portfolio.cash_flow_allocation.length
+            ? portfolio.cash_flow_allocation
+            : consolidatedPortfolio.cash_flow_allocation,
+    };
     const familyContext = report?.family_page_ai_context || {};
-    const initialTotal = toFiniteNumber(portfolio.total_initial_capital, 0);
-    const monthlyTotal = toFiniteNumber(portfolio.total_monthly_replenishment, 0);
-    const projectedTotal = toFiniteNumber(report?.overall_plan?.chart_waterfall?.total_projected, 0);
+    const initialTotal = toFiniteNumber(portfolio.total_initial_capital ?? consolidatedPortfolio.total_initial_capital, 0);
+    const monthlyTotal = toFiniteNumber(portfolio.total_monthly_replenishment ?? consolidatedPortfolio.total_monthly_replenishment, 0);
+    const goalsProjectedTotal = totalProjectedCapitalFromGoals(goals);
+    const projectedTotal = toFiniteNumber(report?.overall_plan?.chart_waterfall?.total_projected, 0) ||
+        toFiniteNumber(report?.summary?.total_capital, 0) ||
+        goalsProjectedTotal;
+    const horizonMonths = portfolioHorizonMonths(goals);
+    const initialAllocation = allocationFromPortfolio(portfolioSource.assets_allocation, initialTotal);
+    const monthlyAllocation = allocationFromPortfolio(portfolioSource.cash_flow_allocation, monthlyTotal, { monthly: true });
     const assetsTotal = toFiniteNumber(report?.current_situation?.assets_total, 0);
     const liabilitiesTotal = toFiniteNumber(report?.current_situation?.liabilities_total, 0);
     const netWorth = toFiniteNumber(report?.current_situation?.net_worth, assetsTotal - liabilitiesTotal);
@@ -668,9 +850,26 @@ function buildV2Model(report = {}, options = {}) {
         initialTotal,
         monthlyTotal,
         projectedTotal,
-        expectedReturn: portfolio.estimated_portfolio_yield_percent,
-        initialAllocation: allocationFromPortfolio(portfolio.assets_allocation, initialTotal),
-        monthlyAllocation: allocationFromPortfolio(portfolio.cash_flow_allocation, monthlyTotal, { monthly: true }),
+        expectedReturn: calculatePortfolioYield({
+            portfolio: portfolioSource,
+            initialTotal,
+            monthlyTotal,
+            goals,
+        }),
+        horizonMonths,
+        horizonLabel: formatHorizon(horizonMonths),
+        riskProfile: goals.map(riskProfileLabel).find((value) => value && value !== 'По анкете клиента') || 'По анкете клиента',
+        initialAllocation,
+        monthlyAllocation,
+        allocation: buildCombinedAllocation(initialAllocation, monthlyAllocation, monthlyTotal),
+        liquidityBuckets: buildLiquidityBuckets(goals, projectedTotal),
+        objectiveMapping: buildObjectiveMapping(goals),
+        principles: [
+            { title: 'Сначала ликвидность', text: 'Резерв и короткие цели отделены от долгого капитала.' },
+            { title: 'Доходность через дисциплину', text: 'Регулярные пополнения важнее попыток угадать точку входа.' },
+            { title: 'Риск снижается к цели', text: 'Чем ближе срок, тем больше защитных инструментов.' },
+            { title: 'Квартальный контроль', text: 'Портфель живёт через пересчёт и ребалансировку.' },
+        ],
     };
     const cashflowDiagnostics = buildCashflowDiagnostics({
         income,
@@ -693,6 +892,7 @@ function buildV2Model(report = {}, options = {}) {
             firstName: report?.client_info?.first_name || clientName,
             age: report?.client_info?.age,
             income,
+            planningHorizon: portfolioModel.horizonLabel,
             reportDate: formatDateRu(options.reportDate || new Date()),
         },
         advisor: options.advisor || {
