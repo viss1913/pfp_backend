@@ -31,7 +31,7 @@ description: Вторая версия финплан-отчёта Финам (p
 
 ## Текущее состояние статических макетов v2
 
-Рабочая песочница v2 живёт в [`src/reports/finam_v2/`](src/reports/finam_v2/). Статические HTML-макеты остаются дизайн-референсом, а production-подключение идёт через [`buildFinamReportV2HtmlPackage.js`](src/reports/finam_v2/buildFinamReportV2HtmlPackage.js) при **`system_settings.report_finam = 2`** или эквивалентном env-оверрайде (`1` или отсутствие настройки и env = текущий v1).
+Рабочая песочница и production-шаблоны v2 живут в [`src/reports/finam_v2/`](src/reports/finam_v2/). Визуальный источник production v2 — `page-*-v2.html`: composer читает шаблоны, режет каждый `article.finam-v2-page` на физические PDF-листы, инлайнит CSS/assets и подставляет реальные данные клиента. Production-подключение идёт через [`buildFinamReportV2HtmlPackage.js`](src/reports/finam_v2/buildFinamReportV2HtmlPackage.js) при **`system_settings.report_finam = 2`** или эквивалентном env-оверрайде (`1` или отсутствие настройки и env = текущий v1).
 
 | Порядок | Файл | Смысл |
 |--------:|------|-------|
@@ -66,7 +66,11 @@ description: Вторая версия финплан-отчёта Финам (p
 - [`FINAM_REPORT_V2_ORDER.txt`](src/reports/finam_v2/FINAM_REPORT_V2_ORDER.txt) — текущий порядок и команды просмотра.
 - [`scripts/finam_v2_preview_screenshots.js`](scripts/finam_v2_preview_screenshots.js) — скриншоты `tmp/finam-v2-*.png`.
 - [`finamReportV2Contract.js`](src/reports/finam_v2/finamReportV2Contract.js) — базовый v2 JSON-контракт `reportSchemaVersion: "finam-v2.0"`.
-- [`buildFinamReportV2HtmlPackage.js`](src/reports/finam_v2/buildFinamReportV2HtmlPackage.js) — production composer для PDF/API: adapter текущего `reportService.getClientReportData()` → v2-модель, фильтр целей, `pageHtmlList`, `toc`, inline v2 assets, без моковых клиентских цифр.
+- [`buildFinamReportV2HtmlPackage.js`](src/reports/finam_v2/buildFinamReportV2HtmlPackage.js) — тонкий production-вход для PDF/API: adapter текущего `reportService.getClientReportData()` → v2-модель и передача в template composer.
+- [`finamV2PageManifest.js`](src/reports/finam_v2/finamV2PageManifest.js) — манифест порядка страниц, названий и goal-template mapping.
+- [`finamV2TemplateLoader.js`](src/reports/finam_v2/finamV2TemplateLoader.js) — читает `page-*-v2.html`, инлайнит CSS/assets, режет многостраничные HTML на физические листы и для PDF оборачивает каждый лист в A4-холст.
+- [`finamV2TemplateAppliers.js`](src/reports/finam_v2/finamV2TemplateAppliers.js) — подставляет реальные ФИО/дату/цели/ключевые суммы поверх шаблонов, чтобы в production не уходили demo-значения.
+- [`finamV2PageComposer.js`](src/reports/finam_v2/finamV2PageComposer.js) — собирает `pageHtmlList`, `pages` и `toc` с фактическими `page_start/page_count`.
 - [`buildFinamReportV2Html.js`](src/reports/finam_v2/buildFinamReportV2Html.js) — изолированный экспериментальный HTML-билдер для новых wow-страниц.
 - [`docs/reports/finam-v2-tail-blocks.md`](docs/reports/finam-v2-tail-blocks.md) — краткая документация по хвостовым v2-блокам и полному составу риск-декларации.
 
@@ -81,14 +85,15 @@ python -m http.server 8766 --bind 127.0.0.1
 
 ## Текущие правила вёрстки v2
 
-- **Холст:** `.finam-v2-page` = `595px × 842px`, `overflow: hidden`, `print-color-adjust: exact`, один лист без скролла. Для многостраничной цели — несколько `article.finam-v2-page` в одном HTML, как у `page-goal-pension-v2.html`.
+- **Холст шаблона:** `.finam-v2-page` = `595px × 842px`, `overflow: hidden`, `print-color-adjust: exact`, один лист без скролла. Для многостраничной цели — несколько `article.finam-v2-page` в одном HTML, как у `page-goal-pension-v2.html`.
+- **Production PDF-геометрия:** физический лист v2 для Puppeteer — A4-холст `794px × 1123px`, который создаёт `finamV2TemplateLoader.js`; внутри него шаблон `595px × 842px` масштабируется CSS `transform: scale(1.3333333333)`. В `reportPdfService.js` для v2 Puppeteer `scale=1` фиксированно: не возвращать `FINAM_REPORT_V2_PDF_SCALE`, `REPORT_PDF_SCALE`, v1 `injectReportPdfPageFillA4` или общий DejaVu font override. Иначе снова появятся жирные поля, двойной scale или пустые страницы.
 - **Шрифты:** тело — `Source Sans 3`; крупные hero-заголовки — `Source Serif 4`. Каждый HTML подключает Google Fonts через `<link>` и `tokens.css?v=finam-v2-fonts`.
 - **Неймспейс:** только классы `finam-v2-*` / `finam-v2-<page>__*`; не смешивать с v1-классами `.page`, `.speech`, `.goal-card` и т.п.
 - **Палитра:** navy / blue / soft-gray; зелёный только мягкий (`#ecfdf5`, `#d1fae5`) для positive/benefits/семья/итоговых блоков. Не тащить кислотные цвета.
 - **Карточки:** белый/soft-gray фон, `border: 1px solid #e2e8f0`, радиус 8–12px, тени минимальные.
 - **Футер:** короткий и статичный; динамику держать в теле страницы или в pill-шапке (`стр. X/Y`), чтобы футер не распухал.
 - **Динамика:** длинные тексты/списки не душить кеглем «до муравьёв» — лучше переносить на второй лист или сокращать блок.
-- **Обложка:** основной титульный блок не прижимать к верхнему краю; держать визуальный центр листа и добавлять данные консультанта/агента отдельной карточкой (`advisor.fullName`, `advisor.email`, `advisor.phone`). Не использовать канцелярскую фразу «Анализ текущей ситуации и сценарий достижения финансовых целей».
+- **Обложка:** основной титульный блок не прижимать к верхнему краю; держать визуальный центр листа и добавлять данные консультанта/агента отдельной карточкой (`advisor.fullName`, `advisor.email`, `advisor.phone`). Фон `cover-bg.png` — портретный почти `9:16`, поэтому в production-макете держать его full-height справа (`background-size: auto 100%`) с мягким белым градиентом под текст, а не резать в нижний landscape-блок через `cover`. Не использовать канцелярскую фразу «Анализ текущей ситуации и сценарий достижения финансовых целей».
 
 ### Типографика и минимальные кегли
 
@@ -169,6 +174,8 @@ python -m http.server 8766 --bind 127.0.0.1
 5. После новой/изменённой v2-страницы проверять локально:
    - HTTP `200` через `http://127.0.0.1:8766/<file>.html`;
    - `article.finam-v2-page` без переполнения (`clientHeight=842`, `scrollHeight<=842`);
+   - production physical page из `loadTemplatePhysicalPages()` занимает A4-холст без жирных полей (`body≈794×1123`, `.finam-v2-page` после transform ≈ `793×1122`);
+   - PDF smoke одного physical page даёт ровно 1 страницу A4, без второй пустой страницы;
    - видимость картинок goal-card в локальном превью;
    - для portfolio/allocation-диаграмм — проценты в легенде, donut/conic-gradient и контракте должны быть из одного массива и суммироваться в `100%`;
    - таблицы с числовыми колонками и длинным текстом должны иметь фиксированные ширины/отступы; если рядом `Сумма` и `Роль`, ставить явную вертикальную границу или другой визуальный разделитель;
@@ -183,6 +190,7 @@ python -m http.server 8766 --bind 127.0.0.1
 - Сжимать обычный текст до `7px`, чтобы «как-нибудь влезло». Для v2 это считается визуальным багом.
 - Подключать рекламные/случайные фото целей, если есть родная картинка в `assets/reports/goal-cards/`.
 - Делать многостраничный goal через iframe/скролл внутри листа. Только несколько `article.finam-v2-page`.
+- Чинить поля v2 через Puppeteer `scale` / env `FINAM_REPORT_V2_PDF_SCALE`: scale v2 живёт в CSS-обёртке physical page, а Puppeteer остаётся `scale=1`.
 - Делать одну общую pie-диаграмму там, где по смыслу нужны две разные структуры: первоначальный капитал и ежемесячное пополнение.
 - Хардкодить проценты в donut отдельно от легенды/контракта без проверки суммы `100%`.
 
@@ -191,6 +199,6 @@ python -m http.server 8766 --bind 127.0.0.1
 - v1 (не ломать): [`reportPdfService.js`](src/services/reportPdfService.js), [`buildFinamReportHtml.js`](src/reports/finam/buildFinamReportHtml.js), [`injectReportPdfPageFillA4.js`](src/utils/injectReportPdfPageFillA4.js).
 - выбор v1/v2: [`reportVersionResolver.js`](src/reports/finam/reportVersionResolver.js) (`FINAM_REPORT_VERSION`, БД `report_finam`).
 - Скилл PDF: [`pdf-report-backend`](.cursor/skills/pdf-report-backend/SKILL.md).
-- v2-черновик: [`src/reports/finam_v2/`](src/reports/finam_v2/), [`scripts/finam_v2_preview_screenshots.js`](scripts/finam_v2_preview_screenshots.js).
+- v2 production/template composer: [`src/reports/finam_v2/`](src/reports/finam_v2/), [`finamV2TemplateLoader.js`](src/reports/finam_v2/finamV2TemplateLoader.js), [`finamV2PageComposer.js`](src/reports/finam_v2/finamV2PageComposer.js), [`scripts/finam_v2_preview_screenshots.js`](scripts/finam_v2_preview_screenshots.js).
 
 Когда пользователь говорит «сделай как в макете дизайнера» — держи в голову **разницу** между референсом (воздух, consulting) и текущим v1 (клетка, плотность); v2 двигается к референсу в **своей** изолированной ветке кода.

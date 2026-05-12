@@ -308,17 +308,18 @@ function buildV2Model(report = {}, options = {}) {
     const goals = filterGoals(report.goals_detailed || [], options.goalTypes).sort((a, b) => goalSortWeight(a) - goalSortWeight(b));
     const clientName = report?.client_info?.full_name || report?.client_info?.first_name || 'Клиент';
     const portfolio = report?.overall_plan?.pdf_metrics?.portfolio || {};
+    const familyContext = report?.family_page_ai_context || {};
     const initialTotal = toFiniteNumber(portfolio.total_initial_capital, 0);
     const monthlyTotal = toFiniteNumber(portfolio.total_monthly_replenishment, 0);
     const projectedTotal = toFiniteNumber(report?.overall_plan?.chart_waterfall?.total_projected, 0);
     const assetsTotal = toFiniteNumber(report?.current_situation?.assets_total, 0);
     const liabilitiesTotal = toFiniteNumber(report?.current_situation?.liabilities_total, 0);
     const netWorth = toFiniteNumber(report?.current_situation?.net_worth, assetsTotal - liabilitiesTotal);
-    const cashflow = report?.family_page_ai_context?.cashflow_monthly_rub || {};
+    const cashflow = familyContext.cashflow_monthly_rub || {};
     const income = toFiniteNumber(cashflow.income ?? report?.client_info?.avg_monthly_income, 0);
     const obligations = toFiniteNumber(cashflow.obligations_total, 0);
     const plannedContributions = toFiniteNumber(cashflow.planned_pfp_contributions ?? monthlyTotal, monthlyTotal);
-    const freeCashflow = toFiniteNumber(cashflow.discretionary_or_free, income - obligations - plannedContributions);
+    const freeCashflow = Math.round(income - (obligations + plannedContributions));
 
     return {
         reportSchemaVersion: FINAM_REPORT_V2_SCHEMA_VERSION,
@@ -343,7 +344,9 @@ function buildV2Model(report = {}, options = {}) {
             plannedContributions,
             freeCashflow,
             assetsBreakdown: report?.current_situation?.assets_breakdown || [],
-            family: report?.family_page_ai_context?.family || {},
+            family: familyContext.family || {},
+            familyClient: familyContext.client || {},
+            cashflow,
         },
         goals,
         goalGroups: groupGoals(goals),

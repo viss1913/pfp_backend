@@ -80,6 +80,335 @@ function formatMoneyWith(helpers, value, opts) {
     return opts?.perMonth ? `${formatted}/мес` : formatted;
 }
 
+function moneyHtml(helpers, value, opts) {
+    return escapeHtml(formatMoneyWith(helpers, value, opts)).replace(/\s/g, '&nbsp;');
+}
+
+function percentWidth(value, base) {
+    const n = finite(value, 0);
+    const d = finite(base, 0);
+    if (d <= 0) return 0;
+    return Math.max(0, Math.min(100, (n / d) * 100));
+}
+
+function formatRatioPercent(ratio) {
+    const n = Number(ratio);
+    if (!Number.isFinite(n)) return '—';
+    return `${Math.round(n * 100).toLocaleString('ru-RU')}%`;
+}
+
+function pluralRu(n, one, few, many) {
+    const value = Math.abs(Number(n) || 0);
+    const mod10 = value % 10;
+    const mod100 = value % 100;
+    if (mod10 === 1 && mod100 !== 11) return one;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+    return many;
+}
+
+function labelFromMap(value, map, fallback = '—') {
+    const raw = String(value || '').trim();
+    if (!raw) return fallback;
+    const key = raw.toLowerCase();
+    if (map[key]) return map[key];
+    return raw
+        .replace(/_/g, ' ')
+        .replace(/\s+/g, ' ')
+        .replace(/^./, (ch) => ch.toUpperCase());
+}
+
+function maritalStatusLabel(value) {
+    return labelFromMap(value, {
+        single: 'Не в браке',
+        married: 'В браке',
+        divorced: 'В разводе',
+        widowed: 'Вдовец / вдова',
+        civil_union: 'Гражданский брак',
+    });
+}
+
+function employmentTypeLabel(value) {
+    return labelFromMap(value, {
+        employee: 'Наёмный сотрудник',
+        employed: 'Наёмный сотрудник',
+        self_employed: 'Самозанятый',
+        individual_entrepreneur: 'ИП',
+        entrepreneur: 'Предприниматель',
+        business_owner: 'Владелец бизнеса',
+        civil_servant: 'Госслужащий',
+        retired: 'Пенсионер',
+        unemployed: 'Не работает',
+    });
+}
+
+function obligationTypeLabel(value) {
+    return labelFromMap(value, {
+        credit: 'Кредиты',
+        credits: 'Кредиты',
+        loan: 'Кредиты',
+        loans: 'Кредиты',
+        mortgage: 'Ипотека',
+        rent: 'Аренда',
+        alimony: 'Алименты',
+        education: 'Образование',
+        parents: 'Родители',
+        elder_support: 'Родители',
+        family_support: 'Помощь семье',
+        other: 'Прочее',
+    }, 'Прочее');
+}
+
+function ageLabel(age) {
+    const n = Number(age);
+    if (!Number.isFinite(n) || n <= 0) return '—';
+    return `${Math.round(n)} ${pluralRu(Math.round(n), 'год', 'года', 'лет')}`;
+}
+
+function childrenLabel(children) {
+    const list = Array.isArray(children) ? children : [];
+    if (!list.length) return null;
+    const names = list
+        .slice(0, 3)
+        .map((child) => {
+            const name = child?.first_name ? String(child.first_name).trim() : '';
+            const age = child?.age_years != null ? ageLabel(child.age_years) : '';
+            return [name, age && age !== '—' ? age : ''].filter(Boolean).join(', ');
+        })
+        .filter(Boolean);
+    const base = `${list.length} ${pluralRu(list.length, 'ребёнок', 'ребёнка', 'детей')}`;
+    return names.length ? `${base}: ${names.join('; ')}` : base;
+}
+
+function rowHtml(label, value) {
+    return `<div class="finam-v2-cs__row">
+          <span class="finam-v2-cs__row-label">${escapeHtml(label)}</span>
+          <span class="finam-v2-cs__row-value">${value}</span>
+        </div>`;
+}
+
+function normalizeCurrentState(model) {
+    const state = model?.currentState || {};
+    const family = state.family || {};
+    const familyClient = state.familyClient || {};
+    const cashflow = state.cashflow || {};
+    const obligationsRaw = Array.isArray(family.family_obligations) ? family.family_obligations : [];
+    const obligations = obligationsRaw
+        .map((item) => ({
+            label: obligationTypeLabel(item?.type || item?.name),
+            amount: finite(item?.amount_monthly ?? item?.amount, 0),
+        }))
+        .filter((item) => item.amount > 0);
+    const obligationsTotalFromRows = obligations.reduce((sum, item) => sum + item.amount, 0);
+    const income = finite(cashflow.income ?? state.income, 0);
+    const obligationsTotal = finite(cashflow.obligations_total, obligationsTotalFromRows || finite(state.obligations, 0));
+    const plannedPfp = finite(cashflow.planned_pfp_contributions ?? state.plannedContributions, 0);
+    const freeCashflow = Math.round(income - (obligationsTotal + plannedPfp));
+    const freeCashflowRatio = income > 0 ? freeCashflow / income : null;
+    const goalLoadRatio = income > 0 ? plannedPfp / income : null;
+    const largestObligation = obligations.reduce((max, item) => (item.amount > (max?.amount || 0) ? item : max), null);
+
+    return {
+        state,
+        family,
+        familyClient,
+        obligations,
+        income,
+        obligationsTotal,
+        plannedPfp,
+        freeCashflow,
+        freeCashflowRatio,
+        goalLoadRatio,
+        largestObligation,
+        assetsTotal: finite(state.assetsTotal, 0),
+        liabilitiesTotal: finite(state.liabilitiesTotal, 0),
+        assetsBreakdown: Array.isArray(state.assetsBreakdown) ? state.assetsBreakdown : [],
+    };
+}
+
+function cashflowScenario(current) {
+    if (current.freeCashflow < 0) return 'negative';
+    const ratio = Number(current.freeCashflowRatio);
+    if (!Number.isFinite(ratio)) return 'critical';
+    if (ratio < 0.05) return 'critical';
+    if (ratio < 0.15) return 'thin';
+    if (ratio < 0.30) return 'working';
+    return 'strong';
+}
+
+function buildCurrentStateAiTexts(current, helpers) {
+    const scenario = cashflowScenario(current);
+    const free = moneyHtml(helpers, current.freeCashflow);
+    const income = moneyHtml(helpers, current.income);
+    const obligations = moneyHtml(helpers, current.obligationsTotal);
+    const pfp = moneyHtml(helpers, current.plannedPfp);
+    const ratio = formatRatioPercent(current.freeCashflowRatio);
+    const deficit = moneyHtml(helpers, Math.abs(current.freeCashflow));
+    const largest = current.largestObligation;
+    const largestText = largest
+        ? `<strong>${escapeHtml(largest.label)} ${moneyHtml(helpers, largest.amount)}</strong>`
+        : '<strong>обязательства</strong>';
+
+    const topByScenario = {
+        negative: `Главный вывод: после обязательств ${obligations} и расходов на финансовый план ${pfp} семейный cash flow уходит в минус на <strong>${deficit}</strong>. Сначала выравниваем бюджет, потом наращиваем цели.`,
+        critical: `Главный вывод: после обязательств ${obligations} и расходов на финансовый план ${pfp} остаётся <strong>${free}</strong> — около <strong>${ratio}</strong> доходов семьи. Запас прочности критически тонкий.`,
+        thin: `Главный вывод: после обязательств ${obligations} и расходов на финансовый план ${pfp} остаётся <strong>${free}</strong> — около <strong>${ratio}</strong> доходов семьи. Поток рабочий, но требует контроля.`,
+        working: `Главный вывод: семейный доход ${income} выдерживает обязательства и финансовый план: свободный cash flow — <strong>${free}</strong>, около <strong>${ratio}</strong> доходов. Можно планово двигаться к целям.`,
+        strong: `Главный вывод: после обязательств и расходов на финансовый план остаётся <strong>${free}</strong> — около <strong>${ratio}</strong> доходов семьи. Запас сильный, можно ускорять приоритетные цели.`,
+    };
+
+    const bottomByScenario = {
+        negative: `Коротко по рискам. Крупнейшая статья — ${largestText}. Следующий шаг — сократить или реструктурировать нагрузку и временно не запускать новые цели до выхода cash flow в плюс.`,
+        critical: `Коротко по рискам. Крупнейшая статья — ${largestText}. При таком остатке приоритет — резерв, лимиты трат и проверка обязательств перед увеличением взносов.`,
+        thin: `Коротко по рискам. Крупнейшая статья — ${largestText}. Свободный поток есть, но лучше держать резерв и пересматривать расходы перед запуском дополнительных целей.`,
+        working: `Коротко по рискам. Крупнейшая статья — ${largestText}. Свободный поток позволяет выполнять план, если сохранить дисциплину расходов и не увеличивать долговую нагрузку.`,
+        strong: `Коротко по рискам. Крупнейшая статья — ${largestText}. Бюджет устойчивый: часть свободного потока можно направить на ускорение целей или усиление резерва.`,
+    };
+
+    return {
+        top: topByScenario[scenario],
+        bottom: bottomByScenario[scenario],
+    };
+}
+
+function buildCurrentStateGridHtml(current, helpers) {
+    const age = current.familyClient.age ?? current.state?.age;
+    const children = childrenLabel(current.family.children);
+    const familyRows = [
+        rowHtml('Семейное положение', escapeHtml(maritalStatusLabel(current.familyClient.marital_status))),
+        rowHtml('Занятость', escapeHtml(employmentTypeLabel(current.familyClient.employment_type))),
+        rowHtml('Возраст', escapeHtml(ageLabel(age))),
+        children ? rowHtml('Дети', escapeHtml(children)) : null,
+    ].filter(Boolean).join('\n        ');
+
+    const assetRows = current.assetsBreakdown
+        .filter((asset) => finite(asset?.value, 0) > 0)
+        .slice(0, 2)
+        .map((asset) => rowHtml(asset?.name || 'Актив', moneyHtml(helpers, asset.value)))
+        .join('\n        ');
+    const assetsHtml = `${assetRows || rowHtml('Активы к учёту', moneyHtml(helpers, current.assetsTotal))}
+        <hr class="finam-v2-cs__card-hr" />
+        ${rowHtml('Итого активы', moneyHtml(helpers, current.assetsTotal))}
+        ${rowHtml('Долги', moneyHtml(helpers, current.liabilitiesTotal))}`;
+
+    return `<div class="finam-v2-cs__grid-2">
+      <div class="finam-v2-cs__card finam-v2-cs__card--family">
+        <div class="finam-v2-cs__card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Семья
+        </div>
+        ${familyRows}
+      </div>
+      <div class="finam-v2-cs__card finam-v2-cs__card--assets">
+        <div class="finam-v2-cs__card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9zM9 22V12h6v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Активы
+        </div>
+        ${assetsHtml}
+      </div>
+    </div>`;
+}
+
+function buildObligationsHtml(current, helpers) {
+    const rows = current.obligations.slice(0, 7);
+    const maxAmount = rows.reduce((max, item) => Math.max(max, item.amount), 0) || 1;
+    const rowsHtml = rows.length
+        ? rows.map((item) => `<div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">${escapeHtml(item.label)}</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: ${percentWidth(item.amount, maxAmount).toFixed(3)}%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">${moneyHtml(helpers, item.amount)}</span>
+        </div>`).join('\n        ')
+        : `<div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">Нет</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: 0%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">${moneyHtml(helpers, 0)}</span>
+        </div>`;
+
+    return `<div class="finam-v2-cs__obligations">
+      <div class="finam-v2-cs__obligations-top">
+        <div class="finam-v2-cs__section-head" style="margin-bottom: 0;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5" />
+            <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+          <span class="finam-v2-cs__section-title">Главная нагрузка бюджета</span>
+        </div>
+        <span class="finam-v2-cs__section-head-right">Итого: ${moneyHtml(helpers, current.obligationsTotal, { perMonth: true })}</span>
+      </div>
+      <div class="finam-v2-cs__bar-card finam-v2-cs__bar-card--dense">
+        ${rowsHtml}
+      </div>
+    </div>`;
+}
+
+function balanceRowHtml({ label, value, width, fillClass, helpers, accent = false, negative = false }) {
+    const style = negative ? ' style="color: #b91c1c;"' : '';
+    return `<div class="finam-v2-cs__balance-row">
+        <span class="finam-v2-cs__balance-label${accent ? ' finam-v2-cs__balance-label--emph' : ''}">${escapeHtml(label)}</span>
+        <div class="finam-v2-cs__balance-track">
+          <div class="finam-v2-cs__balance-fill ${fillClass}" style="width: ${Math.max(0, width).toFixed(3)}%;"></div>
+        </div>
+        <span class="finam-v2-cs__balance-val${accent ? ' finam-v2-cs__balance-val--accent' : ''}"${style}>${moneyHtml(helpers, value)}</span>
+      </div>`;
+}
+
+function buildBalanceHtml(current, helpers) {
+    const base = current.income > 0 ? current.income : Math.max(current.obligationsTotal + current.plannedPfp + Math.max(current.freeCashflow, 0), 1);
+    return `<div class="finam-v2-cs__balance">
+      <div class="finam-v2-cs__balance-head">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+          <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="finam-v2-cs__balance-title">Свободный поток определяет скорость целей</span>
+      </div>
+      ${balanceRowHtml({ label: 'Доходы семьи', value: current.income, width: current.income > 0 ? 100 : 0, fillClass: 'finam-v2-cs__balance-fill--income', helpers })}
+      ${balanceRowHtml({ label: 'Обязательства', value: current.obligationsTotal, width: percentWidth(current.obligationsTotal, base), fillClass: 'finam-v2-cs__balance-fill--obl', helpers })}
+      ${balanceRowHtml({ label: 'Расходы на финплан', value: current.plannedPfp, width: percentWidth(current.plannedPfp, base), fillClass: 'finam-v2-cs__balance-fill--pfp', helpers })}
+      <hr class="finam-v2-cs__balance-sep" />
+      ${balanceRowHtml({
+        label: 'Свободно',
+        value: current.freeCashflow,
+        width: percentWidth(Math.max(current.freeCashflow, 0), base),
+        fillClass: 'finam-v2-cs__balance-fill--free',
+        helpers,
+        accent: true,
+        negative: current.freeCashflow < 0,
+      })}
+    </div>`;
+}
+
+function replaceBlockBefore(out, blockClass, nextClass, replacement) {
+    const re = new RegExp(`<div class="${blockClass}">[\\s\\S]*?\\n\\s*<div class="${nextClass}">`);
+    return out.replace(re, () => `${replacement}\n\n    <div class="${nextClass}">`);
+}
+
+function replaceCurrentStatePage(html, { model, helpers }) {
+    const current = normalizeCurrentState(model);
+    const ai = buildCurrentStateAiTexts(current, helpers);
+    let out = String(html || '');
+
+    out = out.replace(
+        /(<div class="finam-v2-cs__bubble" data-finam-ai-page3="1">\s*)<p>[\s\S]*?<\/p>(\s*<\/div>)/,
+        (_match, before, after) => `${before}<p>${ai.top}</p>${after}`
+    );
+    out = out.replace(
+        /(<div class="finam-v2-cs__expert-bubble" data-finam-ai-page3="2">\s*)<p>[\s\S]*?<\/p>/,
+        (_match, before) => `${before}<p>${ai.bottom}</p>`
+    );
+    out = replaceBlockBefore(out, 'finam-v2-cs__grid-2', 'finam-v2-cs__obligations', buildCurrentStateGridHtml(current, helpers));
+    out = replaceBlockBefore(out, 'finam-v2-cs__obligations', 'finam-v2-cs__balance', buildObligationsHtml(current, helpers));
+    out = replaceBlockBefore(out, 'finam-v2-cs__balance', 'finam-v2-cs__insight-row', buildBalanceHtml(current, helpers));
+    return out;
+}
+
 function replaceCommonSamples(html, { model, helpers }) {
     const portfolioValue = formatMoneyWith(helpers, model?.portfolio?.projectedTotal || 0, { short: true });
     const initialValue = formatMoneyWith(helpers, model?.portfolio?.initialTotal || 0, { short: true });
@@ -193,6 +522,9 @@ function replaceGoalSamples(html, { pageType, goal, helpers }) {
 function applyTemplateData(html, context = {}) {
     let out = replaceCommonSamples(html, context);
     out = replaceGoalSamples(out, context);
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.CURRENT_STATE) {
+        out = replaceCurrentStatePage(out, context);
+    }
     return out;
 }
 
