@@ -175,6 +175,17 @@
       margin-bottom: 8px;
     }
 
+    .finam-v2-other__page-title {
+      font-family: var(--finam-v2-font-display);
+      font-optical-sizing: auto;
+      font-size: 27px;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin: 0 0 8px;
+    }
+
     .finam-v2-other__kicker,
     .finam-v2-other__section-kicker {
       font-size: 9px;
@@ -594,12 +605,7 @@
     }
 
     .finam-v2-other__donut::after {
-      content: '';
-      position: absolute;
-      inset: 20px;
-      border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.9);
+      content: none;
     }
 
     .finam-v2-other__donut-center {
@@ -611,11 +617,12 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      color: var(--finam-v2-color-navy-deep);
+      color: #fff;
       font-weight: 700;
       font-size: 12px;
       line-height: 1;
       font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 3px rgba(0, 42, 74, 0.65);
     }
 
     .finam-v2-other__donut-center small {
@@ -624,7 +631,7 @@
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #64748b;
+      color: rgba(255, 255, 255, 0.88);
     }
 
     .finam-v2-other__legend {
@@ -722,25 +729,14 @@
     </header>
     <hr class="finam-v2-other__rule" />
 
-    <div class="finam-v2-other__ai-row">
-      <div class="finam-v2-other__avatar" role="img" aria-label="ИИ-ассистент">
-        <img src="assets/avatar-ai-finam-v2.png" width="42" height="42" alt="" decoding="async" />
-      </div>
-      <div class="finam-v2-other__bubble">
-        <p>
-          Главный вывод по крупной покупке: будущая стоимость растёт быстрее,
-          чем кажется в сегодняшних рублях, поэтому план фиксирует дату, сумму и темп накопления.
-        </p>
-      </div>
-    </div>
+    <h1 class="finam-v2-other__page-title">Цель - Крупная покупка</h1>
 
     <section class="finam-v2-other__hero">
       <div>
         <div class="finam-v2-other__kicker">Квартира / дом / образование</div>
-        <h1 class="finam-v2-other__title">Крупная покупка</h1>
         <p class="finam-v2-other__text">
-          Раздел показывает, сколько нужно накопить на покупку квартиры или дома,
-          образование ребёнка, крупный ремонт или другой понятный финансовый рубеж.
+          ИИ показывает стоимость цели в текущих деньгах и сумму с учётом инфляции
+          на дату реализации, чтобы был понятен темп накопления.
         </p>
       </div>
       <div class="finam-v2-other__hero-visual">

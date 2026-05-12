@@ -104,6 +104,11 @@ function escapeRegExp(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function safeCssColor(value, fallback) {
+    const raw = String(value || '').trim();
+    return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(raw) ? raw : fallback;
+}
+
 function replaceElementByDataAttr(html, attrName, attrValue, replacementHtml) {
     const source = String(html || '');
     const markerRe = new RegExp(`${escapeRegExp(attrName)}\\s*=\\s*["']${escapeRegExp(attrValue)}["']`, 'i');
@@ -679,13 +684,17 @@ function replaceLifeGoalPage(html, context) {
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-product-monthly', lifeProductRow('life-product-monthly', 'Ежемесячный взнос', monthlyHtml));
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-product-frequency', lifeProductRow('life-product-frequency', 'Периодичность', escapeHtml(life.frequencyLabel)));
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tariff', `<div class="finam-v2-life__rate-value" data-finam-v2-field="life-tariff">${tariffHtml}</div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tax-text', `<p class="finam-v2-life__tax-text" data-finam-v2-field="life-tax-text">
+    if (life.totalTax <= 0 && life.taxYearAmount <= 0) {
+        out = out.replace(/\s*<section class="finam-v2-life__tax">[\s\S]*?<\/section>/, '');
+    } else {
+        out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tax-text', `<p class="finam-v2-life__tax-text" data-finam-v2-field="life-tax-text">
           По модели плана: суммарный вычет <strong>${totalTaxHtml}</strong>; оценка на ${escapeHtml(life.taxYear)} год —
           <strong>${yearTaxHtml}</strong>.
         </p>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tax-total', `<div class="finam-v2-life__tax-value" data-finam-v2-field="life-tax-total">${totalTaxHtml}</div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tax-year', `<div class="finam-v2-life__tax-value" data-finam-v2-field="life-tax-year">+${yearTaxHtml}</div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tax-year-label', `<div class="finam-v2-life__tax-label" data-finam-v2-field="life-tax-year-label">в ${escapeHtml(life.taxYear)}</div>`);
+        out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tax-total', `<div class="finam-v2-life__tax-value" data-finam-v2-field="life-tax-total">${totalTaxHtml}</div>`);
+        out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tax-year', `<div class="finam-v2-life__tax-value" data-finam-v2-field="life-tax-year">+${yearTaxHtml}</div>`);
+        out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-tax-year-label', `<div class="finam-v2-life__tax-label" data-finam-v2-field="life-tax-year-label">в ${escapeHtml(life.taxYear)}</div>`);
+    }
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-ai-conclusion', `<div class="finam-v2-life__comment" data-finam-v2-field="life-ai-conclusion">
         <p>
           <strong>Ключевой вывод:</strong> защита структурирована через программу «${escapeHtml(life.programName)}». Следующий шаг — раз в год сверять лимиты с доходом, обязательствами семьи и фактической стоимостью защиты.
@@ -967,12 +976,12 @@ function replacePensionGoalPage(html, context) {
         out = out.replace(/<div class="finam-v2-pension__bubble finam-v2-pension__bubble--green">[\s\S]*?<\/div>\s*<\/div>\s*<p class="finam-v2-pension__section-kicker">/, `<div class="finam-v2-pension__bubble finam-v2-pension__bubble--green"><p>Собственные взносы и льготы дают базу, итоговая сумма <strong>${capitalHtml}</strong> идёт из графика цели.</p></div>\n    </div>\n\n    <p class="finam-v2-pension__section-kicker">`);
         out = replaceNthElementByClass(out, 'finam-v2-pension__bars', buildGoalBarsHtml('pension', bars), 1);
         out = out.replace(/<div class="finam-v2-pension__capital-value"[^>]*>[\s\S]*?<\/div>/, `<div class="finam-v2-pension__capital-value" style="text-align: center;">${moneyHtml(helpers, p.capital)}</div>`);
-        out = replaceNthElementByClass(out, 'finam-v2-pension__benefits', `<div class="finam-v2-pension__benefits">
-      <div class="finam-v2-pension__benefit"><div></div><div><div class="finam-v2-pension__benefit-label">Вычет ${escapeHtml(p.taxYear.year)}</div><div class="finam-v2-pension__benefit-value">${moneyHtml(helpers, p.taxYear.amount)}</div></div></div>
-      <div class="finam-v2-pension__benefit"><div></div><div><div class="finam-v2-pension__benefit-label">Вычеты всего</div><div class="finam-v2-pension__benefit-value">${moneyHtml(helpers, p.totalTax)}</div></div></div>
-      <div class="finam-v2-pension__benefit"><div></div><div><div class="finam-v2-pension__benefit-label">Софинанс. ${escapeHtml(p.cofinYear.year)}</div><div class="finam-v2-pension__benefit-value">${moneyHtml(helpers, p.cofinYear.amount)}</div></div></div>
-      <div class="finam-v2-pension__benefit"><div></div><div><div class="finam-v2-pension__benefit-label">Софинанс. всего</div><div class="finam-v2-pension__benefit-value">${moneyHtml(helpers, p.totalCofin)}</div></div></div>
-    </div>`, 1);
+        out = replaceGoalBenefitsBlock(out, 'pension', buildGoalBenefitsHtml('pension', 'Софинансирование и вычеты', [
+            { kind: 'tax', label: `Вычет ${p.taxYear.year}`, amount: p.taxYear.amount },
+            { kind: 'tax', label: 'Вычеты всего', amount: p.totalTax },
+            { kind: 'cofin', label: `Софинанс. ${p.cofinYear.year}`, amount: p.cofinYear.amount },
+            { kind: 'cofin', label: 'Софинанс. всего', amount: p.totalCofin },
+        ], helpers));
         out = out.replace(/<div class="finam-v2-pension__chart-title">Прогноз капитала:[\s\S]*?<\/div>/, `<div class="finam-v2-pension__chart-title">Прогноз капитала: ${escapeHtml(firstScheduleYear(goal))} — ${escapeHtml(p.retirementYear)}</div>`);
         out = out.replace(/<div class="finam-v2-pension__chart-total">[\s\S]*?<\/div>/, `<div class="finam-v2-pension__chart-total">${capitalHtml}</div>`);
         out = out.replace(/<svg viewBox="0 0 500 210"[\s\S]*?<\/svg>/, buildGoalCapitalChartSvg({ goal, initial: p.initial, final: p.capital, months: p.months, blockName: 'pension-capital-chart-svg', gradientId: 'finamV2PensionChartGrad', height: 150 }));
@@ -1055,7 +1064,7 @@ function allocationRows(items, totalValue) {
             label: item?.label || item?.name || item?.assetClass || 'Инструмент',
             percent: finite(item?.percent ?? item?.share ?? item?.value ?? item?.share_percent, 0),
             amount: finite(item?.amount ?? item?.value, 0),
-            color: item?.color || colors[idx % colors.length],
+            color: safeCssColor(item?.color, colors[idx % colors.length]),
         }))
         .filter((item) => item.percent > 0 || item.amount > 0)
         .slice(0, 5);
@@ -1074,29 +1083,115 @@ function allocationRows(items, totalValue) {
 }
 
 function buildConicGradient(rows) {
+    if (!Array.isArray(rows) || !rows.length) return 'conic-gradient(#e2e8f0 0% 100%)';
     let cursor = 0;
-    const segments = rows.map((row) => {
+    const segments = rows.map((row, idx) => {
         const start = cursor;
         cursor += finite(row.percent, 0);
-        return `${row.color} ${start.toFixed(1)}% ${cursor.toFixed(1)}%`;
+        return `${safeCssColor(row.color, idx === 0 ? '#e2e8f0' : '#94a3b8')} ${start.toFixed(1)}% ${cursor.toFixed(1)}%`;
     });
     return `conic-gradient(${segments.join(', ')})`;
 }
 
-function buildAllocationHtml(kind, title, sub, centerHtml, rows) {
+function buildAllocationHtml(prefix, kind, title, sub, centerHtml, rows) {
     const safeRows = allocationRows(rows, 0);
-    return `<div class="finam-v2-other__allocation">
-          <div class="finam-v2-other__donut" style="background: ${escapeHtml(buildConicGradient(safeRows))};">
-            <div class="finam-v2-other__donut-center">${centerHtml}</div>
+    return `<div class="finam-v2-${prefix}__allocation">
+          <div class="finam-v2-${prefix}__donut" style="background: ${escapeHtml(buildConicGradient(safeRows))};">
+            <div class="finam-v2-${prefix}__donut-center">${centerHtml}</div>
           </div>
           <div>
-            <div class="finam-v2-other__allocation-title">${escapeHtml(title)}</div>
-            <div class="finam-v2-other__allocation-sub">${escapeHtml(sub)}</div>
-            <ul class="finam-v2-other__legend" data-finam-v2-block="${kind}">
-              ${safeRows.map((row) => `<li><span class="finam-v2-other__legend-dot" style="background:${escapeHtml(row.color)};"></span><span>${escapeHtml(row.label)}</span><span class="finam-v2-other__legend-value">${finite(row.percent, 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%</span></li>`).join('\n              ')}
+            <div class="finam-v2-${prefix}__allocation-title">${escapeHtml(title)}</div>
+            <div class="finam-v2-${prefix}__allocation-sub">${escapeHtml(sub)}</div>
+            <ul class="finam-v2-${prefix}__legend" data-finam-v2-block="${kind}">
+              ${safeRows.length ? safeRows.map((row) => `<li><span class="finam-v2-${prefix}__legend-dot" style="background:${safeCssColor(row.color, '#94a3b8')};"></span><span>${escapeHtml(row.label)}</span><span class="finam-v2-${prefix}__legend-value">${finite(row.percent, 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%</span></li>`).join('\n              ') : '<li style="grid-template-columns: minmax(0, 1fr);"><span>Структура будет показана после расчёта</span></li>'}
             </ul>
           </div>
         </div>`;
+}
+
+function benefitIconSvg(kind) {
+    if (kind === 'cofin') {
+        return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M18 8v6M15 11h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>`;
+    }
+    return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h7M9 17h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>`;
+}
+
+function buildGoalBenefitsHtml(prefix, title, items, helpers) {
+    const visibleItems = (Array.isArray(items) ? items : [])
+        .map((item) => ({ ...item, amount: finite(item?.amount, 0) }))
+        .filter((item) => item.amount > 0);
+    if (!visibleItems.length) return '';
+    return `<p class="finam-v2-${prefix}__section-kicker">${escapeHtml(title)}</p>
+    <div class="finam-v2-${prefix}__benefits">
+      ${visibleItems.map((item) => `<div class="finam-v2-${prefix}__benefit">
+        ${benefitIconSvg(item.kind)}
+        <div><div class="finam-v2-${prefix}__benefit-label">${escapeHtml(item.label)}</div><div class="finam-v2-${prefix}__benefit-value">${moneyHtml(helpers, item.amount)}</div></div>
+      </div>`).join('\n      ')}
+    </div>`;
+}
+
+function replaceGoalBenefitsBlock(html, prefix, replacementHtml) {
+    const sectionClass = `finam-v2-${prefix}__section-kicker`;
+    const benefitsClass = `finam-v2-${prefix}__benefits`;
+    const nextSectionClass = `finam-v2-${prefix}__`;
+    const re = new RegExp(`<p class="${escapeRegExp(sectionClass)}">(?:Налоговые|Софинансирование)[\\s\\S]*?<\\/p>\\s*<div class="${escapeRegExp(benefitsClass)}">[\\s\\S]*?<\\/div>\\s*(?=<section class="${escapeRegExp(nextSectionClass)})`);
+    return String(html || '').replace(re, replacementHtml ? `${replacementHtml}\n\n    ` : '');
+}
+
+function goalBenefitsSummary(goal) {
+    const s = goal?.summary || {};
+    const d = goal?.details || {};
+    const taxYear = scheduleYearAmount(goal, 'tax_deduction');
+    const cofinYear = scheduleYearAmount(goal, 'cofinancing');
+    const totalTax = finite(s.total_tax_benefit ?? s.total_tax_deductions ?? d.total_tax_deductions ?? d.total_tax_refund, taxYear.amount);
+    const totalCofin = finite(s.total_cofinancing ?? d.total_cofinancing ?? d.total_cofinancing_nominal, cofinYear.amount);
+    return {
+        taxYear,
+        cofinYear,
+        totalTax,
+        totalCofin,
+    };
+}
+
+function normalizeInvestmentGoalArtifacts(goal) {
+    const s = goal?.summary || {};
+    const d = goal?.details || {};
+    const initial = finite(s.initial_capital ?? d.initial_capital ?? goal?.initial_capital, 0);
+    const monthly = finite(s.monthly_replenishment ?? d.monthly_replenishment ?? goal?.monthly_replenishment, 0);
+    return {
+        initial,
+        monthly,
+        benefits: goalBenefitsSummary(goal),
+        initialAllocation: allocationRows(d.initial_instruments, initial),
+        monthlyAllocation: allocationRows(d.monthly_instruments, monthly),
+    };
+}
+
+function replaceInvestmentGoalArtifacts(html, context, prefix) {
+    const { goal, helpers } = context;
+    if (!goal) return html;
+    let out = String(html || '');
+    if ((out.match(/<article\b[^>]*\bfinam-v2-page\b[^>]*>/g) || []).length > 1) {
+        return replaceFinamV2PageArticles(out, (articleHtml) => replaceInvestmentGoalArtifacts(articleHtml, context, prefix));
+    }
+    if (!out.includes('· 2/2')) return out;
+
+    const data = normalizeInvestmentGoalArtifacts(goal);
+    const taxUsesYear = data.benefits.taxYear.amount > 0;
+    const cofinUsesYear = data.benefits.cofinYear.amount > 0;
+    const benefitsHtml = buildGoalBenefitsHtml(prefix, 'Налоговые вычеты и софинансирование', [
+        { kind: 'tax', label: taxUsesYear ? 'Налоговый вычет за год' : 'Налоговые вычеты за период', amount: taxUsesYear ? data.benefits.taxYear.amount : data.benefits.totalTax },
+        { kind: 'cofin', label: cofinUsesYear ? 'Софинансирование за год' : 'Софинансирование за период', amount: cofinUsesYear ? data.benefits.cofinYear.amount : data.benefits.totalCofin },
+    ], helpers);
+
+    out = replaceGoalBenefitsBlock(out, prefix, benefitsHtml);
+    out = replaceNthElementByClass(out, `finam-v2-${prefix}__allocation`, buildAllocationHtml(prefix, `${prefix}-initial-allocation`, 'Первоначальный капитал', 'стартовая сумма', `${escapeHtml(formatShortMoneyNoCurrency(helpers, data.initial))}<small>старт</small>`, data.initialAllocation), 1);
+    out = replaceNthElementByClass(out, `finam-v2-${prefix}__allocation`, buildAllocationHtml(prefix, `${prefix}-monthly-allocation`, 'Ежемесячное пополнение', 'новый взнос', `${escapeHtml(formatShortMoneyNoCurrency(helpers, data.monthly))}<small>в месяц</small>`, data.monthlyAllocation), 2);
+    return out;
 }
 
 function normalizeOtherGoal(goal, helpers) {
@@ -1161,10 +1256,11 @@ function replaceOtherGoalPage(html, context) {
     if ((out.match(/<article\b[^>]*\bfinam-v2-page\b[^>]*>/g) || []).length > 1) return replaceFinamV2PageArticles(out, (articleHtml) => replaceOtherGoalPage(articleHtml, context));
     const pageNo = out.includes('· 2/2') ? 2 : 1;
     if (pageNo === 1) {
-        out = out.replace(/<div class="finam-v2-other__bubble">[\s\S]*?<\/div>\s*<\/div>\s*<section class="finam-v2-other__hero">/, `<div class="finam-v2-other__bubble"><p>Цель <strong>«${title}»</strong>: текущая стоимость ${nowHtml}, сумма к дате реализации — ${futureHtml}.</p></div>\n    </div>\n\n    <section class="finam-v2-other__hero">`);
+        out = out.replace(/<h1 class="finam-v2-other__page-title">[\s\S]*?<\/h1>/, `<h1 class="finam-v2-other__page-title">Цель - ${title}</h1>`);
+        out = out.replace(/<div class="finam-v2-other__bubble">[\s\S]*?<\/div>\s*<\/div>\s*<section class="finam-v2-other__hero">/, `<h1 class="finam-v2-other__page-title">Цель - ${title}</h1>\n\n    <section class="finam-v2-other__hero">`);
         out = out.replace(/<div class="finam-v2-other__kicker">[\s\S]*?<\/div>/, `<div class="finam-v2-other__kicker">${escapeHtml(other.subtype.kicker)}</div>`);
-        out = out.replace(/<h1 class="finam-v2-other__title">[\s\S]*?<\/h1>/, `<h1 class="finam-v2-other__title">${title}</h1>`);
-        out = out.replace(/<p class="finam-v2-other__text">\s*Раздел показывает[\s\S]*?<\/p>/, `<p class="finam-v2-other__text">Сумма на цель «${title}» к ${escapeHtml(other.targetYear)} году — ${futureHtml}; план задаёт темп пополнений и риск.</p>`);
+        out = out.replace(/<h1 class="finam-v2-other__title">[\s\S]*?<\/h1>\s*/, '');
+        out = out.replace(/<p class="finam-v2-other__text">\s*[\s\S]*?\s*<\/p>\s*<\/div>\s*<div class="finam-v2-other__hero-visual">/, `<p class="finam-v2-other__text">ИИ показывает стоимость цели в текущих деньгах — <strong>${nowHtml}</strong>; с учётом инфляции к ${escapeHtml(other.targetYear)} году ориентир становится <strong>${futureHtml}</strong>.</p>\n      </div>\n      <div class="finam-v2-other__hero-visual">`);
         out = out.replace(/<img src="[^"]*" width="156" height="116" alt="" decoding="async" \/>/, `<img src="${assetUrl}" width="156" height="116" alt="" decoding="async" />`);
         out = out.replace(/<div class="finam-v2-other__visual-value">[\s\S]*?<\/div>/, `<div class="finam-v2-other__visual-value">${escapeHtml(formatShortMoneyNoCurrency(helpers, other.future))}</div>`);
         out = replaceNthElementByClass(out, 'finam-v2-other__grid-2', `<div class="finam-v2-other__grid-2">
@@ -1177,12 +1273,12 @@ function replaceOtherGoalPage(html, context) {
     } else {
         out = out.replace(/<div class="finam-v2-other__bubble finam-v2-other__bubble--green">[\s\S]*?<\/div>\s*<\/div>\s*<p class="finam-v2-other__section-kicker">/, `<div class="finam-v2-other__bubble finam-v2-other__bubble--green"><p>Стартовый капитал, пополнения и портфель собирают целевую сумму <strong>${projectedHtml}</strong>.</p></div>\n    </div>\n\n    <p class="finam-v2-other__section-kicker">`);
         out = replaceNthElementByClass(out, 'finam-v2-other__bars', buildGoalBarsHtml('other', bars), 1);
-        out = replaceNthElementByClass(out, 'finam-v2-other__benefits', `<div class="finam-v2-other__benefits">
-      <div class="finam-v2-other__benefit"><div></div><div><div class="finam-v2-other__benefit-label">Налоговый эффект</div><div class="finam-v2-other__benefit-value">${moneyHtml(helpers, other.tax)}</div></div></div>
-      <div class="finam-v2-other__benefit"><div></div><div><div class="finam-v2-other__benefit-label">Софинансирование цели</div><div class="finam-v2-other__benefit-value">${other.cofin > 0 ? moneyHtml(helpers, other.cofin) : 'по условиям цели'}</div></div></div>
-    </div>`, 1);
-        out = replaceNthElementByClass(out, 'finam-v2-other__allocation', buildAllocationHtml('other-initial-allocation', 'Первоначальный капитал', 'стартовая сумма', `${escapeHtml(formatShortMoneyNoCurrency(helpers, other.initial))}<small>старт</small>`, other.initialAllocation), 1);
-        out = replaceNthElementByClass(out, 'finam-v2-other__allocation', buildAllocationHtml('other-monthly-allocation', 'Ежемесячное пополнение', 'новый взнос', `${escapeHtml(formatShortMoneyNoCurrency(helpers, other.monthly))}<small>в месяц</small>`, other.monthlyAllocation), 2);
+        out = replaceGoalBenefitsBlock(out, 'other', buildGoalBenefitsHtml('other', 'Налоговые вычеты и софинансирование', [
+            { kind: 'tax', label: 'Налоговый эффект', amount: other.tax },
+            { kind: 'cofin', label: 'Софинансирование цели', amount: other.cofin },
+        ], helpers));
+        out = replaceNthElementByClass(out, 'finam-v2-other__allocation', buildAllocationHtml('other', 'other-initial-allocation', 'Первоначальный капитал', 'стартовая сумма', `${escapeHtml(formatShortMoneyNoCurrency(helpers, other.initial))}<small>старт</small>`, other.initialAllocation), 1);
+        out = replaceNthElementByClass(out, 'finam-v2-other__allocation', buildAllocationHtml('other', 'other-monthly-allocation', 'Ежемесячное пополнение', 'новый взнос', `${escapeHtml(formatShortMoneyNoCurrency(helpers, other.monthly))}<small>в месяц</small>`, other.monthlyAllocation), 2);
         out = out.replace(/<div class="finam-v2-other__chart-title">Прогноз капитала:[\s\S]*?<\/div>/, `<div class="finam-v2-other__chart-title">Прогноз капитала: ${escapeHtml(firstScheduleYear(goal))} — ${escapeHtml(other.targetYear)}</div>`);
         out = out.replace(/<div class="finam-v2-other__chart-total">[\s\S]*?<\/div>/, `<div class="finam-v2-other__chart-total">${projectedHtml}</div>`);
         out = out.replace(/<svg viewBox="0 0 500 210"[\s\S]*?<\/svg>/, buildGoalCapitalChartSvg({ goal, initial: other.initial, final: other.projected, months: other.months, blockName: 'other-capital-chart-svg', gradientId: 'finamV2OtherChartGrad', height: 150 }));
@@ -1777,7 +1873,7 @@ function normalizePortfolioRows(items, totalValue, maxRows = 6) {
             amount: finite(item?.value ?? item?.amount, 0),
             role: item?.role || 'диверсификация портфеля',
             yieldPercent: maybeFinite(item?.yieldPercent ?? item?.yield_percent ?? item?.yield),
-            color: item?.color || colors[idx % colors.length],
+            color: safeCssColor(item?.color, colors[idx % colors.length]),
         }))
         .filter((item) => item.percent > 0 || item.amount > 0);
     const amountSum = rows.reduce((sum, item) => sum + item.amount, 0);
@@ -1835,7 +1931,7 @@ function portfolioDonutHtml({ title, sub, centerValue, centerSub, rows, monthly 
 function portfolioAllocationTableHtml(rows, helpers) {
     const safeRows = normalizePortfolioRows(rows, 0, 6);
     const body = safeRows.map((row) => `<tr>
-              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:${escapeHtml(row.color)};"></span>${escapeHtml(row.label)}</span></td>
+              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:${safeCssColor(row.color, '#94a3b8')};"></span>${escapeHtml(row.label)}</span></td>
               <td class="finam-v2-portfolio__num">${formatPercentHtml(row.percent)}</td>
               <td class="finam-v2-portfolio__num">${moneyHtml(helpers, row.amount, { short: true })}</td>
               <td>${escapeHtml(row.role)}</td>
@@ -2851,9 +2947,11 @@ function replaceGoalSamples(html, { pageType, goal, helpers }) {
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW]: ['Сохранить и приумножить'],
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER]: ['Крупная покупка', 'Крупная цель', 'Квартира'],
     };
+    const titlePlaceholder = '__FINAM_V2_GOAL_TITLE__';
     for (const sampleTitle of titleByType[pageType] || []) {
-        out = replaceAll(out, sampleTitle, title);
+        out = replaceAll(out, sampleTitle, titlePlaceholder);
     }
+    out = replaceAll(out, titlePlaceholder, title);
 
     const numericReplacements = [
         ['56,6 млн ₽', target],
@@ -2936,6 +3034,12 @@ function applyTemplateData(html, context = {}) {
             .replace(/607&nbsp;000(?:&nbsp;|\s)₽/g, moneyHtml(context.helpers, pension.targetFuture))
             .replace(/229&nbsp;589(?:&nbsp;|\s)₽/g, moneyHtml(context.helpers, pension.stateFuture))
             .replace(/377&nbsp;376(?:&nbsp;|\s)₽/g, moneyHtml(context.helpers, pension.gapFuture));
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME) {
+        out = replaceInvestmentGoalArtifacts(out, context, 'passive-income');
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW) {
+        out = replaceInvestmentGoalArtifacts(out, context, 'save-grow');
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER) {
         out = replaceOtherGoalPage(out, context);

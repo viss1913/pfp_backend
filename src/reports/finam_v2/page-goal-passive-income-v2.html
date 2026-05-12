@@ -176,6 +176,17 @@
       margin-bottom: 8px;
     }
 
+    .finam-v2-passive-income__page-title {
+      font-family: var(--finam-v2-font-display);
+      font-optical-sizing: auto;
+      font-size: 27px;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin: 0 0 8px;
+    }
+
     .finam-v2-passive-income__kicker,
     .finam-v2-passive-income__section-kicker {
       font-size: 9px;
@@ -636,12 +647,7 @@
     }
 
     .finam-v2-passive-income__donut::after {
-      content: '';
-      position: absolute;
-      inset: 20px;
-      border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.9);
+      content: none;
     }
 
     .finam-v2-passive-income__donut-center {
@@ -653,11 +659,12 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      color: var(--finam-v2-color-navy-deep);
+      color: #fff;
       font-weight: 700;
       font-size: 12px;
       line-height: 1;
       font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 3px rgba(0, 42, 74, 0.65);
     }
 
     .finam-v2-passive-income__donut-center small {
@@ -666,7 +673,7 @@
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #64748b;
+      color: rgba(255, 255, 255, 0.88);
     }
 
     .finam-v2-passive-income__legend {
@@ -747,25 +754,14 @@
     </header>
     <hr class="finam-v2-passive-income__rule" />
 
-    <div class="finam-v2-passive-income__ai-row">
-      <div class="finam-v2-passive-income__avatar" role="img" aria-label="ИИ-ассистент">
-        <img src="assets/avatar-ai-finam-v2.png" width="42" height="42" alt="" decoding="async" />
-      </div>
-      <div class="finam-v2-passive-income__bubble">
-        <p>
-          Главный вывод по цели <strong>«Пассивный доход»</strong>: нужный денежный поток должен
-          формироваться отдельным капиталом клиента и сохранять устойчивость при регулярных выплатах.
-        </p>
-      </div>
-    </div>
+    <h1 class="finam-v2-passive-income__page-title">Цель - Пассивный доход</h1>
 
     <section class="finam-v2-passive-income__hero">
       <div>
         <div class="finam-v2-passive-income__kicker">Капитал · денежный поток</div>
-        <h1 class="finam-v2-passive-income__title">Пассивный доход</h1>
         <p class="finam-v2-passive-income__text">
-          Цель — собрать капитал, который сможет регулярно давать около
-          <strong>377&nbsp;000 ₽/мес</strong> пассивного дохода с учётом инфляции и выбранного уровня риска.
+          ИИ показывает целевой доход в сегодняшних деньгах и с учётом инфляции,
+          а затем переводит его в требуемый капитал.
         </p>
       </div>
       <div class="finam-v2-passive-income__hero-visual">

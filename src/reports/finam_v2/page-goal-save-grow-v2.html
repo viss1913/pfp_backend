@@ -175,6 +175,17 @@
       margin-bottom: 8px;
     }
 
+    .finam-v2-save-grow__page-title {
+      font-family: var(--finam-v2-font-display);
+      font-optical-sizing: auto;
+      font-size: 27px;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin: 0 0 8px;
+    }
+
     .finam-v2-save-grow__kicker,
     .finam-v2-save-grow__section-kicker {
       font-size: 9px;
@@ -594,12 +605,7 @@
     }
 
     .finam-v2-save-grow__donut::after {
-      content: '';
-      position: absolute;
-      inset: 20px;
-      border-radius: 50%;
-      background: #fff;
-      box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.9);
+      content: none;
     }
 
     .finam-v2-save-grow__donut-center {
@@ -611,11 +617,12 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      color: var(--finam-v2-color-navy-deep);
+      color: #fff;
       font-weight: 700;
       font-size: 12px;
       line-height: 1;
       font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 3px rgba(0, 42, 74, 0.65);
     }
 
     .finam-v2-save-grow__donut-center small {
@@ -624,7 +631,7 @@
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #64748b;
+      color: rgba(255, 255, 255, 0.88);
     }
 
     .finam-v2-save-grow__legend {
@@ -722,25 +729,14 @@
     </header>
     <hr class="finam-v2-save-grow__rule" />
 
-    <div class="finam-v2-save-grow__ai-row">
-      <div class="finam-v2-save-grow__avatar" role="img" aria-label="ИИ-ассистент">
-        <img src="assets/avatar-ai-finam-v2.png" width="42" height="42" alt="" decoding="async" />
-      </div>
-      <div class="finam-v2-save-grow__bubble">
-        <p>
-          Главный вывод по цели <strong>«Сохранить и приумножить»</strong>: капитал уже есть,
-          задача — сохранить его покупательную способность и нарастить сумму на выбранном горизонте.
-        </p>
-      </div>
-    </div>
+    <h1 class="finam-v2-save-grow__page-title">Цель - Сохранить и приумножить</h1>
 
     <section class="finam-v2-save-grow__hero">
       <div>
         <div class="finam-v2-save-grow__kicker">Рост капитала</div>
-        <h1 class="finam-v2-save-grow__title">Сохранить и приумножить</h1>
         <p class="finam-v2-save-grow__text">
-          Цель — сохранить капитал, обогнать инфляцию
-          и получить прогнозную сумму без привязки к конкретной покупке.
+          ИИ показывает стартовый капитал, горизонт и прогнозную сумму,
+          чтобы было видно, как капитал сохраняет покупательную способность.
         </p>
       </div>
       <div class="finam-v2-save-grow__hero-visual">
