@@ -4,6 +4,10 @@ const {
     FINAM_REPORT_V2_PAGE_TYPES,
     FINAM_REPORT_V2_SCHEMA_VERSION,
 } = require('./finamReportV2Contract');
+const {
+    buildFinamV2TemplatePackage,
+    buildFinamV2TemplatePageHtml,
+} = require('./finamV2PageComposer');
 
 const FINAM_V2_DIR = __dirname;
 
@@ -879,6 +883,15 @@ function buildToc(pages) {
     }));
 }
 
+function buildTemplateHelpers() {
+    return {
+        formatMoney,
+        formatPercent,
+        goalDisplayName,
+        goalPageType,
+    };
+}
+
 async function buildFinamReportV2HtmlPackage({
     report,
     includeCover = true,
@@ -887,14 +900,13 @@ async function buildFinamReportV2HtmlPackage({
     includePartnerValue = false,
 } = {}) {
     const model = buildV2Model(report, { goalTypes });
-    const pages = buildPages(model, { includeCover, includeSummary, includePartnerValue });
-    return {
-        reportSchemaVersion: FINAM_REPORT_V2_SCHEMA_VERSION,
-        pageHtmlList: pages.map((page) => page.html),
-        toc: buildToc(pages),
-        pages,
+    return buildFinamV2TemplatePackage({
         model,
-    };
+        includeCover,
+        includeSummary,
+        includePartnerValue,
+        helpers: buildTemplateHelpers(),
+    });
 }
 
 async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goalTypes = null } = {}) {
@@ -903,21 +915,30 @@ async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goa
     const lower = normalized.toLowerCase();
     const upper = normalized.toUpperCase();
 
-    if (upper === 'SUMMARY') return renderExecutiveSummary(model);
+    const helpers = buildTemplateHelpers();
+    const renderTemplatePage = (type, goal = null) =>
+        buildFinamV2TemplatePageHtml({
+            model,
+            pageType: type,
+            goal,
+            helpers,
+        });
+
+    if (upper === 'SUMMARY') return renderTemplatePage(FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY);
     if (
         upper === 'PORTFOLIO_FINAL' ||
         ['portfolio', 'portfolio-overview', 'portfoliosummary', 'portfolio-summary'].includes(lower) ||
         normalized === FINAM_REPORT_V2_PAGE_TYPES.PORTFOLIO_SUMMARY
     ) {
-        return renderPortfolioSummary(model);
+        return renderTemplatePage(FINAM_REPORT_V2_PAGE_TYPES.PORTFOLIO_SUMMARY);
     }
     if (
         upper === 'TAX_PLANNING' ||
         ['tax', 'tax-planning', 'taxplanning'].includes(lower) ||
         normalized === FINAM_REPORT_V2_PAGE_TYPES.TAX_PLANNING
-    ) return renderTaxPlanning(model);
+    ) return renderTemplatePage(FINAM_REPORT_V2_PAGE_TYPES.TAX_PLANNING);
     if (upper === 'REPLENESHMENT' || upper === 'REPLENISHMENT' || normalized === FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN) {
-        return renderDetailedPlan(model);
+        return renderTemplatePage(FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN);
     }
 
     const goalPageTypes = new Set(Object.values(GOAL_TYPE_TO_PAGE_TYPE));
@@ -951,26 +972,26 @@ async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goa
             (goalId != null && model.goals.find((g) => Number(g?.goal_id) === Number(goalId))) ||
             model.goals.find((g) => goalPageType(g) === requestedGoalPageType);
         if (!goal) return null;
-        return renderGoalPage(model, goal);
+        return renderTemplatePage(requestedGoalPageType, goal);
     }
 
     const staticRenderers = {
-        [FINAM_REPORT_V2_PAGE_TYPES.COVER]: renderCover,
-        [FINAM_REPORT_V2_PAGE_TYPES.INTRO]: renderIntro,
-        [FINAM_REPORT_V2_PAGE_TYPES.CURRENT_STATE]: renderCurrentState,
-        [FINAM_REPORT_V2_PAGE_TYPES.GOALS]: renderGoals,
-        [FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY]: renderExecutiveSummary,
-        [FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW]: renderComon,
-        [FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES]: () => renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES),
-        [FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS]: () => renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS),
-        [FINAM_REPORT_V2_PAGE_TYPES.INFLATION]: () => renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.INFLATION),
-        [FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS]: renderScenarios,
-        [FINAM_REPORT_V2_PAGE_TYPES.ROADMAP]: renderRoadmap,
-        [FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION]: renderRiskDeclaration,
-        [FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE]: () => renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE),
+        [FINAM_REPORT_V2_PAGE_TYPES.COVER]: FINAM_REPORT_V2_PAGE_TYPES.COVER,
+        [FINAM_REPORT_V2_PAGE_TYPES.INTRO]: FINAM_REPORT_V2_PAGE_TYPES.INTRO,
+        [FINAM_REPORT_V2_PAGE_TYPES.CURRENT_STATE]: FINAM_REPORT_V2_PAGE_TYPES.CURRENT_STATE,
+        [FINAM_REPORT_V2_PAGE_TYPES.GOALS]: FINAM_REPORT_V2_PAGE_TYPES.GOALS,
+        [FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY]: FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY,
+        [FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW]: FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW,
+        [FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES]: FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES,
+        [FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS]: FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
+        [FINAM_REPORT_V2_PAGE_TYPES.INFLATION]: FINAM_REPORT_V2_PAGE_TYPES.INFLATION,
+        [FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS]: FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS,
+        [FINAM_REPORT_V2_PAGE_TYPES.ROADMAP]: FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
+        [FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION]: FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,
+        [FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE]: FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE,
     };
-    const renderer = staticRenderers[normalized];
-    return renderer ? renderer(model) : null;
+    const templatePageType = staticRenderers[normalized];
+    return templatePageType ? renderTemplatePage(templatePageType) : null;
 }
 
 module.exports = {

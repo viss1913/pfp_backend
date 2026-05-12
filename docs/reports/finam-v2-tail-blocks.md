@@ -1,8 +1,10 @@
 # Finam Report v2: хвостовые блоки
 
-Документ фиксирует состав новых статических блоков `src/reports/finam_v2/`.
-Статические HTML остаются дизайн-референсом; PDF/API подключаются через production composer
-`src/reports/finam_v2/buildFinamReportV2HtmlPackage.js` при **`system_settings.report_finam = 2`** или эквивалентном включении через env **`FINAM_REPORT_VERSION`** (см. `src/reports/finam/reportVersionResolver.js`; без `FINAM_REPORT_VERSION_PROJECT_IDS` при заданной версии — по умолчанию только проект **14**). Во всех остальных случаях — текущий v1.
+Документ фиксирует состав новых template-driven блоков `src/reports/finam_v2/`.
+PDF/API подключаются через production composer `src/reports/finam_v2/buildFinamReportV2HtmlPackage.js`
+при **`system_settings.report_finam = 2`** или эквивалентном включении через env **`FINAM_REPORT_VERSION`** (см. `src/reports/finam/reportVersionResolver.js`; без `FINAM_REPORT_VERSION_PROJECT_IDS` при заданной версии — по умолчанию только проект **14**). Во всех остальных случаях — текущий v1.
+
+Production v2 берёт визуал из `page-*-v2.html`: `finamV2PageManifest.js` задаёт порядок, `finamV2TemplateLoader.js` читает шаблоны и инлайнит ассеты, `finamV2TemplateAppliers.js` подставляет реальные данные клиента, `finamV2PageComposer.js` отдаёт физические A4-листы в `pageHtmlList`. `toc` остаётся логическим оглавлением секций, но `page_start` и `page_count` считаются по фактическим `article.finam-v2-page`.
 
 ## Правило изоляции
 
@@ -10,6 +12,7 @@
 - В v2 не переносим v1-клетку, классы `.page`, `.speech` и PDF-инъекции v1.
 - Каждый лист внутри файла — отдельный `article.finam-v2-page` размером `595px × 842px`.
 - Длинные блоки делятся на несколько листов, а не ужимаются мелким шрифтом.
+- Для v2 PDF не применять v1 `injectReportPdfPageFillA4` и общий DejaVu font override, чтобы не ломать шаблонный визуал.
 
 ## Порядок хвостовых блоков
 

@@ -228,13 +228,21 @@ class ReportPdfService {
         // Вариант с iframe/srcdoc заметно раздувает итоговый PDF.
         // Рендерим каждый HTML-лист отдельно и склеиваем готовые PDF-страницы.
         // Последовательный цикл даёт ~N×(навигация+pdf) — на длинных отчётах это ощутимо;
-        // параллелим вкладки в одном браузере (лимит через REPORT_PDF_RENDER_CONCURRENCY).
-        const renderConcurrency = Math.min(
-            Math.max(Number(process.env.REPORT_PDF_RENDER_CONCURRENCY) || 4, 1),
-            16
-        );
+        // параллелим вкладки в одном браузере (лимит через REPORT_PDF_RENDER_CONCURRENCY;
+        // для Finam v2 отдельный FINAM_REPORT_V2_RENDER_CONCURRENCY, дефолт 1 из-за тяжёлых шаблонов).
         const list = htmlPkg.pageHtmlList || [];
         const isFinamV2Package = htmlPkg.reportSchemaVersion === 'finam-v2.0';
+        const renderConcurrency = Math.min(
+            Math.max(
+                Number(
+                    isFinamV2Package
+                        ? process.env.FINAM_REPORT_V2_RENDER_CONCURRENCY
+                        : process.env.REPORT_PDF_RENDER_CONCURRENCY
+                ) || (isFinamV2Package ? 1 : 4),
+                1
+            ),
+            16
+        );
         // Обложка и листы v2 сверстаны под 595×842. Масштаб чуть ниже 4/3,
         // иначе Chromium иногда отдаёт второй пустой лист из-за дробного переполнения A4.
         const reportPdfScale = (() => {
@@ -454,7 +462,9 @@ class ReportPdfService {
             toc = buildRostechPensionOnlyToc({ hasCover: includeCover, goal: pensionGoal });
         }
 
-        const pageHtmlListWithFonts = pageHtmlList.map((h) => injectReportPdfEmbeddedFont(h));
+        const pageHtmlListWithFonts = isFinamReportV2
+            ? pageHtmlList
+            : pageHtmlList.map((h) => injectReportPdfEmbeddedFont(h));
         const pageHtmlListForPdf = isFinamReportV2
             ? pageHtmlListWithFonts
             : pageHtmlListWithFonts.map((h) => injectReportPdfPageFillA4(h));
