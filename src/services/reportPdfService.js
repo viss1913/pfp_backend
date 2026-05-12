@@ -235,12 +235,12 @@ class ReportPdfService {
         );
         const list = htmlPkg.pageHtmlList || [];
         const isFinamV2Package = htmlPkg.reportSchemaVersion === 'finam-v2.0';
-        // Обложка и листы сверстаны под @page 595×842 (или A4 margin 0). Раньше было preferCSSPageSize: false
-        // и scale 1.333 — Chrome игнорировал размер страницы из CSS, обложка уезжала «картинка в белой рамке».
+        // Обложка и листы v2 сверстаны под 595×842. Масштаб чуть ниже 4/3,
+        // иначе Chromium иногда отдаёт второй пустой лист из-за дробного переполнения A4.
         const reportPdfScale = (() => {
-            const n = Number(process.env.REPORT_PDF_SCALE);
+            const n = Number(isFinamV2Package ? process.env.FINAM_REPORT_V2_PDF_SCALE : process.env.REPORT_PDF_SCALE);
             if (Number.isFinite(n) && n > 0) return Math.min(Math.max(n, 0.1), 2);
-            return isFinamV2Package ? 1.3333333333 : 1;
+            return isFinamV2Package ? 1.332 : 1;
         })();
         const reportPreferCssPageSize =
             process.env.REPORT_PDF_PREFER_CSS_PAGE_SIZE != null
@@ -454,7 +454,10 @@ class ReportPdfService {
             toc = buildRostechPensionOnlyToc({ hasCover: includeCover, goal: pensionGoal });
         }
 
-        const pageHtmlListForPdf = pageHtmlList.map((h) => injectReportPdfPageFillA4(injectReportPdfEmbeddedFont(h)));
+        const pageHtmlListWithFonts = pageHtmlList.map((h) => injectReportPdfEmbeddedFont(h));
+        const pageHtmlListForPdf = isFinamReportV2
+            ? pageHtmlListWithFonts
+            : pageHtmlListWithFonts.map((h) => injectReportPdfPageFillA4(h));
         const mergedHtml = buildFramesContainerHtml(pageHtmlListForPdf);
         return { mergedHtml, toc, pageHtmlList: pageHtmlListForPdf, reportSchemaVersion };
     }

@@ -74,11 +74,21 @@ article.page .spacer {
 }
 </style>`;
 
+function hasStandalonePageArticle(html) {
+    const articleClassRegex = /<article\b[^>]*\bclass=(["'])(.*?)\1/gi;
+    let match;
+    while ((match = articleClassRegex.exec(html))) {
+        const classNames = String(match[2] || '').split(/\s+/).filter(Boolean);
+        if (classNames.includes('page')) return true;
+    }
+    return false;
+}
+
 function injectReportPdfPageFillA4(html) {
     const s = String(html || '');
     if (!s || s.includes(MARK)) return s;
     if (s.includes('data-report-page="cover"')) return s;
-    if (!/<article[^>]*\bclass="[^"]*\bpage\b/i.test(s)) return s;
+    if (!hasStandalonePageArticle(s)) return s;
     if (!/<\/head>/i.test(s)) return s;
     return s.replace(/<\/head>/i, `${STYLE}\n</head>`);
 }
