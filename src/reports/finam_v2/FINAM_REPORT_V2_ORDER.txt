@@ -22,10 +22,10 @@ Finam Report v2 — порядок макетов (черновик).
                   http://127.0.0.1:8766/page-comon-autofollow-v2.html
                   http://127.0.0.1:8766/page-idu-strategies-v2.html
                   http://127.0.0.1:8766/page-finam-offers-v2.html
-                  http://127.0.0.1:8766/page-inflation-v2.html
                   http://127.0.0.1:8766/page-roadmap-v2.html
-                  http://127.0.0.1:8766/page-detailed-plan-v2.html
+                  http://127.0.0.1:8766/page-inflation-v2.html
                   http://127.0.0.1:8766/page-risk-declaration-v2.html
+                  http://127.0.0.1:8766/page-detailed-plan-v2.html
                   http://127.0.0.1:8766/page-partner-value-v2.html
   Скриншоты: из корня репо при запущенном сервере на 8766 —
     node scripts/finam_v2_preview_screenshots.js
@@ -58,7 +58,7 @@ Finam Report v2 — порядок макетов (черновик).
   17. page-roadmap-v2.html — дорожная карта 90 дней / 12 месяцев / 3 года
   18. page-inflation-v2.html — инфляция, ключевая ставка, ОФЗ и корпоративный облигационный контур из macro history
   19. page-risk-declaration-v2.html — декларация о рисках: продукты, компании, матрица Риск/Доходность, продуктовые риски, протокол контроля, 5 листов в одном HTML
-  20. page-detailed-plan-v2.html — подробный план пополнений по всем не-LIFE целям, 2 листа в одном HTML
+  20. page-detailed-plan-v2.html — подробный план пополнений на весь горизонт расчёта; число листов зависит от длины календаря (12 строк + по 22 на продолжение)
   21. page-partner-value-v2.html — партнёрская ценность (может скрываться в клиентском PDF)
   (макет page-scenarios-v2.html в репозитории оставлен только как архив; в production PDF v2 не входит)
 

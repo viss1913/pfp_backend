@@ -24,7 +24,7 @@ Production v2 берёт визуал из `page-*-v2.html`: `finamV2PageManifes
 | 17 | `page-roadmap-v2.html` | 1 | Дорожная карта 90 дней / 12 месяцев / 3 года |
 | 18 | `page-inflation-v2.html` | 1 | Макроусловия: инфляция, ключевая ставка, ОФЗ, корпоративный облигационный контур из `macroService.getHistory()` |
 | 19 | `page-risk-declaration-v2.html` | 5 | Декларация о рисках: продукты, компании, матрица `Риск / Доходность`, продуктовые риски и протокол контроля |
-| 20 | `page-detailed-plan-v2.html` | 2 | Подробный план пополнений: агрегированный календарь по всем не-LIFE целям |
+| 20 | `page-detailed-plan-v2.html` | по расчёту | Подробный план пополнений на весь горизонт (12 строк на первом листе, по 22 на следующих); число PDF-листов зависит от календаря |
 | 21 | `page-partner-value-v2.html` | 1 | Партнёрская ценность отчёта; может скрываться в клиентском PDF |
 
 Goal-страницы стоят раньше: сразу после диагностики портфеля целей и управленческого вывода. `page-partner-value-v2.html` остаётся последним и может скрываться в клиентском PDF.
@@ -37,7 +37,7 @@ Goal-страницы стоят раньше: сразу после диагн�
 - `page-comon-autofollow-v2.html` берёт `report.comon_showcase.items[]` и `report.comon_showcase.disclaimer_ru`; если витрина не передана, выводит честный no-data блок вместо моковых стратегий.
 - `page-idu-strategies-v2.html` использует локальный каталог `FINAM_V2_IDU_STRATEGIES` в `finamV2TemplateAppliers.js`, синхронизированный с `FINAM_IDU_STRATEGIES_CATALOG` в `buildFinamReportHtml.js` (v1); один `article` на лист.
 - `page-inflation-v2.html` получает те же macro series, что v1: `cbr_key_rate`, `russia_cpi_inflation_yoy`, `moex_ofz_gcurve_2y`, `moex_ofz_gcurve_5y`, `moex_ofz_gcurve_10y`, `moex_rucbicp`. Если ряд пустой, показывается `н/д`, а не демо-цифра.
-- `page-detailed-plan-v2.html` использует тот же расчёт строк пополнения/вычетов/софина, что v1 `buildRepleneshmentRows` в `buildFinamReportHtml.js`: полный `goals_detailed` передаётся в модель как `replenishmentReport`. Колонка **«Итоговый капитал»** считается отдельно: сумма `total_capital` из `monthly_schedule` только по целям **без** LIFE (и без RENT, как в первом цикле v1), чтобы не смешивать инвестиционный капитал со страховым контрактом. До 26 строк на два листа превью/PDF.
+- `page-detailed-plan-v2.html` использует тот же расчёт строк пополнения/вычетов/софина, что v1 `buildRepleneshmentRows` в `buildFinamReportHtml.js`: полный `goals_detailed` передаётся в модель как `replenishmentReport`. Колонка **«Итоговый капитал»** считается отдельно: сумма `total_capital` из `monthly_schedule` только по целям **без** LIFE (и без RENT, как в первом цикле v1). **Весь горизонт** календаря попадает в отчёт; разбиение на PDF: **12 строк** на первой странице (hero), затем по **22 строки** на лист (паритет плотности с v1 по A4).
 - `page-risk-declaration-v2.html` сохраняет юридический дисклеймер в конце: сначала берёт `riskDeclaration.legalNotes`, иначе использует fallback-текст про информационный характер, отсутствие ИИР, прошлую доходность и документы продуктов.
 
 ## Декларация о рисках

@@ -2859,18 +2859,22 @@ function monthKeyFromReplenRow(r) {
     return raw.slice(0, 10).length >= 10 ? `${raw.slice(0, 7)}-01` : null;
 }
 
+/** Первая страница с hero + KPI; продолжения — только таблица (как v1 по плотности строк на A4). */
+const FINAM_V2_DETAILED_ROWS_FIRST = 12;
+const FINAM_V2_DETAILED_ROWS_NEXT = 22;
+
 /**
  * Паритет с v1 `buildRepleneshmentRows`: стартовый капитал в первой строке, график пополнений,
  * отдельный контур LIFE (годовая премия в первом месяце, далее ежемесячные взносы).
  * Колонка «Итоговый капитал» — только накопления по целям без страхования жизни (как договорились с продуктом).
- * Две страницы шаблона — до 26 строк.
+ * Полный горизонт: без обрезки; разбиение на листа — в `buildDetailedPlanFullHtml`.
  */
 function buildDetailedPlanRows(model) {
     const report = model?.replenishmentReport || { goals_detailed: Array.isArray(model?.goals) ? model.goals : [] };
     const goalsDetailed = report.goals_detailed || [];
     const capitalNonLife = buildNonLifeCapitalByMonth(goalsDetailed);
     const v1Rows = buildRepleneshmentRows(report);
-    const mapped = v1Rows.map((r) => {
+    return v1Rows.map((r) => {
         const key = monthKeyFromReplenRow(r);
         const capital = key != null ? finite(capitalNonLife.get(key), 0) : 0;
         return {
@@ -2881,7 +2885,82 @@ function buildDetailedPlanRows(model) {
             capital,
         };
     });
-    return mapped.slice(0, 26);
+}
+
+function chunkDetailedPlanRows(rows) {
+    if (!rows.length) return [];
+    const chunks = [rows.slice(0, FINAM_V2_DETAILED_ROWS_FIRST)];
+    let rest = rows.slice(FINAM_V2_DETAILED_ROWS_FIRST);
+    while (rest.length) {
+        chunks.push(rest.slice(0, FINAM_V2_DETAILED_ROWS_NEXT));
+        rest = rest.slice(FINAM_V2_DETAILED_ROWS_NEXT);
+    }
+    return chunks;
+}
+
+function buildDetailedPlanFullHtml(model, helpers) {
+    const rows = buildDetailedPlanRows(model);
+    const chunks = chunkDetailedPlanRows(rows);
+    const totalPages = Math.max(1, chunks.length);
+
+    if (!rows.length) {
+        return `<article class="finam-v2-page">
+    ${tailPageHeader('Подробный план · 1/1')}
+    <p class="finam-v2-wow__eyebrow">График пополнений</p>
+    <h1 class="finam-v2-wow__headline">Нет строк расписания</h1>
+    <p class="finam-v2-wow__lead">В данных отчёта нет помесячного графика пополнений для таблицы.</p>
+    ${detailedTableHtml([], helpers, 'Подробный план пополнений')}
+    ${tailFooter('Таблица строится по календарю пополнений клиента')}
+  </article>`;
+    }
+
+    const goalsList = Array.isArray(model?.goals) ? model.goals : [];
+    const monthlyNonLife = goalsList
+        .filter((goal) => !isLifeGoal(goal))
+        .reduce((sum, goal) => sum + finite(goalMonthly(goal), 0), 0);
+    const lifeGoal = goalsList.find((g) => isLifeGoal(g));
+    const lifeMonthlyPremium = lifeGoal
+        ? finite(lifeGoal?.details?.annual_premium ?? lifeGoal?.summary?.initial_capital, 0) / 12
+        : 0;
+    const monthly = monthlyNonLife + lifeMonthlyPremium;
+    const totalInitial = rows[0]?.replenishment || 0;
+
+    return chunks
+        .map((chunk, idx) => {
+            const pageNum = idx + 1;
+            const pill = `Подробный план · ${pageNum}/${totalPages}`;
+            if (idx === 0) {
+                return `<article class="finam-v2-page">
+    ${tailPageHeader(pill)}
+    <section class="finam-v2-tail__hero">
+      <div>
+        <p class="finam-v2-wow__eyebrow">График пополнений</p>
+        <h1 class="finam-v2-wow__headline">Таблица превращает стратегию в календарь действий</h1>
+        <p class="finam-v2-wow__lead">Первый месяц — текущий: в пополнении суммирован первоначальный капитал по целям (как в отчёте v1) и годовая премия по страхованию жизни, если цель есть в плане. Колонка «Итоговый капитал» — только сумма по накопительным и инвестиционным целям (без учёта страховой компоненты). Дальше — помесячные строки: пополнения (включая взносы по НСЖ), вычеты, софинансирование. Календарь выводится на все месяцы расчёта, листы разбиваются автоматически.</p>
+      </div>
+      <aside class="finam-v2-tail__kpi-stack">
+        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, totalInitial, { short: true })}</div><div class="finam-v2-tail__kpi-label">стартовый капитал в первом месяце</div></div>
+        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, monthly, { short: true })}</div><div class="finam-v2-tail__kpi-label">регулярное пополнение в расчёте</div></div>
+      </aside>
+    </section>
+    ${detailedTableHtml(chunk, helpers, 'Подробный план пополнений')}
+    <section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> пополнения и вычеты — как в v1; итоговый капитал в столбце справа — без страхования жизни, чтобы не смешивать инвестиционный капитал с контрактом НСЖ.</section>
+    ${tailFooter('Таблица строится по календарю пополнений клиента')}
+  </article>`;
+            }
+            const isLast = idx === chunks.length - 1;
+            return `<article class="finam-v2-page">
+    ${tailPageHeader(pill)}
+    ${detailedTableHtml(chunk, helpers, `Подробный план пополнений, часть ${pageNum} из ${totalPages}`)}
+    ${
+        isLast
+            ? '<section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> последняя страница календаря; при пересчёте плана таблица обновляется целиком.</section>'
+            : '<div class="finam-v2-tail__page-note"></div>'
+    }
+    ${tailFooter(isLast ? 'Календарь уточняется при пересчёте финансового плана' : 'Продолжение календаря пополнений')}
+  </article>`;
+        })
+        .join('\n');
 }
 
 function detailedRowHtml(row, helpers) {
@@ -2895,53 +2974,10 @@ function detailedTableHtml(rows, helpers, label) {
     </table>`;
 }
 
-function buildDetailedPlanArticle(model, helpers, pageIndex) {
-    const rows = buildDetailedPlanRows(model);
-    const firstRows = rows.slice(0, 12);
-    const secondRows = rows.slice(12, 26);
-    const currentRows = pageIndex === 1 ? secondRows : firstRows;
-    const totalInitial = firstRows[0]?.replenishment || 0;
-    const goalsList = Array.isArray(model?.goals) ? model.goals : [];
-    const monthlyNonLife = goalsList
-        .filter((goal) => !isLifeGoal(goal))
-        .reduce((sum, goal) => sum + finite(goalMonthly(goal), 0), 0);
-    const lifeGoal = goalsList.find((g) => isLifeGoal(g));
-    const lifeMonthlyPremium = lifeGoal
-        ? finite(lifeGoal?.details?.annual_premium ?? lifeGoal?.summary?.initial_capital, 0) / 12
-        : 0;
-    const monthly = monthlyNonLife + lifeMonthlyPremium;
-    if (pageIndex === 1) {
-        return `<article class="finam-v2-page">
-    ${tailPageHeader('Подробный план · 2/2')}
-    ${detailedTableHtml(currentRows, helpers, 'Подробный план пополнений, продолжение')}
-    <div class="finam-v2-tail__page-note"></div>
-    ${tailFooter('Продолжение календаря пополнений по всем целям')}
-  </article>`;
-    }
-    return `<article class="finam-v2-page">
-    ${tailPageHeader('Подробный план · 1/2')}
-    <section class="finam-v2-tail__hero">
-      <div>
-        <p class="finam-v2-wow__eyebrow">График пополнений</p>
-        <h1 class="finam-v2-wow__headline">Таблица превращает стратегию в календарь действий</h1>
-        <p class="finam-v2-wow__lead">Первый месяц — текущий: в пополнении суммирован первоначальный капитал по целям (как в отчёте v1) и годовая премия по страхованию жизни, если цель есть в плане. Колонка «Итоговый капитал» — только сумма по накопительным и инвестиционным целям (без учёта страховой компоненты). Дальше — помесячные строки: пополнения (включая взносы по НСЖ), вычеты, софинансирование.</p>
-      </div>
-      <aside class="finam-v2-tail__kpi-stack">
-        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, totalInitial, { short: true })}</div><div class="finam-v2-tail__kpi-label">стартовый капитал в первом месяце</div></div>
-        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, monthly, { short: true })}</div><div class="finam-v2-tail__kpi-label">регулярное пополнение в расчёте</div></div>
-      </aside>
-    </section>
-    ${detailedTableHtml(currentRows, helpers, 'Подробный план пополнений')}
-    <section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> пополнения и вычеты — как в v1; итоговый капитал в столбце справа — без страхования жизни, чтобы не смешивать инвестиционный капитал с контрактом НСЖ.</section>
-    ${tailFooter('Таблица строится по календарю пополнений клиента')}
-  </article>`;
-}
-
 function replaceDetailedPlanPage(html, context) {
-    return replaceFinamV2PageArticles(html, (article, index) => {
-        const pageIndex = /Подробный план\s*·\s*2\/2/.test(article) ? 1 : index;
-        return buildDetailedPlanArticle(context.model, context.helpers, pageIndex);
-    });
+    const inner = buildDetailedPlanFullHtml(context.model, context.helpers);
+    const replaced = String(html || '').replace(/<body\b([^>]*)>[\s\S]*?<\/body>/i, `<body$1>\n${inner}\n</body>`);
+    return replaced.includes(inner) ? replaced : html;
 }
 
 function displayNumber(value, fallback = '—') {

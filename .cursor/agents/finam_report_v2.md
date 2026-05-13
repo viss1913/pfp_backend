@@ -51,10 +51,10 @@ description: Вторая версия финплан-отчёта Финам (p
 | 14 | [`page-comon-autofollow-v2.html`](src/reports/finam_v2/page-comon-autofollow-v2.html) | Автоследование Comon (`comon_showcase.items` как в v1), **1 лист** |
 | 15 | [`page-idu-strategies-v2.html`](src/reports/finam_v2/page-idu-strategies-v2.html) | ДУ / стратегии Финам Фонды (каталог как v1), **1 лист**, акцент на облигационный контур |
 | 16 | [`page-finam-offers-v2.html`](src/reports/finam_v2/page-finam-offers-v2.html) | Спецпредложения Финам |
-| 17 | [`page-inflation-v2.html`](src/reports/finam_v2/page-inflation-v2.html) | Инфляция, ключевая ставка, ОФЗ и корпоративный облигационный контур |
-| 18 | [`page-roadmap-v2.html`](src/reports/finam_v2/page-roadmap-v2.html) | Дорожная карта 90 дней / 12 месяцев / 3 года |
-| 19 | [`page-detailed-plan-v2.html`](src/reports/finam_v2/page-detailed-plan-v2.html) | Подробный план пополнений, **2 листа в одном HTML** |
-| 20 | [`page-risk-declaration-v2.html`](src/reports/finam_v2/page-risk-declaration-v2.html) | Декларация о рисках: продукты, компании, матрица `Риск / Доходность`, продуктовые риски, протокол контроля, **5 листов в одном HTML** |
+| 17 | [`page-roadmap-v2.html`](src/reports/finam_v2/page-roadmap-v2.html) | Дорожная карта 90 дней / 12 месяцев / 3 года |
+| 18 | [`page-inflation-v2.html`](src/reports/finam_v2/page-inflation-v2.html) | Инфляция, ключевая ставка, ОФЗ и корпоративный облигационный контур |
+| 19 | [`page-risk-declaration-v2.html`](src/reports/finam_v2/page-risk-declaration-v2.html) | Декларация о рисках: продукты, компании, матрица `Риск / Доходность`, продуктовые риски, протокол контроля, **5 листов в одном HTML** |
+| 20 | [`page-detailed-plan-v2.html`](src/reports/finam_v2/page-detailed-plan-v2.html) | Подробный план пополнений на **полный горизонт** расчёта; один HTML — несколько `article` по мере длины календаря |
 | 21 | [`page-partner-value-v2.html`](src/reports/finam_v2/page-partner-value-v2.html) | Партнёрская ценность отчёта (может скрываться в клиентском PDF) |
 
 Поддерживающие файлы:
