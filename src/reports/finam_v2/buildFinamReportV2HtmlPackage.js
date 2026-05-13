@@ -902,6 +902,8 @@ function buildV2Model(report = {}, options = {}) {
 
     return {
         reportSchemaVersion: FINAM_REPORT_V2_SCHEMA_VERSION,
+        /** Полный `goals_detailed` для паритета с v1 `buildRepleneshmentRows` (подробный план, страхование жизни). */
+        replenishmentReport: { goals_detailed: Array.isArray(report.goals_detailed) ? report.goals_detailed : [] },
         client: {
             name: clientName,
             firstName: report?.client_info?.first_name || clientName,

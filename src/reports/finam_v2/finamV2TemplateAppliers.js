@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { buildRepleneshmentRows } = require('../finam/buildFinamReportHtml');
 const { FINAM_REPORT_V2_PAGE_TYPES } = require('./finamReportV2Contract');
 
 function escapeHtml(value) {
@@ -2813,58 +2814,29 @@ function scheduleRows(goal) {
     return Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
 }
 
-function sameMonth(dateA, dateB) {
-    return dateA && dateB && dateA.getFullYear() === dateB.getFullYear() && dateA.getMonth() === dateB.getMonth();
+function parseMonthFromReplenishDate(isoDate) {
+    if (!isoDate) return new Date();
+    const s = String(isoDate).slice(0, 10);
+    const d = new Date(`${s}T12:00:00`);
+    return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
-function isInitialScheduleRow(row) {
-    return String(row?.schedule_row_kind || '').toUpperCase() === 'INITIAL_LUMP';
-}
-
-function rowCapitalValue(row) {
-    return maybeFinite(row?.total_capital ?? row?.capital ?? row?.balance);
-}
-
-function capitalForGoalAtMonth(goal, month) {
-    const rows = scheduleRows(goal)
-        .map((row) => ({ row, date: normalizeDate(row?.date) }))
-        .filter((item) => item.date)
-        .sort((a, b) => a.date - b.date);
-    let latest = null;
-    rows.forEach((item) => {
-        if (item.date <= month) latest = item.row;
-    });
-    const exact = rows.find((item) => sameMonth(item.date, month))?.row;
-    const value = rowCapitalValue(exact || latest);
-    return value == null ? finite(goalInitial(goal), 0) : value;
-}
-
+/**
+ * Паритет с v1 `buildRepleneshmentRows`: стартовый капитал в первой строке, график пополнений,
+ * отдельный контур LIFE (годовая премия в первом месяце, далее ежемесячные взносы).
+ * Две страницы шаблона — до 26 строк.
+ */
 function buildDetailedPlanRows(model) {
-    const goals = (Array.isArray(model?.goals) ? model.goals : []).filter((goal) => !isLifeGoal(goal));
-    const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    const latestDate = goals.flatMap((goal) => scheduleRows(goal).map((row) => normalizeDate(row?.date)).filter(Boolean))
-        .sort((a, b) => b - a)[0];
-    const availableMonths = latestDate ? Math.max(1, (latestDate.getFullYear() - start.getFullYear()) * 12 + latestDate.getMonth() - start.getMonth() + 1) : 24;
-    const monthsToShow = Math.min(Math.max(availableMonths, 1), 26);
-    const initialTotal = goals.reduce((sum, goal) => sum + finite(goalInitial(goal), 0), 0);
-    return Array.from({ length: monthsToShow }, (_, idx) => {
-        const month = addMonths(start, idx);
-        let replenishment = idx === 0 ? initialTotal : 0;
-        let tax = 0;
-        let cofinancing = 0;
-        let capital = 0;
-        goals.forEach((goal) => {
-            scheduleRows(goal).forEach((row) => {
-                const date = normalizeDate(row?.date);
-                if (!sameMonth(date, month)) return;
-                if (idx > 0 && !isInitialScheduleRow(row)) replenishment += finite(row?.replenishment, 0);
-                tax += finite(row?.tax_deduction, 0);
-                cofinancing += finite(row?.cofinancing, 0);
-            });
-            capital += capitalForGoalAtMonth(goal, month);
-        });
-        return { month, replenishment, tax, cofinancing, capital };
-    }).filter((row, idx) => idx === 0 || row.replenishment > 0 || row.tax > 0 || row.cofinancing > 0 || row.capital > 0);
+    const report = model?.replenishmentReport || { goals_detailed: Array.isArray(model?.goals) ? model.goals : [] };
+    const v1Rows = buildRepleneshmentRows(report);
+    const mapped = v1Rows.map((r) => ({
+        month: parseMonthFromReplenishDate(r.date),
+        replenishment: finite(r.replenishment, 0),
+        tax: finite(r.tax_deduction, 0),
+        cofinancing: finite(r.cofinancing, 0),
+        capital: finite(r.total_capital, 0),
+    }));
+    return mapped.slice(0, 26);
 }
 
 function detailedRowHtml(row, helpers) {
@@ -2884,15 +2856,21 @@ function buildDetailedPlanArticle(model, helpers, pageIndex) {
     const secondRows = rows.slice(12, 26);
     const currentRows = pageIndex === 1 ? secondRows : firstRows;
     const totalInitial = firstRows[0]?.replenishment || 0;
-    const monthly = (Array.isArray(model?.goals) ? model.goals : [])
+    const goalsList = Array.isArray(model?.goals) ? model.goals : [];
+    const monthlyNonLife = goalsList
         .filter((goal) => !isLifeGoal(goal))
         .reduce((sum, goal) => sum + finite(goalMonthly(goal), 0), 0);
+    const lifeGoal = goalsList.find((g) => isLifeGoal(g));
+    const lifeMonthlyPremium = lifeGoal
+        ? finite(lifeGoal?.details?.annual_premium ?? lifeGoal?.summary?.initial_capital, 0) / 12
+        : 0;
+    const monthly = monthlyNonLife + lifeMonthlyPremium;
     if (pageIndex === 1) {
         return `<article class="finam-v2-page">
     ${tailPageHeader('Подробный план · 2/2')}
     ${detailedTableHtml(currentRows, helpers, 'Подробный план пополнений, продолжение')}
     <div class="finam-v2-tail__page-note"></div>
-    ${tailFooter('Продолжение календаря пополнений по всем целям без страхования жизни')}
+    ${tailFooter('Продолжение календаря пополнений по всем целям')}
   </article>`;
     }
     return `<article class="finam-v2-page">
@@ -2901,7 +2879,7 @@ function buildDetailedPlanArticle(model, helpers, pageIndex) {
       <div>
         <p class="finam-v2-wow__eyebrow">График пополнений</p>
         <h1 class="finam-v2-wow__headline">Таблица превращает стратегию в календарь действий</h1>
-        <p class="finam-v2-wow__lead">Первый месяц — текущий: в пополнении показан стартовый капитал по всем целям, кроме страхования жизни. Следующие строки показывают регулярные пополнения, вычеты, софинансирование и капитал из расчёта.</p>
+        <p class="finam-v2-wow__lead">Первый месяц — текущий: в пополнении суммирован первоначальный капитал по целям (как в отчёте v1) и годовая премия по страхованию жизни, если цель есть в плане. Дальше — помесячные строки из расчётного графика: регулярные пополнения, налоговые вычеты, софинансирование и накопленный капитал.</p>
       </div>
       <aside class="finam-v2-tail__kpi-stack">
         <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, totalInitial, { short: true })}</div><div class="finam-v2-tail__kpi-label">стартовый капитал в первом месяце</div></div>
@@ -2909,7 +2887,7 @@ function buildDetailedPlanArticle(model, helpers, pageIndex) {
       </aside>
     </section>
     ${detailedTableHtml(currentRows, helpers, 'Подробный план пополнений')}
-    <section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> таблица агрегирует календарь по всем накопительным и инвестиционным целям, без потока страхования жизни.</section>
+    <section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> таблица совпадает по логике с блоком «подробный план» v1: те же агрегированные строки по месяцам, включая контур страхования жизни.</section>
     ${tailFooter('Таблица строится по календарю пополнений клиента')}
   </article>`;
 }

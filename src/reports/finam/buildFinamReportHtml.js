@@ -2902,6 +2902,7 @@ module.exports = {
     resolveOtherGoalScenarioMeta,
     resolveOtherGoalTemplateFile,
     resolveGoalTemplateFile,
+    buildRepleneshmentRows,
     buildRepleneshmentPageHtml,
     buildFinamFullPageHtmlList,
     applyGoalFactsToTemplate,
