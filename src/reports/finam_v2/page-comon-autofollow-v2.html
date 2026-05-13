@@ -11,41 +11,40 @@
     href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
   />
   <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
-  <link rel="stylesheet" href="page-wow-shared.css?v=finam-v2-tail" />
+  <link rel="stylesheet" href="page-wow-shared.css?v=finam-v2-comon-single" />
   <style>
     body { flex-direction: column; align-items: center; gap: 32px; }
     @media print {
       body { padding: 0; gap: 0; }
-      article.finam-v2-page { page-break-after: always; }
-      article.finam-v2-page:last-child { page-break-after: auto; }
+      article.finam-v2-page { page-break-after: auto; }
     }
     @page { size: 595px 842px; margin: 0; }
   </style>
 </head>
 <body>
-  <article class="finam-v2-page">
+  <!-- Production: один лист; те же `comon_showcase.items[]`, что и в v1 buildFinamComonAutofollowCardsHtml (до 6 шт.). -->
+  <article class="finam-v2-page finam-v2-comon-page">
     <header class="finam-v2-wow__header">
       <div class="finam-v2-wow__header-left">
         <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
         <span class="finam-v2-wow__header-label">Финансовый план</span>
       </div>
-      <span class="finam-v2-wow__pill">Comon · 1/2</span>
+      <span class="finam-v2-wow__pill">Comon</span>
     </header>
     <hr class="finam-v2-wow__rule" />
 
-    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide">
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide finam-v2-comon__hero">
       <div>
         <p class="finam-v2-wow__eyebrow">Автоследование Comon</p>
         <h1 class="finam-v2-wow__headline">Стратегии, которые можно подключать как управляемый контур портфеля</h1>
-        <p class="finam-v2-wow__lead">
-          Comon помогает клиенту следовать выбранной стратегии без ручного повторения сделок.
-          В отчёте этот блок показывает не обещание доходности, а витрину вариантов для отдельного инвестиционного решения.
+        <p class="finam-v2-wow__lead finam-v2-comon__lead">
+          Автоследование повторяет сделки выбранной стратегии на вашем счёте без ручных заявок. Если в портфеле есть акции, это помогает держать дисциплину и ребаланс без лишних операций — подключается отдельным решением после сверки риска и горизонта.
         </p>
       </div>
       <aside class="finam-v2-tail__kpi-stack">
         <div class="finam-v2-tail__kpi">
           <div class="finam-v2-tail__kpi-value">6</div>
-          <div class="finam-v2-tail__kpi-label">примеров стратегий в подборке</div>
+          <div class="finam-v2-tail__kpi-label">стратегий в подборке</div>
         </div>
         <div class="finam-v2-tail__kpi">
           <div class="finam-v2-tail__kpi-value">12+ мес</div>
@@ -54,110 +53,79 @@
       </aside>
     </section>
 
-    <section class="finam-v2-wow__insight">
-      <strong>Как читаем блок:</strong> сначала сверяем риск-профиль, минимальный вход, комиссии и допустимую просадку. Только после этого стратегия может стать частью портфеля.
+    <section class="finam-v2-wow__insight finam-v2-comon__insight">
+      <strong>Как читаем блок:</strong> сверяем риск-профиль, минимальный вход, комиссии и просадку — затем решение о подключении.
     </section>
 
     <p class="finam-v2-tail__section-title">Карточки для первичного отбора</p>
-    <section class="finam-v2-tail__card-grid">
-      <article class="finam-v2-tail__product-card">
+
+    <section class="finam-v2-tail__card-grid finam-v2-comon__card-grid">
+      <article class="finam-v2-tail__product-card finam-v2-comon__product-card">
         <h2 class="finam-v2-tail__product-title">Умеренная стратегия</h2>
-        <p class="finam-v2-tail__product-text">Широкая диверсификация по ликвидным бумагам, ребалансировка по тренду раз в неделю.</p>
+        <p class="finam-v2-tail__product-text">Автор стратегии: витрина Comon</p>
         <div class="finam-v2-tail__chip-row">
           <span class="finam-v2-tail__chip">Мин. вход: 150 тыс ₽</span>
           <span class="finam-v2-tail__chip finam-v2-tail__chip--accent">+18,4% / 12 мес</span>
+          <span class="finam-v2-tail__chip">1 240 подписч.</span>
+          <a class="finam-v2-tail__chip finam-v2-comon__link" href="https://www.comon.ru" target="_blank" rel="noopener noreferrer">Смотреть на Comon</a>
         </div>
       </article>
-      <article class="finam-v2-tail__product-card">
+      <article class="finam-v2-tail__product-card finam-v2-comon__product-card">
         <h2 class="finam-v2-tail__product-title">Дивидендная стратегия</h2>
-        <p class="finam-v2-tail__product-text">Фокус на дивидендные истории и облигации, умеренные просадки, акцент на стабильности.</p>
+        <p class="finam-v2-tail__product-text">Автор стратегии: витрина Comon</p>
         <div class="finam-v2-tail__chip-row">
           <span class="finam-v2-tail__chip">Мин. вход: 100 тыс ₽</span>
           <span class="finam-v2-tail__chip finam-v2-tail__chip--accent">+13,1% / 12 мес</span>
+          <span class="finam-v2-tail__chip">860 подписч.</span>
+          <a class="finam-v2-tail__chip finam-v2-comon__link" href="https://www.comon.ru" target="_blank" rel="noopener noreferrer">Смотреть на Comon</a>
         </div>
       </article>
-      <article class="finam-v2-tail__product-card">
+      <article class="finam-v2-tail__product-card finam-v2-comon__product-card">
         <h2 class="finam-v2-tail__product-title">Стратегия роста</h2>
-        <p class="finam-v2-tail__product-text">Отбор лидеров роста и тактические входы. Подходит только при высокой терпимости к риску.</p>
+        <p class="finam-v2-tail__product-text">Автор стратегии: витрина Comon</p>
         <div class="finam-v2-tail__chip-row">
           <span class="finam-v2-tail__chip">Мин. вход: 250 тыс ₽</span>
           <span class="finam-v2-tail__chip finam-v2-tail__chip--accent">+26,7% / 12 мес</span>
+          <span class="finam-v2-tail__chip">420 подписч.</span>
+          <a class="finam-v2-tail__chip finam-v2-comon__link" href="https://www.comon.ru" target="_blank" rel="noopener noreferrer">Смотреть на Comon</a>
         </div>
       </article>
-    </section>
-
-    <section class="finam-v2-tail__note-card">
-      <p class="finam-v2-tail__section-title">Критерии отбора</p>
-      <ul class="finam-v2-tail__mini-list">
-        <li>Сравниваем риск стратегии с риск-профилем клиента и горизонтом конкретной цели.</li>
-        <li>Смотрим минимальный вход и не забираем деньги из финансового резерва.</li>
-        <li>Разделяем историческую доходность и ожидаемый результат: прошлое не гарантирует будущее.</li>
-      </ul>
-    </section>
-
-    <hr class="finam-v2-wow__footer-rule" />
-    <footer class="finam-v2-wow__footer">
-      <span>Персональный финансовый план · Конфиденциально</span>
-      <span class="finam-v2-wow__footer-right">Автоследование рассматривается после проверки риск-профиля</span>
-    </footer>
-  </article>
-
-  <article class="finam-v2-page">
-    <header class="finam-v2-wow__header">
-      <div class="finam-v2-wow__header-left">
-        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
-        <span class="finam-v2-wow__header-label">Финансовый план</span>
-      </div>
-      <span class="finam-v2-wow__pill">Comon · 2/2</span>
-    </header>
-    <hr class="finam-v2-wow__rule" />
-
-    <p class="finam-v2-wow__eyebrow">Продолжение подборки</p>
-    <h1 class="finam-v2-wow__headline">Стратегии остаются инструментом, а не заменой финансового плана</h1>
-    <p class="finam-v2-wow__lead">
-      Карточки из витрины Comon фильтруются под клиента. Раздел показывает формат сравнения перед отдельным инвестиционным решением.
-    </p>
-
-    <section class="finam-v2-tail__card-grid">
-      <article class="finam-v2-tail__product-card">
+      <article class="finam-v2-tail__product-card finam-v2-comon__product-card">
         <h2 class="finam-v2-tail__product-title">Стратегия голубых фишек</h2>
-        <p class="finam-v2-tail__product-text">Портфель крупных российских эмитентов с частичным хеджем в турбулентные фазы рынка.</p>
+        <p class="finam-v2-tail__product-text">Автор стратегии: витрина Comon</p>
         <div class="finam-v2-tail__chip-row">
           <span class="finam-v2-tail__chip">Мин. вход: 200 тыс ₽</span>
           <span class="finam-v2-tail__chip finam-v2-tail__chip--accent">+16,9% / 12 мес</span>
+          <span class="finam-v2-tail__chip">2 100 подписч.</span>
+          <a class="finam-v2-tail__chip finam-v2-comon__link" href="https://www.comon.ru" target="_blank" rel="noopener noreferrer">Смотреть на Comon</a>
         </div>
       </article>
-      <article class="finam-v2-tail__product-card">
+      <article class="finam-v2-tail__product-card finam-v2-comon__product-card">
         <h2 class="finam-v2-tail__product-title">Сбалансированная стратегия</h2>
-        <p class="finam-v2-tail__product-text">Смешанный подход: акции, фонды и облигации в рублёвом контуре с контролем доли риска.</p>
+        <p class="finam-v2-tail__product-text">Автор стратегии: витрина Comon</p>
         <div class="finam-v2-tail__chip-row">
           <span class="finam-v2-tail__chip">Мин. вход: 120 тыс ₽</span>
           <span class="finam-v2-tail__chip finam-v2-tail__chip--accent">+15,2% / 12 мес</span>
+          <span class="finam-v2-tail__chip">3 050 подписч.</span>
+          <a class="finam-v2-tail__chip finam-v2-comon__link" href="https://www.comon.ru" target="_blank" rel="noopener noreferrer">Смотреть на Comon</a>
         </div>
       </article>
-      <article class="finam-v2-tail__product-card">
+      <article class="finam-v2-tail__product-card finam-v2-comon__product-card">
         <h2 class="finam-v2-tail__product-title">Тактическая стратегия</h2>
-        <p class="finam-v2-tail__product-text">Краткосрочные сделки по импульсным сетапам. Нужна готовность к высокой просадке.</p>
+        <p class="finam-v2-tail__product-text">Автор стратегии: витрина Comon</p>
         <div class="finam-v2-tail__chip-row">
           <span class="finam-v2-tail__chip">Мин. вход: 300 тыс ₽</span>
           <span class="finam-v2-tail__chip finam-v2-tail__chip--accent">+31,0% / 12 мес</span>
+          <span class="finam-v2-tail__chip">190 подписч.</span>
+          <a class="finam-v2-tail__chip finam-v2-comon__link" href="https://www.comon.ru" target="_blank" rel="noopener noreferrer">Смотреть на Comon</a>
         </div>
       </article>
     </section>
 
-    <section class="finam-v2-tail__card-grid finam-v2-tail__card-grid--3">
-      <div class="finam-v2-tail__note-card">
-        <p class="finam-v2-tail__section-title">До подключения</p>
-        <p class="finam-v2-tail__body-text">Проверяем лимит риска, комиссии, минимальную сумму и ликвидность клиентского портфеля.</p>
-      </div>
-      <div class="finam-v2-tail__note-card">
-        <p class="finam-v2-tail__section-title">После подключения</p>
-        <p class="finam-v2-tail__body-text">Фиксируем дату контроля, максимальную просадку и правило отключения стратегии.</p>
-      </div>
-      <div class="finam-v2-tail__note-card">
-        <p class="finam-v2-tail__section-title">В отчёте</p>
-        <p class="finam-v2-tail__body-text">Показываем ссылку на стратегию и поясняем, что доходность историческая.</p>
-      </div>
+    <section class="finam-v2-comon__strip" aria-label="Этапы работы со стратегией">
+      <div class="finam-v2-comon__strip-item"><strong>До подключения</strong><span>Риск, комиссии, минимальная сумма, ликвидность портфеля.</span></div>
+      <div class="finam-v2-comon__strip-item"><strong>После подключения</strong><span>Контроль просадки, дата пересмотра, правило отключения.</span></div>
+      <div class="finam-v2-comon__strip-item"><strong>В отчёте</strong><span>Ссылка на стратегию; доходность — историческая, не обещание.</span></div>
     </section>
 
     <p class="finam-v2-tail__disclaimer finam-v2-tail__page-note">

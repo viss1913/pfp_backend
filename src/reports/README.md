@@ -29,8 +29,8 @@
 
 | Файл | Листов | Смысл |
 |------|------:|-------|
-| `finam_v2/page-comon-autofollow-v2.html` | 2 | Автоследование Comon из `report.comon_showcase.items[]` |
-| `finam_v2/page-idu-strategies-v2.html` | 2 | ДУ / стратегии Финам Фонды из v2-каталога |
+| `finam_v2/page-comon-autofollow-v2.html` | 1 | Автоследование Comon из `report.comon_showcase.items[]` (паритет с v1, до 6 стратегий) |
+| `finam_v2/page-idu-strategies-v2.html` | 1 | ДУ / стратегии Финам Фонды (каталог как v1), акцент на облигационный контур |
 | `finam_v2/page-finam-offers-v2.html` | 1 | Спецпредложения Финам |
 | `finam_v2/page-inflation-v2.html` | 1 | Инфляция и ставки из macro history |
 | `finam_v2/page-scenarios-v2.html` | 1 | Базовый / стресс / оптимистичный сценарии |

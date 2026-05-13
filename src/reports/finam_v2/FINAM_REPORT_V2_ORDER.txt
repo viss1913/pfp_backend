@@ -53,8 +53,8 @@ Finam Report v2 — порядок макетов (черновик).
   11. page-goal-other-v2.html — крупная покупка (квартира, дом, образование и т.д.), 2 листа в одном HTML
   12. page-portfolio-summary-v2.html — итоговый портфель: единая таблица структуры (старт/пополнение/доходность), ликвидность, риски, принципы, 2 листа в одном HTML
   13. page-tax-planning-v2.html — налоговое планирование: KPI, структура льгот, after-tax impact, compliance из overall_plan.tax_benefits, один лист
-  14. page-comon-autofollow-v2.html — автоследование Comon из report.comon_showcase.items, 2 листа в одном HTML
-  15. page-idu-strategies-v2.html — ДУ / стратегии Финам Фонды из v2-каталога, 2 листа в одном HTML
+  14. page-comon-autofollow-v2.html — автоследование Comon из report.comon_showcase.items (как v1, до 6 шт.), один лист
+  15. page-idu-strategies-v2.html — ДУ / стратегии Финам Фонды (каталог как v1), один лист, акцент на облигационный контур
   16. page-finam-offers-v2.html — спецпредложения Финам для новых клиентов
   17. page-inflation-v2.html — инфляция, ключевая ставка, ОФЗ и корпоративный облигационный контур из macro history
   18. page-scenarios-v2.html — базовый / стресс / оптимистичный сценарии

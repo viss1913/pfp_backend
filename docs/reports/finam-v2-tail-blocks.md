@@ -18,8 +18,8 @@ Production v2 берёт визуал из `page-*-v2.html`: `finamV2PageManifes
 
 | Порядок | Файл | Листов | Смысл |
 |---:|---|---:|---|
-| 14 | `page-comon-autofollow-v2.html` | 2 | Автоследование Comon: подборка из `report.comon_showcase.items`, критерии отбора, дисклеймер витрины |
-| 15 | `page-idu-strategies-v2.html` | 2 | Доверительное управление Финам Фонды: 9 стратегий из v2-каталога и ожидаемая доходность как ориентир витрины |
+| 14 | `page-comon-autofollow-v2.html` | 1 | Автоследование Comon: подборка из `report.comon_showcase.items` (как v1, до 6), один лист |
+| 15 | `page-idu-strategies-v2.html` | 1 | Доверительное управление Финам Фонды: 9 стратегий (паритет `FINAM_IDU_STRATEGIES_CATALOG` в v1), один лист, акцент на облигационный контур и купон |
 | 16 | `page-finam-offers-v2.html` | 1 | Спецпредложения Финам: «Финам Бонус» и «Выгодный переход» |
 | 17 | `page-inflation-v2.html` | 1 | Макроусловия: инфляция, ключевая ставка, ОФЗ, корпоративный облигационный контур из `macroService.getHistory()` |
 | 18 | `page-scenarios-v2.html` | 1 | Базовый / стресс / оптимистичный сценарии |
@@ -36,7 +36,7 @@ Goal-страницы стоят раньше: сразу после диагн�
 
 - `page-tax-planning-v2.html` берёт `overall_plan.tax_benefits` (`pds_benefits`, `iis_benefits`, `nsj_benefits`, `children_benefits`, `totals`) и строит KPI, таблицу льгот и график эффекта капитала с/без вычетов и софинансирования.
 - `page-comon-autofollow-v2.html` берёт `report.comon_showcase.items[]` и `report.comon_showcase.disclaimer_ru`; если витрина не передана, выводит честный no-data блок вместо моковых стратегий.
-- `page-idu-strategies-v2.html` использует локальный v2-каталог стратегий Финам Фонды по смыслу v1, но без импорта v1-шаблонов и классов.
+- `page-idu-strategies-v2.html` использует локальный каталог `FINAM_V2_IDU_STRATEGIES` в `finamV2TemplateAppliers.js`, синхронизированный с `FINAM_IDU_STRATEGIES_CATALOG` в `buildFinamReportHtml.js` (v1); один `article` на лист.
 - `page-inflation-v2.html` получает те же macro series, что v1: `cbr_key_rate`, `russia_cpi_inflation_yoy`, `moex_ofz_gcurve_2y`, `moex_ofz_gcurve_5y`, `moex_ofz_gcurve_10y`, `moex_rucbicp`. Если ряд пустой, показывается `н/д`, а не демо-цифра.
 - `page-detailed-plan-v2.html` агрегирует `goals_detailed[].details.monthly_schedule[]` по месяцам без `LIFE`: первый месяц — текущий и показывает сумму стартового капитала по всем не-LIFE целям в колонке `Пополнение`; дальше идут регулярные пополнения, налоговые вычеты, софинансирование и сумма капитала из целей. Второй лист является продолжением таблицы без отдельного смыслового блока.
 - `page-risk-declaration-v2.html` сохраняет юридический дисклеймер в конце: сначала берёт `riskDeclaration.legalNotes`, иначе использует fallback-текст про информационный характер, отсутствие ИИР, прошлую доходность и документы продуктов.

@@ -2877,32 +2877,64 @@ function displayNumber(value, fallback = '—') {
     return n == null ? fallback : n.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
 }
 
+/** Паритет с v1 `resolveComonStrategyPageUrl` в buildFinamReportHtml.js — те же поля и базовый URL. */
+function comonPublicBaseUrl() {
+    return String(process.env.COMON_BASE_URL || 'https://www.comon.ru').replace(/\/$/, '');
+}
+
+function resolveComonStrategyPageUrlFromItem(item) {
+    if (!item || typeof item !== 'object') return '';
+    const idNum = item.id != null ? Number(item.id) : NaN;
+    const base = comonPublicBaseUrl();
+    const pick = (v) => (v != null && String(v).trim() ? String(v).trim() : '');
+    let u = pick(item.url);
+    if (!u) u = pick(item.pageUrl);
+    if (!u) u = pick(item.link);
+    if (u.startsWith('/')) u = `${base}${u}`;
+    if (!u && Number.isFinite(idNum) && idNum > 0) u = `${base}/strategies/${idNum}`;
+    return u;
+}
+
+function formatComonYieldLine(item) {
+    const v = maybeFinite(item.profit365 ?? item.avgProfit);
+    if (v == null) return null;
+    const sign = v > 0 ? '+' : '';
+    return `${sign}${v.toFixed(1)}% / 12 мес`;
+}
+
 function normalizeComonItems(model) {
     const showcase = model?.comonShowcase || {};
-    const items = Array.isArray(showcase.items) ? showcase.items : Array.isArray(showcase.strategies) ? showcase.strategies : [];
-    return items.slice(0, 6).map((item) => ({
-        title: item.name || item.title || 'Стратегия Comon',
-        desc: item.description || [item.author ? `Автор: ${item.author}` : null, item.risk_level ? `риск: ${item.risk_level}` : null].filter(Boolean).join(', ') || 'Параметры стратегии берутся из витрины Comon.',
-        url: item.url || item.link || '',
+    const raw = Array.isArray(showcase.items)
+        ? showcase.items
+        : Array.isArray(showcase.strategies)
+            ? showcase.strategies
+            : [];
+    return raw.slice(0, 6).map((item) => ({
+        title: item.name || item.title || 'Стратегия',
+        desc: String(item.description || '').trim()
+            || (item.author ? `Автор стратегии: ${item.author}` : 'Актуальная стратегия автоследования на платформе Comon.'),
+        url: resolveComonStrategyPageUrlFromItem(item),
         minSum: maybeFinite(item.min_sum ?? item.minSum),
         profit365: maybeFinite(item.profit_365_days_percent ?? item.profit365DaysPercent),
         avgProfit: maybeFinite(item.annual_average_profit_percent ?? item.annualAverageProfitPercent),
         followers: maybeFinite(item.follower_count ?? item.followers),
         rating: maybeFinite(item.strategy_rating ?? item.rating),
+        riskLevel: item.risk_level ?? item.riskLevel,
         tags: Array.isArray(item.tags) ? item.tags : [],
     }));
 }
 
 function comonCardHtml(item) {
-    const yieldValue = item.profit365 ?? item.avgProfit;
-    const link = item.url ? `<a class="finam-v2-tail__chip" href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer">Смотреть</a>` : '';
+    const yieldLine = formatComonYieldLine(item);
+    const link = item.url
+        ? `<a class="finam-v2-tail__chip finam-v2-comon__link" href="${escapeAttr(item.url)}" target="_blank" rel="noopener noreferrer">Смотреть на Comon</a>`
+        : '';
     const meta = [
         item.minSum != null ? `Мин. вход: ${formatMoneyWith({}, item.minSum, { short: true })}` : null,
-        yieldValue != null ? `${displayNumber(yieldValue)}% / 12 мес` : null,
+        yieldLine,
         item.followers != null ? `${Math.round(item.followers).toLocaleString('ru-RU')} подписч.` : null,
-        item.rating != null ? `рейтинг ${displayNumber(item.rating)}` : null,
     ].filter(Boolean);
-    return `<article class="finam-v2-tail__product-card">
+    return `<article class="finam-v2-tail__product-card finam-v2-comon__product-card">
         <h2 class="finam-v2-tail__product-title">${escapeHtml(item.title)}</h2>
         <p class="finam-v2-tail__product-text">${escapeHtml(item.desc)}</p>
         <div class="finam-v2-tail__chip-row">
@@ -2912,101 +2944,98 @@ function comonCardHtml(item) {
       </article>`;
 }
 
-function buildComonArticle(model, pageIndex) {
+function buildComonSinglePage(model) {
     const items = normalizeComonItems(model);
-    const chunk = pageIndex === 1 ? items.slice(3, 6) : items.slice(0, 3);
-    const disclaimer = String(model?.comonShowcase?.disclaimer_ru || '').trim() ||
-        'Историческая доходность стратегий Comon не гарантирует результат в будущем. Подключение стратегии требует отдельного клиентского решения и проверки документов.';
-    if (pageIndex === 1) {
-        return `<article class="finam-v2-page">
-    ${tailPageHeader('Comon · 2/2')}
-    <p class="finam-v2-wow__eyebrow">Продолжение подборки</p>
-    <h1 class="finam-v2-wow__headline">Стратегии остаются инструментом, а не заменой финансового плана</h1>
-    <p class="finam-v2-wow__lead">Карточки подставляются из витрины Comon. Перед подключением клиент отдельно сверяет риск, комиссии и документы.</p>
-    <section class="finam-v2-tail__card-grid">${chunk.map(comonCardHtml).join('\n      ') || '<article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Данные Comon</p><p class="finam-v2-tail__body-text">Дополнительные стратегии не переданы в расчёте.</p></article>'}</section>
-    <section class="finam-v2-tail__card-grid finam-v2-tail__card-grid--3">
-      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">До подключения</p><p class="finam-v2-tail__body-text">Проверяем лимит риска, комиссии, минимальную сумму и ликвидность клиентского портфеля.</p></div>
-      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">После подключения</p><p class="finam-v2-tail__body-text">Фиксируем дату контроля, максимальную просадку и правило отключения стратегии.</p></div>
-      <div class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">В отчёте</p><p class="finam-v2-tail__body-text">Показываем ссылку на стратегию и поясняем, что доходность историческая.</p></div>
+    const disclaimer = String(model?.comonShowcase?.disclaimer_ru || '').trim()
+        || 'Историческая доходность стратегий Comon не гарантирует результат в будущем. Подключение стратегии требует отдельного клиентского решения и проверки документов.';
+    const cards = items.length
+        ? items.map(comonCardHtml).join('\n      ')
+        : '<article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Данные Comon</p><p class="finam-v2-tail__body-text">Витрина стратегий не передана в расчёте или временно недоступна.</p></article>';
+    return `<article class="finam-v2-page finam-v2-comon-page">
+    ${tailPageHeader('Comon')}
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide finam-v2-comon__hero">
+      <div>
+        <p class="finam-v2-wow__eyebrow">Автоследование Comon</p>
+        <h1 class="finam-v2-wow__headline">Стратегии, которые можно подключать как управляемый контур портфеля</h1>
+        <p class="finam-v2-wow__lead finam-v2-comon__lead">Автоследование повторяет сделки выбранной стратегии на вашем счёте без ручных заявок. Если в портфеле есть акции, это помогает держать дисциплину и ребаланс без лишних операций — подключается отдельным решением после сверки риска и горизонта.</p>
+      </div>
+      <aside class="finam-v2-tail__kpi-stack">
+        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${items.length}</div><div class="finam-v2-tail__kpi-label">стратегий в подборке</div></div>
+        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">12+ мес</div><div class="finam-v2-tail__kpi-label">разумный горизонт оценки</div></div>
+      </aside>
+    </section>
+    <section class="finam-v2-wow__insight finam-v2-comon__insight"><strong>Как читаем блок:</strong> сверяем риск-профиль, минимальный вход, комиссии и просадку — затем решение о подключении.</section>
+    <p class="finam-v2-tail__section-title">Карточки для первичного отбора</p>
+    <section class="finam-v2-tail__card-grid finam-v2-comon__card-grid">${cards}</section>
+    <section class="finam-v2-comon__strip" aria-label="Этапы работы со стратегией">
+      <div class="finam-v2-comon__strip-item"><strong>До подключения</strong><span>Риск, комиссии, минимальная сумма, ликвидность портфеля.</span></div>
+      <div class="finam-v2-comon__strip-item"><strong>После подключения</strong><span>Контроль просадки, дата пересмотра, правило отключения.</span></div>
+      <div class="finam-v2-comon__strip-item"><strong>В отчёте</strong><span>Ссылка на стратегию; доходность — историческая, не обещание.</span></div>
     </section>
     <p class="finam-v2-tail__disclaimer finam-v2-tail__page-note">${escapeHtml(disclaimer)}</p>
     ${tailFooter('Информация не является индивидуальной инвестиционной рекомендацией')}
   </article>`;
-    }
-    return `<article class="finam-v2-page">
-    ${tailPageHeader('Comon · 1/2')}
-    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide">
-      <div><p class="finam-v2-wow__eyebrow">Автоследование Comon</p><h1 class="finam-v2-wow__headline">Стратегии, которые можно подключать как управляемый контур портфеля</h1><p class="finam-v2-wow__lead">Блок показывает витрину вариантов для отдельного инвестиционного решения: риск, минимальный вход, историческую доходность и ссылку на стратегию.</p></div>
-      <aside class="finam-v2-tail__kpi-stack"><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${items.length}</div><div class="finam-v2-tail__kpi-label">стратегий в подборке</div></div><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">12+ мес</div><div class="finam-v2-tail__kpi-label">разумный горизонт оценки</div></div></aside>
-    </section>
-    <section class="finam-v2-wow__insight"><strong>Как читаем блок:</strong> сначала сверяем риск-профиль, минимальный вход, комиссии и допустимую просадку. Только после этого стратегия может стать частью портфеля.</section>
-    <p class="finam-v2-tail__section-title">Карточки для первичного отбора</p>
-    <section class="finam-v2-tail__card-grid">${chunk.map(comonCardHtml).join('\n      ') || '<article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Данные Comon</p><p class="finam-v2-tail__body-text">Витрина стратегий не передана в расчёте.</p></article>'}</section>
-    <section class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Критерии отбора</p><ul class="finam-v2-tail__mini-list"><li>Сравниваем риск стратегии с риск-профилем клиента и горизонтом конкретной цели.</li><li>Смотрим минимальный вход и не забираем деньги из финансового резерва.</li><li>Разделяем историческую доходность и ожидаемый результат: прошлое не гарантирует будущее.</li></ul></section>
-    ${tailFooter('Автоследование рассматривается после проверки риск-профиля')}
-  </article>`;
 }
 
 function replaceComonAutofollowPage(html, context) {
-    return replaceFinamV2PageArticles(html, (article, index) => {
-        const pageIndex = /Comon\s*·\s*2\/2/.test(article) ? 1 : index;
-        return buildComonArticle(context.model, pageIndex);
-    });
+    return replaceFinamV2PageArticles(html, () => buildComonSinglePage(context.model));
 }
 
+/** Паритет с `FINAM_IDU_STRATEGIES_CATALOG` в buildFinamReportHtml.js (v1 ИДУ). */
 const FINAM_V2_IDU_STRATEGIES = [
     { name: 'Валютная CNY', slug: 'currency-cny', yieldLabel: '10%', desc: 'Юаневые облигации эмитентов российского рынка.' },
     { name: 'Новая Синергия', slug: 'synergy-new', yieldLabel: '55%', desc: 'Диверсификация и алгоритмы; на сайте также «Синергия NEW».' },
     { name: 'M2 Всепогодная', slug: 'm2-all-weather', yieldLabel: '30%', desc: 'Облигации, акции, ОФЗ и алгоритмическая торговля фьючерсами.' },
-    { name: 'Алготраст', slug: 'algotrust', yieldLabel: '30%', desc: 'Автоматизированная торговля ликвидными фьючерсами Московской биржи.' },
-    { name: 'Ключевая ставка', slug: 'key-rate', yieldLabel: '45%', desc: 'ОФЗ и сценарии вокруг ключевой ставки Центрального банка.' },
-    { name: 'Валютный депозит', slug: 'currency-deposit', yieldLabel: '20%', desc: 'Инвалютные инструменты и выплаты по курсу ЦБ.' },
-    { name: 'Инвестиционный прирост', slug: 'investment-growth', yieldLabel: '18%', desc: 'Подход PAA: акции, облигации и денежный рынок РФ.' },
-    { name: 'Облигационная Максимум', slug: 'bond-maximum', yieldLabel: '20%', desc: 'Российские облигации и реинвестирование купонов.' },
-    { name: 'Авторская стратегия Юлии Афанасьевой', slug: null, yieldLabel: '33%', desc: 'Российские акции и облигации; актуальные параметры сверяются с витриной ДУ.' },
+    { name: 'Алготраст', slug: 'algotrust', yieldLabel: '30%', desc: 'Автоматизированная торговля ликвидными фьючерсами Мосбиржи.' },
+    { name: 'Ключевая ставка', slug: 'key-rate', yieldLabel: '45%', desc: 'ОФЗ и сценарии вокруг ключевой ставки ЦБ.' },
+    { name: 'Валютный депозит', slug: 'currency-deposit', yieldLabel: '20%', desc: 'Инвалютные инструменты, выплаты по курсу ЦБ.' },
+    { name: 'Инвестиционный прирост', slug: 'investment-growth', yieldLabel: '18%', desc: 'PAA: акции, облигации и денежный рынок РФ.' },
+    { name: 'Облигационная Максимум', slug: 'bond-maximum', yieldLabel: '20%', desc: 'Российские облигации, реинвестирование купонов.' },
+    { name: 'Авторская стратегия Юлии Афанасьевой', slug: null, yieldLabel: '33%', desc: 'Российские акции и облигации; страница — с витрины ДУ на сайте.' },
 ];
 
 function iduCardHtml(item) {
     const url = item.slug ? `https://funds.finam.ru/idu/${item.slug}/` : 'https://funds.finam.ru/';
-    return `<article class="finam-v2-tail__product-card">
+    const linkLabel = item.slug ? 'Подробнее' : 'Витрина ДУ';
+    return `<article class="finam-v2-tail__product-card finam-v2-idu__product-card">
         <h2 class="finam-v2-tail__product-title">${escapeHtml(item.name)}</h2>
         <p class="finam-v2-tail__product-text">${escapeHtml(item.desc)}</p>
-        <div class="finam-v2-tail__chip-row"><span class="finam-v2-tail__chip finam-v2-tail__chip--accent">Ожид. доходность: ${escapeHtml(item.yieldLabel)}</span><a class="finam-v2-tail__chip" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">Подробнее</a></div>
+        <div class="finam-v2-tail__chip-row"><span class="finam-v2-tail__chip finam-v2-tail__chip--accent">Ожид. доходность: ${escapeHtml(item.yieldLabel)}</span><a class="finam-v2-tail__chip finam-v2-idu__link" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(linkLabel)}</a></div>
       </article>`;
 }
 
-function buildIduArticle(pageIndex) {
-    const chunk = pageIndex === 1 ? FINAM_V2_IDU_STRATEGIES.slice(5) : FINAM_V2_IDU_STRATEGIES.slice(0, 5);
-    if (pageIndex === 1) {
-        return `<article class="finam-v2-page">
-    ${tailPageHeader('ДУ · 2/2')}
-    <p class="finam-v2-wow__eyebrow">Продолжение витрины</p>
-    <h1 class="finam-v2-wow__headline">ДУ выбирается под задачу капитала, а не по самой крупной цифре доходности</h1>
-    <p class="finam-v2-wow__lead">Для v2 показываем роль стратегии, риск, горизонт, валюту и ограничение по доле в портфеле.</p>
-    <section class="finam-v2-tail__card-grid">${chunk.map(iduCardHtml).join('\n      ')}
-      <article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Контроль доли</p><p class="finam-v2-tail__body-text">ДУ не должно съедать резерв и короткие цели. Доля ограничивается горизонтом и готовностью клиента к просадке.</p></article>
-      <article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Следующий шаг</p><p class="finam-v2-tail__body-text">После выбора кандидатов менеджер сверяет актуальные условия на сайте Финам Фонды и оформляет решение отдельно.</p></article>
+function buildIduSinglePage() {
+    const strategies = FINAM_V2_IDU_STRATEGIES;
+    const cards = strategies.map(iduCardHtml).join('\n      ');
+    const disclaimer = 'Ожидаемая доходность, минимальные суммы и описания стратегий являются ориентиром витрины. Они не заменяют договор, регламент доверительного управления и проверку актуальных условий.';
+    return `<article class="finam-v2-page finam-v2-idu-page">
+    ${tailPageHeader('ДУ')}
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide finam-v2-idu__hero">
+      <div>
+        <p class="finam-v2-wow__eyebrow">Доверительное управление</p>
+        <h1 class="finam-v2-wow__headline">Стратегии Финам Фонды для облигационного контура портфеля</h1>
+        <p class="finam-v2-wow__lead finam-v2-idu__lead">Витрина ДУ в первую очередь закрывает задачу купонного потока, ставки и ОФЗ: управляющий ведёт бумажный контур вместо самостоятельного набора облигаций. Для портфеля с акциями (в т.ч. через автоследование) это отдельный слой по чувствительности к ставке, не конкурирующий с «долей роста». Ожидаемые доходности ниже — маркетинговые ориентиры сайта, не расчёт финплана.</p>
+      </div>
+      <aside class="finam-v2-tail__kpi-stack">
+        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${strategies.length}</div><div class="finam-v2-tail__kpi-label">стратегий в справочнике</div></div>
+        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">ОФЗ · купон</div><div class="finam-v2-tail__kpi-label">типичный фокус витрины ДУ</div></div>
+      </aside>
     </section>
-    <p class="finam-v2-tail__disclaimer finam-v2-tail__page-note">Ожидаемая доходность, минимальные суммы и описания стратегий являются ориентиром витрины. Они не заменяют договор, регламент доверительного управления и проверку актуальных условий.</p>
+    <section class="finam-v2-wow__insight finam-v2-idu__insight"><strong>Смысл блока:</strong> отбирать стратегию по роли в облигационной части портфеля и допустимой доле, а не по максимальной цифре доходности на баннере.</section>
+    <p class="finam-v2-tail__section-title">Стратегии ДУ — ориентиры витрины</p>
+    <section class="finam-v2-tail__card-grid finam-v2-idu__card-grid">${cards}</section>
+    <section class="finam-v2-idu__strip" aria-label="Облигационный контур и ДУ">
+      <div class="finam-v2-idu__strip-item"><strong>До решения</strong><span>Доля облигаций, дюрация, валюта, комиссии и лимит в общем портфеле.</span></div>
+      <div class="finam-v2-idu__strip-item"><strong>В портфеле</strong><span>Слой купона и ставки; не выводим деньги из резерва и коротких целей.</span></div>
+      <div class="finam-v2-idu__strip-item"><strong>Документы</strong><span>Договор ДУ и актуальные условия на funds.finam.ru перед подключением.</span></div>
+    </section>
+    <p class="finam-v2-tail__disclaimer finam-v2-tail__page-note">${escapeHtml(disclaimer)}</p>
     ${tailFooter('Информация не является индивидуальной инвестиционной рекомендацией')}
-  </article>`;
-    }
-    return `<article class="finam-v2-page">
-    ${tailPageHeader('ДУ · 1/2')}
-    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide">
-      <div><p class="finam-v2-wow__eyebrow">Доверительное управление</p><h1 class="finam-v2-wow__headline">Стратегии Финам Фонды как отдельный управляемый слой капитала</h1><p class="finam-v2-wow__lead">Блок ДУ показывает витрину решений, где управление портфелем передаётся профессиональному управляющему. Доходности ниже — ориентиры витрины, а не расчёт финансового плана.</p></div>
-      <aside class="finam-v2-tail__kpi-stack"><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${FINAM_V2_IDU_STRATEGIES.length}</div><div class="finam-v2-tail__kpi-label">стратегий в справочнике</div></div><div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">ДУ</div><div class="finam-v2-tail__kpi-label">отдельно от Comon</div></div></aside>
-    </section>
-    <section class="finam-v2-tail__card-grid">${chunk.map(iduCardHtml).join('\n      ')}<article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Как использовать</p><p class="finam-v2-tail__body-text">Сначала выбираем роль стратегии в плане: валютный слой, облигационный контур, мультиактивный рост или тактический риск.</p></article></section>
-    ${tailFooter('Ожидаемая доходность не является гарантией результата')}
   </article>`;
 }
 
 function replaceIduStrategiesPage(html) {
-    return replaceFinamV2PageArticles(html, (article, index) => {
-        const pageIndex = /ДУ\s*·\s*2\/2/.test(article) ? 1 : index;
-        return buildIduArticle(pageIndex);
-    });
+    return replaceFinamV2PageArticles(html, (_article, index) => (index === 0 ? buildIduSinglePage() : ''));
 }
 
 function macroValue(row) {
