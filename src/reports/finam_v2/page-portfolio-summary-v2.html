@@ -173,11 +173,14 @@
       margin-bottom: 10px;
     }
 
+    /* Слева столбик диаграмм, справа таблица (явные области). */
     .finam-v2-portfolio__structure--split {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(148px, 168px);
+      grid-template-columns: minmax(176px, 198px) minmax(0, 1fr);
+      grid-template-areas: "pf-charts pf-table";
       gap: 10px;
       align-items: start;
+      direction: ltr;
     }
 
     .finam-v2-portfolio__table-card--unified {
@@ -185,12 +188,21 @@
       min-width: 0;
     }
 
+    .finam-v2-portfolio__structure--split > .finam-v2-portfolio__table-card--unified {
+      grid-area: pf-table;
+    }
+
     .finam-v2-portfolio__donut-stack {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      min-width: 0;
+      min-width: 176px;
+      width: 100%;
       align-self: start;
+    }
+
+    .finam-v2-portfolio__structure--split > .finam-v2-portfolio__donut-stack {
+      grid-area: pf-charts;
     }
 
     .finam-v2-portfolio__donut-card--split {
@@ -206,19 +218,19 @@
     }
 
     .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut {
-      width: 72px;
-      height: 72px;
+      width: 86px;
+      height: 86px;
       margin: 0 auto;
     }
 
     .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut-center {
-      inset: 13px;
-      font-size: 8px;
+      inset: 15px;
+      font-size: 8.5px;
     }
 
     .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut-center small {
       margin-top: 2px;
-      font-size: 7px;
+      font-size: 7.5px;
     }
 
     .finam-v2-portfolio__donut--dynamic {
