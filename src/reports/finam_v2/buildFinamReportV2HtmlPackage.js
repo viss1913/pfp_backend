@@ -609,18 +609,31 @@ function buildExecutiveDecision({ cashflowDiagnostics, goalsDiagnostics, current
     };
 }
 
+/** НСЖ/ИСЖ и аналоги: доходность в отчёте не задаём и не включаем в средневзвешенную по портфелю. */
+function isLifeInsuranceProduct(nameRaw, productTypeRaw) {
+    const pt = String(productTypeRaw || '').toUpperCase().trim();
+    if (pt && /NSJ|ИСЖ|НСЖ|INSURANCE|LIFE_INSURANCE/i.test(pt)) return true;
+    const text = `${nameRaw || ''}`.toLowerCase();
+    return /нсж|исж|страхован|страховка|подушка безопасности|(\s|^)жизн(и|ь)(\s|,|$)/i.test(text)
+        || /\blife insurance\b/i.test(text);
+}
+
 function allocationFromPortfolio(items, totalValue, { monthly = false } = {}) {
     const list = Array.isArray(items) ? items : [];
     const rows = list
         .map((item) => {
+            const nameForKind = item.name || item.assetClass || 'Инструмент';
             const percent = toFiniteNumber(item.share_percent ?? item.share ?? item.value, 0);
             const value = toFiniteNumber(item.amount, Number.isFinite(Number(totalValue)) ? (totalValue * percent) / 100 : 0);
+            let yieldPercent = item.yield_percent ?? item.yield;
+            if (isLifeInsuranceProduct(nameForKind, item.product_type)) yieldPercent = null;
             return {
-                label: item.name || item.assetClass || 'Инструмент',
+                label: nameForKind,
                 percent,
                 value,
-                yieldPercent: item.yield_percent ?? item.yield,
-                role: portfolioAssetRole(item.name || item.assetClass, item.product_type),
+                yieldPercent,
+                productType: item.product_type ?? null,
+                role: portfolioAssetRole(nameForKind, item.product_type),
             };
         })
         .filter((item) => item.percent > 0 || item.value > 0);
@@ -680,6 +693,7 @@ function totalProjectedCapitalFromGoals(goals) {
 
 function weightedYieldFromRows(rows, fallbackWeight = 0, weightMultiplier = 1) {
     return (Array.isArray(rows) ? rows : []).reduce((acc, row) => {
+        if (isLifeInsuranceProduct(row?.name, row?.product_type)) return acc;
         const yieldPercent = toFiniteNumber(row?.yield_percent ?? row?.yield, NaN);
         if (!Number.isFinite(yieldPercent)) return acc;
         const baseWeight = toFiniteNumber(row?.amount, 0) || (fallbackWeight > 0 ? (fallbackWeight * toFiniteNumber(row?.share_percent ?? row?.share, 0)) / 100 : 0);
@@ -700,6 +714,7 @@ function calculatePortfolioYield({ portfolio, initialTotal, monthlyTotal, goals 
     }
 
     const goalYield = (Array.isArray(goals) ? goals : []).reduce((acc, goal) => {
+        if (goalType(goal) === 'LIFE' || goalTypeId(goal) === 5) return acc;
         const y = toFiniteNumber(goal?.summary?.accumulation_yield_percent ?? goal?.pdf_metrics?.portfolio_yield_percent, NaN);
         if (!Number.isFinite(y)) return acc;
         const weight = Math.max(toFiniteNumber(pickGoalCapital(goal), 0), toFiniteNumber(pickGoalInitial(goal), 0), 1);
@@ -751,7 +766,9 @@ function buildCombinedAllocation(initialAllocation, monthlyAllocation, monthlyTo
         const row = byName.get(label);
         const value = toFiniteNumber(item?.value, 0) * multiplier;
         row.value += value;
-        const y = toFiniteNumber(item?.yieldPercent, NaN);
+        const y = isLifeInsuranceProduct(label, item?.productType)
+            ? NaN
+            : toFiniteNumber(item?.yieldPercent, NaN);
         if (Number.isFinite(y) && value > 0) row.weightedYield += value * y;
     };
     (Array.isArray(initialAllocation) ? initialAllocation : []).forEach((item) => add(item));

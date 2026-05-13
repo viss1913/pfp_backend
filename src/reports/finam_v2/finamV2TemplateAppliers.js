@@ -2008,41 +2008,140 @@ function compactPortfolioRows(rows, maxRows, colors) {
     ];
 }
 
-function portfolioDonutHtml({ title, sub, centerValue, centerSub, rows, monthly = false }) {
-    const safeRows = normalizePortfolioRows(rows, 0, 5);
-    const note = safeRows.length
-        ? safeRows.slice(0, 4).map((row) => `${Math.round(finite(row.percent, 0))}% ${row.label}`).join(' · ')
-        : 'структура будет показана после расчёта';
-    return `<div class="finam-v2-portfolio__donut-card">
-          <p class="finam-v2-portfolio__section-kicker">${escapeHtml(title)}</p>
-          <div class="finam-v2-portfolio__donut-row">
-            <div class="finam-v2-portfolio__donut${monthly ? ' finam-v2-portfolio__donut--monthly' : ''}" style="background: transparent;" aria-hidden="true">
-              ${buildDonutSvg(safeRows, 'finam-v2-portfolio__donut-svg')}
-              <div class="finam-v2-portfolio__donut-center">${escapeHtml(centerValue)}<small>${escapeHtml(centerSub)}</small></div>
-            </div>
-            <div>
-              <div class="finam-v2-portfolio__donut-title">${escapeHtml(sub)}</div>
-              <p class="finam-v2-portfolio__donut-note">${escapeHtml(note)}.</p>
-            </div>
-          </div>
-        </div>`;
+/** Должно совпадать с логикой `isLifeInsuranceProduct` в buildFinamReportV2HtmlPackage.js */
+function isLifeInsuranceInstrument(nameRaw, productTypeRaw) {
+    const pt = String(productTypeRaw || '').toUpperCase().trim();
+    if (pt && /NSJ|ИСЖ|НСЖ|INSURANCE|LIFE_INSURANCE/i.test(pt)) return true;
+    const text = `${nameRaw || ''}`.toLowerCase();
+    return /нсж|исж|страхован|страховка|подушка безопасности|(\s|^)жизн(и|ь)(\s|,|$)/i.test(text)
+        || /\blife insurance\b/i.test(text);
 }
 
-function portfolioAllocationTableHtml(rows, helpers) {
-    const safeRows = normalizePortfolioRows(rows, 0, 6);
-    const body = safeRows.map((row) => `<tr>
+function buildUnifiedPortfolioRows(portfolio) {
+    const p = portfolio || {};
+    const colors = ['#002a4a', '#1e6bb8', '#7aa6d6', '#9fb7ca', '#cbd5e1', '#0f766e'];
+    const initialItems = Array.isArray(p.initialAllocation) ? p.initialAllocation : [];
+    const monthlyItems = Array.isArray(p.monthlyAllocation) ? p.monthlyAllocation : [];
+
+    const byLabel = new Map();
+    const upsert = (labelRaw, patch) => {
+        const label = String(labelRaw || 'Инструмент').trim() || 'Инструмент';
+        const row = byLabel.get(label) || {
+            label,
+            color: colors[byLabel.size % colors.length],
+            initialPct: null,
+            monthlyPct: null,
+            initialVal: 0,
+            monthlyVal: 0,
+            yieldPercent: null,
+            productType: null,
+        };
+        Object.assign(row, patch);
+        byLabel.set(label, row);
+    };
+
+    initialItems.forEach((item) => {
+        const label = item.label || item.name || item.assetClass || 'Инструмент';
+        const pt = item.productType ?? item.product_type ?? null;
+        const y = maybeFinite(item.yieldPercent ?? item.yield_percent ?? item.yield);
+        const insurance = isLifeInsuranceInstrument(label, pt);
+        upsert(label, {
+            initialPct: finite(item.percent, 0),
+            initialVal: finite(item.value ?? item.amount, 0),
+            ...(pt != null ? { productType: pt } : {}),
+            ...(y != null && !insurance ? { yieldPercent: y } : {}),
+        });
+    });
+
+    monthlyItems.forEach((item) => {
+        const label = item.label || item.name || item.assetClass || 'Инструмент';
+        const existing = byLabel.get(label);
+        const pt = item.productType ?? item.product_type ?? existing?.productType ?? null;
+        const y = maybeFinite(item.yieldPercent ?? item.yield_percent ?? item.yield);
+        const insurance = isLifeInsuranceInstrument(label, pt);
+        upsert(label, {
+            monthlyPct: finite(item.percent, 0),
+            monthlyVal: finite(item.value ?? item.amount, 0),
+            ...(pt != null ? { productType: pt } : {}),
+            ...(existing?.yieldPercent == null && y != null && !insurance ? { yieldPercent: y } : {}),
+        });
+    });
+
+    let rows = [...byLabel.values()].filter(
+        (r) => finite(r.initialPct, 0) > 0 || finite(r.monthlyPct, 0) > 0 || finite(r.initialVal, 0) > 0 || finite(r.monthlyVal, 0) > 0
+    );
+    rows.sort((a, b) => {
+        const score = (r) => finite(r.initialVal, 0) + finite(r.monthlyVal, 0) * 12;
+        return score(b) - score(a);
+    });
+    rows.forEach((r, idx) => {
+        r.color = colors[idx % colors.length];
+    });
+
+    const maxRows = 6;
+    if (rows.length > maxRows) {
+        const head = rows.slice(0, maxRows - 1);
+        const tail = rows.slice(maxRows - 1);
+        const weightedYield = () => {
+            let wSum = 0;
+            let weight = 0;
+            tail.forEach((r) => {
+                const y = maybeFinite(r.yieldPercent);
+                if (y == null || isLifeInsuranceInstrument(r.label, r.productType)) return;
+                const w = finite(r.initialVal, 0) + finite(r.monthlyVal, 0) * 12;
+                if (w <= 0) return;
+                wSum += w * y;
+                weight += w;
+            });
+            return weight > 0 ? Math.round((wSum / weight) * 10) / 10 : null;
+        };
+        rows = [
+            ...head,
+            {
+                label: 'Прочее',
+                color: colors[(maxRows - 1) % colors.length],
+                initialPct: tail.reduce((s, r) => s + finite(r.initialPct, 0), 0),
+                monthlyPct: tail.reduce((s, r) => s + finite(r.monthlyPct, 0), 0),
+                initialVal: tail.reduce((s, r) => s + finite(r.initialVal, 0), 0),
+                monthlyVal: tail.reduce((s, r) => s + finite(r.monthlyVal, 0), 0),
+                yieldPercent: weightedYield(),
+            },
+        ];
+    }
+
+    return rows;
+}
+
+function portfolioUnifiedTableHtml(portfolio) {
+    const rows = buildUnifiedPortfolioRows(portfolio);
+    const p = portfolio || {};
+    const hasInitial = finite(p.initialTotal, 0) > 0;
+    const hasMonthly = finite(p.monthlyTotal, 0) > 0;
+
+    const body = rows.map((row) => {
+        const initCell = !hasInitial || row.initialPct == null || finite(row.initialPct, 0) <= 0
+            ? '—'
+            : formatPercentHtml(row.initialPct);
+        const monthCell = !hasMonthly || row.monthlyPct == null || finite(row.monthlyPct, 0) <= 0
+            ? '—'
+            : formatPercentHtml(row.monthlyPct);
+        const hideYield = isLifeInsuranceInstrument(row.label, row.productType);
+        const yieldCell = hideYield || maybeFinite(row.yieldPercent) == null ? '—' : formatPercentHtml(row.yieldPercent);
+        return `<tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:${safeCssColor(row.color, '#94a3b8')};"></span>${escapeHtml(row.label)}</span></td>
-              <td class="finam-v2-portfolio__num">${formatPercentHtml(row.percent)}</td>
-              <td class="finam-v2-portfolio__num">${moneyHtml(helpers, row.amount, { short: true })}</td>
-              <td>${escapeHtml(row.role)}</td>
-            </tr>`).join('\n');
-    return `<table class="finam-v2-portfolio__table">
+              <td class="finam-v2-portfolio__num">${initCell}</td>
+              <td class="finam-v2-portfolio__num">${monthCell}</td>
+              <td class="finam-v2-portfolio__num">${yieldCell}</td>
+            </tr>`;
+    }).join('\n');
+
+    return `<table class="finam-v2-portfolio__table finam-v2-portfolio__table--unified">
           <thead>
             <tr>
-              <th>Класс</th>
-              <th>Доля</th>
-              <th>Сумма</th>
-              <th>Роль</th>
+              <th>Инструмент</th>
+              <th>Первоначальный капитал</th>
+              <th>Пополнение</th>
+              <th>Доходность</th>
             </tr>
           </thead>
           <tbody>
@@ -2083,20 +2182,79 @@ function portfolioKpiHtml(model, helpers) {
     </section>`;
 }
 
+/**
+ * Ряд вклада цели в суммарный капитал: после достижения цели не обнуляем капитал в графике —
+ * сохраняем последний положительный total_capital для всех последующих месяцев на шкале отчёта.
+ */
+function buildGoalCarriedContributionSteps(schedule) {
+    const rows = (Array.isArray(schedule) ? schedule : [])
+        .map((row) => {
+            const date = normalizeDate(row?.date);
+            const raw = maybeFinite(row?.total_capital ?? row?.capital ?? row?.balance);
+            return date && raw != null && raw >= 0 ? { date, raw } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.date - b.date);
+
+    const chronos = [];
+    let carried = 0;
+    rows.forEach(({ date, raw }) => {
+        const key = toMonthKey(date);
+        if (raw > 0) {
+            carried = raw;
+        } else if (raw === 0 && carried > 0) {
+            // модель обнулила ряд после целевого накопления — для итогового графика оставляем достигнутый капитал
+        } else {
+            carried = 0;
+        }
+        chronos.push({ key, carried });
+    });
+
+    const lastByKey = new Map();
+    chronos.forEach(({ key, carried: c }) => lastByKey.set(key, c));
+    const sortedKeys = [...lastByKey.keys()].sort((a, b) => a.localeCompare(b));
+    return sortedKeys.map((key) => ({ key, carried: lastByKey.get(key) }));
+}
+
+function carriedContributionAtOrBefore(sortedSteps, monthKey) {
+    let last = 0;
+    const steps = Array.isArray(sortedSteps) ? sortedSteps : [];
+    for (let i = 0; i < steps.length; i += 1) {
+        if (steps[i].key <= monthKey) last = steps[i].carried;
+        else break;
+    }
+    return last;
+}
+
 function portfolioProjectionPoints(model) {
-    const byMonth = new Map();
-    (Array.isArray(model?.goals) ? model.goals : []).forEach((goal) => {
+    const goals = Array.isArray(model?.goals) ? model.goals : [];
+    const monthKeysSet = new Set();
+    const perGoalSteps = [];
+
+    goals.forEach((goal) => {
         const schedule = Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
         schedule.forEach((row) => {
             const date = normalizeDate(row?.date);
-            const value = maybeFinite(row?.total_capital ?? row?.capital ?? row?.balance);
-            if (!date || value == null || value < 0) return;
-            const key = toMonthKey(date);
-            const current = byMonth.get(key) || { date: new Date(date.getFullYear(), date.getMonth(), 1), total: 0 };
-            current.total += value;
-            byMonth.set(key, current);
+            if (date) monthKeysSet.add(toMonthKey(date));
         });
+        const steps = buildGoalCarriedContributionSteps(schedule);
+        perGoalSteps.push(steps);
+        steps.forEach((s) => monthKeysSet.add(s.key));
     });
+
+    const sortedMonthKeys = [...monthKeysSet].sort((a, b) => a.localeCompare(b));
+
+    const byMonth = new Map();
+    sortedMonthKeys.forEach((monthKey) => {
+        const [y, m] = monthKey.split('-').map(Number);
+        const date = new Date(y, m - 1, 1);
+        let total = 0;
+        perGoalSteps.forEach((steps) => {
+            total += carriedContributionAtOrBefore(steps, monthKey);
+        });
+        byMonth.set(monthKey, { date, total });
+    });
+
     const actual = [...byMonth.values()].sort((a, b) => a.date - b.date);
     if (actual.length > 1) return actual;
 
@@ -2226,9 +2384,6 @@ function portfolioPrinciplesHtml(model) {
 
 function buildPortfolioSummaryArticleOne(model, helpers) {
     const p = model?.portfolio || {};
-    const initialRows = normalizePortfolioRows(p.initialAllocation, p.initialTotal, 5);
-    const monthlyRows = normalizePortfolioRows(p.monthlyAllocation, p.monthlyTotal, 5);
-    const allocationRowsForTable = normalizePortfolioRows(p.allocation && p.allocation.length ? p.allocation : p.initialAllocation, p.initialTotal, 6);
     return `<article class="finam-v2-page">
     <header class="finam-v2-portfolio__header">
       <div class="finam-v2-portfolio__header-left">
@@ -2247,27 +2402,10 @@ function buildPortfolioSummaryArticleOne(model, helpers) {
 
     ${portfolioKpiHtml(model, helpers)}
 
-    <section class="finam-v2-portfolio__main">
-      <div class="finam-v2-portfolio__donut-stack">
-        ${portfolioDonutHtml({
-        title: 'Первоначальный капитал',
-        sub: 'Куда размещается капитал сейчас',
-        centerValue: formatShortMoneyNoCurrency(helpers, p.initialTotal),
-        centerSub: 'старт',
-        rows: initialRows,
-    })}
-        ${portfolioDonutHtml({
-        title: 'Ежемесячное пополнение',
-        sub: 'Куда идёт новый взнос',
-        centerValue: formatShortMoneyNoCurrency(helpers, p.monthlyTotal),
-        centerSub: 'в месяц',
-        rows: monthlyRows,
-        monthly: true,
-    })}
-      </div>
-      <div class="finam-v2-portfolio__table-card">
-        <p class="finam-v2-portfolio__section-kicker">Роль классов активов</p>
-        ${portfolioAllocationTableHtml(allocationRowsForTable, helpers)}
+    <section class="finam-v2-portfolio__structure">
+      <div class="finam-v2-portfolio__table-card finam-v2-portfolio__table-card--unified">
+        <p class="finam-v2-portfolio__section-kicker">Структура портфеля</p>
+        ${portfolioUnifiedTableHtml(p)}
       </div>
     </section>
 

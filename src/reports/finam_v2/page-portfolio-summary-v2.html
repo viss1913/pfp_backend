@@ -169,12 +169,12 @@
       line-height: 1.15;
     }
 
-    .finam-v2-portfolio__main {
-      display: grid;
-      grid-template-columns: 224px minmax(0, 1fr);
-      gap: 12px;
-      align-items: stretch;
+    .finam-v2-portfolio__structure {
       margin-bottom: 10px;
+    }
+
+    .finam-v2-portfolio__table-card--unified {
+      width: 100%;
     }
 
     .finam-v2-portfolio__donut-stack {
@@ -302,28 +302,20 @@
       margin-top: 6px;
     }
 
-    .finam-v2-portfolio__table th:nth-child(1),
-    .finam-v2-portfolio__table td:nth-child(1) {
-      width: 31%;
+    .finam-v2-portfolio__table--unified th:nth-child(1),
+    .finam-v2-portfolio__table--unified td:nth-child(1) {
+      width: 36%;
+      text-align: left;
     }
 
-    .finam-v2-portfolio__table th:nth-child(2),
-    .finam-v2-portfolio__table td:nth-child(2) {
-      width: 13%;
+    .finam-v2-portfolio__table--unified th:nth-child(2),
+    .finam-v2-portfolio__table--unified td:nth-child(2),
+    .finam-v2-portfolio__table--unified th:nth-child(3),
+    .finam-v2-portfolio__table--unified td:nth-child(3),
+    .finam-v2-portfolio__table--unified th:nth-child(4),
+    .finam-v2-portfolio__table--unified td:nth-child(4) {
+      width: 21.333%;
       text-align: right;
-    }
-
-    .finam-v2-portfolio__table th:nth-child(3),
-    .finam-v2-portfolio__table td:nth-child(3) {
-      width: 18%;
-      text-align: right;
-    }
-
-    .finam-v2-portfolio__table th:nth-child(4),
-    .finam-v2-portfolio__table td:nth-child(4) {
-      width: 38%;
-      padding-left: 9px;
-      border-left: 1px solid #e2e8f0;
     }
 
     .finam-v2-portfolio__table th {
@@ -702,9 +694,8 @@
 <body>
   <!--
     Маппинг PORTFOLIO_SUMMARY:
-    Лист 1: totalPortfolioValue, horizon, expectedReturn,
-    riskProfile, monthlyContribution, initialCapitalAllocation[],
-    monthlyContributionAllocation[], allocation[], projection[].
+    Лист 1: KPI, единая таблица структуры (первоначальный капитал %, пополнение %,
+    доходность по инструменту), projection[].
     Лист 2: liquidityBuckets[], contributionFlow[], riskControls[],
     objectiveMapping[], principles[].
   -->
@@ -754,74 +745,48 @@
       </div>
     </section>
 
-    <section class="finam-v2-portfolio__main">
-      <div class="finam-v2-portfolio__donut-stack">
-        <div class="finam-v2-portfolio__donut-card">
-          <p class="finam-v2-portfolio__section-kicker">Первоначальный капитал</p>
-          <div class="finam-v2-portfolio__donut-row">
-            <div class="finam-v2-portfolio__donut" aria-hidden="true">
-              <div class="finam-v2-portfolio__donut-center">5,0 млн<small>старт</small></div>
-            </div>
-            <div>
-              <div class="finam-v2-portfolio__donut-title">Куда размещается капитал сейчас</div>
-              <p class="finam-v2-portfolio__donut-note">30% облигации · 26% фонды акций · 18% ликвидность · 26% защита и альтернативы.</p>
-            </div>
-          </div>
-        </div>
-        <div class="finam-v2-portfolio__donut-card">
-          <p class="finam-v2-portfolio__section-kicker">Ежемесячное пополнение</p>
-          <div class="finam-v2-portfolio__donut-row">
-            <div class="finam-v2-portfolio__donut finam-v2-portfolio__donut--monthly" aria-hidden="true">
-              <div class="finam-v2-portfolio__donut-center">50 тыс<small>в месяц</small></div>
-            </div>
-            <div>
-              <div class="finam-v2-portfolio__donut-title">Куда идёт новый взнос</div>
-              <p class="finam-v2-portfolio__donut-note">34% фонды акций · 24% облигации · 20% ликвидность · 22% защита и альтернативы.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="finam-v2-portfolio__table-card">
-        <p class="finam-v2-portfolio__section-kicker">Роль классов активов</p>
-        <table class="finam-v2-portfolio__table">
+    <section class="finam-v2-portfolio__structure">
+      <div class="finam-v2-portfolio__table-card finam-v2-portfolio__table-card--unified">
+        <p class="finam-v2-portfolio__section-kicker">Структура портфеля</p>
+        <table class="finam-v2-portfolio__table finam-v2-portfolio__table--unified">
           <thead>
             <tr>
-              <th>Класс</th>
-              <th>Доля</th>
-              <th>Сумма</th>
-              <th>Роль</th>
+              <th>Инструмент</th>
+              <th>Первоначальный капитал</th>
+              <th>Пополнение</th>
+              <th>Доходность</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#002a4a;"></span>Облигации</span></td>
               <td class="finam-v2-portfolio__num">30%</td>
-              <td class="finam-v2-portfolio__num">3,9 млн</td>
-              <td>стабильность и купонный поток</td>
+              <td class="finam-v2-portfolio__num">24%</td>
+              <td class="finam-v2-portfolio__num">8,5%</td>
             </tr>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#1e6bb8;"></span>Акции / фонды</span></td>
               <td class="finam-v2-portfolio__num">26%</td>
-              <td class="finam-v2-portfolio__num">3,3 млн</td>
-              <td>рост капитала на длинном горизонте</td>
+              <td class="finam-v2-portfolio__num">34%</td>
+              <td class="finam-v2-portfolio__num">12,0%</td>
             </tr>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#7aa6d6;"></span>Ликвидность</span></td>
               <td class="finam-v2-portfolio__num">18%</td>
-              <td class="finam-v2-portfolio__num">2,3 млн</td>
-              <td>резерв и возможность докупок</td>
+              <td class="finam-v2-portfolio__num">20%</td>
+              <td class="finam-v2-portfolio__num">7,0%</td>
             </tr>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#9fb7ca;"></span>Защита</span></td>
               <td class="finam-v2-portfolio__num">12%</td>
-              <td class="finam-v2-portfolio__num">1,5 млн</td>
-              <td>страхование и снижение хвостовых рисков</td>
+              <td class="finam-v2-portfolio__num">12%</td>
+              <td class="finam-v2-portfolio__num">—</td>
             </tr>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#cbd5e1;"></span>Альтернативы</span></td>
               <td class="finam-v2-portfolio__num">14%</td>
-              <td class="finam-v2-portfolio__num">1,8 млн</td>
-              <td>диверсификация и защита от инфляции</td>
+              <td class="finam-v2-portfolio__num">10%</td>
+              <td class="finam-v2-portfolio__num">9,5%</td>
             </tr>
           </tbody>
         </table>
