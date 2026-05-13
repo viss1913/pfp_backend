@@ -39,7 +39,6 @@ const PAGE_TITLES = Object.freeze({
     [FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES]: 'Стратегии ДУ',
     [FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS]: 'Предложения Финам',
     [FINAM_REPORT_V2_PAGE_TYPES.INFLATION]: 'Макроконтур',
-    [FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS]: 'Сценарии',
     [FINAM_REPORT_V2_PAGE_TYPES.ROADMAP]: 'Дорожная карта',
     [FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN]: 'Подробный план',
     [FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION]: 'Декларация о рисках',
@@ -1323,28 +1322,6 @@ function renderGenericProductPage(pageType) {
     return wrapPage({ title, label: title, body });
 }
 
-function renderScenarios(model) {
-    const base = model.portfolio.projectedTotal || model.goals.reduce((sum, goal) => sum + toFiniteNumber(pickGoalTarget(goal), 0), 0);
-    const scenarios = [
-        ['Стресс', base > 0 ? formatMoney(base, { short: true }) : 'пересчёт', 'Проверить резерв и сократить второстепенные цели'],
-        ['Базовый', base > 0 ? formatMoney(base, { short: true }) : 'план', 'Держать регулярные пополнения и квартальный контроль'],
-        ['Ускорение', 'после решения', 'Направлять дополнительный свободный поток в долгие цели'],
-    ];
-    const cards = scenarios.map(([name, value, action]) => `<section class="finam-v2-prod__card">
-      <div class="finam-v2-prod__label">${escapeHtml(name)}</div>
-      <div class="finam-v2-prod__value">${escapeHtml(value)}</div>
-      <p class="finam-v2-prod__small">${escapeHtml(action)}</p>
-    </section>`).join('');
-    const body = `${pageHeader('Сценарии')}
-    <p class="finam-v2-prod__kicker">Базовый / стресс / ускорение</p>
-    <h1 class="finam-v2-prod__title">Сценарии показывают запас прочности плана</h1>
-    <div class="finam-v2-prod__grid-3">${cards}</div>
-    <section class="finam-v2-prod__ai" style="margin-top: 16px;">
-      <p class="finam-v2-prod__text">Сценарии не обещают доходность. Они показывают, как меняется план при дисциплине пополнений, просадке рынка или росте свободного потока.</p>
-    </section>`;
-    return wrapPage({ title: 'Сценарии', label: 'Сценарии', body });
-}
-
 function renderRoadmap(model) {
     const steps = [
         ['90 дней', ['Уточнить резерв и обязательства', 'Зафиксировать регулярные пополнения', 'Проверить страховую защиту']],
@@ -1431,7 +1408,6 @@ function buildPages(model, options = {}) {
     add(FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES, renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES));
     add(FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS, renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS));
     add(FINAM_REPORT_V2_PAGE_TYPES.INFLATION, renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.INFLATION));
-    add(FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS, renderScenarios(model));
     add(FINAM_REPORT_V2_PAGE_TYPES.ROADMAP, renderRoadmap(model));
     add(FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN, renderDetailedPlan(model));
     add(FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION, renderRiskDeclaration(model));
@@ -1560,7 +1536,6 @@ async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goa
         'finam-offers': FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
         finamoffers: FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
         inflation: FINAM_REPORT_V2_PAGE_TYPES.INFLATION,
-        scenarios: FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS,
         roadmap: FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
         'risk-declaration': FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,
         riskdeclaration: FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,
@@ -1577,7 +1552,6 @@ async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goa
         [FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES]: FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES,
         [FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS]: FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
         [FINAM_REPORT_V2_PAGE_TYPES.INFLATION]: FINAM_REPORT_V2_PAGE_TYPES.INFLATION,
-        [FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS]: FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS,
         [FINAM_REPORT_V2_PAGE_TYPES.ROADMAP]: FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
         [FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN]: FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN,
         [FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION]: FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,

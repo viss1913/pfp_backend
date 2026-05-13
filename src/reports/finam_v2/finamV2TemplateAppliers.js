@@ -2150,6 +2150,60 @@ function portfolioUnifiedTableHtml(portfolio) {
         </table>`;
 }
 
+function normalizeUnifiedDonutSlices(slices) {
+    const withPct = (Array.isArray(slices) ? slices : [])
+        .map((s) => ({ ...s, percent: finite(s?.percent, 0) }))
+        .filter((s) => s.percent > 0);
+    const sum = withPct.reduce((acc, s) => acc + s.percent, 0);
+    if (sum <= 0) return [];
+    if (Math.abs(sum - 100) < 0.35) return withPct;
+    return withPct.map((s) => ({ ...s, percent: (s.percent / sum) * 100 }));
+}
+
+function unifiedRowsToDonutSlices(rows, kind, active) {
+    if (!active) return [];
+    const key = kind === 'monthly' ? 'monthlyPct' : 'initialPct';
+    return normalizeUnifiedDonutSlices(
+        rows.map((row) => ({
+            label: row.label,
+            color: row.color,
+            percent: finite(row[key], 0),
+        }))
+    );
+}
+
+function portfolioDonutPairHtml(portfolio) {
+    const rows = buildUnifiedPortfolioRows(portfolio);
+    const p = portfolio || {};
+    const hasInitial = finite(p.initialTotal, 0) > 0;
+    const hasMonthly = finite(p.monthlyTotal, 0) > 0;
+    const initialSlices = unifiedRowsToDonutSlices(rows, 'initial', hasInitial);
+    const monthlySlices = unifiedRowsToDonutSlices(rows, 'monthly', hasMonthly);
+
+    const card = (title, slices, centerLines) => `<div class="finam-v2-portfolio__donut-card finam-v2-portfolio__donut-card--split">
+        <div class="finam-v2-portfolio__donut-title">${escapeHtml(title)}</div>
+        <div class="finam-v2-portfolio__donut finam-v2-portfolio__donut--dynamic">
+          ${buildDonutSvg(slices, 'finam-v2-portfolio__donut-svg')}
+          <div class="finam-v2-portfolio__donut-center">${centerLines}</div>
+        </div>
+      </div>`;
+
+    return `<div class="finam-v2-portfolio__donut-stack" aria-label="Доли по таблице структуры">
+      ${card('Первоначальный капитал', initialSlices, '<span>Старт</span><small>доля</small>')}
+      ${card('Пополнение', monthlySlices, '<span>Поток</span><small>доля</small>')}
+    </div>`;
+}
+
+function portfolioStructureBlockHtml(portfolio) {
+    return `<section class="finam-v2-portfolio__structure finam-v2-portfolio__structure--split">
+      <div class="finam-v2-portfolio__table-card finam-v2-portfolio__table-card--unified">
+        <p class="finam-v2-portfolio__section-kicker">Структура портфеля</p>
+        ${portfolioUnifiedTableHtml(portfolio)}
+      </div>
+      ${portfolioDonutPairHtml(portfolio)}
+    </section>`;
+}
+
 function portfolioKpiHtml(model, helpers) {
     const p = model?.portfolio || {};
     const yieldText = maybeFinite(p.expectedReturn) != null ? formatPercentHtml(p.expectedReturn) : '—';
@@ -2402,12 +2456,7 @@ function buildPortfolioSummaryArticleOne(model, helpers) {
 
     ${portfolioKpiHtml(model, helpers)}
 
-    <section class="finam-v2-portfolio__structure">
-      <div class="finam-v2-portfolio__table-card finam-v2-portfolio__table-card--unified">
-        <p class="finam-v2-portfolio__section-kicker">Структура портфеля</p>
-        ${portfolioUnifiedTableHtml(p)}
-      </div>
-    </section>
+    ${portfolioStructureBlockHtml(p)}
 
     <section class="finam-v2-portfolio__why">
       <div class="finam-v2-portfolio__card">
@@ -2953,16 +3002,12 @@ function buildComonSinglePage(model) {
         : '<article class="finam-v2-tail__note-card"><p class="finam-v2-tail__section-title">Данные Comon</p><p class="finam-v2-tail__body-text">Витрина стратегий не передана в расчёте или временно недоступна.</p></article>';
     return `<article class="finam-v2-page finam-v2-comon-page">
     ${tailPageHeader('Comon')}
-    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide finam-v2-comon__hero">
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--full finam-v2-comon__hero">
       <div>
         <p class="finam-v2-wow__eyebrow">Автоследование Comon</p>
         <h1 class="finam-v2-wow__headline">Стратегии, которые можно подключать как управляемый контур портфеля</h1>
         <p class="finam-v2-wow__lead finam-v2-comon__lead">Автоследование повторяет сделки выбранной стратегии на вашем счёте без ручных заявок. Если в портфеле есть акции, это помогает держать дисциплину и ребаланс без лишних операций — подключается отдельным решением после сверки риска и горизонта.</p>
       </div>
-      <aside class="finam-v2-tail__kpi-stack">
-        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${items.length}</div><div class="finam-v2-tail__kpi-label">стратегий в подборке</div></div>
-        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">12+ мес</div><div class="finam-v2-tail__kpi-label">разумный горизонт оценки</div></div>
-      </aside>
     </section>
     <section class="finam-v2-wow__insight finam-v2-comon__insight"><strong>Как читаем блок:</strong> сверяем риск-профиль, минимальный вход, комиссии и просадку — затем решение о подключении.</section>
     <p class="finam-v2-tail__section-title">Карточки для первичного отбора</p>
@@ -3010,16 +3055,12 @@ function buildIduSinglePage() {
     const disclaimer = 'Ожидаемая доходность, минимальные суммы и описания стратегий являются ориентиром витрины. Они не заменяют договор, регламент доверительного управления и проверку актуальных условий.';
     return `<article class="finam-v2-page finam-v2-idu-page">
     ${tailPageHeader('ДУ')}
-    <section class="finam-v2-tail__hero finam-v2-tail__hero--wide finam-v2-idu__hero">
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--full finam-v2-idu__hero">
       <div>
         <p class="finam-v2-wow__eyebrow">Доверительное управление</p>
         <h1 class="finam-v2-wow__headline">Стратегии Финам Фонды для облигационного контура портфеля</h1>
         <p class="finam-v2-wow__lead finam-v2-idu__lead">Витрина ДУ в первую очередь закрывает задачу купонного потока, ставки и ОФЗ: управляющий ведёт бумажный контур вместо самостоятельного набора облигаций. Для портфеля с акциями (в т.ч. через автоследование) это отдельный слой по чувствительности к ставке, не конкурирующий с «долей роста». Ожидаемые доходности ниже — маркетинговые ориентиры сайта, не расчёт финплана.</p>
       </div>
-      <aside class="finam-v2-tail__kpi-stack">
-        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${strategies.length}</div><div class="finam-v2-tail__kpi-label">стратегий в справочнике</div></div>
-        <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">ОФЗ · купон</div><div class="finam-v2-tail__kpi-label">типичный фокус витрины ДУ</div></div>
-      </aside>
     </section>
     <section class="finam-v2-wow__insight finam-v2-idu__insight"><strong>Смысл блока:</strong> отбирать стратегию по роли в облигационной части портфеля и допустимой доле, а не по максимальной цифре доходности на баннере.</section>
     <p class="finam-v2-tail__section-title">Стратегии ДУ — ориентиры витрины</p>
@@ -3050,50 +3091,103 @@ function macroLatest(series) {
     return rows[rows.length - 1] || null;
 }
 
-function macroSeriesPoints(series, maxCount = 9) {
-    const rows = (Array.isArray(series) ? series : [])
-        .map((row) => ({ date: normalizeDate(row?.date), value: macroValue(row) }))
-        .filter((row) => row.date && row.value != null)
-        .sort((a, b) => a.date - b.date);
-    return sampleIndexes(rows.length, Math.min(maxCount, rows.length)).map((idx) => rows[idx]);
-}
-
 function macroPercent(value) {
     const n = maybeFinite(value);
     return n == null ? 'н/д' : `${n.toLocaleString('ru-RU', { maximumFractionDigits: 1 })}%`;
 }
 
+/** Тот же смысл, что `normalizeSeries` в `buildInflationPageFinamHtml.js` (v1 страница инфляции). */
+function normalizeMacroSeriesRows(series) {
+    return (Array.isArray(series) ? series : [])
+        .map((row) => {
+            const date = normalizeDate(row?.date);
+            const value = macroValue(row);
+            return date && value != null ? { date, value } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.date - b.date);
+}
+
+/** Как `reduceSeriesForChart` в v1: не более maxPoints, всегда сохраняем последнюю точку ряда. */
+function reduceMacroSeriesForChart(rows, maxPoints = 52) {
+    const cap = Math.max(4, Number(maxPoints) || 52);
+    if (!Array.isArray(rows) || rows.length <= cap) return rows || [];
+    const step = Math.ceil(rows.length / cap);
+    const sampled = [];
+    for (let i = 0; i < rows.length; i += step) {
+        sampled.push(rows[i]);
+    }
+    const last = rows[rows.length - 1];
+    if (sampled[sampled.length - 1] !== last) sampled.push(last);
+    return sampled;
+}
+
 function inflationChartSvg(macro) {
-    const cpi = macroSeriesPoints(macro?.cpiYoySeries, 9);
-    const key = macroSeriesPoints(macro?.keyRateSeries, 9);
-    const points = cpi.length >= 2 ? cpi : key;
-    if (points.length < 2) {
+    const maxPts = 52;
+    const cpi = reduceMacroSeriesForChart(normalizeMacroSeriesRows(macro?.cpiYoySeries), maxPts);
+    const key = reduceMacroSeriesForChart(normalizeMacroSeriesRows(macro?.keyRateSeries), maxPts);
+
+    if (cpi.length < 2 && key.length < 2) {
         return '<div class="finam-v2-tail__body-text">История макропоказателей временно недоступна. Страница обновится после синхронизации macro_indicators.</div>';
     }
-    const allValues = [...cpi, ...key].map((row) => row.value);
-    const max = Math.max(...allValues, 1);
-    const min = Math.min(...allValues, 0);
+
+    const times = [];
+    [...cpi, ...key].forEach((p) => times.push(p.date.getTime()));
+    const minT = Math.min(...times);
+    const maxT = Math.max(...times);
+    const vals = [...cpi, ...key].map((p) => p.value);
+    let minY = Math.min(...vals);
+    let maxY = Math.max(...vals);
+    minY = Math.max(0, minY - 1);
+    maxY = maxY + 1;
+
     const plot = { left: 34, right: 500, top: 22, bottom: 124 };
-    const yFor = (value) => plot.bottom - ((value - min) / Math.max(1, max - min)) * (plot.bottom - plot.top);
-    const xFor = (idx, length) => plot.left + (idx / Math.max(1, length - 1)) * (plot.right - plot.left);
-    const poly = (rows) => rows.map((row, idx) => `${xFor(idx, rows.length).toFixed(1)},${yFor(row.value).toFixed(1)}`).join(' ');
-    const firstYear = points[0].date.getFullYear();
-    const midYear = points[Math.floor(points.length / 2)].date.getFullYear();
-    const lastYear = points[points.length - 1].date.getFullYear();
-    return `<svg class="finam-v2-tail__chart" viewBox="0 0 520 150" role="img" aria-label="Инфляция и ключевая ставка">
-        <line x1="34" y1="124" x2="500" y2="124" stroke="#cbd5e1" />
-        <line x1="34" y1="22" x2="34" y2="124" stroke="#cbd5e1" />
-        <line x1="34" y1="98" x2="500" y2="98" stroke="#eef2f7" />
-        <line x1="34" y1="72" x2="500" y2="72" stroke="#eef2f7" />
-        <line x1="34" y1="46" x2="500" y2="46" stroke="#eef2f7" />
-        ${cpi.length >= 2 ? `<polyline points="${poly(cpi)}" fill="none" stroke="#c2410c" stroke-width="2.4" stroke-linecap="round" />` : ''}
-        ${key.length >= 2 ? `<polyline points="${poly(key)}" fill="none" stroke="#002a4a" stroke-width="2.4" stroke-linecap="round" />` : ''}
-        <text x="36" y="141" class="finam-v2-tail__axis">${escapeHtml(firstYear)}</text>
-        <text x="246" y="141" class="finam-v2-tail__axis">${escapeHtml(midYear)}</text>
-        <text x="474" y="141" class="finam-v2-tail__axis">${escapeHtml(lastYear)}</text>
+    const xSpan = Math.max(1, maxT - minT);
+    const ySpan = Math.max(0.0001, maxY - minY);
+    const xFor = (t) => plot.left + ((t - minT) / xSpan) * (plot.right - plot.left);
+    const yFor = (v) => plot.bottom - ((v - minY) / ySpan) * (plot.bottom - plot.top);
+    const polyPoints = (rows) => rows.map((p) => `${xFor(p.date.getTime()).toFixed(1)},${yFor(p.value).toFixed(1)}`).join(' ');
+
+    const lastCpi = cpi.length >= 2 ? cpi[cpi.length - 1] : null;
+    const lastKey = key.length >= 2 ? key[key.length - 1] : null;
+
+    const firstYear = new Date(minT).getFullYear();
+    const lastYear = new Date(maxT).getFullYear();
+    const midYear = Math.round((firstYear + lastYear) / 2);
+
+    const axis = '#cbd5e1';
+    const grid = '#eef2f7';
+    let body = `<svg class="finam-v2-tail__chart" viewBox="0 0 520 150" role="img" aria-label="Инфляция и ключевая ставка">
+        <line x1="34" y1="124" x2="500" y2="124" stroke="${axis}" />
+        <line x1="34" y1="22" x2="34" y2="124" stroke="${axis}" />
+        <line x1="34" y1="98" x2="500" y2="98" stroke="${grid}" />
+        <line x1="34" y1="72" x2="500" y2="72" stroke="${grid}" />
+        <line x1="34" y1="46" x2="500" y2="46" stroke="${grid}" />`;
+
+    if (key.length >= 2) {
+        body += `<polyline points="${polyPoints(key)}" fill="none" stroke="#002a4a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />`;
+        if (lastKey) {
+            const cx = xFor(lastKey.date.getTime());
+            const cy = yFor(lastKey.value);
+            body += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="#002a4a" />`;
+        }
+    }
+    if (cpi.length >= 2) {
+        body += `<polyline points="${polyPoints(cpi)}" fill="none" stroke="#c2410c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />`;
+        if (lastCpi) {
+            const cx = xFor(lastCpi.date.getTime());
+            const cy = yFor(lastCpi.value);
+            body += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5" fill="#c2410c" />`;
+        }
+    }
+
+    body += `<text x="36" y="141" class="finam-v2-tail__axis">${escapeHtml(String(firstYear))}</text>
+        <text x="246" y="141" class="finam-v2-tail__axis">${escapeHtml(String(midYear))}</text>
+        <text x="474" y="141" class="finam-v2-tail__axis">${escapeHtml(String(lastYear))}</text>
         <text x="370" y="51" class="finam-v2-tail__chart-value">ключевая ставка</text>
         <text x="370" y="88" class="finam-v2-tail__chart-value">инфляция</text>
       </svg>`;
+    return body;
 }
 
 function buildInflationArticle(model) {

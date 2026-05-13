@@ -75,10 +75,6 @@ const FINAM_V2_TEMPLATE_MANIFEST = Object.freeze({
         fileName: 'page-inflation-v2.html',
         title: 'Макроконтур',
     },
-    [FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS]: {
-        fileName: 'page-scenarios-v2.html',
-        title: 'Сценарии',
-    },
     [FINAM_REPORT_V2_PAGE_TYPES.ROADMAP]: {
         fileName: 'page-roadmap-v2.html',
         title: 'Дорожная карта',
@@ -111,7 +107,6 @@ const FINAM_V2_TAIL_PAGE_ORDER = Object.freeze([
     FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES,
     FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
     FINAM_REPORT_V2_PAGE_TYPES.INFLATION,
-    FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS,
     FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
     FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN,
     FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,

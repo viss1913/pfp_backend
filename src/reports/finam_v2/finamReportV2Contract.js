@@ -45,7 +45,6 @@ const FINAM_REPORT_V2_DEFAULT_ORDER = Object.freeze([
     FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES,
     FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
     FINAM_REPORT_V2_PAGE_TYPES.INFLATION,
-    FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS,
     FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
     FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN,
     FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,
@@ -54,7 +53,6 @@ const FINAM_REPORT_V2_DEFAULT_ORDER = Object.freeze([
 
 const FINAM_REPORT_V2_DYNAMIC_PAGE_TYPES = Object.freeze([
     FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY,
-    FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS,
     FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
     FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION,
     FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE,
@@ -562,26 +560,28 @@ function validateFinamReportV2Payload(payload) {
     const catalog = validateCompaniesAndProducts(errors, payload);
     validateRiskDeclaration(errors, payload, catalog);
 
-    if (!Array.isArray(payload.scenarios) || payload.scenarios.length < 3) {
-        errors.push('scenarios must contain at least 3 items');
-    } else {
-        payload.scenarios.forEach((scenario, index) => {
-            if (!scenario || typeof scenario !== 'object') {
-                errors.push(`scenarios[${index}] must be an object`);
-                return;
-            }
-            ['name', 'capital', 'risk'].forEach((field) => {
-                if (!scenario[field]) {
-                    errors.push(`scenarios[${index}].${field} is required`);
+    if (payload.scenarios != null) {
+        if (!Array.isArray(payload.scenarios)) {
+            errors.push('scenarios must be an array');
+        } else {
+            payload.scenarios.forEach((scenario, index) => {
+                if (!scenario || typeof scenario !== 'object') {
+                    errors.push(`scenarios[${index}] must be an object`);
+                    return;
+                }
+                ['name', 'capital', 'risk'].forEach((field) => {
+                    if (!scenario[field]) {
+                        errors.push(`scenarios[${index}].${field} is required`);
+                    }
+                });
+                if (scenario.progressPercent != null) {
+                    const percent = Number(scenario.progressPercent);
+                    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+                        errors.push(`scenarios[${index}].progressPercent must be 0..100`);
+                    }
                 }
             });
-            if (scenario.progressPercent != null) {
-                const percent = Number(scenario.progressPercent);
-                if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
-                    errors.push(`scenarios[${index}].progressPercent must be 0..100`);
-                }
-            }
-        });
+        }
     }
 
     if (!Array.isArray(payload.roadmap) || payload.roadmap.length < 3) {

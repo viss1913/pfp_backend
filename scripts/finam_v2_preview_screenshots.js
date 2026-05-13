@@ -76,7 +76,6 @@ async function main() {
         { name: 'finam-v2-idu-strategies.png', path: '/page-idu-strategies-v2.html', fullPage: true },
         { name: 'finam-v2-finam-offers.png', path: '/page-finam-offers-v2.html', fullPage: false },
         { name: 'finam-v2-inflation.png', path: '/page-inflation-v2.html', fullPage: false },
-        { name: 'finam-v2-scenarios.png', path: '/page-scenarios-v2.html', fullPage: false },
         { name: 'finam-v2-roadmap.png', path: '/page-roadmap-v2.html', fullPage: false },
         { name: 'finam-v2-detailed-plan.png', path: '/page-detailed-plan-v2.html', fullPage: true },
         { name: 'finam-v2-risk-declaration.png', path: '/page-risk-declaration-v2.html', fullPage: true },

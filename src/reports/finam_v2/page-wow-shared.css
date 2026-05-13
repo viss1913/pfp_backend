@@ -347,6 +347,12 @@ body {
   grid-template-columns: minmax(0, 1fr) 190px;
 }
 
+/* Hero без KPI-колодца справа — одна колонка на всю ширину */
+.finam-v2-tail__hero--full {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
 .finam-v2-tail__kpi-stack {
   display: grid;
   gap: 8px;
@@ -947,11 +953,6 @@ body {
   font-size: 9.5px !important;
   line-height: 1.34 !important;
   max-width: 100%;
-}
-
-.finam-v2-idu-page .finam-v2-tail__kpi-value {
-  font-size: clamp(15px, 2.9vw, 22px);
-  line-height: 1.05;
 }
 
 .finam-v2-idu__insight {

@@ -254,30 +254,6 @@ function renderRiskDeclaration(payload) {
     ].join('\n');
 }
 
-function renderScenarios(payload) {
-    const scenarios = payload.scenarios || [];
-
-    return wrapPage(
-        'Сценарии',
-        `
-    <p class="finam-v2-wow__eyebrow">Базовый / стресс / оптимистичный сценарии</p>
-    <h1 class="finam-v2-wow__headline">Сценарии показывают запас прочности плана</h1>
-    <p class="finam-v2-wow__lead">Сравнение помогает партнёру объяснить клиенту, какие решения дают максимальный эффект.</p>
-    <div class="finam-v2-wow__grid-3">
-      ${scenarios
-          .map(
-              (scenario) => `<section class="finam-v2-wow__card">
-        <div class="finam-v2-wow__card-title">${escapeHtml(scenario.name)}</div>
-        <div class="finam-v2-wow__metric">${escapeHtml(scenario.capital)}</div>
-        <p class="finam-v2-wow__metric-sub">риск: ${escapeHtml(scenario.risk)}</p>
-        <div class="finam-v2-wow__bar"><div class="finam-v2-wow__bar-fill" style="width: ${Number(scenario.progressPercent) || 0}%;"></div></div>
-      </section>`
-          )
-          .join('')}
-    </div>`
-    );
-}
-
 function renderRoadmap(payload) {
     const roadmap = payload.roadmap || [];
 
@@ -331,7 +307,6 @@ function renderPartnerValue(payload) {
 const RENDERERS_BY_PAGE_TYPE = {
     [FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY]: renderExecutiveSummary,
     [FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION]: renderRiskDeclaration,
-    [FINAM_REPORT_V2_PAGE_TYPES.SCENARIOS]: renderScenarios,
     [FINAM_REPORT_V2_PAGE_TYPES.ROADMAP]: renderRoadmap,
     [FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE]: renderPartnerValue,
 };

@@ -173,14 +173,62 @@
       margin-bottom: 10px;
     }
 
+    .finam-v2-portfolio__structure--split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(148px, 168px);
+      gap: 10px;
+      align-items: start;
+    }
+
     .finam-v2-portfolio__table-card--unified {
       width: 100%;
+      min-width: 0;
     }
 
     .finam-v2-portfolio__donut-stack {
       display: grid;
-      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
       min-width: 0;
+    }
+
+    .finam-v2-portfolio__donut-card--split {
+      padding: 8px 6px;
+      align-items: center;
+      text-align: center;
+    }
+
+    .finam-v2-portfolio__donut-card--split .finam-v2-portfolio__donut-title {
+      font-size: 8.4px;
+      line-height: 1.15;
+      margin-bottom: 6px;
+      min-height: 2.4em;
+    }
+
+    .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto;
+    }
+
+    .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut-center {
+      inset: 13px;
+      font-size: 8px;
+    }
+
+    .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut-center small {
+      margin-top: 2px;
+      font-size: 7px;
+    }
+
+    .finam-v2-portfolio__donut--dynamic {
+      background: transparent !important;
+    }
+
+    .finam-v2-portfolio__donut--dynamic svg {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
 
     .finam-v2-portfolio__donut-card,
@@ -745,7 +793,7 @@
       </div>
     </section>
 
-    <section class="finam-v2-portfolio__structure">
+    <section class="finam-v2-portfolio__structure finam-v2-portfolio__structure--split">
       <div class="finam-v2-portfolio__table-card finam-v2-portfolio__table-card--unified">
         <p class="finam-v2-portfolio__section-kicker">Структура портфеля</p>
         <table class="finam-v2-portfolio__table finam-v2-portfolio__table--unified">
@@ -790,6 +838,20 @@
             </tr>
           </tbody>
         </table>
+      </div>
+      <div class="finam-v2-portfolio__donut-stack" aria-label="Доли по таблице структуры">
+        <div class="finam-v2-portfolio__donut-card finam-v2-portfolio__donut-card--split">
+          <div class="finam-v2-portfolio__donut-title">Первоначальный капитал</div>
+          <div class="finam-v2-portfolio__donut">
+            <div class="finam-v2-portfolio__donut-center"><span>Старт</span><small>доля</small></div>
+          </div>
+        </div>
+        <div class="finam-v2-portfolio__donut-card finam-v2-portfolio__donut-card--split">
+          <div class="finam-v2-portfolio__donut-title">Пополнение</div>
+          <div class="finam-v2-portfolio__donut finam-v2-portfolio__donut--monthly">
+            <div class="finam-v2-portfolio__donut-center"><span>Поток</span><small>доля</small></div>
+          </div>
+        </div>
       </div>
     </section>
 

@@ -33,7 +33,6 @@
 | `finam_v2/page-idu-strategies-v2.html` | 1 | ДУ / стратегии Финам Фонды (каталог как v1), акцент на облигационный контур |
 | `finam_v2/page-finam-offers-v2.html` | 1 | Спецпредложения Финам |
 | `finam_v2/page-inflation-v2.html` | 1 | Инфляция и ставки из macro history |
-| `finam_v2/page-scenarios-v2.html` | 1 | Базовый / стресс / оптимистичный сценарии |
 | `finam_v2/page-roadmap-v2.html` | 1 | Дорожная карта 90 дней / 12 месяцев / 3 года |
 | `finam_v2/page-detailed-plan-v2.html` | 2 | Подробный план пополнений по всем не-LIFE целям |
 | `finam_v2/page-risk-declaration-v2.html` | 5 | Декларация о рисках: продуктовая экспозиция, компании, матрица `Риск / Доходность`, рыночные/продуктовые риски, протокол контроля |
@@ -81,7 +80,7 @@
 
 Query у **`/pdf`**: **`includeCover`**, **`includeSummary`** (по умолчанию включаются; отключение: `0` / `false`), **`goalTypes`** — подмножество `FIN_RESERVE,LIFE,PENSION,PASSIVE_INCOME,INVESTMENT,OTHER`.
 
-**`pageType`** (превью и HTML страницы): `SUMMARY` | `FIN_RESERVE` | `LIFE` | `PENSION` | `PASSIVE_INCOME` | `INVESTMENT` | `OTHER`; при `report_finam = 2` также v2-типы `cover`, `intro`, `currentState`, `goals`, `portfolioSummary`, `scenarios`, `roadmap`, `riskDeclaration` и др. Алиасы пути для HTML см. `reportPagesController`.
+**`pageType`** (превью и HTML страницы): `SUMMARY` | `FIN_RESERVE` | `LIFE` | `PENSION` | `PASSIVE_INCOME` | `INVESTMENT` | `OTHER`; при `report_finam = 2` также v2-типы `cover`, `intro`, `currentState`, `goals`, `portfolioSummary`, `roadmap`, `riskDeclaration` и др. Алиасы пути для HTML см. `reportPagesController`.
 
 ---
 

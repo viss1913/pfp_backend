@@ -23,7 +23,6 @@ Finam Report v2 — порядок макетов (черновик).
                   http://127.0.0.1:8766/page-idu-strategies-v2.html
                   http://127.0.0.1:8766/page-finam-offers-v2.html
                   http://127.0.0.1:8766/page-inflation-v2.html
-                  http://127.0.0.1:8766/page-scenarios-v2.html
                   http://127.0.0.1:8766/page-roadmap-v2.html
                   http://127.0.0.1:8766/page-detailed-plan-v2.html
                   http://127.0.0.1:8766/page-risk-declaration-v2.html
@@ -57,11 +56,11 @@ Finam Report v2 — порядок макетов (черновик).
   15. page-idu-strategies-v2.html — ДУ / стратегии Финам Фонды (каталог как v1), один лист, акцент на облигационный контур
   16. page-finam-offers-v2.html — спецпредложения Финам для новых клиентов
   17. page-inflation-v2.html — инфляция, ключевая ставка, ОФЗ и корпоративный облигационный контур из macro history
-  18. page-scenarios-v2.html — базовый / стресс / оптимистичный сценарии
-  19. page-roadmap-v2.html — дорожная карта 90 дней / 12 месяцев / 3 года
-  20. page-detailed-plan-v2.html — подробный план пополнений по всем не-LIFE целям, 2 листа в одном HTML
-  21. page-risk-declaration-v2.html — декларация о рисках: продукты, компании, матрица Риск/Доходность, продуктовые риски, протокол контроля, 5 листов в одном HTML
-  22. page-partner-value-v2.html — партнёрская ценность (может скрываться в клиентском PDF)
+  18. page-roadmap-v2.html — дорожная карта 90 дней / 12 месяцев / 3 года
+  19. page-detailed-plan-v2.html — подробный план пополнений по всем не-LIFE целям, 2 листа в одном HTML
+  20. page-risk-declaration-v2.html — декларация о рисках: продукты, компании, матрица Риск/Доходность, продуктовые риски, протокол контроля, 5 листов в одном HTML
+  21. page-partner-value-v2.html — партнёрская ценность (может скрываться в клиентском PDF)
+  (макет page-scenarios-v2.html в репозитории оставлен только как архив; в production PDF v2 не входит)
 
 Интеграция в PDF/API:
   system_settings.report_finam = 1 или нет настройки — текущий Finam v1.

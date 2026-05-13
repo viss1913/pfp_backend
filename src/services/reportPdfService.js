@@ -172,7 +172,8 @@ async function loadFinamInflationMacroData() {
     const from10yIso = toIsoDateOnly(from10y);
 
     return {
-        keyRateSeries: await loadMacroHistorySafe('cbr_key_rate', from, to),
+        // Один горизонт с инфляцией г/г — нужен и v2-графику «ставка + ИПЦ», и карточкам актуальных значений
+        keyRateSeries: await loadMacroHistorySafe('cbr_key_rate', from10yIso, to),
         cpiYoySeries: await loadMacroHistorySafe('russia_cpi_inflation_yoy', from10yIso, to),
         ofz2Series: await loadMacroHistorySafe('moex_ofz_gcurve_2y', from, to),
         ofz5Series: await loadMacroHistorySafe('moex_ofz_gcurve_5y', from, to),
