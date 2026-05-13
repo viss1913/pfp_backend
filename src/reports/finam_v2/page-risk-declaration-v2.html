@@ -20,9 +20,75 @@
       article.finam-v2-page:last-child { page-break-after: auto; }
     }
     @page { size: 595px 842px; margin: 0; }
+
+    .finam-v2-risk-v1__title {
+      font-size: 18px;
+      line-height: 1.2;
+      margin-bottom: 16px;
+      color: #111827;
+    }
+
+    .finam-v2-risk-v1__section-title {
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #111827;
+    }
+
+    .finam-v2-risk-v1__text {
+      font-size: 11px;
+      line-height: 1.5;
+      color: #111827;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-risk-v1__list {
+      margin: 0 0 10px 18px;
+      padding: 0;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #111827;
+    }
+
+    .finam-v2-risk-v1__list li {
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-risk-v1__block {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 16px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .finam-v2-risk-v1__pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #4c1d95;
+      color: #f9fafb;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-risk-v1__disclaimer {
+      font-size: 9px;
+      line-height: 1.45;
+      color: #374151;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
+  <!-- Лист 1: Инфляционный риск -->
   <article class="finam-v2-page">
     <header class="finam-v2-wow__header">
       <div class="finam-v2-wow__header-left">
@@ -33,89 +99,42 @@
     </header>
     <hr class="finam-v2-wow__rule" />
 
-    <p class="finam-v2-wow__eyebrow">Декларация о рисках</p>
-    <h1 class="finam-v2-wow__headline">Риски плана управляемы, если контролировать продуктовую концентрацию</h1>
-    <div class="finam-v2-risk-memo__hero">
-      <div>
-        <p class="finam-v2-wow__lead">
-          Раздел показывает не абстрактные рыночные риски, а то, где именно они живут в финансовом плане:
-          ДУ, автоследование Финам/Comon, облигации, акции, депозит / накопительный счёт и ПДС НПФ Ренессанс.
-        </p>
-        <section class="finam-v2-risk-memo__note">
-          <strong>Управленческий вывод:</strong> главный риск не в одном продукте, а в дисциплине сопровождения:
-          сверять риск-профиль, горизонт цели, долю регулярных пополнений и условия провайдеров.
-        </section>
-      </div>
-      <aside class="finam-v2-risk-memo__score">
-        <div class="finam-v2-risk-memo__score-value">M</div>
-        <div class="finam-v2-risk-memo__score-label">остаточный риск после диверсификации и квартального контроля</div>
-      </aside>
-    </div>
+    <p class="finam-v2-wow__eyebrow">Декларация о рисках финансового планирования</p>
+    <h1 class="finam-v2-wow__headline">1. Инфляционный риск</h1>
 
-    <section class="finam-v2-risk-memo__kpi-row">
-      <div class="finam-v2-risk-memo__kpi">
-        <div class="finam-v2-risk-memo__kpi-value">6</div>
-        <div class="finam-v2-risk-memo__kpi-label">продуктовых контуров в плане</div>
-      </div>
-      <div class="finam-v2-risk-memo__kpi">
-        <div class="finam-v2-risk-memo__kpi-value">4</div>
-        <div class="finam-v2-risk-memo__kpi-label">провайдера / платформы</div>
-      </div>
-      <div class="finam-v2-risk-memo__kpi">
-        <div class="finam-v2-risk-memo__kpi-value">3</div>
-        <div class="finam-v2-risk-memo__kpi-label">риска требуют регулярного мониторинга</div>
-      </div>
-      <div class="finam-v2-risk-memo__kpi">
-        <div class="finam-v2-risk-memo__kpi-value">90</div>
-        <div class="finam-v2-risk-memo__kpi-label">дней до первой контрольной сверки</div>
-      </div>
+    <section class="finam-v2-risk-v1__block" aria-labelledby="risk-1-title">
+      <div class="finam-v2-risk-v1__pill" id="risk-1-title">Суть риска</div>
+      <p class="finam-v2-risk-v1__text">
+        План объединяет решения в контурах НПФ «Ренессанс Накопления», инвестиционной платформы «Финам»
+        и страховых продуктов «СК Сбер Страхование». Во всех контурах используется прогноз инфляции,
+        но фактическая динамика цен может отличаться от сценария. Это создает следующие риски:
+      </p>
+      <ul class="finam-v2-risk-v1__list">
+        <li>Если инфляция выше ожидаемой: реальная доходность снижается, покупательная способность
+          капитала падает, расходная часть целей растет быстрее плана.</li>
+        <li>Если инфляция ниже ожидаемой: возможно перераспределение капитала не в оптимальные цели
+          и избыточная ликвидность в консервативной части портфеля.</li>
+      </ul>
+
+      <div class="finam-v2-risk-v1__pill">Меры снижения риска</div>
+      <p class="finam-v2-risk-v1__text">
+        Регулярный пересмотр плана (не реже 1 раза в 6 месяцев) с корректировкой:
+      </p>
+      <ul class="finam-v2-risk-v1__list">
+        <li>Прогноза инфляции с учетом актуальных данных.</li>
+        <li>Стоимости каждой цели и сроков достижения.</li>
+        <li>Индексации пополнений и структуры портфеля.</li>
+      </ul>
     </section>
-
-    <p class="finam-v2-risk-memo__section-title">Ключевые риски для обсуждения с клиентом</p>
-    <table class="finam-v2-risk-memo__table">
-      <thead>
-        <tr>
-          <th>Риск</th>
-          <th>Где возникает</th>
-          <th>Что может случиться</th>
-          <th>Контроль</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Просадка рынка</strong></td>
-          <td>акции, ДУ, автоследование</td>
-          <td>временное снижение капитала и стресс клиента</td>
-          <td>лимиты долей, горизонт, ребалансировка</td>
-        </tr>
-        <tr>
-          <td><strong>Процентная ставка</strong></td>
-          <td>облигации</td>
-          <td>переоценка бумаг при росте ставки</td>
-          <td>дюрация, лестница сроков, пересмотр макро</td>
-        </tr>
-        <tr>
-          <td><strong>Условия продукта</strong></td>
-          <td>ПДС</td>
-          <td>ограничения выхода, правила программы, порядок выплат</td>
-          <td>проверка договора и правил программы</td>
-        </tr>
-        <tr>
-          <td><strong>Поведенческий риск</strong></td>
-          <td>весь план</td>
-          <td>остановка пополнений или выход на просадке</td>
-          <td>дорожная карта, контрольный календарь, сценарии</td>
-        </tr>
-      </tbody>
-    </table>
 
     <hr class="finam-v2-wow__footer-rule" />
     <footer class="finam-v2-wow__footer">
       <span>Персональный финансовый план · Конфиденциально</span>
-      <span class="finam-v2-wow__footer-right">Риск-декларация раскрывает продуктовые и рыночные ограничения плана</span>
+      <span class="finam-v2-wow__footer-right">Инфляционный риск контролируется регулярным пересмотром плана</span>
     </footer>
   </article>
 
+  <!-- Лист 2: Риск НПФ / банкротства фонда -->
   <article class="finam-v2-page">
     <header class="finam-v2-wow__header">
       <div class="finam-v2-wow__header-left">
@@ -126,101 +145,42 @@
     </header>
     <hr class="finam-v2-wow__rule" />
 
-    <p class="finam-v2-wow__eyebrow">Карта экспозиции</p>
-    <h1 class="finam-v2-wow__headline">Каждый риск привязан к продукту, провайдеру и цели</h1>
-    <p class="finam-v2-wow__lead">
-      В отчёте v2 риск должен подтягиваться из структуры портфеля: суммы, доли и цели берутся из расчётов,
-      а текст объясняет, почему именно этот риск важен для клиента.
-    </p>
+    <p class="finam-v2-wow__eyebrow">Пенсионный контур</p>
+    <h1 class="finam-v2-wow__headline">2. Риск банкротства НПФ</h1>
 
-    <table class="finam-v2-risk-memo__table">
-      <thead>
-        <tr>
-          <th>Продукт</th>
-          <th>Компания / контур</th>
-          <th>Роль в плане</th>
-          <th>Материальный риск</th>
-          <th>Остаточный риск</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>ПДС</strong></td>
-          <td>НПФ Ренессанс</td>
-          <td>пенсионная траектория, вычеты, софинансирование</td>
-          <td>правила программы, доходность, ограничения выхода</td>
-          <td><span class="finam-v2-risk-memo__risk-tag">M</span></td>
-        </tr>
-        <tr>
-          <td><strong>Депозит / накопительный счёт</strong></td>
-          <td>банковский контур</td>
-          <td>ликвидность и короткий резерв</td>
-          <td>низкая реальная доходность, риск реинвестирования</td>
-          <td><span class="finam-v2-risk-memo__risk-tag">L</span></td>
-        </tr>
-        <tr>
-          <td><strong>ДУ</strong></td>
-          <td>Финам</td>
-          <td>управляемый инвестиционный слой</td>
-          <td>мандат стратегии, комиссии, рыночная просадка</td>
-          <td><span class="finam-v2-risk-memo__risk-tag finam-v2-risk-memo__risk-tag--warn">M/H</span></td>
-        </tr>
-        <tr>
-          <td><strong>Автоследование</strong></td>
-          <td>Финам / Comon</td>
-          <td>следование выбранной стратегии</td>
-          <td>риск автора, просадка, ликвидность, комиссии</td>
-          <td><span class="finam-v2-risk-memo__risk-tag finam-v2-risk-memo__risk-tag--warn">M/H</span></td>
-        </tr>
-        <tr>
-          <td><strong>Облигации</strong></td>
-          <td>брокерский контур</td>
-          <td>купонный поток и снижение волатильности</td>
-          <td>ставка, дюрация, кредитное качество, ликвидность</td>
-          <td><span class="finam-v2-risk-memo__risk-tag">M</span></td>
-        </tr>
-        <tr>
-          <td><strong>Акции</strong></td>
-          <td>без конкретных бумаг</td>
-          <td>рост капитала на длинном горизонте</td>
-          <td>волатильность, просадка, поведение клиента</td>
-          <td><span class="finam-v2-risk-memo__risk-tag finam-v2-risk-memo__risk-tag--warn">M/H</span></td>
-        </tr>
-      </tbody>
-    </table>
+    <section class="finam-v2-risk-v1__block" aria-labelledby="risk-2-title">
+      <div class="finam-v2-risk-v1__pill" id="risk-2-title">Суть риска</div>
+      <p class="finam-v2-risk-v1__text">
+        Финансовая нестабильность НПФ может повлиять на сроки выплат и инвестиционный доход пенсионной части.
+      </p>
 
-    <p class="finam-v2-risk-memo__section-title">Риск / доходность</p>
-    <section class="finam-v2-risk-memo__matrix" aria-label="Матрица риска и доходности">
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Риск / доходность</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Низкая доходность</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Средняя доходность</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Высокая доходность</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Высокий риск</div>
-      <div class="finam-v2-risk-memo__matrix-cell"></div>
-      <div class="finam-v2-risk-memo__matrix-cell"></div>
-      <div class="finam-v2-risk-memo__matrix-cell"><span class="finam-v2-risk-memo__risk-tag finam-v2-risk-memo__risk-tag--danger">акции</span></div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Средний риск</div>
-      <div class="finam-v2-risk-memo__matrix-cell"></div>
-      <div class="finam-v2-risk-memo__matrix-cell"><span class="finam-v2-risk-memo__risk-tag">ДУ</span><span class="finam-v2-risk-memo__risk-tag">облигации</span></div>
-      <div class="finam-v2-risk-memo__matrix-cell"><span class="finam-v2-risk-memo__risk-tag finam-v2-risk-memo__risk-tag--warn">автоследование</span></div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Низкий риск</div>
-      <div class="finam-v2-risk-memo__matrix-cell"><span class="finam-v2-risk-memo__risk-tag">депозит</span><span class="finam-v2-risk-memo__risk-tag">накопительный счёт</span></div>
-      <div class="finam-v2-risk-memo__matrix-cell"><span class="finam-v2-risk-memo__risk-tag">ПДС</span></div>
-      <div class="finam-v2-risk-memo__matrix-cell"></div>
-    </section>
+      <div class="finam-v2-risk-v1__section-title">Вероятность</div>
+      <p class="finam-v2-risk-v1__text">
+        Низкая/средняя: сектор жестко регулируется, но рыночные и операционные риски не равны нулю.
+      </p>
 
-    <section class="finam-v2-risk-memo__note">
-      <strong>Принцип:</strong> если в плане нет конкретных бумаг, не делаем вид, что провели анализ конкретных эмитентов.
-      Раскрываем риск класса активов и правила контроля.
+      <div class="finam-v2-risk-v1__section-title">Меры снижения риска</div>
+      <ul class="finam-v2-risk-v1__list">
+        <li>Выбор фонда с прозрачной отчетностью и устойчивыми показателями.</li>
+        <li>Мониторинг регуляторных изменений и инвестиционной декларации НПФ.</li>
+        <li>Диверсификация между НПФ, брокерским контуром и страховыми решениями.</li>
+      </ul>
+
+      <div class="finam-v2-risk-v1__section-title">Остаточный риск</div>
+      <p class="finam-v2-risk-v1__text">
+        Системный риск отрасли полностью не устраняется, но диверсификация и контроль снижают влияние
+        на итоговый план.
+      </p>
     </section>
 
     <hr class="finam-v2-wow__footer-rule" />
     <footer class="finam-v2-wow__footer">
       <span>Персональный финансовый план · Конфиденциально</span>
-      <span class="finam-v2-wow__footer-right">Компании и продукты должны соответствовать финансовому плану</span>
+      <span class="finam-v2-wow__footer-right">Пенсионный риск распределяется между НПФ и другими контурами</span>
     </footer>
   </article>
 
+  <!-- Лист 3: Риск ОФЗ -->
   <article class="finam-v2-page">
     <header class="finam-v2-wow__header">
       <div class="finam-v2-wow__header-left">
@@ -231,82 +191,42 @@
     </header>
     <hr class="finam-v2-wow__rule" />
 
-    <p class="finam-v2-wow__eyebrow">Рыночный контур</p>
-    <h1 class="finam-v2-wow__headline">Облигации и акции раскрываем как классы активов</h1>
-    <p class="finam-v2-wow__lead">
-      В текущем финансовом плане акции не привязаны к конкретным инструментам, поэтому декларация не должна
-      изображать анализ отдельных эмитентов. В центре внимания — волатильность, ставка, ликвидность и горизонт.
-    </p>
+    <p class="finam-v2-wow__eyebrow">Облигационный контур</p>
+    <h1 class="finam-v2-wow__headline">3. Риск дефолта государства по облигациям федерального займа (ОФЗ)</h1>
 
-    <section class="finam-v2-risk-memo__two-col">
-      <div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">Облигации</p>
-        <p class="finam-v2-risk-memo__card-text">
-          Риск не сводится к дефолту. Для клиента чаще важнее переоценка из-за ставки, дюрация, ликвидность
-          и качество корпоративной части.
-        </p>
-        <p class="finam-v2-risk-memo__section-title">Контроль</p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Лестница сроков и ограничение длинной дюрации перед близкими целями.</li>
-          <li>Разделение ОФЗ и корпоративного риска в отчёте.</li>
-          <li>Пересмотр структуры при изменении ключевой ставки и инфляционного сценария.</li>
-        </ul>
-      </div>
-      <div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">Акции</p>
-        <p class="finam-v2-risk-memo__card-text">
-          Акции нужны для роста капитала, но дают просадки. Главный риск — клиент принимает долгосрочный риск,
-          а реагирует как на краткосрочный депозит.
-        </p>
-        <p class="finam-v2-risk-memo__section-title">Контроль</p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Доля акций должна соответствовать риск-профилю и горизонту цели.</li>
-          <li>Вход через регулярные пополнения снижает риск неудачного момента.</li>
-          <li>Ребалансировка фиксирует правила, а не эмоции на просадке.</li>
-        </ul>
-      </div>
-    </section>
+    <section class="finam-v2-risk-v1__block" aria-labelledby="risk-3-title">
+      <div class="finam-v2-risk-v1__pill" id="risk-3-title">Суть риска</div>
+      <p class="finam-v2-risk-v1__text">
+        Снижение стоимости ОФЗ и/или ухудшение реальной доходности на фоне инфляции и движения ставок.
+      </p>
 
-    <p class="finam-v2-risk-memo__section-title">Как это влияет на цели</p>
-    <table class="finam-v2-risk-memo__table">
-      <thead>
-        <tr>
-          <th>Сценарий</th>
-          <th>Что происходит</th>
-          <th>Решение в плане</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Рост ставки</strong></td>
-          <td>длинные облигации проседают, новые выпуски дают большую доходность</td>
-          <td>держать сроковую лестницу, не закрывать близкие цели длинной бумагой</td>
-        </tr>
-        <tr>
-          <td><strong>Инфляция выше прогноза</strong></td>
-          <td>реальная стоимость целей растёт быстрее плана</td>
-          <td>индексировать пополнения и пересчитать необходимый ежемесячный взнос</td>
-        </tr>
-        <tr>
-          <td><strong>Просадка акций</strong></td>
-          <td>портфель временно ниже траектории, но долгий горизонт сохраняется</td>
-          <td>сверить риск-профиль, не ломать стратегию без изменения жизненной цели</td>
-        </tr>
-      </tbody>
-    </table>
+      <div class="finam-v2-risk-v1__section-title">Вероятность</div>
+      <p class="finam-v2-risk-v1__text">
+        Формальный дефолт оценивается как низкий, рыночная переоценка облигаций — регулярный сценарий.
+      </p>
 
-    <section class="finam-v2-risk-memo__note">
-      <strong>Что объяснить клиенту:</strong> риск — не причина отказаться от роста, а причина заранее определить
-      лимиты, горизонт и действия на стресс-сценарии.
+      <div class="finam-v2-risk-v1__section-title">Меры снижения риска</div>
+      <ul class="finam-v2-risk-v1__list">
+        <li>Распределение по срокам (дюрации), чтобы снизить чувствительность к ставке.</li>
+        <li>Регулярный пересмотр доли ОФЗ при смене макросценария.</li>
+        <li>Баланс защитных и доходных инструментов в рублевом контуре.</li>
+      </ul>
+
+      <div class="finam-v2-risk-v1__section-title">Остаточный риск</div>
+      <p class="finam-v2-risk-v1__text">
+        ОФЗ остаются базовым защитным инструментом, но рыночные колебания и инфляция продолжают влиять
+        на итоговый результат.
+      </p>
     </section>
 
     <hr class="finam-v2-wow__footer-rule" />
     <footer class="finam-v2-wow__footer">
       <span>Персональный финансовый план · Конфиденциально</span>
-      <span class="finam-v2-wow__footer-right">Акции раскрываются без конкретных бумаг, облигации — без имитации анализа эмитентов</span>
+      <span class="finam-v2-wow__footer-right">Риск ОФЗ учитывается через дюрацию и долю в портфеле</span>
     </footer>
   </article>
 
+  <!-- Лист 4: Риски инвестирования в акции -->
   <article class="finam-v2-page">
     <header class="finam-v2-wow__header">
       <div class="finam-v2-wow__header-left">
@@ -317,77 +237,42 @@
     </header>
     <hr class="finam-v2-wow__rule" />
 
-    <p class="finam-v2-wow__eyebrow">Продуктовый контур</p>
-    <h1 class="finam-v2-wow__headline">ПДС, ДУ и автоследование требуют разных контролей</h1>
-    <p class="finam-v2-wow__lead">
-      Продуктовый риск — это не только рынок. Это договор, комиссия, правила выхода, роль провайдера
-      и соответствие продукта фактической цели клиента.
-    </p>
+    <p class="finam-v2-wow__eyebrow">Рыночный контур</p>
+    <h1 class="finam-v2-wow__headline">4. Риски инвестирования в акции российских компаний</h1>
 
-    <section class="finam-v2-risk-memo__two-col">
-      <div class="finam-v2-risk-memo__card finam-v2-risk-memo__card--accent">
-        <p class="finam-v2-risk-memo__card-title">ПДС НПФ Ренессанс</p>
-        <p class="finam-v2-risk-memo__card-text">
-          Используется как пенсионный контур с налоговыми вычетами и потенциальным софинансированием.
-          Ключевой риск — правила программы и дисциплина долгого горизонта.
-        </p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Проверить условия взносов, выхода и выплат.</li>
-          <li>Мониторить изменения регуляторики и инвестиционной декларации НПФ.</li>
-          <li>Не считать налоговый эффект гарантированной доходностью продукта.</li>
-        </ul>
-      </div>
-      <div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">Депозит / накопительный счёт</p>
-        <p class="finam-v2-risk-memo__card-text">
-          Роль — ликвидность и короткий резерв. Риск низкий, но реальная доходность может отставать от инфляции.
-        </p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Не держать долгие цели только в низкодоходной ликвидности.</li>
-          <li>Сверять ставку с инфляцией и сроком цели.</li>
-          <li>Разделять резерв и инвестиционный капитал.</li>
-        </ul>
-      </div>
-    </section>
+    <section class="finam-v2-risk-v1__block" aria-labelledby="risk-4-title">
+      <div class="finam-v2-risk-v1__pill" id="risk-4-title">Суть риска</div>
+      <p class="finam-v2-risk-v1__text">
+        Волатильность акций может привести к заметной просадке капитала на отдельных участках горизонта.
+      </p>
 
-    <section class="finam-v2-risk-memo__two-col">
-      <div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">ДУ Финам</p>
-        <p class="finam-v2-risk-memo__card-text">
-          Даёт профессиональное управление, но клиент принимает риск мандата, комиссий и рыночной просадки.
-        </p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Сверить стратегию с риск-профилем и горизонтом.</li>
-          <li>Показывать комиссии отдельно от ожидаемой доходности.</li>
-          <li>Задать лимит доли ДУ в общем портфеле.</li>
-        </ul>
-      </div>
-      <div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">Автоследование Финам / Comon</p>
-        <p class="finam-v2-risk-memo__card-text">
-          Клиент следует стратегии автора. Риск — просадка, смена поведения стратегии, ликвидность и
-          неверное ожидание «автоматической гарантии».
-        </p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Проверять максимальную просадку и период восстановления.</li>
-          <li>Фиксировать минимальный горизонт удержания стратегии.</li>
-          <li>Ограничивать долю автоследования в портфеле.</li>
-        </ul>
-      </div>
-    </section>
+      <div class="finam-v2-risk-v1__section-title">Вероятность</div>
+      <p class="finam-v2-risk-v1__text">
+        Средняя/высокая: для акций колебания цены являются нормой рынка.
+      </p>
 
-    <section class="finam-v2-risk-memo__note">
-      <strong>Что сказать клиенту простыми словами:</strong> продукт выбирается не потому, что он «лучший»,
-      а потому что его риск подходит конкретной цели, горизонту и денежному потоку.
+      <div class="finam-v2-risk-v1__section-title">Меры снижения риска</div>
+      <ul class="finam-v2-risk-v1__list">
+        <li>Диверсификация по эмитентам, секторам и классам активов.</li>
+        <li>Лимиты долей и регулярная ребалансировка портфеля.</li>
+        <li>Пошаговый вход вместо единоразового размещения крупной суммы.</li>
+      </ul>
+
+      <div class="finam-v2-risk-v1__section-title">Остаточный риск</div>
+      <p class="finam-v2-risk-v1__text">
+        Потенциал роста сохраняется вместе с рыночной волатильностью; риск удерживается в пределах
+        выбранного профиля.
+      </p>
     </section>
 
     <hr class="finam-v2-wow__footer-rule" />
     <footer class="finam-v2-wow__footer">
       <span>Персональный финансовый план · Конфиденциально</span>
-      <span class="finam-v2-wow__footer-right">ПДС: НПФ Ренессанс · Инвестиции: Финам · Ликвидность: банк</span>
+      <span class="finam-v2-wow__footer-right">Акции используются с учётом риск-профиля и горизонта</span>
     </footer>
   </article>
 
+  <!-- Лист 5: Риски инвестирования НПФ в корпоративные облигации + юр. дисклеймер -->
   <article class="finam-v2-page">
     <header class="finam-v2-wow__header">
       <div class="finam-v2-wow__header-left">
@@ -398,102 +283,47 @@
     </header>
     <hr class="finam-v2-wow__rule" />
 
-    <p class="finam-v2-wow__eyebrow">Протокол контроля</p>
-    <h1 class="finam-v2-wow__headline">Риск контролируется календарём, а не обещаниями доходности</h1>
-    <p class="finam-v2-wow__lead">
-      Финальная страница переводит дисклеймер в операционный протокол: что проверять, когда пересчитывать
-      план и при каких событиях менять структуру.
-    </p>
+    <p class="finam-v2-wow__eyebrow">Корпоративный облигационный контур</p>
+    <h1 class="finam-v2-wow__headline">5. Риски инвестирования НПФ в корпоративные облигации</h1>
 
-    <section class="finam-v2-risk-memo__three-col">
-      <div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">Ежеквартально</p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Сверить портфель с целевыми долями.</li>
-          <li>Проверить пополнения и свободный поток.</li>
-          <li>Обновить статус ДУ / автоследования.</li>
-        </ul>
-      </div>
-      <div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">Раз в 6 месяцев</p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Пересчитать инфляцию и стоимость целей.</li>
-          <li>Проверить ПДС, ликвидность и налоговые лимиты.</li>
-          <li>Сверить риск-профиль клиента.</li>
-        </ul>
-      </div>
-      <div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">По событию</p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          <li>Падение дохода семьи или крупный расход.</li>
-          <li>Просадка портфеля выше заранее заданного лимита.</li>
-          <li>Изменение правил продукта или регуляторики.</li>
-        </ul>
-      </div>
-    </section>
+    <section class="finam-v2-risk-v1__block" aria-labelledby="risk-5-title">
+      <div class="finam-v2-risk-v1__pill" id="risk-5-title">Суть риска</div>
+      <p class="finam-v2-risk-v1__text">
+        Корпоративные облигации несут кредитный, процентный и риск ликvidности.
+      </p>
 
-    <p class="finam-v2-risk-memo__section-title">Триггеры пересмотра</p>
-    <table class="finam-v2-risk-memo__table">
-      <thead>
-        <tr>
-          <th>Триггер</th>
-          <th>Что делаем</th>
-          <th>Кого касается</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Инфляция выше плана</strong></td>
-          <td>пересчитать стоимость целей и размер пополнений</td>
-          <td>все накопительные цели</td>
-        </tr>
-        <tr>
-          <td><strong>Просадка стратегии</strong></td>
-          <td>сравнить с допустимой просадкой, не менять продукт автоматически</td>
-          <td>ДУ, автоследование, акции</td>
-        </tr>
-        <tr>
-          <td><strong>Изменение условий</strong></td>
-          <td>проверить договор, комиссии, лимиты, налоговые правила</td>
-          <td>ПДС, ликвидность, брокерский контур</td>
-        </tr>
-      </tbody>
-    </table>
+      <div class="finam-v2-risk-v1__section-title">Вероятность</div>
+      <p class="finam-v2-risk-v1__text">
+        Средняя: зависит от качества эмитента, макросреды и структуры портфеля.
+      </p>
 
-    <p class="finam-v2-risk-memo__section-title">Преемственность с v1</p>
-    <table class="finam-v2-risk-memo__table">
-      <thead>
-        <tr>
-          <th>Риск v1</th>
-          <th>Где раскрыт в v2</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>Инфляционный риск</td><td>триггер пересчёта целей и пополнений</td></tr>
-        <tr><td>Риск НПФ</td><td>ПДС НПФ Ренессанс и правила программы</td></tr>
-        <tr><td>ОФЗ / ставка</td><td>облигации: дюрация, ставка, ликвидность</td></tr>
-        <tr><td>Акции РФ</td><td>акции как класс активов без конкретных бумаг</td></tr>
-        <tr><td>Корпоративные облигации</td><td>кредитный риск в облигационном контуре</td></tr>
-      </tbody>
-    </table>
+      <div class="finam-v2-risk-v1__section-title">Меры снижения риска</div>
+      <ul class="finam-v2-risk-v1__list">
+        <li>Отбор эмитентов по кредитному качеству и диверсификация по секторам.</li>
+        <li>Контроль дюрации и долей при изменении ключевой ставки.</li>
+        <li>Постоянный мониторинг ликvidности и макропоказателей.</li>
+      </ul>
 
-    <p class="finam-v2-tail__disclaimer">
-      Материалы декларации носят информационный характер и не являются индивидуальной инвестиционной рекомендацией (ИИР).
-      Прошлая доходность не гарантирует будущие результаты. Финансовые, пенсионные, брокерские и страховые условия,
-      порядок гарантий, комиссии, ограничения и выплаты определяются действующим законодательством РФ, правилами
-      НПФ Ренессанс, условиями продуктов Финам/Comon и банковскими документами по депозитам и накопительным счетам.
-    </p>
+      <div class="finam-v2-risk-v1__section-title">Остаточный риск</div>
+      <p class="finam-v2-risk-v1__text">
+        Премия к ОФЗ сопровождается дополнительным риском; он ограничивается диверсификацией и лимитами.
+      </p>
 
-    <section class="finam-v2-risk-memo__note">
-      <strong>Финальное решение:</strong> клиент принимает его после раскрытия рисков, проверки документов и сверки
-      выбранных продуктов с личным риск-профилем.
+      <p class="finam-v2-risk-v1__disclaimer">
+        Материалы декларации носят информационный характер и не являются индивидуальной инвестиционной
+        рекомендацией (ИИР). Прошлая доходность не гарантирует будущие результаты. Финансовые и страховые
+        условия, порядок гарантий и возможные ограничения определяются действующим законодательством РФ,
+        правилами соответствующих программ НПФ, условиями брокерского обслуживания и страховыми документами
+        продукта.
+      </p>
     </section>
 
     <hr class="finam-v2-wow__footer-rule" />
     <footer class="finam-v2-wow__footer">
       <span>Персональный финансовый план · Конфиденциально</span>
-      <span class="finam-v2-wow__footer-right">Финальное решение принимает клиент после раскрытия рисков</span>
+      <span class="finam-v2-wow__footer-right">Финальное решение принимается после раскрытия всех рисков</span>
     </footer>
   </article>
 </body>
 </html>
+
