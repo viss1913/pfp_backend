@@ -2874,9 +2874,19 @@ function buildDetailedPlanRows(model) {
     const goalsDetailed = report.goals_detailed || [];
     const capitalNonLife = buildNonLifeCapitalByMonth(goalsDetailed);
     const v1Rows = buildRepleneshmentRows(report);
-    return v1Rows.map((r) => {
+    const lifeGoalDetailed = goalsDetailed.find((g) => isLifeGoal(g));
+    const lifeAnnualPremium = lifeGoalDetailed
+        ? finite(lifeGoalDetailed?.details?.annual_premium ?? lifeGoalDetailed?.summary?.initial_capital, 0)
+        : 0;
+
+    return v1Rows.map((r, idx) => {
         const key = monthKeyFromReplenRow(r);
-        const capital = key != null ? finite(capitalNonLife.get(key), 0) : 0;
+        let capital = key != null ? finite(capitalNonLife.get(key), 0) : 0;
+        // Первая строка = текущий месяц: в «Пополнение» уже включена годовая премия НСЖ; в «Итоговый капитал»
+        // только инвестиционный контур — паритет: пополнение первой строки минус годовая премия LIFE (как v1).
+        if (idx === 0) {
+            capital = finite(r.replenishment, 0) - lifeAnnualPremium;
+        }
         return {
             month: parseMonthFromReplenishDate(r.date),
             replenishment: finite(r.replenishment, 0),
@@ -2936,7 +2946,7 @@ function buildDetailedPlanFullHtml(model, helpers) {
       <div>
         <p class="finam-v2-wow__eyebrow">График пополнений</p>
         <h1 class="finam-v2-wow__headline">Таблица превращает стратегию в календарь действий</h1>
-        <p class="finam-v2-wow__lead">Первый месяц — текущий: в пополнении суммирован первоначальный капитал по целям (как в отчёте v1) и годовая премия по страхованию жизни, если цель есть в плане. Колонка «Итоговый капитал» — только сумма по накопительным и инвестиционным целям (без учёта страховой компоненты). Дальше — помесячные строки: пополнения (включая взносы по НСЖ), вычеты, софинансирование. Календарь выводится на все месяцы расчёта, листы разбиваются автоматически.</p>
+        <p class="finam-v2-wow__lead">Первый месяц — текущий: в «Пополнение» входят первоначальный капитал по целям и годовая премия по НСЖ при наличии цели LIFE. В «Итоговый капитал» в первом месяце — инвестиционный капитал без премии (пополнение первой строки минус годовая премия НСЖ). Далее — помесячные строки по календарю; следующие листы — только продолжение таблицы.</p>
       </div>
       <aside class="finam-v2-tail__kpi-stack">
         <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, totalInitial, { short: true })}</div><div class="finam-v2-tail__kpi-label">стартовый капитал в первом месяце</div></div>
@@ -2948,16 +2958,8 @@ function buildDetailedPlanFullHtml(model, helpers) {
     ${tailFooter('Таблица строится по календарю пополнений клиента')}
   </article>`;
             }
-            const isLast = idx === chunks.length - 1;
-            return `<article class="finam-v2-page">
-    ${tailPageHeader(pill)}
-    ${detailedTableHtml(chunk, helpers, `Подробный план пополнений, часть ${pageNum} из ${totalPages}`)}
-    ${
-        isLast
-            ? '<section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> последняя страница календаря; при пересчёте плана таблица обновляется целиком.</section>'
-            : '<div class="finam-v2-tail__page-note"></div>'
-    }
-    ${tailFooter(isLast ? 'Календарь уточняется при пересчёте финансового плана' : 'Продолжение календаря пополнений')}
+            return `<article class="finam-v2-page finam-v2-page--detailed-continuation">
+    ${detailedTableHtml(chunk, helpers, `Подробный план пополнений, часть ${pageNum} из ${totalPages}`, { showHead: false })}
   </article>`;
         })
         .join('\n');
@@ -2967,9 +2969,22 @@ function detailedRowHtml(row, helpers) {
     return `<tr><td>${escapeHtml(`${MONTH_SHORT_RU[row.month.getMonth()]} ${row.month.getFullYear()}`)}</td><td class="finam-v2-tail__num">${moneyHtml(helpers, row.replenishment)}</td><td class="finam-v2-tail__num">${moneyHtml(helpers, row.tax)}</td><td class="finam-v2-tail__num">${moneyHtml(helpers, row.cofinancing)}</td><td class="finam-v2-tail__num">${moneyHtml(helpers, row.capital)}</td></tr>`;
 }
 
-function detailedTableHtml(rows, helpers, label) {
+const DETAILED_PLAN_COLGROUP = `<colgroup>
+      <col style="width: 17%;" />
+      <col style="width: 21%;" />
+      <col style="width: 20%;" />
+      <col style="width: 20%;" />
+      <col style="width: 22%;" />
+    </colgroup>`;
+
+function detailedTableHtml(rows, helpers, label, opts = {}) {
+    const showHead = opts.showHead !== false;
+    const headHtml = showHead
+        ? `<thead><tr><th>Дата</th><th>Пополнение</th><th>Налоговый вычет</th><th>Софинансирование</th><th>Итоговый капитал</th></tr></thead>`
+        : '';
     return `<table class="finam-v2-tail__table" aria-label="${escapeAttr(label)}">
-      <thead><tr><th style="width: 17%;">Дата</th><th style="width: 21%;">Пополнение</th><th style="width: 20%;">Налоговый вычет</th><th style="width: 20%;">Софинансирование</th><th style="width: 22%;">Итоговый капитал</th></tr></thead>
+      ${DETAILED_PLAN_COLGROUP}
+      ${headHtml}
       <tbody>${rows.map((row) => detailedRowHtml(row, helpers)).join('\n        ') || '<tr><td colspan="5">Расчётный график пополнений отсутствует.</td></tr>'}</tbody>
     </table>`;
 }

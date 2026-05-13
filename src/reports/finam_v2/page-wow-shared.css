@@ -29,6 +29,12 @@ body {
   print-color-adjust: exact;
 }
 
+/* Продолжение подробного плана: только таблица, без шапки/футера секции */
+.finam-v2-page--detailed-continuation {
+  padding-top: 24px;
+  justify-content: flex-start;
+}
+
 .finam-v2-wow__header {
   display: flex;
   justify-content: space-between;
