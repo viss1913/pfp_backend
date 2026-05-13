@@ -2861,7 +2861,7 @@ function monthKeyFromReplenRow(r) {
 
 /** Первая страница с hero + KPI; продолжения — только таблица (как v1 по плотности строк на A4). */
 const FINAM_V2_DETAILED_ROWS_FIRST = 12;
-const FINAM_V2_DETAILED_ROWS_NEXT = 22;
+const FINAM_V2_DETAILED_ROWS_NEXT = 28;
 
 /**
  * Паритет с v1 `buildRepleneshmentRows`: стартовый капитал в первой строке, график пополнений,
@@ -2942,7 +2942,7 @@ function buildDetailedPlanFullHtml(model, helpers) {
             if (idx === 0) {
                 return `<article class="finam-v2-page">
     ${tailPageHeader(pill)}
-    <section class="finam-v2-tail__hero">
+    <section class="finam-v2-tail__hero finam-v2-tail__hero--compact">
       <div>
         <p class="finam-v2-wow__eyebrow">График пополнений</p>
         <h1 class="finam-v2-wow__headline">Таблица превращает стратегию в календарь действий</h1>

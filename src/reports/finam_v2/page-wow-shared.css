@@ -31,7 +31,7 @@ body {
 
 /* Продолжение подробного плана: только таблица, без шапки/футера секции */
 .finam-v2-page--detailed-continuation {
-  padding-top: 24px;
+  padding: 14px 32px 12px;
   justify-content: flex-start;
 }
 
@@ -357,6 +357,19 @@ body {
 .finam-v2-tail__hero--full {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
+}
+
+.finam-v2-tail__hero--compact {
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.finam-v2-tail__hero--compact .finam-v2-wow__headline {
+  margin-bottom: 6px;
+}
+
+.finam-v2-tail__hero--compact .finam-v2-wow__lead {
+  margin-bottom: 0;
 }
 
 .finam-v2-tail__kpi-stack {

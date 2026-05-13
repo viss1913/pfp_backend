@@ -4,7 +4,11 @@ const {
     FINAM_V2_TAIL_PAGE_ORDER,
     FINAM_V2_TEMPLATE_MANIFEST,
 } = require('./finamV2PageManifest');
-const { loadTemplateDocument, loadTemplatePhysicalPages } = require('./finamV2TemplateLoader');
+const {
+    loadTemplateDocument,
+    loadTemplatePhysicalPages,
+    splitFinamV2DocumentIntoPhysicalPages,
+} = require('./finamV2TemplateLoader');
 const { applyTemplateData } = require('./finamV2TemplateAppliers');
 
 function defaultGoalPageType(goal) {
@@ -23,6 +27,18 @@ function defaultGoalPageType(goal) {
 function loadAppliedPhysicalPages({ pageType, model, goal = null, helpers = {} }) {
     const spec = FINAM_V2_TEMPLATE_MANIFEST[pageType];
     if (!spec) return [];
+
+    if (pageType === FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN) {
+        const fullDoc = loadTemplateDocument(spec.fileName);
+        const applied = applyTemplateData(fullDoc, {
+            model,
+            pageType,
+            goal,
+            helpers,
+        });
+        return splitFinamV2DocumentIntoPhysicalPages(applied);
+    }
+
     return loadTemplatePhysicalPages(spec.fileName).map((html) =>
         applyTemplateData(html, {
             model,

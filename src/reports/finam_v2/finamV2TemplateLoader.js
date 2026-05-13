@@ -191,9 +191,27 @@ function loadTemplatePhysicalPages(fileName) {
     return pageArticles.map((articleHtml) => wrapArticleDocument({ headInner, articleHtml, title }));
 }
 
+/**
+ * После `applyTemplateData` подробный план подменяет весь `<body>` на N `article.finam-v2-page`.
+ * Если резать шаблон на листа **до** подстановки и вызывать apply на каждый кусок, каждый лист
+ * получает полный календарь целиком → дубли в merged HTML / «хвост года» перед первой страницей.
+ * Поэтому для таких шаблонов: один полный документ → apply → затем разбор на физические страницы.
+ */
+function splitFinamV2DocumentIntoPhysicalPages(html) {
+    const s = String(html || '');
+    const articles = extractFinamV2Articles(s);
+    if (articles.length <= 1) {
+        return [s];
+    }
+    const headInner = extractHeadInner(s);
+    const title = extractTitle(s);
+    return articles.map((articleHtml) => wrapArticleDocument({ headInner, articleHtml, title }));
+}
+
 module.exports = {
     loadTemplateDocument,
     loadTemplatePhysicalPages,
+    splitFinamV2DocumentIntoPhysicalPages,
     extractFinamV2Articles,
     inlineLocalAssets,
     inlineCssLinks,
