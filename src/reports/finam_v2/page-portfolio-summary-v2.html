@@ -186,10 +186,11 @@
     }
 
     .finam-v2-portfolio__donut-stack {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      display: flex;
+      flex-direction: column;
       gap: 6px;
       min-width: 0;
+      align-self: start;
     }
 
     .finam-v2-portfolio__donut-card--split {
@@ -202,7 +203,6 @@
       font-size: 8.4px;
       line-height: 1.15;
       margin-bottom: 6px;
-      min-height: 2.4em;
     }
 
     .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut {

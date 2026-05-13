@@ -14,58 +14,17 @@
   <link rel="stylesheet" href="page-wow-shared.css?v=finam-v2-wow-1" />
   <style>
     .finam-v2-roadmap__hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 150px;
-      gap: 16px;
-      align-items: stretch;
       margin-bottom: 14px;
     }
 
     .finam-v2-roadmap__headline {
-      max-width: 360px;
+      max-width: 420px;
       margin-bottom: 9px;
     }
 
     .finam-v2-roadmap__lead {
-      max-width: 350px;
+      max-width: 460px;
       margin-bottom: 0;
-    }
-
-    .finam-v2-roadmap__takeaway {
-      border: 1px solid #cbd5e1;
-      border-radius: 12px;
-      padding: 11px 12px;
-      background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      min-height: 118px;
-    }
-
-    .finam-v2-roadmap__takeaway-label {
-      font-size: 8px;
-      line-height: 1.2;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #64748b;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .finam-v2-roadmap__takeaway-value {
-      font-family: var(--finam-v2-font-display);
-      font-size: 36px;
-      line-height: 0.95;
-      letter-spacing: -0.045em;
-      color: var(--finam-v2-color-navy-deep);
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .finam-v2-roadmap__takeaway-text {
-      font-size: 9px;
-      line-height: 1.25;
-      color: #475569;
     }
 
     .finam-v2-roadmap__thesis {
@@ -269,31 +228,23 @@
 
     <section class="finam-v2-roadmap__hero">
       <div>
-        <p class="finam-v2-wow__eyebrow">Следующие решения</p>
+        <p class="finam-v2-wow__eyebrow">Ваш маршрут</p>
         <h1 class="finam-v2-wow__headline finam-v2-roadmap__headline">
-          Ваш путь к финансовым целям начинается с четырёх управленческих шагов
+          Четыре шага: от цифр в отчёте до спокойствия по счетам и целям
         </h1>
         <p class="finam-v2-wow__lead finam-v2-roadmap__lead">
-          Страница фиксирует не «список задач», а порядок внедрения плана: сначала устойчивость
-          бюджета, затем защита семьи, налоговый контур и инвестиционная реализация.
+          Это не «ещё один чеклист». Это порядок, который помогает не распродавать портфель в
+          трудный месяц: сначала подушка и управляемый бюджет, затем защита семьи, налоговый контур — и
+          уже потом рост капитала через подходящие продукты и счета Финам.
         </p>
       </div>
-      <aside class="finam-v2-roadmap__takeaway">
-        <div>
-          <div class="finam-v2-roadmap__takeaway-label">Фокус внедрения</div>
-          <div class="finam-v2-roadmap__takeaway-value">90</div>
-        </div>
-        <p class="finam-v2-roadmap__takeaway-text">
-          дней достаточно, чтобы перевести финансовый план из расчёта в рабочий режим контроля.
-        </p>
-      </aside>
     </section>
 
     <section class="finam-v2-roadmap__thesis">
       <div class="finam-v2-roadmap__thesis-kicker">Ключевой вывод</div>
       <p class="finam-v2-roadmap__thesis-text">
-        Оптимальная последовательность — закрыть кассовые разрывы до продажи инвестиций,
-        зафиксировать страховую защиту и только затем наращивать долгосрочный капитал.
+        Сначала убираем кассовые разрывы — чтобы не продавать инвестиции в минус. Параллельно
+        закрепляем страховую защиту. И только после этого усиливаем долгосрочный капитал.
       </p>
     </section>
 
@@ -311,17 +262,18 @@
         <div class="finam-v2-roadmap__cell">
           <div class="finam-v2-roadmap__action-title">Сформировать ликвидный резерв</div>
           <p class="finam-v2-roadmap__action-text">
-            Открыть отдельный накопительный счёт и закрепить правило регулярного пополнения.
+            Отдельный накопительный счёт и простое правило: пополнять стабильно, без «когда останется».
           </p>
         </div>
         <div class="finam-v2-roadmap__cell">
           <p class="finam-v2-roadmap__effect-text">
-            <strong>Снижает риск кассового разрыва</strong> и защищает портфель от вынужденной продажи активов.
+            <strong>Спокойствие в быту и для портфеля:</strong> меньше шансов сорвать инвестиции из‑за
+            неожиданного расхода.
           </p>
         </div>
         <div class="finam-v2-roadmap__cell finam-v2-roadmap__cta-cell">
           <span class="finam-v2-roadmap__button finam-v2-roadmap__button--ghost">Открыть счёт</span>
-          <p class="finam-v2-roadmap__cta-note">Накопительный счёт в банке</p>
+          <p class="finam-v2-roadmap__cta-note">Накопительный счёт — старт подушки</p>
         </div>
       </div>
       <div class="finam-v2-roadmap__row">
@@ -331,12 +283,13 @@
         <div class="finam-v2-roadmap__cell">
           <div class="finam-v2-roadmap__action-title">Подключить страховую защиту жизни</div>
           <p class="finam-v2-roadmap__action-text">
-            Закрыть ключевые риски семьи: травма, инвалидность, уход из жизни и потеря дохода.
+            Закрыть риски, из‑за которых ломается бюджет: здоровье, доход, жизнь кормильца.
           </p>
         </div>
         <div class="finam-v2-roadmap__cell">
           <p class="finam-v2-roadmap__effect-text">
-            <strong>Стабилизирует семейный капитал</strong> и не даёт форс-мажору сломать долгосрочные цели.
+            <strong>Цели не «сгорают» при форс-мажоре:</strong> семья сохраняет опору, даже если доход
+            прервался.
           </p>
         </div>
         <div class="finam-v2-roadmap__cell finam-v2-roadmap__cta-cell">
@@ -346,7 +299,7 @@
             target="_blank"
             rel="noopener"
           >Оформить НСЖ</a>
-          <p class="finam-v2-roadmap__cta-note">Подбор покрытия и тарифа</p>
+          <p class="finam-v2-roadmap__cta-note">Подберём покрытие под вашу ситуацию</p>
         </div>
       </div>
       <div class="finam-v2-roadmap__row">
@@ -356,12 +309,13 @@
         <div class="finam-v2-roadmap__cell">
           <div class="finam-v2-roadmap__action-title">Открыть ПДС</div>
           <p class="finam-v2-roadmap__action-text">
-            Запустить долгий пенсионный контур с налоговыми вычетами и софинансированием.
+            Долгий горизонт пенсии с вычетами и софинансированием — государство частично помогает взносами.
           </p>
         </div>
         <div class="finam-v2-roadmap__cell">
           <p class="finam-v2-roadmap__effect-text">
-            <strong>Ускоряет рост капитала</strong> за счёт налогового эффекта и регулярной дисциплины.
+            <strong>Больше капитала на выходе:</strong> налоговый бонус плюс привычка откладывать
+            системно, а не от случая к случаю.
           </p>
         </div>
         <div class="finam-v2-roadmap__cell finam-v2-roadmap__cta-cell">
@@ -371,7 +325,7 @@
             target="_blank"
             rel="noopener"
           >Открыть ПДС</a>
-          <p class="finam-v2-roadmap__cta-note">Первый взнос после резерва</p>
+          <p class="finam-v2-roadmap__cta-note">Стартуем после подушки безопасности</p>
         </div>
       </div>
       <div class="finam-v2-roadmap__row">
@@ -381,12 +335,13 @@
         <div class="finam-v2-roadmap__cell">
           <div class="finam-v2-roadmap__action-title">Открыть брокерский счёт</div>
           <p class="finam-v2-roadmap__action-text">
-            Перевести инвестиционную часть плана в портфель с понятным риск-профилем.
+            Вынести инвестиции из «общего котла»: структура портфеля под ваш риск-профиль и горизонт целей.
           </p>
         </div>
         <div class="finam-v2-roadmap__cell">
           <p class="finam-v2-roadmap__effect-text">
-            <strong>Даёт доступ к инструментам роста</strong> и позволяет регулярно ребалансировать цели.
+            <strong>Рост без хаоса:</strong> доступ к рынку, ребалансировка и сопровождение — в одном контуре
+            с планом.
           </p>
         </div>
         <div class="finam-v2-roadmap__cell finam-v2-roadmap__cta-cell">
@@ -404,19 +359,19 @@
       <div class="finam-v2-roadmap__cadence-card">
         <div class="finam-v2-roadmap__cadence-title">Месяц 1</div>
         <p class="finam-v2-roadmap__cadence-text">
-          Фиксируем бюджет, лимиты обязательств и минимальный размер резерва.
+          Запускаем подушку и правила бюджета — чтобы инвестиции не трогать при сюрпризах.
         </p>
       </div>
       <div class="finam-v2-roadmap__cadence-card">
         <div class="finam-v2-roadmap__cadence-title">Квартал</div>
         <p class="finam-v2-roadmap__cadence-text">
-          Сверяем план и факт: свободный поток, резерв, страховая защита, взносы.
+          Сверка «план — факт»: поток, резерв, защита, взносы. Коротко и по делу.
         </p>
       </div>
       <div class="finam-v2-roadmap__cadence-card">
         <div class="finam-v2-roadmap__cadence-title">Год</div>
         <p class="finam-v2-roadmap__cadence-text">
-          Пересчитываем сценарии, налоговый эффект и структуру инвестиционного портфеля.
+          Обновляем сценарии, налоги и структуру портфеля — план остаётся живым, а не «в ящике».
         </p>
       </div>
     </section>
@@ -424,7 +379,7 @@
     <hr class="finam-v2-wow__footer-rule" />
     <footer class="finam-v2-wow__footer">
       <span>Персональный финансовый план · Конфиденциально</span>
-      <span class="finam-v2-wow__footer-right">План действий используется как основа сопровождения</span>
+      <span class="finam-v2-wow__footer-right">Готовы пройти шаги вместе с консультантом Финам</span>
     </footer>
   </article>
 </body>

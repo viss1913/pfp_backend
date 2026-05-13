@@ -2821,21 +2821,66 @@ function parseMonthFromReplenishDate(isoDate) {
     return Number.isNaN(d.getTime()) ? new Date() : d;
 }
 
+function toMonthStartIsoFromDateLike(dateLike) {
+    if (!dateLike) return null;
+    const d = new Date(dateLike);
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    return `${y}-${String(m).padStart(2, '0')}-01`;
+}
+
+/**
+ * Сумма `total_capital` из графика только по целям кроме LIFE и RENT — паритет с первым циклом v1
+ * `buildRepleneshmentRows` (без страховой «наличности» в колонке капитала).
+ */
+function buildNonLifeCapitalByMonth(goalsDetailed) {
+    const map = new Map();
+    const goals = Array.isArray(goalsDetailed) ? goalsDetailed : [];
+    for (const goal of goals) {
+        const goalType = String(goal?.goal_type || '').toUpperCase();
+        if (goalType === 'RENT' || goalType === 'LIFE') continue;
+        const schedule = Array.isArray(goal?.details?.monthly_schedule) ? goal.details.monthly_schedule : [];
+        for (const srcRow of schedule) {
+            const isoDate = toMonthStartIsoFromDateLike(srcRow?.date);
+            if (!isoDate) continue;
+            const cap = finite(srcRow?.total_capital, 0);
+            map.set(isoDate, (map.get(isoDate) || 0) + cap);
+        }
+    }
+    return map;
+}
+
+function monthKeyFromReplenRow(r) {
+    if (!r?.date) return null;
+    const raw = String(r.date).trim();
+    const fromIso = toMonthStartIsoFromDateLike(raw);
+    if (fromIso) return fromIso;
+    return raw.slice(0, 10).length >= 10 ? `${raw.slice(0, 7)}-01` : null;
+}
+
 /**
  * Паритет с v1 `buildRepleneshmentRows`: стартовый капитал в первой строке, график пополнений,
  * отдельный контур LIFE (годовая премия в первом месяце, далее ежемесячные взносы).
+ * Колонка «Итоговый капитал» — только накопления по целям без страхования жизни (как договорились с продуктом).
  * Две страницы шаблона — до 26 строк.
  */
 function buildDetailedPlanRows(model) {
     const report = model?.replenishmentReport || { goals_detailed: Array.isArray(model?.goals) ? model.goals : [] };
+    const goalsDetailed = report.goals_detailed || [];
+    const capitalNonLife = buildNonLifeCapitalByMonth(goalsDetailed);
     const v1Rows = buildRepleneshmentRows(report);
-    const mapped = v1Rows.map((r) => ({
-        month: parseMonthFromReplenishDate(r.date),
-        replenishment: finite(r.replenishment, 0),
-        tax: finite(r.tax_deduction, 0),
-        cofinancing: finite(r.cofinancing, 0),
-        capital: finite(r.total_capital, 0),
-    }));
+    const mapped = v1Rows.map((r) => {
+        const key = monthKeyFromReplenRow(r);
+        const capital = key != null ? finite(capitalNonLife.get(key), 0) : 0;
+        return {
+            month: parseMonthFromReplenishDate(r.date),
+            replenishment: finite(r.replenishment, 0),
+            tax: finite(r.tax_deduction, 0),
+            cofinancing: finite(r.cofinancing, 0),
+            capital,
+        };
+    });
     return mapped.slice(0, 26);
 }
 
@@ -2879,7 +2924,7 @@ function buildDetailedPlanArticle(model, helpers, pageIndex) {
       <div>
         <p class="finam-v2-wow__eyebrow">График пополнений</p>
         <h1 class="finam-v2-wow__headline">Таблица превращает стратегию в календарь действий</h1>
-        <p class="finam-v2-wow__lead">Первый месяц — текущий: в пополнении суммирован первоначальный капитал по целям (как в отчёте v1) и годовая премия по страхованию жизни, если цель есть в плане. Дальше — помесячные строки из расчётного графика: регулярные пополнения, налоговые вычеты, софинансирование и накопленный капитал.</p>
+        <p class="finam-v2-wow__lead">Первый месяц — текущий: в пополнении суммирован первоначальный капитал по целям (как в отчёте v1) и годовая премия по страхованию жизни, если цель есть в плане. Колонка «Итоговый капитал» — только сумма по накопительным и инвестиционным целям (без учёта страховой компоненты). Дальше — помесячные строки: пополнения (включая взносы по НСЖ), вычеты, софинансирование.</p>
       </div>
       <aside class="finam-v2-tail__kpi-stack">
         <div class="finam-v2-tail__kpi"><div class="finam-v2-tail__kpi-value">${moneyHtml(helpers, totalInitial, { short: true })}</div><div class="finam-v2-tail__kpi-label">стартовый капитал в первом месяце</div></div>
@@ -2887,7 +2932,7 @@ function buildDetailedPlanArticle(model, helpers, pageIndex) {
       </aside>
     </section>
     ${detailedTableHtml(currentRows, helpers, 'Подробный план пополнений')}
-    <section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> таблица совпадает по логике с блоком «подробный план» v1: те же агрегированные строки по месяцам, включая контур страхования жизни.</section>
+    <section class="finam-v2-wow__insight finam-v2-tail__page-note"><strong>Комментарий:</strong> пополнения и вычеты — как в v1; итоговый капитал в столбце справа — без страхования жизни, чтобы не смешивать инвестиционный капитал с контрактом НСЖ.</section>
     ${tailFooter('Таблица строится по календарю пополнений клиента')}
   </article>`;
 }
