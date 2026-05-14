@@ -426,6 +426,7 @@ class ReportPdfService {
                     goalTypes,
                     advisor: reportAdvisor || undefined,
                     macroData: await loadFinamInflationMacroData(),
+                    projectId,
                 });
                 pageHtmlList.push(...finamV2Pkg.pageHtmlList);
                 toc = finamV2Pkg.toc;

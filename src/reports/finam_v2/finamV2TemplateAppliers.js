@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { buildRepleneshmentRows } = require('../finam/buildFinamReportHtml');
 const { FINAM_REPORT_V2_PAGE_TYPES } = require('./finamReportV2Contract');
+const { isAtbBankProject, applyAtbLifeGoalDisplay, atbBrandingRiskDeclarationHtml } = require('./finamV2AtbBranding');
 
 function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -650,7 +651,7 @@ function buildLifeRiskGridHtml(life, helpers) {
 function replaceLifeGoalPage(html, context) {
     const { goal, helpers } = context;
     if (!goal) return html;
-    const life = normalizeLifeGoal(goal, helpers);
+    const life = applyAtbLifeGoalDisplay(normalizeLifeGoal(goal, helpers), context.model?.meta?.projectId);
     const titleHtml = escapeHtml(life.title);
     const annualHtml = moneyHtml(helpers, life.annualPremium);
     const monthlyHtml = moneyHtml(helpers, life.monthlyPremium);
@@ -3306,7 +3307,11 @@ function replaceRiskDeclarationPage(html, context) {
         ? context.model.riskDeclaration.legalNotes
         : DEFAULT_RISK_LEGAL_NOTES;
     const disclaimer = `<p class="finam-v2-tail__disclaimer">\n      ${notes.map((note) => escapeHtml(note)).join(' ')}\n    </p>`;
-    return String(html || '').replace(/<p class="finam-v2-tail__disclaimer">[\s\S]*?<\/p>/, disclaimer);
+    let out = String(html || '').replace(/<p class="finam-v2-tail__disclaimer">[\s\S]*?<\/p>/, disclaimer);
+    if (isAtbBankProject(context?.model?.meta?.projectId)) {
+        out = atbBrandingRiskDeclarationHtml(out);
+    }
+    return out;
 }
 
 function replaceCommonSamples(html, { model, helpers }) {

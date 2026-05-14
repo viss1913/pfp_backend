@@ -7,9 +7,13 @@ const {
 } = require('../src/reports/finam_v2/buildFinamReportV2HtmlPackage');
 const { FINAM_REPORT_V2_PAGE_TYPES } = require('../src/reports/finam_v2/finamReportV2Contract');
 
+/** Как `toMonthStartIso` в `buildFinamReportHtml.js` — локальный календарь, без UTC-сдвига `toISOString()`. */
 function monthDate(offset = 0) {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + offset, 1).toISOString().slice(0, 10);
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}-01`;
 }
 
 function schedule(initial, monthly, months) {

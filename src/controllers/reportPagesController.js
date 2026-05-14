@@ -207,6 +207,7 @@ class ReportPagesController {
                     goalId: req.query.goalId ? Number(req.query.goalId) : null,
                     goalTypes: req.query.goalTypes || null,
                     macroData,
+                    projectId,
                 });
                 if (!html) {
                     res.status(404).json({ error: `No Finam v2 page for pageType ${pageType}` });

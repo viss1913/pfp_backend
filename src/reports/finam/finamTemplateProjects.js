@@ -1,8 +1,9 @@
 /**
  * Проекты, для которых PDF собирается пайплайном HTML из src/reports/finam/.
- * 14 — Финам; 23 — AV Информ (те же шаблоны, отдельный тенант). Проект 14 не «владеет» кодом.
+ * 14 — Финам; 23 — AV Информ (те же шаблоны, отдельный тенант); 28 — АТБ Банк (white-label Finam v2, см. finamV2AtbBranding).
+ * Проект 14 не «владеет» кодом.
  */
-const DEFAULT_FINAM_TEMPLATE_PROJECT_IDS = [14, 23];
+const DEFAULT_FINAM_TEMPLATE_PROJECT_IDS = [14, 23, 28];
 
 function parseFinamTemplateProjectIds() {
     const raw = process.env.FINAM_REPORT_PROJECT_IDS;

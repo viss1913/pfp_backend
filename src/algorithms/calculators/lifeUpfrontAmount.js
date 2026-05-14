@@ -4,7 +4,8 @@
  */
 
 const nsjApiServiceSingleton = require('../../services/nsjApiService');
-const FINAM_PROJECT_ID = 14;
+/** Finam (14) и АТБ white-label (28) — один упрощённый NSJ-shape для графика/премии. */
+const NSJ_FINAM_STYLE_PROJECT_IDS = new Set([14, 28]);
 const SBER_LIFE_TARIFF = 0.0144;
 
 /**
@@ -33,7 +34,7 @@ async function fetchLifeNsjResult(goal, context) {
             : (context?.client?.project_id != null ? Number(context.client.project_id) : null);
     const agentUserId = context?.agentUserId != null ? Number(context.agentUserId) : null;
 
-    if (ctxProjectId === FINAM_PROJECT_ID) {
+    if (ctxProjectId != null && NSJ_FINAM_STYLE_PROJECT_IDS.has(ctxProjectId)) {
         const annualPremium = Math.round(targetAmount * SBER_LIFE_TARIFF * 100) / 100;
         return {
             nsjResult: {

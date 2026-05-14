@@ -817,6 +817,8 @@ function buildObjectiveMapping(goals) {
 }
 
 function buildV2Model(report = {}, options = {}) {
+    const rawPid = options.projectId != null ? Number(options.projectId) : null;
+    const metaProjectId = Number.isFinite(rawPid) && rawPid > 0 ? rawPid : null;
     const goals = filterGoals(report.goals_detailed || [], options.goalTypes).sort((a, b) => goalSortWeight(a) - goalSortWeight(b));
     const clientName = report?.client_info?.full_name || report?.client_info?.first_name || 'Клиент';
     const portfolio = report?.overall_plan?.pdf_metrics?.portfolio || {};
@@ -902,6 +904,7 @@ function buildV2Model(report = {}, options = {}) {
 
     return {
         reportSchemaVersion: FINAM_REPORT_V2_SCHEMA_VERSION,
+        meta: { projectId: metaProjectId },
         /** Полный `goals_detailed` для паритета с v1 `buildRepleneshmentRows` (подробный план, страхование жизни). */
         replenishmentReport: { goals_detailed: Array.isArray(report.goals_detailed) ? report.goals_detailed : [] },
         client: {
@@ -1448,8 +1451,9 @@ async function buildFinamReportV2HtmlPackage({
     includePartnerValue = false,
     advisor = null,
     macroData = null,
+    projectId = null,
 } = {}) {
-    const model = buildV2Model(report, { goalTypes, advisor, macroData });
+    const model = buildV2Model(report, { goalTypes, advisor, macroData, projectId });
     return buildFinamV2TemplatePackage({
         model,
         includeCover,
@@ -1459,8 +1463,15 @@ async function buildFinamReportV2HtmlPackage({
     });
 }
 
-async function buildFinamReportV2PageHtml({ report, pageType, goalId = null, goalTypes = null, macroData = null } = {}) {
-    const model = buildV2Model(report, { goalTypes, macroData });
+async function buildFinamReportV2PageHtml({
+    report,
+    pageType,
+    goalId = null,
+    goalTypes = null,
+    macroData = null,
+    projectId = null,
+} = {}) {
+    const model = buildV2Model(report, { goalTypes, macroData, projectId });
     const normalized = String(pageType || '').trim();
     const lower = normalized.toLowerCase();
     const upper = normalized.toUpperCase();
