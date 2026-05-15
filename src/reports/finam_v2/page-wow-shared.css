@@ -1125,6 +1125,13 @@ body {
   width: 3px;
 }
 
+.finam-v2-exec__footnote {
+  margin-top: 8px;
+  font-size: 8px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
 .finam-v2-exec__method {
   margin-top: 10px;
   border: 1px solid var(--finam-v2-color-border);

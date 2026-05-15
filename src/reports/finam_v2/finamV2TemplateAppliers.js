@@ -1928,35 +1928,7 @@ function buildExecutiveDynamicRegionHtml(model) {
     const rowsHtml = buildExecutiveRowsHtml(decision);
     const rec = decision.recommendedScenario || 'Следующий шаг зависит от фактического cash flow и приоритетов целей.';
 
-    const factors = Array.isArray(ifus?.factors) ? ifus.factors : [];
-    const factorRows = factors.length
-        ? factors
-              .map(
-                  (f) => `<tr>
-          <td>${escapeHtml(f.title)}</td>
-          <td>${escapeHtml(Number(f.score).toLocaleString('ru-RU', { maximumFractionDigits: 1 }))}</td>
-          <td>${escapeHtml(Number(f.contribution).toLocaleString('ru-RU', { maximumFractionDigits: 2 }))}</td>
-        </tr>`
-              )
-              .join('')
-        : '<tr><td colspan="3">ИФУС будет детализирован после полного расчёта плана.</td></tr>';
-
-    const gaps = Array.isArray(ifus?.dataGaps) ? ifus.dataGaps : [];
-    const gapsHtml = gaps.length ? `<div class="finam-v2-exec__foot">${gaps.map((g) => escapeHtml(g)).join(' ')}</div>` : '';
-
-    const pen = Array.isArray(ifus?.penalties) ? ifus.penalties : [];
-    const penHtml = pen.length
-        ? `<div class="finam-v2-exec__penalties"><strong>Критические штрафы по методике:</strong> ${pen
-              .map((p) => `−${escapeHtml(String(p.amount).replace('.', ','))} (${escapeHtml(p.label)})`)
-              .join('; ')}. Итог после штрафов: ${escapeHtml(ifus.totalScoreFormatted)}.</div>`
-        : '';
-
-    const baseNote =
-        ifus && Number.isFinite(ifus.baseScore)
-            ? `<div class="finam-v2-exec__foot">Базовый ИФУС (до штрафов): ${escapeHtml(
-                  Number(ifus.baseScore).toLocaleString('ru-RU', { maximumFractionDigits: 2 })
-              )}.</div>`
-            : '';
+    const dataNoteHtml = buildExecutiveIfusDataNoteHtml(ifus);
 
     return `<p class="finam-v2-wow__eyebrow">Ключевой вывод плана</p>
     <h1 class="finam-v2-wow__headline">${escapeHtml(headline)}</h1>
@@ -2007,24 +1979,19 @@ function buildExecutiveDynamicRegionHtml(model) {
       <div class="finam-v2-wow__card-title">Рекомендованный сценарий</div>
       <p class="finam-v2-wow__card-body">${escapeHtml(rec)}</p>
     </section>
+    ${dataNoteHtml}`;
+}
 
-    <section class="finam-v2-exec__method">
-      <div class="finam-v2-exec__method-title">Как мы считаем ИФУС</div>
-      <p class="finam-v2-exec__method-formula">ИФУС — взвешенная сумма семи факторов (каждый 0–10), веса как в методике: резерв 25%, долговая нагрузка 20%, свободный cash flow 20%, защита жизни 15%, чистый капитал 10%, жильё 5%, цели 5%. К итогу применяются критические штрафы при «красных» зонах.</p>
-      ${penHtml}
-      ${baseNote}
-      <table class="finam-v2-exec__factor-table">
-        <thead>
-          <tr>
-            <th>Фактор</th>
-            <th>Балл</th>
-            <th>Вклад</th>
-          </tr>
-        </thead>
-        <tbody>${factorRows}</tbody>
-      </table>
-      ${gapsHtml}
-    </section>`;
+
+/** Короткая сноска вместо блока «Как считаем ИФУС» (детали — в JSON/API). */
+function buildExecutiveIfusDataNoteHtml(ifus) {
+    const gaps = Array.isArray(ifus?.dataGaps) ? ifus.dataGaps.filter(Boolean) : [];
+    if (!gaps.length) return '';
+    const text =
+        gaps.length === 1
+            ? gaps[0]
+            : `${gaps[0]} При необходимости уточните остальные поля в карточке клиента.`;
+    return `<p class="finam-v2-exec__footnote">${escapeHtml(text)}</p>`;
 }
 
 function buildExecutiveSplitHtml(decision) {
