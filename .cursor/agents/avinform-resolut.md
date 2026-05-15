@@ -12,6 +12,7 @@ agent@agent.ru
 
 - Целевой `projectId` задаётся **`RESOLUT_PROJECT_ID`** (прод: **23**, AV Информ).
 - НСЖ в расчёте цели **LIFE** для этого проекта идёт в Резолют **`quote`** с продуктом **`assetShort`** («Надежный актив»), см. [`src/services/resolutNsjQuoteService.js`](../../src/services/resolutNsjQuoteService.js) и ветку в [`src/algorithms/calculators/lifeUpfrontAmount.js`](../../src/algorithms/calculators/lifeUpfrontAmount.js). Код продукта переопределяется env **`RESOLUT_NSJ_PFP_CODE`** (по умолчанию `assetShort`).
+- **ИСЖ (ver3, 2026-05):** в каталоге Resolut `products` — **`capital`** («Капитал под управлением»). `quote` и **`portfolio`** — одни и те же `parameters` (`calcData.premium` + `insuredPerson.dob`). Сборка: [`resolutIszhQuoteParameters.js`](../../src/services/resolutIszhQuoteParameters.js) / [`resolutQuoteParameters.js`](../../src/services/resolutQuoteParameters.js); OpenAPI партнёра: [`api-resolute 003.yaml`](../../docs/partners/openapi/api-resolute%20003.yaml). В PFP у продукта: `product_type: ISZH`, `resolut_pfp_code: capital`. Мин. взнос на демо **1.5 млн** ₽. **`RESOLUT_ISZH_PFP_CODES`** (по умолчанию `capital`).
 - Остальные проекты по-прежнему используют legacy **`nsjApiService`** / `api-life`.
 
 ## Портфель (INVESTMENT / OTHER / FinReserve / Rent / PassiveIncome): доходность из `quote`
@@ -37,9 +38,9 @@ agent@agent.ru
 - **`RESOLUT_PROJECT_ID`** — **23** для AV Информ.
 - Опционально фон: **`RESOLUT_STATIC_KEY`** / `resolut_static_key` в настройках проекта.
 
-## PDF (шаблоны Finam для проекта 23)
+## PDF (Finam Report v2 для проекта 23)
 
-- Проект **14 (Финам)** как тенант **не меняем**. Для **23** включается **тот же HTML-пайплайн**, что и у Финама: [`src/reports/finam/finamTemplateProjects.js`](../../src/reports/finam/finamTemplateProjects.js), список **`FINAM_REPORT_PROJECT_IDS`** (по умолчанию `14,23`). Ростех (**22**) не трогаем.
+- Проект **14 (Финам)** как тенант **не меняем**. Для **23** (AV): пайплайн **`finam_v2`** при **`system_settings.report_finam = 2`** (миграция [`20260515130000_report_finam_v2_av_inform_project_23.js`](../../database/migrations/20260515130000_report_finam_v2_av_inform_project_23.js) или `PUT /api/pfp/settings/report_finam` `{ "value": 2 }`). Список Finam-template проектов: **`FINAM_REPORT_PROJECT_IDS`** (по умолчанию `14,23,28`) — [`finamTemplateProjects.js`](../../src/reports/finam/finamTemplateProjects.js). Сборка: [`buildFinamReportV2HtmlPackage.js`](../../src/reports/finam_v2/buildFinamReportV2HtmlPackage.js), агент v2: [`finam_report_v2.md`](../agents/finam_report_v2.md). v1 (`src/reports/finam/`) для 23 **не** используется после включения v2. Ростех (**22**) не трогаем.
 
 ## Зона ответственности
 
@@ -67,6 +68,7 @@ agent@agent.ru
 ## Документация в репозитории
 
 - [`docs/partners/RESOLUT_HYBRID_IMPLEMENTATION_NOTES.md`](../../docs/partners/RESOLUT_HYBRID_IMPLEMENTATION_NOTES.md)
+- OpenAPI партнёра ver3: [`docs/partners/openapi/api-resolute 003.yaml`](../../docs/partners/openapi/api-resolute%20003.yaml)
 - План: [`docs/plans/avinform-resolut-integration-plan.md`](../../docs/plans/avinform-resolut-integration-plan.md)
 
 ## Формат результата отчёта

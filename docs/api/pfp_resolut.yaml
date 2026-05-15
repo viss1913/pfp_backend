@@ -59,10 +59,29 @@ paths:
               properties:
                 code:
                   type: string
+                  description: pfpCode из Resolut products (НСЖ assetShort, ИСЖ capital)
                   example: assetShort
                 parameters:
                   type: object
                   additionalProperties: true
+              examples:
+                nszh:
+                  summary: НСЖ (накоп)
+                  value:
+                    code: assetShort
+                    parameters:
+                      currency: RUR
+                      pType: 0
+                      term: 10
+                      insuredPerson: { dob: "15.05.1990", sex: male }
+                      calcData: { valuationType: byLimit, limit: 2000000 }
+                iszh:
+                  summary: ИСЖ (Капитал под управлением)
+                  value:
+                    code: capital
+                    parameters:
+                      calcData: { premium: 1500000 }
+                      insuredPerson: { dob: "15.05.1990", sex: male }
       responses:
         '200':
           description: Нормализованный ответ прокси
@@ -180,11 +199,12 @@ paths:
   /pfp/resolut/suggest-quote-line:
     post:
       tags: [ "Resolut Publish" ]
-      summary: Черновик строки quote/portfolio (схема nszh_like)
+      summary: Черновик строки quote/portfolio (НСЖ или ИСЖ)
       description: |
-        Собирает `code` (из `products.resolut_pfp_code`) и `parameters` в формате валют/pType/term/insuredPerson/calcData,
-        как для котировок НСЖ/накопительных программ (см. демо quote в OpenAPI партнёра). Для продуктов с иной JSD-схемой
-        фронт формирует `parameters` сам. Только проект `RESOLUT_PROJECT_ID`.
+        Собирает `code` (из `products.resolut_pfp_code`) и `parameters`:
+        - **НСЖ** (`nszh_like`): currency, pType, term, calcData byLimit/byPremium, insuredPerson;
+        - **ИСЖ** (`iszh_like`, OpenAPI ver3): `calcData.premium` + `insuredPerson` (код демо: `capital`).
+        Те же `parameters` для `quote` и `portfolio`. Только проект `RESOLUT_PROJECT_ID`.
       requestBody:
         required: true
         content:

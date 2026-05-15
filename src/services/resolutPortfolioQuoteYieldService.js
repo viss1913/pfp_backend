@@ -82,16 +82,17 @@ async function getImpliedAnnualYieldPercentFromQuote({
     const limit = parseFloat(Number(allocatedAmount).toFixed(2));
     if (!Number.isFinite(limit) || limit <= 0) return null;
 
-    const { buildNszhLikeParameters } = require('./resolutQuoteLineSuggestService');
+    const { buildResolutQuoteParameters } = require('./resolutQuoteParameters');
+    const { isResolutIszhProduct } = require('./resolutIszhQuoteParameters');
     let body;
     try {
-        body = buildNszhLikeParameters({
+        body = buildResolutQuoteParameters({
             projectId,
             product,
             clientRow: client || {},
             termMonths,
             amount: limit,
-            valuationType: 'byLimit'
+            valuationType: isResolutIszhProduct(product) ? undefined : 'byLimit'
         });
     } catch (e) {
         console.warn('[ResolutPortfolioQuoteYield] build parameters failed:', e && (e.message || e.error) ? String(e.message || e.error) : String(e));

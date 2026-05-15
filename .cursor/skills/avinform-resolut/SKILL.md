@@ -8,10 +8,10 @@
 - авторизация в AV/Resolut (`authorize` внутри `POST /auth/login`, Bearer в `resolutSessionStore`, опционально `RESOLUT_STATIC_KEY` для фона);
 - сессия Резолюта после логина агента (`resolutSessionStore`, `exchangePasswordForSessionKey`);
 - синхронизация каталога продуктов (`products`);
-- получение котировок (`quote`);
+- получение котировок (`quote`), в т.ч. **ИСЖ** (`capital`, OpenAPI ver3 — те же `parameters` в `portfolio`);
 - расчёт НСЖ LIFE через Резолют (`resolutNsjQuoteService`, `assetShort`);
 - доходность инструмента в портфеле из котировки (`resolutPortfolioQuoteYieldService`, поля `products.resolut_pfp_code` / `resolut_quote_p_type`, только `RESOLUT_PROJECT_ID`);
-- PDF: те же Finam-шаблоны для `projectId` из `FINAM_REPORT_PROJECT_IDS` (в т.ч. 23);
+- PDF: Finam Report **v2** для project 23 (`report_finam=2`, `finam_v2/`, см. миграцию `20260515130000_report_finam_v2_av_inform_project_23.js`);
 - подготовка этапа 2: `portfolio`, `client`, `link`;
 - сверка маппинга `projectId` и продуктовых кодов между PFP и AV/Resolut.
 

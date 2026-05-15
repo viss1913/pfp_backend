@@ -3,7 +3,8 @@
 const clientRepository = require('../repositories/clientRepository');
 const productRepository = require('../repositories/productRepository');
 const resolutService = require('./resolutService');
-const { buildNszhLikeParameters } = require('./resolutQuoteLineSuggestService');
+const { buildResolutQuoteParameters } = require('./resolutQuoteParameters');
+const { isResolutIszhProduct } = require('./resolutIszhQuoteParameters');
 
 /**
  * @param {unknown} stored — clients.goals_summary (string или object)
@@ -190,7 +191,17 @@ async function buildQuoteLinesForMergedRows({
         }
 
         try {
-            const { code, parameters } = buildNszhLikeParameters({
+            if (isResolutIszhProduct(product) && valuationType === 'byPremium' && pTypeOverride === 12) {
+                skipped.push({
+                    line_id: lineId,
+                    product_id: row.product_id,
+                    reason: 'iszh_monthly_flow_skipped',
+                    message: 'ISZH uses lump premium only; monthly cash-flow lines are not supported',
+                    product_name: product.name || null
+                });
+                continue;
+            }
+            const { code, parameters } = buildResolutQuoteParameters({
                 projectId,
                 product,
                 clientRow: client,

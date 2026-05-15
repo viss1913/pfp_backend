@@ -3,6 +3,7 @@ const resolutService = require('./resolutService');
 const clientRepository = require('../repositories/clientRepository');
 const productRepository = require('../repositories/productRepository');
 const { extractPortfolioOutcome } = require('../utils/resolutPortfolioResponse');
+const { normalizeResolutQuoteLine } = require('./resolutQuoteParameters');
 
 function toDdMmYyyy(value) {
     if (!value) return null;
@@ -50,7 +51,7 @@ class ResolutPublishService {
         });
     }
 
-    async filterQuotesForResolut(projectId, quotesInput = []) {
+    async filterQuotesForResolut(projectId, quotesInput = [], clientRow = null) {
         const eligible = [];
         const skipped = [];
 
@@ -92,12 +93,31 @@ class ResolutPublishService {
                     });
                     continue;
                 }
-                eligible.push({
-                    line_id: lineId,
-                    product_id: productId,
-                    code: productCode,
-                    parameters: line.parameters
-                });
+                try {
+                    const normalized = normalizeResolutQuoteLine({
+                        projectId,
+                        product,
+                        clientRow: clientRow || {},
+                        code: productCode,
+                        parameters: line.parameters,
+                        amountHint: line.amount
+                    });
+                    eligible.push({
+                        line_id: lineId,
+                        product_id: productId,
+                        code: normalized.code,
+                        parameters: normalized.parameters
+                    });
+                } catch (e) {
+                    skipped.push({
+                        line_id: lineId,
+                        product_id: productId,
+                        code: productCode,
+                        reason: e.error || 'normalize_failed',
+                        message: e.message || null,
+                        product_name: product.name || null
+                    });
+                }
                 continue;
             }
 
@@ -106,12 +126,29 @@ class ResolutPublishService {
                 skipped.push({ line_id: lineId, product_id: null, code: null, reason: 'missing_code' });
                 continue;
             }
-            eligible.push({
-                line_id: lineId,
-                product_id: null,
-                code,
-                parameters: line.parameters
-            });
+            try {
+                const normalized = normalizeResolutQuoteLine({
+                    projectId,
+                    clientRow: clientRow || {},
+                    code,
+                    parameters: line.parameters,
+                    amountHint: line.amount
+                });
+                eligible.push({
+                    line_id: lineId,
+                    product_id: null,
+                    code: normalized.code,
+                    parameters: normalized.parameters
+                });
+            } catch (e) {
+                skipped.push({
+                    line_id: lineId,
+                    product_id: null,
+                    code,
+                    reason: e.error || 'normalize_failed',
+                    message: e.message || null
+                });
+            }
         }
 
         return { eligible, skipped };
@@ -165,7 +202,7 @@ class ResolutPublishService {
     async preview({ projectId, clientId, quotes, userId }) {
         await resolutService.assertProjectAllowed(projectId);
         const client = await this.getClientOrThrow(clientId, projectId);
-        const filtered = await this.filterQuotesForResolut(projectId, quotes || []);
+        const filtered = await this.filterQuotesForResolut(projectId, quotes || [], client);
         return {
             success: true,
             data: {
@@ -180,7 +217,7 @@ class ResolutPublishService {
     async publish({ projectId, clientId, quotes, userId, agentId = null, resolutClient = null }) {
         await resolutService.assertProjectAllowed(projectId);
         const client = await this.getClientOrThrow(clientId, projectId);
-        const filtered = await this.filterQuotesForResolut(projectId, quotes || []);
+        const filtered = await this.filterQuotesForResolut(projectId, quotes || [], client);
 
         if (filtered.eligible.length === 0) {
             throw {

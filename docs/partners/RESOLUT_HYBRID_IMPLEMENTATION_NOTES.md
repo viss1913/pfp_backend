@@ -17,7 +17,7 @@ All endpoints require authenticated agent/admin and are mounted under:
 - `GET /api/pfp/resolut/client?code=<Resolut client id>` — получение клиента (upstream GET `operation=client`)
 - `GET /api/pfp/resolut/link` — одноразовая ссылка перехода в Resolut (upstream GET `operation=link`; **TTL ~20 с** у партнёра — вызывать по клику)
 - `POST /api/pfp/resolut/publish-preview` — фильтр/предпросмотр публикации (eligible/skipped) для mixed-портфелей
-- `POST /api/pfp/resolut/suggest-quote-line` — черновик `{ code, parameters }` для продуктов со схемой как у НСЖ/накоп (`byLimit` / `byPremium`); иные продукты — вручную на фронте
+- `POST /api/pfp/resolut/suggest-quote-line` — черновик `{ code, parameters }`: **НСЖ** (`nszh_like`, `byLimit` / `byPremium`) или **ИСЖ** (`iszh_like`, взнос `calcData.premium`); см. `src/services/resolutQuoteParameters.js`
 - `POST /api/pfp/resolut/plan-quotes` — сборка массива `quotes` из последнего `clients.goals_summary` (сводный портфель + fallback по целям); опционально `quote_patches`, `include_monthly_flow`
 - `POST /api/pfp/resolut/plan-publish-preview` — то же + фильтр eligible/skipped как у `publish-preview`
 - `POST /api/pfp/resolut/publish-from-plan` — автосборка `quotes` + публикация (оркестрация на бэке; фронт только дозаполняет `resolut_client` / patches при необходимости)
@@ -56,6 +56,17 @@ If there is **no** cached session and **no** static key, those operations return
 
 **Multi-instance:** in-memory cache is per process. Use `RESOLUT_STATIC_KEY` on each instance for server-side LIFE/report paths that cannot attach to a logged-in agent, or accept LIFE fallback formula when Resolut is unavailable (see `lifeUpfrontAmount.js`).
 
+## ISZH (investment life insurance) — OpenAPI ver3 / demo `capital`
+
+Partner spec: [`docs/partners/openapi/api-resolute 003.yaml`](openapi/api-resolute%20003.yaml) (`QuoteParametersISG`).
+
+- Upstream `products` returns e.g. `pfpCode: "capital"`, program **«Капитал под управлением»** (`product: lifeInvestUniversal`).
+- `quote` and `portfolio` use the **same** `parameters`: `{ calcData: { premium }, insuredPerson: { dob, sex? } }` (no `term` / `pType` / `valuationType`).
+- Demo minimum premium for `capital`: **1_500_000** RUR (`calcError` below that).
+- PFP: `isResolutIszhProduct` when `products.product_type === 'ISZH'` or `resolut_pfp_code` in `RESOLUT_ISZH_PFP_CODES` (default `capital`). Builders: [`src/services/resolutIszhQuoteParameters.js`](../../src/services/resolutIszhQuoteParameters.js), router [`src/services/resolutQuoteParameters.js`](../../src/services/resolutQuoteParameters.js).
+- Catalog: create a PFP product on project 23 with `resolut_pfp_code: capital`, `product_type: ISZH`.
+- LIFE goal calculator still uses **NSJ only** (`assetShort`); ISZH is quote/publish/suggest, not auto LIFE.
+
 ## LIFE goal (NSJ) via Resolut for RESOLUT_PROJECT_ID
 
 When `client.project_id` matches `RESOLUT_PROJECT_ID`, LIFE calculations use Resolut `quote` with PFP product code `assetShort` (override via `RESOLUT_NSJ_PFP_CODE`), mapping parameters from the goal/client into the partner’s `quote` shape. Implementation: `src/services/resolutNsjQuoteService.js`, branch in `src/algorithms/calculators/lifeUpfrontAmount.js`. Other projects still use `nsjApiService` / `api-life`.
@@ -66,7 +77,7 @@ When `client.project_id` matches `RESOLUT_PROJECT_ID`, LIFE calculations use Res
 
 Products may include optional columns:
 
-- `resolut_pfp_code` — PFP code from upstream `products` (e.g. `assetShort`, `cashback`).
+- `resolut_pfp_code` — PFP code from upstream `products` (e.g. `assetShort`, `cashback`, `capital` for ISZH).
 - `resolut_quote_p_type` — payment cadence for `quote` (`0`, `1`, `2`, `4`, `12`); if null, use env `RESOLUT_PORTFOLIO_QUOTE_PTYPE` or `0`.
 
 **Gating:** implied annual yield from Resolut is computed **only** when `client.project_id === RESOLUT_PROJECT_ID` **and** `resolut_pfp_code` is non-empty. Otherwise the existing **`lines` / `yields`** matrix is used (no extra HTTP).
@@ -77,9 +88,9 @@ Products may include optional columns:
 
 **Caveat:** downstream simulation still uses a single compound monthly rate; this is an approximation for end-of-term insurance cash flows.
 
-## PDF: same Finam HTML templates for project 23
+## PDF: Finam Report v2 for project 23 (AV Inform)
 
-Report HTML pipeline from `src/reports/finam/` is enabled for project ids listed in `FINAM_REPORT_PROJECT_IDS` (default `14,23`). This reuses templates only; it does not change Finam tenant (14) product logic. See `src/reports/finam/finamTemplateProjects.js`.
+Project **23** is in `FINAM_REPORT_PROJECT_IDS` (default `14,23,28`). Report version: project-scoped **`system_settings.report_finam = 2`** (migration `database/migrations/20260515130000_report_finam_v2_av_inform_project_23.js`, or `PUT /api/pfp/settings/report_finam` with `{ "value": 2 }`). HTML/PDF pipeline: `src/reports/finam_v2/buildFinamReportV2HtmlPackage.js` (not v1 `src/reports/finam/`). Finam tenant **14** is unchanged unless it has its own `report_finam` override. See `src/reports/finam/finamTemplateProjects.js` and `.cursor/agents/finam_report_v2.md`.
 
 ## Credentials source
 
@@ -103,6 +114,7 @@ Env keys:
 - `RESOLUT_ENABLED` (default `true`)
 - `RESOLUT_SESSION_TTL_MS` (optional, default 23h in-memory session for bearer after login)
 - `RESOLUT_NSJ_PFP_CODE` (optional, default `assetShort`)
+- `RESOLUT_ISZH_PFP_CODES` (optional, comma-separated; default `capital`)
 - `RESOLUT_PORTFOLIO_QUOTE_PTYPE` (optional; default payment type for portfolio quote yield when `products.resolut_quote_p_type` is null)
 - `FINAM_REPORT_PROJECT_IDS` (optional, default `14,23` for Finam-style PDF HTML)
 

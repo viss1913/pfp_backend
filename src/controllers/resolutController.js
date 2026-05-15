@@ -1,4 +1,8 @@
 const resolutService = require('../services/resolutService');
+const {
+    normalizeResolutQuoteLine,
+    normalizePortfolioQuotesPayload
+} = require('../services/resolutQuoteParameters');
 const resolutPublishService = require('../services/resolutPublishService');
 const resolutQuoteLineSuggestService = require('../services/resolutQuoteLineSuggestService');
 const resolutPlanQuotesService = require('../services/resolutPlanQuotesService');
@@ -184,7 +188,21 @@ class ResolutController {
             }
 
             const projectId = this.resolveProjectId(req);
-            const result = await resolutService.quote(projectId, req.body, { userId: req.user?.id });
+            const body = validation.value || req.body || {};
+            let quotePayload;
+            try {
+                quotePayload = normalizeResolutQuoteLine({
+                    projectId,
+                    code: body.code,
+                    parameters: body.parameters
+                });
+            } catch (normErr) {
+                return res.status(normErr.status || 400).json({
+                    error: normErr.error || 'ValidationError',
+                    message: normErr.message || 'Invalid quote parameters'
+                });
+            }
+            const result = await resolutService.quote(projectId, quotePayload, { userId: req.user?.id });
             res.json(result);
         } catch (err) {
             this.handleResolutError(err, res, next);
@@ -202,7 +220,16 @@ class ResolutController {
             }
 
             const projectId = this.resolveProjectId(req);
-            const result = await resolutService.portfolio(projectId, validation.value, { userId: req.user?.id });
+            let portfolioPayload;
+            try {
+                portfolioPayload = normalizePortfolioQuotesPayload(projectId, validation.value);
+            } catch (normErr) {
+                return res.status(normErr.status || 400).json({
+                    error: normErr.error || 'ValidationError',
+                    message: normErr.message || 'Invalid portfolio quote parameters'
+                });
+            }
+            const result = await resolutService.portfolio(projectId, portfolioPayload, { userId: req.user?.id });
             res.json(result);
         } catch (err) {
             this.handleResolutError(err, res, next);

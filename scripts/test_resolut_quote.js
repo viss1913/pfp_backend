@@ -5,6 +5,7 @@
  *
  * node scripts/test_resolut_quote.js --key=<bearer после authorize>
  * node scripts/test_resolut_quote.js --key=... --code=assetShort --variant=flat
+ * node scripts/test_resolut_quote.js --key=... --code=capital --variant=iszh --premium=1500000
  * node scripts/test_resolut_quote.js --key=... --variant=openapi
  *
  * Свои цифры (flat/openapi):
@@ -99,6 +100,7 @@ async function main() {
     const password = getArg('password', null);
     const code = getArg('code', 'assetShort');
     const variant = (getArg('variant', 'flat') || 'flat').toLowerCase();
+    const isIszhVariant = variant === 'iszh' || code === 'capital';
 
     if (!baseUrl) {
         throw new Error('Missing base URL. Set --base-url or RESOLUT_BASE_URL');
@@ -128,7 +130,24 @@ async function main() {
         throw new Error('Missing bearer: --key / RESOLUT_STATIC_KEY или пара --login / --password');
     }
 
-    const parameters = buildParameters(variant === 'openapi' ? 'openapi' : 'flat');
+    let parameters;
+    if (isIszhVariant) {
+        const premium = parseNumberArg('premium', parseNumberArg('limit', 1500000));
+        const sex = (getArg('sex', 'male') || 'male').toLowerCase();
+        const dob =
+            getArg('dob', null) ||
+            dobFromAge(getArg('age', null)) ||
+            '01.01.1985';
+        parameters = {
+            calcData: { premium },
+            insuredPerson: {
+                dob,
+                sex: sex === 'female' || sex === 'f' ? 'female' : 'male'
+            }
+        };
+    } else {
+        parameters = buildParameters(variant === 'openapi' ? 'openapi' : 'flat');
+    }
     const payload = {
         operation: 'quote',
         data: {
@@ -140,7 +159,15 @@ async function main() {
     console.log('Resolut quote request');
     console.log(`URL: ${baseUrl}/`);
     console.log(`Product code: ${code}`);
-    console.log(`Parameters variant: ${variant === 'openapi' ? 'openapi (nested currency/pType)' : 'flat (как в отчёте интеграции)'}`);
+    console.log(
+        `Parameters variant: ${
+            isIszhVariant
+                ? 'iszh (calcData.premium + insuredPerson, OpenAPI ver3)'
+                : variant === 'openapi'
+                  ? 'openapi (nested currency/pType)'
+                  : 'flat (как в отчёте интеграции)'
+        }`
+    );
     console.log(`Timeout: ${timeoutMs} ms`);
     console.log('Body:', JSON.stringify(payload, null, 2));
 

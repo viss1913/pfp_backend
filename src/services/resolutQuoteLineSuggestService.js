@@ -5,6 +5,7 @@ const clientRepository = require('../repositories/clientRepository');
 const productRepository = require('../repositories/productRepository');
 const { formatDobDdMmYyyy, normalizeSex } = require('./resolutNsjQuoteService');
 const { isResolutPortfolioProduct, pickPType } = require('./resolutPortfolioQuoteYieldService');
+const { isResolutIszhProduct } = require('./resolutIszhQuoteParameters');
 
 /** Имена периодичности взноса — как в openapi/OPENAPI_SPEC.yaml (resolut_quote_p_type). */
 const PTYPE_OPENAPI_NAMES = {
@@ -140,7 +141,9 @@ class ResolutQuoteLineSuggestService {
             };
         }
 
-        const line = buildNszhLikeParameters({
+        const { buildResolutQuoteParameters } = require('./resolutQuoteParameters');
+        const isIszh = isResolutIszhProduct(product);
+        const line = buildResolutQuoteParameters({
             projectId,
             product,
             clientRow: client,
@@ -157,11 +160,16 @@ class ResolutQuoteLineSuggestService {
                 product_id: Number(productId),
                 code: line.code,
                 parameters: line.parameters,
-                hints: {
-                    schema: 'nszh_like',
-                    parameters_shape: nszhParametersShape(),
-                    note: 'Use with POST /api/pfp/resolut/quote and publish quotes[]; other product schemas need manual parameters. Shape: openapi (default) or RESOLUT_NSZH_PARAMETERS_SHAPE=flat. Optional calcData.monthlyIncome only if RESOLUT_CALCDATA_MONTHLY_INCOME=true (not in partner OpenAPI 002).'
-                }
+                hints: isIszh
+                    ? {
+                        schema: 'iszh_like',
+                        note: 'ИСЖ (OpenAPI ver3): calcData.premium + insuredPerson.dob/sex. Same parameters for POST /api/pfp/resolut/quote and portfolio quotes[]. Demo capital: min premium 1_500_000 RUR.'
+                    }
+                    : {
+                        schema: 'nszh_like',
+                        parameters_shape: nszhParametersShape(),
+                        note: 'Use with POST /api/pfp/resolut/quote and publish quotes[]. Shape: openapi (default) or RESOLUT_NSZH_PARAMETERS_SHAPE=flat. Optional calcData.monthlyIncome only if RESOLUT_CALCDATA_MONTHLY_INCOME=true.'
+                    }
             }
         };
     }

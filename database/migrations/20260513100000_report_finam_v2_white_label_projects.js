@@ -1,7 +1,7 @@
 /**
  * Finam Report v2 по умолчанию для white-label проектов (Finam-template + `report_finam = 2`).
- * Добавляй сюда `project_id` новых тенантов на том же шаблоне, что АТБ, и прогоняй миграцию на новых стендах;
- * на уже развёрнутых БД — либо повторный `knex migrate:up` после добавления id, либо `PUT /api/pfp/settings/report_finam` { "value": 2 }.
+ * Добавляй сюда `project_id` новых white-label тенантов (как АТБ 28). AV Информ (23) — отдельная миграция `20260515130000_report_finam_v2_av_inform_project_23.js`.
+ * На уже развёрнутых БД — новая миграция или `PUT /api/pfp/settings/report_finam` { "value": 2 }.
  *
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
