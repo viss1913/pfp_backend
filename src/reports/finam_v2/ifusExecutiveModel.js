@@ -227,6 +227,35 @@ function housingScore({ familyObligations, liabilitiesTotal, netWorth }) {
     return 7;
 }
 
+/**
+ * Потолки итогового ИФУС, если в плане не закрыт защитный контур.
+ * Сильный резерв/поток не должны давать «высокую устойчивость» без LIFE/пенсии.
+ */
+const IFUS_PROTECTION_CAPS = Object.freeze({
+    noReserve: 4.5,
+    noLife: 5.2,
+    noLifeNoPension: 4.2,
+});
+
+function applyIfusProtectionCaps(rawTotal, goalsDiagnostics, penalties) {
+    const gd = goalsDiagnostics || {};
+    let total = toFinite(rawTotal, 0);
+    const before = total;
+
+    if (!gd.hasReserve) total = Math.min(total, IFUS_PROTECTION_CAPS.noReserve);
+    if (!gd.hasLife) total = Math.min(total, IFUS_PROTECTION_CAPS.noLife);
+    if (!gd.hasLife && !gd.hasPension) total = Math.min(total, IFUS_PROTECTION_CAPS.noLifeNoPension);
+
+    if (before - total > 0.05) {
+        penalties.push({
+            code: 'protection_contour_cap',
+            amount: Math.round((before - total) * 10) / 10,
+            label: 'В плане не закрыт защитный контур (резерв / защита жизни / пенсия)',
+        });
+    }
+    return clamp(total, 0, 10);
+}
+
 function interpretationBand(total) {
     const t = clamp(toFinite(total, 0), 0, 10);
     if (t < 3) return { id: 'critical', label: 'Критическое финансовое состояние', range: '0–2,9' };
@@ -326,9 +355,25 @@ function buildIfusFromReportModel({ report, v2 }) {
     if (!lifeGoal && childrenCount > 0) {
         penalties.push({ code: 'life_missing_children', amount: 2, label: 'Нет страховой защиты жизни при наличии детей' });
         penSum += 2;
+    } else if (!lifeGoal && income > 0) {
+        penalties.push({
+            code: 'life_missing',
+            amount: 1,
+            label: 'В плане не выделена защита жизни (НСЖ/страхование)',
+        });
+        penSum += 1;
+    }
+    if (!gd.hasPension && income > 0 && !lifeGoal) {
+        penalties.push({
+            code: 'pension_not_in_plan',
+            amount: 0.5,
+            label: 'В плане нет пенсионного/пассивного контура при отсутствии защиты жизни',
+        });
+        penSum += 0.5;
     }
 
-    const total = clamp(base - penSum, 0, 10);
+    const afterPenalties = clamp(base - penSum, 0, 10);
+    const total = applyIfusProtectionCaps(afterPenalties, gd, penalties);
     const band = interpretationBand(total);
     const targetReserveMonths = reserveTargetMonths({ childrenCount, hasMortgageObligation, singleBreadwinner });
 
@@ -421,7 +466,8 @@ function buildIfusFromReportModel({ report, v2 }) {
         totalScoreFormatted: formatScoreRu(total),
         baseScore: base,
         penalties,
-        penaltySum: penSum,
+        scoreBeforeCaps: afterPenalties,
+        penaltySum: Math.round((base - total) * 100) / 100,
         band,
         reserveMonths,
         reserveMonthsFormatted: reserveMonths.toLocaleString('ru-RU', { maximumFractionDigits: 1 }),
@@ -446,6 +492,7 @@ function buildIfusFromReportModel({ report, v2 }) {
 module.exports = {
     buildIfusFromReportModel,
     WEIGHTS,
+    IFUS_PROTECTION_CAPS,
     IFUS_FIELD_MAPPING,
     IFUS_DATA_CHECKLIST,
 };

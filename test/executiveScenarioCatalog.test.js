@@ -126,7 +126,7 @@ const QA_PROFILES = [
     {
         name: 'no_life_with_children',
         expectScenario: 'protection_gap',
-        maxIfus: 8,
+        maxIfus: 4.5,
         expectPenalty: 'life_missing_children',
         report: {
             family_page_ai_context: {
@@ -150,6 +150,25 @@ const QA_PROFILES = [
             goalsDiagnostics: goalsDiag({ hasReserve: false, hasLife: false }),
             currentState: { netWorth: 2e6, obligations: 70000 },
             portfolio: { projectedTotal: 15e6 },
+        },
+    },
+    {
+        name: 'reserve_no_life_no_pension',
+        expectScenario: 'protection_gap',
+        maxIfus: 4.5,
+        report: {
+            family_page_ai_context: {
+                family: { children: [], family_obligations: [] },
+                cashflow_monthly_rub: {},
+            },
+            current_situation: { net_worth: 5e6, assets_breakdown: [{ name: 'Депозит', value: 1.2e6 }] },
+        },
+        v2: {
+            goals: [{ goal_type: 'FIN_RESERVE', initial_capital: 1200000, summary: { initial_capital: 1200000 } }],
+            cashflowDiagnostics: cashDiag(),
+            goalsDiagnostics: goalsDiag({ hasReserve: true, hasLife: false, hasPension: false }),
+            currentState: { netWorth: 5e6, assetsBreakdown: [{ name: 'Депозит', value: 1.2e6 }], obligations: 80000 },
+            portfolio: { projectedTotal: 4.7e6 },
         },
     },
     {

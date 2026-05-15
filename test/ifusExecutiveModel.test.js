@@ -116,6 +116,45 @@ test('IFUS factor weights sum to 1', () => {
     assert.ok(Math.abs(s - 1) < 1e-9);
 });
 
+test('IFUS: reserve without LIFE and pension is capped below 5', () => {
+    const reserveGoal = {
+        goal_type: 'FIN_RESERVE',
+        goal_type_id: 7,
+        summary: { initial_capital: 1200000 },
+        initial_capital: 1200000,
+    };
+    const report = {
+        family_page_ai_context: {
+            family: { children: [], family_obligations: [{ type: 'loans', amount_monthly: 10000 }] },
+            cashflow_monthly_rub: {},
+        },
+        current_situation: { net_worth: 5e6, liabilities_total: 300000, assets_breakdown: [{ name: 'Депозит', value: 1200000 }] },
+    };
+    const ifus = buildIfusFromReportModel({
+        report,
+        v2: baseV2({
+            goals: [reserveGoal],
+            goalsDiagnostics: {
+                hasReserve: true,
+                hasLife: false,
+                hasPension: false,
+                goalLoadRatio: 0.1,
+            },
+            cashflowDiagnostics: {
+                income: 200000,
+                obligations: 80000,
+                plannedContributions: 20000,
+                freeCashflow: 100000,
+                freeCashflowRatio: 0.5,
+                goalLoadRatio: 0.1,
+            },
+        }),
+    });
+    assert.ok(ifus.totalScore <= 4.5, `expected cap ~4.2, got ${ifus.totalScore}`);
+    assert.ok(ifus.penalties.some((p) => p.code === 'protection_contour_cap' || p.code === 'life_missing'));
+    assert.equal(ifus.band.id, 'unstable');
+});
+
 test('IFUS exports field mapping and data checklist for support', () => {
     const { IFUS_FIELD_MAPPING, IFUS_DATA_CHECKLIST } = require('../src/reports/finam_v2/ifusExecutiveModel');
     assert.ok(IFUS_FIELD_MAPPING.length >= 7);
