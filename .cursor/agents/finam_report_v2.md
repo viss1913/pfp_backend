@@ -39,7 +39,7 @@ description: Вторая версия финплан-отчёта Финам (p
 | 2 | [`page-intro-v2.html`](src/reports/finam_v2/page-intro-v2.html) | Введение: крупный serif-заголовок, вводный текст, 3 квадратные карточки, блок консультанта, чеклист |
 | 3 | [`page-current-state-v2.html`](src/reports/finam_v2/page-current-state-v2.html) | Текущее состояние: AI, семья/активы, обязательства, баланс |
 | 4 | [`page-goals-v2.html`](src/reports/finam_v2/page-goals-v2.html) | Диагностика портфеля целей: Защита / Накопления / Пенсия, распределение, таблица с колонками «Стоимость сейчас» и «С учётом инфляции» |
-| 5 | [`page-executive-summary-v2.html`](src/reports/finam_v2/page-executive-summary-v2.html) | Управленческий вывод после диагностики целей: главный вывод, индекс устойчивости, риск и рекомендуемый сценарий |
+| 5 | [`page-executive-summary-v2.html`](src/reports/finam_v2/page-executive-summary-v2.html) | Управленческий вывод после диагностики целей: **ИФУС** (7 факторов по методике, штрафы), главный риск/рычаг/эффект, таблица решений, термометр резерва, блок «как считаем» |
 | 6 | [`page-goal-fin-reserve-v2.html`](src/reports/finam_v2/page-goal-fin-reserve-v2.html) | Цель FIN_RESERVE / Финансовый резерв |
 | 7 | [`page-goal-life-v2.html`](src/reports/finam_v2/page-goal-life-v2.html) | Цель LIFE / Защита жизни |
 | 8 | [`page-goal-pension-v2.html`](src/reports/finam_v2/page-goal-pension-v2.html) | Цель PENSION / Достойная пенсия, **3 листа в одном HTML**, включая методику расчёта госпенсии |

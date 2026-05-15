@@ -8,6 +8,11 @@ const {
     buildFinamV2TemplatePackage,
     buildFinamV2TemplatePageHtml,
 } = require('./finamV2PageComposer');
+const { buildIfusFromReportModel } = require('./ifusExecutiveModel');
+const {
+    buildExecutiveDecisionContent,
+    enrichExecutiveNarrativeWithIfus,
+} = require('./executiveScenarioCatalog');
 
 const FINAM_V2_DIR = __dirname;
 
@@ -463,149 +468,27 @@ function buildGoalsDiagnostics(goals, { income = 0, plannedContributions = 0 } =
     };
 }
 
-function buildExecutiveDecision({ cashflowDiagnostics, goalsDiagnostics, currentState, portfolio }) {
+function buildLegacyHeuristicScore(cashflowDiagnostics, goalsDiagnostics) {
     const freeRatio = Number(cashflowDiagnostics.freeCashflowRatio);
     const goalLoadRatio = Number(goalsDiagnostics.goalLoadRatio ?? cashflowDiagnostics.goalLoadRatio);
     const reserveGap = !goalsDiagnostics.hasReserve;
-    const protectionGap = reserveGap || (!goalsDiagnostics.hasLife && cashflowDiagnostics.obligations > 0);
-    const pensionDominant = goalsDiagnostics.hasPension && goalsDiagnostics.largestGroup?.id === 'pension' && goalsDiagnostics.largestGroup.percent >= 40;
+    if (!Number.isFinite(freeRatio)) return '5,0';
+    let value = cashflowDiagnostics.freeCashflow < 0 ? 2.2 : 4.2 + Math.min(Math.max(freeRatio, 0), 0.4) * 10;
+    if (Number.isFinite(goalLoadRatio) && goalLoadRatio > 0.45) value -= 1.2;
+    if (reserveGap) value -= 0.8;
+    if (goalsDiagnostics.hasReserve && freeRatio >= 0.15) value += 0.5;
+    return Math.max(1, Math.min(9.6, value)).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+}
 
-    let scenario = cashflowDiagnostics.scenario;
-    if (cashflowDiagnostics.freeCashflow < 0) scenario = 'cashflow_negative';
-    else if (Number.isFinite(goalLoadRatio) && goalLoadRatio >= 0.45) scenario = 'goal_overload';
-    else if (protectionGap) scenario = 'protection_gap';
-    else if (pensionDominant) scenario = 'retirement_gap';
-    else if (Number.isFinite(freeRatio) && freeRatio < 0.15) scenario = 'cashflow_thin';
-    else if (Number.isFinite(freeRatio) && freeRatio < 0.30) scenario = 'cashflow_working';
-    else scenario = 'growth_ready';
-
-    const freeCashflow = cashflowDiagnostics.freeCashflow;
-    const freePct = Number.isFinite(freeRatio) ? formatPercent(freeRatio * 100) : '—';
-    const loadPct = Number.isFinite(goalLoadRatio) ? formatPercent(goalLoadRatio * 100) : '—';
-    const projected = formatMoney(portfolio.projectedTotal, { short: true }).replace(/\s*₽$/, '');
-    const largestGoal = goalsDiagnostics.largestGoal?.title || 'ключевая цель';
-    const largestGroup = goalsDiagnostics.largestGroup?.title || 'цели';
-    const score = (() => {
-        if (!Number.isFinite(freeRatio)) return '5,0';
-        let value = cashflowDiagnostics.freeCashflow < 0 ? 2.2 : 4.2 + Math.min(Math.max(freeRatio, 0), 0.4) * 10;
-        if (Number.isFinite(goalLoadRatio) && goalLoadRatio > 0.45) value -= 1.2;
-        if (reserveGap) value -= 0.8;
-        if (goalsDiagnostics.hasReserve && freeRatio >= 0.15) value += 0.5;
-        return Math.max(1, Math.min(9.6, value)).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
-    })();
-
-    const catalog = {
-        cashflow_negative: {
-            headline: 'План требует паузы: сначала закрыть кассовый разрыв',
-            lead: 'Главный управленческий вопрос — не доходность, а восстановление положительного денежного потока после обязательств и взносов.',
-            keyInsight: `При доходе ${formatMoney(cashflowDiagnostics.income)} и обязательствах ${formatMoney(cashflowDiagnostics.obligations)} план уходит в минус на ${formatMoney(Math.abs(freeCashflow))} в месяц. Новые цели лучше не добавлять до выравнивания бюджета.`,
-            risk: ['Кассовый разрыв', formatMoney(Math.abs(freeCashflow), { short: true }), 'дефицит в месяц после обязательств и ПФП'],
-            lever: ['Главный рычаг', '0-90 дней', 'сократить нагрузку и вернуть поток в плюс'],
-            decisionRows: [
-                ['Сократить нагрузку', 'Остановить рост дефицита и не продавать активы в плохой момент.', 'Пересчитать взносы и обязательства.'],
-                ['Приоритизировать цели', 'Оставить только обязательные цели до выхода cash flow в плюс.', `Первой проверить «${largestGoal}».`],
-                ['Зафиксировать контроль', 'Без контроля бюджет снова уйдёт в минус.', 'Сверять факт расходов ежемесячно.'],
-            ],
-            recommendedScenario: 'Первые 90 дней — восстановление положительного денежного потока. После этого — резерв и только затем долгосрочные цели.',
-        },
-        cashflow_thin: {
-            headline: 'План возможен, если жёстко держать свободный поток',
-            lead: 'Запас прочности есть, но он тонкий: любое увеличение обязательств или целей быстро ломает траекторию.',
-            keyInsight: `После обязательств и ПФП остаётся ${formatMoney(freeCashflow)} — около ${freePct} дохода. Значит, план работает только через дисциплину и приоритизацию.`,
-            risk: ['Тонкий запас', freePct, 'дохода остаётся после обязательств и ПФП'],
-            lever: ['Главный рычаг', '12 мес', 'закрепить резерв и стабильность пополнений'],
-            decisionRows: [
-                ['Зафиксировать резерв', 'Снять риск кассового разрыва и не трогать долгие активы.', 'Держать пополнение резерва первым платежом.'],
-                ['Разделить цели', 'Не перегрузить бюджет долгосрочными взносами.', 'Разнести обязательные и опциональные цели.'],
-                ['Вести сценарии', 'Показать последствия стресса и роста дохода.', 'Пересматривать план раз в квартал.'],
-            ],
-            recommendedScenario: 'Первые 90 дней — защита бюджета и резерв. Следующие 12 месяцев — стабилизация пополнений, затем расширение инвестиционного блока.',
-        },
-        cashflow_working: {
-            headline: 'План рабочий, если сохранить квартальный контроль',
-            lead: 'Денежный поток выдерживает текущую структуру целей, но план должен пересчитываться при изменении дохода, обязательств или сроков.',
-            keyInsight: `Свободный поток составляет ${formatMoney(freeCashflow)} — около ${freePct} дохода. Этого достаточно для планового движения без агрессивного ускорения.`,
-            risk: ['Контроль', freePct, 'дохода остаётся после обязательств и ПФП'],
-            lever: ['Главный рычаг', 'квартал', 'регулярно сверять факт пополнений'],
-            decisionRows: [
-                ['Сохранить взносы', 'План держится на регулярности, а не на разовых решениях.', 'Зафиксировать автоплатежи или календарь.'],
-                ['Проверить сроки', 'Длинные цели чувствительны к просадкам и инфляции.', `Первой сверить группу «${largestGroup}».`],
-                ['Держать сценарии', 'Решения принимаются по правилам, а не по эмоциям.', 'Обновлять расчёт раз в квартал.'],
-            ],
-            recommendedScenario: 'Базовый сценарий — сохранять текущий темп, раз в квартал проверять фактический поток и не увеличивать обязательства без пересчёта.',
-        },
-        goal_overload: {
-            headline: 'Портфель целей перегружает ежемесячный ресурс',
-            lead: 'Проблема не в количестве целей, а в доле дохода, которую они требуют каждый месяц.',
-            keyInsight: `Взносы по целям занимают около ${loadPct} дохода. Главный блок нагрузки — ${largestGroup}, поэтому порядок целей важнее добавления новых продуктов.`,
-            risk: ['Перегруз целей', loadPct, 'дохода уходит на плановые взносы'],
-            lever: ['Главный рычаг', largestGroup, 'пересобрать сроки и приоритеты'],
-            decisionRows: [
-                ['Сократить перегруз', 'Вернуть план в пределы устойчивого cash flow.', `Первой пересчитать «${largestGoal}».`],
-                ['Развести приоритеты', 'Обязательные цели не должны конкурировать с опциональными.', 'Пометить цели как must-have / optional.'],
-                ['Проверить срок', 'Удлинение горизонта часто снижает ежемесячный платёж.', 'Сравнить 2-3 срока по ключевой цели.'],
-            ],
-            recommendedScenario: 'Сначала снизить ежемесячную нагрузку по самым тяжёлым целям, затем закрепить резерв и только после этого возвращать опциональные цели.',
-        },
-        protection_gap: {
-            headline: 'Плану не хватает защитного контура',
-            lead: 'Перед усилением инвестиций нужно закрыть риск ликвидности и семейных обязательств.',
-            keyInsight: reserveGap
-                ? 'В плане не выделен финансовый резерв. Это повышает риск продавать долгие активы при внезапных расходах.'
-                : 'Резерв есть, но страховая защита требует проверки на фоне обязательств и семейной нагрузки.',
-            risk: ['Защитный разрыв', reserveGap ? 'резерв' : 'LIFE', 'контур нужно проверить до ускорения целей'],
-            lever: ['Главный рычаг', 'резерв', 'сначала ликвидность, потом длинный капитал'],
-            decisionRows: [
-                ['Закрыть защиту', 'Снизить риск кассового разрыва и резкой продажи активов.', reserveGap ? 'Добавить или усилить финансовый резерв.' : 'Проверить LIFE-покрытие.'],
-                ['Не ускорять цели', 'Инвестиционный блок не должен заменять ликвидность.', 'Сначала подтвердить защитный контур.'],
-                ['Назначить контроль', 'Защита зависит от дохода, семьи и обязательств.', 'Пересматривать защиту раз в год.'],
-            ],
-            recommendedScenario: 'Первые 90 дней — резерв и защита. После подтверждения устойчивости — плановое движение к долгосрочным целям.',
-        },
-        retirement_gap: {
-            headline: 'Пенсионный блок — главный контур долгосрочного капитала',
-            lead: 'План должен защищать текущий cash flow и одновременно удерживать пенсионную траекторию.',
-            keyInsight: `Группа «${largestGroup}» формирует ключевую долгосрочную нагрузку. Её нельзя оценивать только по взносу — важны срок, доходность и регулярность.`,
-            risk: ['Пенсионный разрыв', largestGroup, 'главная долгосрочная зона контроля'],
-            lever: ['Главный рычаг', '20+ лет', 'дисциплина пополнений и пересчёт доходности'],
-            decisionRows: [
-                ['Сохранить траекторию', 'Пенсионная цель чувствительна к ранним пропускам взносов.', 'Закрепить регулярный платёж.'],
-                ['Проверить доходность', 'Долгий срок усиливает эффект ставки и инфляции.', 'Сверить базовый и стресс-сценарии.'],
-                ['Не ломать резерв', 'Пенсионный капитал не должен закрывать краткосрочные расходы.', 'Держать резерв отдельно.'],
-            ],
-            recommendedScenario: 'Сначала обеспечить резерв, затем стабильно вести пенсионный взнос и пересматривать сценарий доходности не реже раза в квартал.',
-        },
-        growth_ready: {
-            headline: 'План устойчив: можно управлять ускорением целей',
-            lead: 'Свободный поток и структура целей позволяют не только выполнять базовый план, но и обсуждать ускорение приоритетных направлений.',
-            keyInsight: `После обязательств и ПФП остаётся ${formatMoney(freeCashflow)} — около ${freePct} дохода. Это даёт пространство для ускорения без потери контроля.`,
-            risk: ['Риск дисциплины', freePct, 'дохода остаётся после обязательств и ПФП'],
-            lever: ['Главный рычаг', 'ускорение', 'направлять избыток в приоритетные цели'],
-            decisionRows: [
-                ['Ускорить приоритеты', 'Свободный поток можно направить в цели с максимальным эффектом.', `Проверить ускорение для «${largestGoal}».`],
-                ['Сохранить резерв', 'Рост не должен съедать ликвидность.', 'Оставить резерв отдельным контуром.'],
-                ['Контролировать риск', 'Ускорение должно соответствовать риск-профилю.', 'Сверять портфель раз в квартал.'],
-            ],
-            recommendedScenario: 'Базовый сценарий можно усилить: часть свободного потока направлять в приоритетные цели после проверки резерва и риск-профиля.',
-        },
-    };
-
-    const selected = catalog[scenario] || catalog.cashflow_working;
-    return {
-        scenario,
-        headline: selected.headline,
-        lead: selected.lead,
-        keyInsight: selected.keyInsight,
-        sustainabilityIndex: score,
-        cards: [
-            { kind: 'risk', title: selected.risk[0], metric: selected.risk[1], body: selected.risk[2] },
-            { kind: 'lever', title: selected.lever[0], metric: selected.lever[1], body: selected.lever[2] },
-            { kind: 'effect', title: 'Главный эффект', metric: projected || '—', body: 'целевой капитал по базовому сценарию' },
-        ],
-        decisionRows: selected.decisionRows.map(([decision, why, nextStep]) => ({ decision, why, nextStep })),
-        recommendedScenario: selected.recommendedScenario,
-        source: 'deterministic-template',
-    };
+function buildExecutiveDecision({ cashflowDiagnostics, goalsDiagnostics, currentState, portfolio }) {
+    void currentState;
+    return buildExecutiveDecisionContent({
+        cashflowDiagnostics,
+        goalsDiagnostics,
+        portfolio,
+        formatMoney,
+        formatPercent,
+    });
 }
 
 /** НСЖ/ИСЖ и аналоги: доходность в отчёте не задаём и не включаем в средневзвешенную по портфелю. */
@@ -895,12 +778,31 @@ function buildV2Model(report = {}, options = {}) {
         freeCashflow,
     });
     const goalsDiagnostics = buildGoalsDiagnostics(goals, { income, plannedContributions });
-    const executiveDecision = buildExecutiveDecision({
+    const executiveDecisionRaw = buildExecutiveDecision({
         cashflowDiagnostics,
         goalsDiagnostics,
         currentState,
         portfolio: portfolioModel,
     });
+    const ifus = buildIfusFromReportModel({
+        report,
+        v2: {
+            goals,
+            cashflowDiagnostics,
+            goalsDiagnostics,
+            currentState,
+            portfolio: portfolioModel,
+        },
+    });
+    const executiveDecision = enrichExecutiveNarrativeWithIfus(
+        {
+            ...executiveDecisionRaw,
+            ifus,
+            legacySustainabilityIndex: buildLegacyHeuristicScore(cashflowDiagnostics, goalsDiagnostics),
+            sustainabilityIndex: ifus.totalScoreFormatted,
+        },
+        ifus
+    );
 
     return {
         reportSchemaVersion: FINAM_REPORT_V2_SCHEMA_VERSION,

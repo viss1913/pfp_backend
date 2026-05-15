@@ -67,6 +67,62 @@ const FINAM_REPORT_V2_TYPOGRAPHY_LIMITS = Object.freeze({
     chartAxisMinPx: 8,
 });
 
+/** Пример блока ИФУС для ЛК / JSON (buildV2Model → executiveDecision.ifus). */
+const FINAM_REPORT_V2_SAMPLE_IFUS = Object.freeze({
+    totalScore: 7.2,
+    totalScoreFormatted: '7,2',
+    baseScore: 7.6,
+    penaltySum: 0.4,
+    band: { id: 'high', label: 'Высокая устойчивость', range: '7–8,4' },
+    reserveMonths: 5.2,
+    reserveMonthsFormatted: '5,2',
+    targetReserveMonths: 6,
+    liquidRub: 936000,
+    mandatoryMonthlyRub: 180000,
+    monthlyDebtRub: 22000,
+    dsr: 0.122,
+    dsrPercentFormatted: '12,2',
+    freeCashflowRatio: 0.28,
+    lifeCoverageRatio: 0.85,
+    hasLifeGoal: true,
+    projectedCapitalLabel: '42,0 млн ₽',
+    factors: [
+        { id: 'reserve', title: 'Финансовый резерв', weight: 0.25, score: 7.5, contribution: 1.875 },
+        { id: 'dsr', title: 'Долговая нагрузка (DSR)', weight: 0.2, score: 8, contribution: 1.6 },
+        { id: 'scf', title: 'Свободный cash flow', weight: 0.2, score: 7, contribution: 1.4 },
+        { id: 'life', title: 'Страховая защита жизни', weight: 0.15, score: 7.5, contribution: 1.125 },
+        { id: 'netWorth', title: 'Чистый капитал', weight: 0.1, score: 7, contribution: 0.7 },
+        { id: 'housing', title: 'Жилищная устойчивость', weight: 0.05, score: 7, contribution: 0.35 },
+        { id: 'goals', title: 'Защищённость финансовых целей', weight: 0.05, score: 8, contribution: 0.4 },
+    ],
+    penalties: [{ code: 'reserve_below_1mo', points: 0.4, label: 'Резерв менее 1 мес. обязательных расходов' }],
+    alerts: [{ level: 'info', text: 'Резерв ~5,2 мес. обязательных расходов — по профилю семьи ориентир 6 мес.' }],
+    dataGaps: [],
+});
+
+/** Пример executiveDecision (страница 5) для фронта — нарратив + ИФУС. */
+const FINAM_REPORT_V2_SAMPLE_EXECUTIVE_DECISION = Object.freeze({
+    scenario: 'cashflow_working',
+    headline: 'План рабочий, если сохранить квартальный контроль',
+    lead: 'Денежный поток выдерживает текущую структуру целей; важно пересчитывать план при изменении дохода или обязательств.',
+    keyInsight:
+        'Свободный поток — 56 000 ₽ (28,0% дохода). Этого достаточно для планового движения без агрессивного ускорения. ИФУС семьи: 7,2 из 10 (Высокая устойчивость).',
+    sustainabilityIndex: '7,2',
+    legacySustainabilityIndex: '6,8',
+    source: 'deterministic-template',
+    cards: [
+        { kind: 'risk', title: 'Контроль дисциплины', metric: '28,0%', body: 'дохода остаётся после обязательств и ПФП' },
+        { kind: 'lever', title: 'Главный рычаг', metric: 'квартал', body: 'сверять факт пополнений и ИФУС' },
+        { kind: 'effect', title: 'Главный эффект', metric: '42,0 млн', body: 'целевой капитал по базовому сценарию' },
+    ],
+    decisionRows: [
+        { decision: 'Сохранить взносы', why: 'План держится на регулярности.', nextStep: 'Зафиксировать автоплатежи или календарь.' },
+    ],
+    recommendedScenario:
+        'Базовый сценарий — сохранять текущий темп; раз в квартал проверять фактический поток и не увеличивать обязательства без пересчёта.',
+    ifus: FINAM_REPORT_V2_SAMPLE_IFUS,
+});
+
 const FINAM_REPORT_V2_SAMPLE_PAYLOAD = Object.freeze({
     reportSchemaVersion: FINAM_REPORT_V2_SCHEMA_VERSION,
     client: {
@@ -627,6 +683,8 @@ module.exports = {
     FINAM_REPORT_V2_DEFAULT_ORDER,
     FINAM_REPORT_V2_DYNAMIC_PAGE_TYPES,
     FINAM_REPORT_V2_TYPOGRAPHY_LIMITS,
+    FINAM_REPORT_V2_SAMPLE_IFUS,
+    FINAM_REPORT_V2_SAMPLE_EXECUTIVE_DECISION,
     FINAM_REPORT_V2_SAMPLE_PAYLOAD,
     validateFinamReportV2Payload,
 };

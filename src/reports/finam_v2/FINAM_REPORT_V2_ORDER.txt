@@ -10,7 +10,7 @@ Finam Report v2 — порядок макетов (черновик).
                   http://127.0.0.1:8766/page-intro-v2.html
                   http://127.0.0.1:8766/page-current-state-v2.html
                   http://127.0.0.1:8766/page-goals-v2.html
-                  http://127.0.0.1:8766/page-executive-summary-v2.html
+                  http://127.0.0.1:8766/page-executive-summary-v2.html  (ИФУС + управленческий вывод, McKinsey-блок)
                   http://127.0.0.1:8766/page-goal-fin-reserve-v2.html
                   http://127.0.0.1:8766/page-goal-life-v2.html
                   http://127.0.0.1:8766/page-goal-pension-v2.html

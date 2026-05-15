@@ -1892,6 +1892,141 @@ function replaceGoalsPage(html, { model, helpers }) {
     return out;
 }
 
+function buildExecutiveDynamicRegionHtml(model) {
+    const decision = model?.executiveDecision || {};
+    const ifus = decision.ifus;
+    const headline = decision.headline || 'Управленческий вывод собран из расчётов';
+    const lead = decision.lead || 'Страница использует фактические цифры клиента и методику ИФУС.';
+    const keyInsight = decision.keyInsight || 'План требует регулярного пересчёта по фактическим данным клиента.';
+    const scoreVal = ifus?.totalScoreFormatted || decision.sustainabilityIndex || '—';
+    const bandLabel = ifus?.band?.label || 'Оценка устойчивости';
+    const bandRange = ifus?.band?.range || '0–10';
+
+    const alerts = Array.isArray(ifus?.alerts) ? ifus.alerts : [];
+    const alertsHtml = alerts.length
+        ? `<div class="finam-v2-exec__alerts">${alerts
+              .map((a) => {
+                  const cls =
+                      a.level === 'danger'
+                          ? 'finam-v2-exec__chip--danger'
+                          : a.level === 'info'
+                            ? 'finam-v2-exec__chip--info'
+                            : 'finam-v2-exec__chip--warn';
+                  return `<span class="finam-v2-exec__chip ${cls}">${escapeHtml(a.text)}</span>`;
+              })
+              .join('')}</div>`
+        : '';
+
+    const scaleMax = Math.max(12, finite(ifus?.targetReserveMonths, 6), finite(ifus?.reserveMonths, 0), 1);
+    const fillPct = Math.min(100, (finite(ifus?.reserveMonths, 0) / scaleMax) * 100);
+    const targetPct = Math.min(100, (finite(ifus?.targetReserveMonths, 6) / scaleMax) * 100);
+    const tick36 = Math.min(100, (3 / scaleMax) * 100);
+    const tick6 = Math.min(100, (6 / scaleMax) * 100);
+    const tick12 = Math.min(100, (12 / scaleMax) * 100);
+
+    const cardsHtml = buildExecutiveCardsHtml(decision);
+    const rowsHtml = buildExecutiveRowsHtml(decision);
+    const rec = decision.recommendedScenario || 'Следующий шаг зависит от фактического cash flow и приоритетов целей.';
+
+    const factors = Array.isArray(ifus?.factors) ? ifus.factors : [];
+    const factorRows = factors.length
+        ? factors
+              .map(
+                  (f) => `<tr>
+          <td>${escapeHtml(f.title)}</td>
+          <td>${escapeHtml(Number(f.score).toLocaleString('ru-RU', { maximumFractionDigits: 1 }))}</td>
+          <td>${escapeHtml(Number(f.contribution).toLocaleString('ru-RU', { maximumFractionDigits: 2 }))}</td>
+        </tr>`
+              )
+              .join('')
+        : '<tr><td colspan="3">ИФУС будет детализирован после полного расчёта плана.</td></tr>';
+
+    const gaps = Array.isArray(ifus?.dataGaps) ? ifus.dataGaps : [];
+    const gapsHtml = gaps.length ? `<div class="finam-v2-exec__foot">${gaps.map((g) => escapeHtml(g)).join(' ')}</div>` : '';
+
+    const pen = Array.isArray(ifus?.penalties) ? ifus.penalties : [];
+    const penHtml = pen.length
+        ? `<div class="finam-v2-exec__penalties"><strong>Критические штрафы по методике:</strong> ${pen
+              .map((p) => `−${escapeHtml(String(p.amount).replace('.', ','))} (${escapeHtml(p.label)})`)
+              .join('; ')}. Итог после штрафов: ${escapeHtml(ifus.totalScoreFormatted)}.</div>`
+        : '';
+
+    const baseNote =
+        ifus && Number.isFinite(ifus.baseScore)
+            ? `<div class="finam-v2-exec__foot">Базовый ИФУС (до штрафов): ${escapeHtml(
+                  Number(ifus.baseScore).toLocaleString('ru-RU', { maximumFractionDigits: 2 })
+              )}.</div>`
+            : '';
+
+    return `<p class="finam-v2-wow__eyebrow">Ключевой вывод плана</p>
+    <h1 class="finam-v2-wow__headline">${escapeHtml(headline)}</h1>
+    <p class="finam-v2-wow__lead">${escapeHtml(lead)}</p>
+
+    <section class="finam-v2-wow__split">
+      <div>
+        <div class="finam-v2-wow__insight finam-v2-exec__insight">
+          <strong>Ключевой вывод:</strong> ${escapeHtml(keyInsight)}
+        </div>
+        ${alertsHtml}
+        <div class="finam-v2-exec__meter-wrap">
+          <div class="finam-v2-exec__meter-label">Резерв в месяцах обязательных расходов (факт / ориентир по профилю — зелёная отметка)</div>
+          <div class="finam-v2-exec__meter">
+            <div class="finam-v2-exec__meter-fill" style="width:${fillPct.toFixed(2)}%;"></div>
+            <span class="finam-v2-exec__meter-tick" style="left:${tick36}%;" title="3 мес."></span>
+            <span class="finam-v2-exec__meter-tick" style="left:${tick6}%;" title="6 мес."></span>
+            <span class="finam-v2-exec__meter-tick" style="left:${tick12}%;" title="12 мес."></span>
+            <span class="finam-v2-exec__meter-tick finam-v2-exec__meter-tick--goal" style="left:${targetPct}%;" title="Цель по профилю"></span>
+          </div>
+        </div>
+      </div>
+      <div class="finam-v2-wow__score">
+        <div class="finam-v2-wow__score-value">${escapeHtml(scoreVal)}</div>
+        <div class="finam-v2-wow__score-label">Индекс финансовой устойчивости семьи (ИФУС) из 10</div>
+        <p class="finam-v2-wow__metric-sub" style="margin-top:6px;text-align:center;">${escapeHtml(bandLabel)} <span style="color:#64748b;">(${escapeHtml(
+        bandRange
+    )})</span></p>
+      </div>
+    </section>
+
+    ${cardsHtml}
+
+    <table class="finam-v2-wow__table">
+      <thead>
+        <tr>
+          <th>Решение</th>
+          <th>Зачем</th>
+          <th>Следующий шаг</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+
+    <section class="finam-v2-wow__card finam-v2-wow__card--soft">
+      <div class="finam-v2-wow__card-title">Рекомендованный сценарий</div>
+      <p class="finam-v2-wow__card-body">${escapeHtml(rec)}</p>
+    </section>
+
+    <section class="finam-v2-exec__method">
+      <div class="finam-v2-exec__method-title">Как мы считаем ИФУС</div>
+      <p class="finam-v2-exec__method-formula">ИФУС — взвешенная сумма семи факторов (каждый 0–10), веса как в методике: резерв 25%, долговая нагрузка 20%, свободный cash flow 20%, защита жизни 15%, чистый капитал 10%, жильё 5%, цели 5%. К итогу применяются критические штрафы при «красных» зонах.</p>
+      ${penHtml}
+      ${baseNote}
+      <table class="finam-v2-exec__factor-table">
+        <thead>
+          <tr>
+            <th>Фактор</th>
+            <th>Балл</th>
+            <th>Вклад</th>
+          </tr>
+        </thead>
+        <tbody>${factorRows}</tbody>
+      </table>
+      ${gapsHtml}
+    </section>`;
+}
+
 function buildExecutiveSplitHtml(decision) {
     return `<section class="finam-v2-wow__split">
       <div class="finam-v2-wow__insight">
@@ -1935,9 +2070,12 @@ function buildExecutiveRowsHtml(decision) {
 }
 
 function replaceExecutiveSummaryPage(html, { model }) {
-    const decision = model?.executiveDecision || {};
+    const region = buildExecutiveDynamicRegionHtml(model);
     let out = String(html || '');
-
+    if (out.includes('<!--FINAM_EXEC_BEGIN-->')) {
+        return out.replace(/<!--FINAM_EXEC_BEGIN-->[\s\S]*?<!--FINAM_EXEC_END-->/, region);
+    }
+    const decision = model?.executiveDecision || {};
     out = out.replace(
         /<h1 class="finam-v2-wow__headline">[\s\S]*?<\/h1>/,
         `<h1 class="finam-v2-wow__headline">${escapeHtml(decision.headline || 'Управленческий вывод собран из расчётов')}</h1>`

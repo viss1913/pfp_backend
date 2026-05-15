@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Управленческий вывод — финансовый план (v2)</title>
+  <title>Управленческий вывод — ИФУС (v2)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -11,7 +11,7 @@
     href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
   />
   <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
-  <link rel="stylesheet" href="page-wow-shared.css?v=finam-v2-wow-1" />
+  <link rel="stylesheet" href="page-wow-shared.css?v=finam-v2-exec-ifus-1" />
 </head>
 <body>
   <article class="finam-v2-page">
@@ -24,40 +24,57 @@
     </header>
     <hr class="finam-v2-wow__rule" />
 
+    <!--FINAM_EXEC_BEGIN-->
     <p class="finam-v2-wow__eyebrow">Ключевой вывод плана</p>
-    <h1 class="finam-v2-wow__headline">План устойчив, если сначала закрыть кассовый разрыв</h1>
+    <h1 class="finam-v2-wow__headline">План устойчив: можно управлять ускорением целей</h1>
     <p class="finam-v2-wow__lead">
       У клиента есть капитал и понятные долгосрочные цели. Главный управленческий вопрос — не доходность,
       а дисциплина свободного денежного потока после обязательств.
     </p>
 
     <section class="finam-v2-wow__split">
-      <div class="finam-v2-wow__insight">
-        <strong>Ключевой вывод:</strong> при доходе 150&nbsp;000&nbsp;₽ и обязательствах 118&nbsp;000&nbsp;₽ запас
-        прочности тонкий. Первый шаг — не добавлять новые цели, а зафиксировать резерв и правила
-        перераспределения свободных 20&nbsp;892&nbsp;₽.
+      <div>
+        <div class="finam-v2-wow__insight finam-v2-exec__insight">
+          <strong>Ключевой вывод:</strong> при доходе 150&nbsp;000&nbsp;₽ и обязательствах 118&nbsp;000&nbsp;₽ запас
+          прочности тонкий. Первый шаг — не добавлять новые цели, а зафиксировать резерв и правила
+          перераспределения свободных 20&nbsp;892&nbsp;₽.
+        </div>
+        <div class="finam-v2-exec__alerts">
+          <span class="finam-v2-exec__chip finam-v2-exec__chip--warn">Пример: резерв ниже ориентира по профилю семьи.</span>
+        </div>
+        <div class="finam-v2-exec__meter-wrap">
+          <div class="finam-v2-exec__meter-label">Резерв в месяцах обязательных расходов (факт / ориентир по профилю — зелёная отметка)</div>
+          <div class="finam-v2-exec__meter">
+            <div class="finam-v2-exec__meter-fill" style="width:55%;"></div>
+            <span class="finam-v2-exec__meter-tick" style="left:25%;"></span>
+            <span class="finam-v2-exec__meter-tick" style="left:50%;"></span>
+            <span class="finam-v2-exec__meter-tick" style="left:100%;"></span>
+            <span class="finam-v2-exec__meter-tick finam-v2-exec__meter-tick--goal" style="left:50%;"></span>
+          </div>
+        </div>
       </div>
       <div class="finam-v2-wow__score">
-        <div class="finam-v2-wow__score-value">7,2</div>
-        <div class="finam-v2-wow__score-label">индекс финансовой устойчивости из 10</div>
+        <div class="finam-v2-wow__score-value">8,7</div>
+        <div class="finam-v2-wow__score-label">Индекс финансовой устойчивости семьи (ИФУС) из 10</div>
+        <p class="finam-v2-wow__metric-sub" style="margin-top:6px;text-align:center;">Высокая устойчивость <span style="color:#64748b;">(7–8,4)</span></p>
       </div>
     </section>
 
     <div class="finam-v2-wow__grid-3">
       <section class="finam-v2-wow__card finam-v2-wow__card--warn">
         <div class="finam-v2-wow__card-title">Главный риск</div>
-        <div class="finam-v2-wow__metric">14%</div>
-        <p class="finam-v2-wow__metric-sub">свободного потока остаётся после обязательств и ПФП</p>
+        <div class="finam-v2-wow__metric">66,8%</div>
+        <p class="finam-v2-wow__metric-sub">дохода остаётся после обязательств и ПФП</p>
       </section>
       <section class="finam-v2-wow__card finam-v2-wow__card--green">
         <div class="finam-v2-wow__card-title">Главный рычаг</div>
-        <div class="finam-v2-wow__metric">12 мес</div>
-        <p class="finam-v2-wow__metric-sub">горизонт формирования финансового резерва</p>
+        <div class="finam-v2-wow__metric">ускорение</div>
+        <p class="finam-v2-wow__metric-sub">направлять избыток в приоритетные цели</p>
       </section>
       <section class="finam-v2-wow__card">
         <div class="finam-v2-wow__card-title">Главный эффект</div>
-        <div class="finam-v2-wow__metric">56,6 млн</div>
-        <p class="finam-v2-wow__metric-sub">целевой капитал к пенсии по базовому сценарию</p>
+        <div class="finam-v2-wow__metric">106,5 млн</div>
+        <p class="finam-v2-wow__metric-sub">целевой капитал по базовому сценарию</p>
       </section>
     </div>
 
@@ -71,19 +88,19 @@
       </thead>
       <tbody>
         <tr>
-          <td><strong>Зафиксировать резерв</strong></td>
-          <td>Снять риск кассового разрыва и не продавать активы в плохой момент.</td>
-          <td>12 месяцев пополнений по 5&nbsp;000&nbsp;₽.</td>
+          <td><strong>Ускорить приоритеты</strong></td>
+          <td>Свободный поток можно направить в цели с максимальным эффектом.</td>
+          <td>Проверить ускорение для «Достойная пенсия».</td>
         </tr>
         <tr>
-          <td><strong>Приоритизировать цели</strong></td>
-          <td>Не перегрузить бюджет долгосрочными взносами.</td>
-          <td>Разделить цели на обязательные и опциональные.</td>
+          <td><strong>Сохранить резерв</strong></td>
+          <td>Рост не должен съедать ликвидность.</td>
+          <td>Оставить резерв отдельным контуром.</td>
         </tr>
         <tr>
-          <td><strong>Вести сценарии</strong></td>
-          <td>Показать клиенту последствия стресса и роста дохода.</td>
-          <td>Пересматривать план раз в квартал.</td>
+          <td><strong>Контролировать риск</strong></td>
+          <td>Ускорение должно соответствовать риск-профилю.</td>
+          <td>Сверять портфель раз в квартал.</td>
         </tr>
       </tbody>
     </table>
@@ -91,15 +108,32 @@
     <section class="finam-v2-wow__card finam-v2-wow__card--soft">
       <div class="finam-v2-wow__card-title">Рекомендованный сценарий</div>
       <p class="finam-v2-wow__card-body">
-        Первые 90 дней — защита бюджета и резерв. Следующие 12 месяцев — стабилизация пополнений и
-        настройка пенсионной траектории. После подтверждения дисциплины — расширение целей и инвестиционного блока.
+        Базовый сценарий можно усилить: часть свободного потока направлять в приоритетные цели после проверки резерва и риск-профиля.
       </p>
     </section>
+
+    <section class="finam-v2-exec__method">
+      <div class="finam-v2-exec__method-title">Как мы считаем ИФУС</div>
+      <p class="finam-v2-exec__method-formula">ИФУС — взвешенная сумма семи факторов (каждый 0–10), веса как в методике: резерв 25%, долговая нагрузка 20%, свободный cash flow 20%, защита жизни 15%, чистый капитал 10%, жильё 5%, цели 5%.</p>
+      <table class="finam-v2-exec__factor-table">
+        <thead>
+          <tr>
+            <th>Фактор</th>
+            <th>Балл</th>
+            <th>Вклад</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="3">Статический превью — в PDF подставляются расчётные значения клиента.</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <!--FINAM_EXEC_END-->
 
     <hr class="finam-v2-wow__footer-rule" />
     <footer class="finam-v2-wow__footer">
       <span>Персональный финансовый план · Конфиденциально</span>
-      <span class="finam-v2-wow__footer-right">Управленческий вывод после диагностики целей</span>
+      <span class="finam-v2-wow__footer-right">Управленческий вывод и ИФУС после диагностики целей</span>
     </footer>
   </article>
 </body>
