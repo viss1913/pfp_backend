@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const agentService = require('../services/agentService');
+const agentNetworkService = require('../services/agentNetworkService');
+const projectService = require('../services/projectService');
 const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
 const { bufferToWebp } = require('../utils/imageToWebp');
 
@@ -90,6 +92,57 @@ class AgentController {
      * POST /api/pfp/agents/:id/signature-upload
      * multipart field `image` (jpeg, png, webp, max 8MB) → R2 или локальный fallback, URL в agents.signature_image_url
      */
+    async getMySubagents(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            const agentId = Number(req.user?.agentId);
+            if (!Number.isFinite(agentId) || agentId <= 0) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+            const list = await agentNetworkService.listSubagents(agentId, projectId);
+            res.json({ data: list });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async getInviteLink(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            const agentId = Number(req.user?.agentId);
+            if (!Number.isFinite(agentId) || agentId <= 0) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+            const slug = await agentNetworkService.ensureReferralSlug(agentId);
+            const project = await projectService.getProjectById(projectId);
+            const base =
+                process.env.AGENT_REGISTER_BASE_URL ||
+                process.env.FRONTEND_AGENT_REGISTER_URL ||
+                'https://finam.bank-future.com/register';
+            const sep = base.includes('?') ? '&' : '?';
+            const projectKey = project?.public_key ? `project_key=${encodeURIComponent(project.public_key)}` : '';
+            const url = `${base}${sep}${projectKey}${projectKey ? '&' : ''}ref=${encodeURIComponent(slug)}`;
+            res.json({ url, referral_slug: slug, ref: slug });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async getSubagentsById(req, res, next) {
+        try {
+            const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+            if (!isAdmin) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+            const projectId = req.projectId || req.user?.projectId;
+            const parentId = Number(req.params.id);
+            const list = await agentNetworkService.listSubagents(parentId, projectId);
+            res.json({ data: list });
+        } catch (err) {
+            next(err);
+        }
+    }
+
     async uploadSignatureImage(req, res, next) {
         try {
             const agentId = req.params.id;

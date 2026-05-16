@@ -1,6 +1,8 @@
 const clientRepository = require('../repositories/clientRepository');
 const projectRepository = require('../repositories/projectRepository');
 const knex = require('../config/database');
+const agentNetworkService = require('./agentNetworkService');
+const commissionService = require('./commissionService');
 const { mergeGoalsWithSnapshot } = require('../utils/mergeGoalsWithSnapshot');
 const { enrichGoalsSummaryProductTypes } = require('../utils/enrichGoalsSummaryProductTypes');
 
@@ -118,7 +120,8 @@ function normalizeGoalRow(goal) {
 class ClientService {
     async createFullClient(data) {
         // data structure: { client: {...}, assets: [], liabilities: [], expenses: [], goals: [] }
-        return await knex.transaction(async (trx) => {
+        let createdNewClient = false;
+        const clientIdResult = await knex.transaction(async (trx) => {
             let clientId;
             const clientData = { ...data.client };
 
@@ -196,7 +199,14 @@ class ClientService {
                         console.log(`[ClientService] Set missing project_id ${agent.project_id} from agent ${agent.id}`);
                     }
                 }
+                if (clientData.agent_id && clientData.referred_by_agent_id == null) {
+                    clientData.referred_by_agent_id = await agentNetworkService.resolveReferredByAgentId(
+                        clientData.agent_id,
+                        trx
+                    );
+                }
                 clientId = await clientRepository.create(clientData, trx);
+                createdNewClient = true;
             }
 
             // 3. Add Related Data
@@ -254,6 +264,36 @@ class ClientService {
 
             return clientId;
         });
+
+        if (createdNewClient && clientIdResult) {
+            knex('clients')
+                .where({ id: clientIdResult })
+                .first()
+                .then((client) => {
+                    if (!client?.agent_id) return null;
+                    return knex('agents').where({ id: client.agent_id }).first().then((agent) => ({
+                        client,
+                        agent,
+                    }));
+                })
+                .then((ctx) => {
+                    if (!ctx?.client) return;
+                    const beneficiary = ctx.agent?.parent_agent_id
+                        ? Number(ctx.agent.parent_agent_id)
+                        : null;
+                    if (!beneficiary) return;
+                    return commissionService.recordCommissionEvent({
+                        projectId: ctx.client.project_id,
+                        eventType: 'client_created',
+                        agentId: Number(ctx.client.agent_id),
+                        beneficiaryAgentId: beneficiary,
+                        clientId: Number(ctx.client.id),
+                    });
+                })
+                .catch((err) => console.error('[ClientService] commission client_created failed:', err));
+        }
+
+        return clientIdResult;
     }
 
     async getFullClient(id, projectId = null) {

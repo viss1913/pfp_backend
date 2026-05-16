@@ -203,7 +203,11 @@ const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSync
 const taxPlanningService = require('../services/taxPlanningService');
 const ndaService = require('../services/ndaService');
 const agentService = require('../services/agentService');
+const projectService = require('../services/projectService');
 const emailService = require('../services/emailService');
+const commissionService = require('../services/commissionService');
+const { buildTrackedPartnerUrl } = require('../utils/trackedPartnerUrl');
+const { parseProjectSettings } = require('../utils/projectSettings');
 const { ensureClientReportPdfReady } = require('../services/reportPdfStorageService');
 const pdfWarmupScheduleByClient = new Map();
 
@@ -940,7 +944,23 @@ class ClientController {
                 return res.status(404).json({ error: 'Agent not found' });
             }
 
-            const openUrl = validation.value.open_url || 'https://www.finam.ru/open/order/russia/';
+            const project = await projectService.getProjectById(projectId);
+            const projectSettings = parseProjectSettings(project?.settings);
+            const linkOpts = { agent, projectSettings, clientId };
+
+            const openUrl = buildTrackedPartnerUrl(
+                validation.value.open_url || 'https://www.finam.ru/open/order/russia/',
+                { ...linkOpts, linkType: 'broker_open' }
+            );
+            const promoBonusUrl = buildTrackedPartnerUrl('https://bonus.finam.ru/2025/', {
+                ...linkOpts,
+                linkType: 'bonus',
+            });
+            const promoTransferUrl = buildTrackedPartnerUrl(
+                'https://broker.finam.ru/landing/vygodniy-perekhod/',
+                { ...linkOpts, linkType: 'transfer' }
+            );
+
             const emailResult = await emailService.sendFinamBrokerOfferEmail({
                 to: recipient,
                 clientFullName: String(client.fio || '').trim() || 'клиент',
@@ -950,8 +970,24 @@ class ClientController {
                 agentPhone: (agent.phone && String(agent.phone).trim()) || '—',
                 reportAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
                 openUrl,
+                promoBonusUrl,
+                promoTransferUrl,
                 shortDescription: validation.value.short_description,
             });
+
+            if (agent.parent_agent_id) {
+                commissionService
+                    .recordCommissionEvent({
+                        projectId,
+                        eventType: 'broker_email_sent',
+                        agentId: emailAgentId,
+                        beneficiaryAgentId: Number(agent.parent_agent_id),
+                        clientId,
+                    })
+                    .catch((err) =>
+                        console.error('[ClientController] commission broker_email_sent failed:', err)
+                    );
+            }
 
             return res.json({
                 ok: true,
@@ -959,8 +995,8 @@ class ClientController {
                 client_email: recipient,
                 open_url: openUrl,
                 promo_urls: {
-                    bonus: 'https://bonus.finam.ru/2025/',
-                    transfer: 'https://broker.finam.ru/landing/vygodniy-perekhod/',
+                    bonus: promoBonusUrl,
+                    transfer: promoTransferUrl,
                 },
             });
         } catch (err) {

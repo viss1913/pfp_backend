@@ -18,6 +18,9 @@ const {
 const { buildFinamReportV2HtmlPackage } = require('../reports/finam_v2/buildFinamReportV2HtmlPackage');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('../reports/themes/reportRenderers');
 const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
+const projectService = require('./projectService');
+const { parseProjectSettings, getPartnerLinkTrackingSettings } = require('../utils/projectSettings');
+const { applyTrackedPartnerUrlsToHtml } = require('../utils/trackedPartnerUrl');
 
 const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'RENT', 'INVESTMENT', 'OTHER'];
 
@@ -31,6 +34,32 @@ function buildAdvisorFromAgent(agent) {
         email: String(agent.email || agent.email_corp || '').trim(),
         phone: String(agent.phone || '').trim(),
     };
+}
+
+async function applyPartnerLinkTrackingToPages(pageHtmlList, { projectId, agentId, brandingAgentId, clientId }) {
+    if (!Array.isArray(pageHtmlList) || !pageHtmlList.length || !projectId) {
+        return pageHtmlList;
+    }
+    const project = await projectService.getProjectById(projectId);
+    const projectSettings = parseProjectSettings(project?.settings);
+    const tracking = getPartnerLinkTrackingSettings(projectSettings);
+    if (tracking.enabled !== true) return pageHtmlList;
+
+    const rawId =
+        brandingAgentId !== undefined && brandingAgentId !== '' ? brandingAgentId : agentId;
+    const id = rawId != null && rawId !== '' ? Number(rawId) : NaN;
+    if (!Number.isFinite(id) || id <= 0) return pageHtmlList;
+
+    const agent = await agentService.getAgentById(id, projectId);
+    if (!agent?.partner_agent_id) return pageHtmlList;
+
+    const linkContext = {
+        enabled: true,
+        agent,
+        projectSettings,
+        clientId: clientId != null ? Number(clientId) : undefined,
+    };
+    return pageHtmlList.map((html) => applyTrackedPartnerUrlsToHtml(html, linkContext));
 }
 
 async function resolveReportAdvisor({ agentId, brandingAgentId, projectId }) {
@@ -335,7 +364,7 @@ class ReportPdfService {
         }
         const reportAdvisor = await resolveReportAdvisor({ agentId, brandingAgentId, projectId });
 
-        const pageHtmlList = [];
+        let pageHtmlList = [];
         let toc = null;
         let reportSchemaVersion = null;
         if (includeCover && !isFinamReportV2) {
@@ -489,6 +518,15 @@ class ReportPdfService {
 
         if (pageHtmlList.length === 0) {
             throw new Error('No pages selected for PDF generation');
+        }
+
+        if (isFinamProject) {
+            pageHtmlList = await applyPartnerLinkTrackingToPages(pageHtmlList, {
+                projectId,
+                agentId,
+                brandingAgentId,
+                clientId,
+            });
         }
 
         if (isRostechPensionOnly) {

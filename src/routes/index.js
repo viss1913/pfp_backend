@@ -95,6 +95,9 @@ router.use('/admin/pfp', pfpMiddleware, adminPfpRoutes);
 router.use('/admin/projects', pfpMiddleware, restrictTo('super_admin'), adminProjectRoutes);
 router.use('/admin/users', pfpMiddleware, adminUserRoutes);
 
+const adminCommissionRoutes = require('./adminCommissionRoutes');
+router.use('/admin/commission', pfpMiddleware, adminCommissionRoutes);
+
 // Alias for potentially mismatched frontend path:
 router.use('/ai', pfpMiddleware, aiRoutes);
 // Alias for direct /chat/stream path (mapping /api/chat/stream):

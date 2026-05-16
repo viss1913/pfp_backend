@@ -67,9 +67,39 @@ paths:
                       type: string
                       enum: [all, own]
                       description: 'all = все видят всех, own = только своих (альтернатива agents_see_all_clients)'
+                    partner_agent_id:
+                      type: object
+                      description: label, require_on_registration, ref_parse
+                    partner_link_tracking:
+                      type: object
+                      description: enabled, domain_whitelist, defaults, per_link_type, agent_id_param
+                    agent_network:
+                      type: object
+                      description: enabled, max_depth, parent_can_list_subagents
+                    commission_rules:
+                      type: object
+                      description: enabled, subagent_override_percent, events
       responses:
         '200':
           description: Project updated
+
+  /admin/commission/events:
+    get:
+      summary: Список commission_events проекта
+      tags: [Commission]
+    post:
+      summary: Ручное событие partner_deal_confirmed
+      tags: [Commission]
+
+  /admin/commission/accruals:
+    get:
+      summary: Начисления комиссий
+      tags: [Commission]
+
+  /admin/commission/accruals/{id}:
+    patch:
+      summary: Обновить status начисления
+      tags: [Commission]
 
   /admin/users:
     get:

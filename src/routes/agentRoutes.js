@@ -27,6 +27,9 @@ function signatureUploadError(err, req, res, next) {
 // Publicly accessible with API Key or Admin role (handled in controller)
 router.get('/', agentController.getAll);
 router.post('/', agentController.create);
+router.get('/me/subagents', agentController.getMySubagents.bind(agentController));
+router.get('/me/invite-link', agentController.getInviteLink.bind(agentController));
+router.get('/:id/subagents', agentController.getSubagentsById.bind(agentController));
 router.post(
     '/:id/signature-upload',
     signatureUpload.single('image'),

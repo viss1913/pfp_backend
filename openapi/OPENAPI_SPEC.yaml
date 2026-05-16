@@ -909,6 +909,18 @@ components:
           type: string
           format: uri
           description: Публичный URL изображения подписи (после загрузки через POST .../signature-upload или вручную)
+        partner_agent_id:
+          type: string
+          nullable: true
+          description: Внешний ID агента у партнёра (для Finam — Finam ID)
+        parent_agent_id:
+          type: integer
+          nullable: true
+          description: ID родительского агента (субагентская сеть PFP)
+        referral_slug:
+          type: string
+          nullable: true
+          description: Slug для реферальной ссылки приглашения субагентов
         created_at:
           type: string
           format: date-time
@@ -972,6 +984,13 @@ components:
           type: string
           nullable: true
           description: Локальная часть корпоративного ящика (см. Agent.email_corp)
+        partner_agent_id:
+          type: string
+        partner_ref_url:
+          type: string
+          description: Ссылка партнёра для извлечения partner_agent_id (только create)
+        parent_agent_id:
+          type: integer
 
     AgentUpdate:
       type: object
@@ -1023,6 +1042,12 @@ components:
           type: string
           nullable: true
           description: Локальная часть корпоративного ящика (см. Agent.email_corp)
+        partner_agent_id:
+          type: string
+          nullable: true
+        parent_agent_id:
+          type: integer
+          nullable: true
 
     Project:
       type: object
@@ -1380,6 +1405,44 @@ paths:
                     type: string
                   agentId:
                     type: integer
+
+  /auth/verify-agent-registration:
+    post:
+      summary: Регистрация агента, шаг 2 — код и пароль
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, password]
+              properties:
+                email: { type: string, format: email }
+                code: { type: string, minLength: 6, maxLength: 6 }
+                password: { type: string, minLength: 6 }
+      responses:
+        '201':
+          description: Created
+
+  /auth/parse-partner-agent:
+    post:
+      summary: Извлечь partner_agent_id из ссылки или текста
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_key]
+              properties:
+                project_key: { type: string }
+                partner_agent_id: { type: string }
+                partner_ref_url: { type: string }
+      responses:
+        '200':
+          description: OK
 
   # ==================== Admin: Projects (Super Admin) ====================
   /admin/projects:
@@ -2526,6 +2589,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Agent'
+
+  /pfp/agents/me/subagents:
+    get:
+      summary: Список прямых субагентов текущего агента
+      tags: [Agents]
+      responses:
+        '200':
+          description: OK
+
+  /pfp/agents/me/invite-link:
+    get:
+      summary: Реферальная ссылка для приглашения субагентов
+      tags: [Agents]
+      responses:
+        '200':
+          description: OK
+
+  /pfp/agents/{id}/subagents:
+    get:
+      summary: Список субагентов агента (admin)
+      tags: [Agents]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
 
   /pfp/agents/{id}/signature-upload:
     post:

@@ -5,6 +5,14 @@ const db = require('../config/database');
 const emailService = require('./emailService');
 const projectService = require('./projectService');
 const smmService = require('./smmService');
+const {
+    parsePartnerAgentIdFromInput,
+    isPartnerAgentIdRequired,
+    assertPartnerAgentIdAvailable,
+} = require('../utils/partnerAgentId');
+const { parseProjectSettings, getAgentNetworkSettings } = require('../utils/projectSettings');
+const agentNetworkService = require('./agentNetworkService');
+const commissionService = require('./commissionService');
 
 if (!process.env.JWT_SECRET) {
     console.warn('CRITICAL WARNING: JWT_SECRET environment variable is not set!');
@@ -173,7 +181,7 @@ class AuthService {
 
         // Invalidate any previous codes for this email
         await db('email_verifications')
-            .where({ email, verified: false })
+            .where({ email, purpose: 'client_register', verified: false })
             .del();
 
         // Save verification record
@@ -182,12 +190,13 @@ class AuthService {
             code,
             project_id: project.id,
             name,
+            purpose: 'client_register',
             expires_at: expiresAt,
-            verified: false
+            verified: false,
         });
 
         // Send email
-        await emailService.sendVerificationCode(email, code);
+        await emailService.sendVerificationCode(email, code, { purpose: 'client' });
 
         console.log(`[AuthService] Verification code sent to ${email} for project ${project.id}`);
 
@@ -205,7 +214,7 @@ class AuthService {
     async verifyAndCreateClient({ email, code, password }) {
         // Find matching verification record
         const verification = await db('email_verifications')
-            .where({ email, code, verified: false })
+            .where({ email, code, purpose: 'client_register', verified: false })
             .where('expires_at', '>', new Date())
             .orderBy('created_at', 'desc')
             .first();
@@ -360,10 +369,19 @@ class AuthService {
     }
 
     /**
-     * Self-registration of agent (no email verification).
-     * Body: email, password, first_name, last_name, project_key.
+     * Step 1: agent registration — send 6-digit code via Resend (from noreply@ verified domain).
      */
-    async registerAgent({ email, password, first_name, last_name, project_key }) {
+    async initiateAgentRegistration(body) {
+        const {
+            email,
+            first_name,
+            last_name,
+            project_key,
+            partner_agent_id,
+            partner_ref_url,
+            ref,
+        } = body;
+
         const existingUser = await db('users').where({ email }).first();
         if (existingUser) {
             throw { status: 400, message: 'Пользователь с таким email уже существует' };
@@ -374,39 +392,201 @@ class AuthService {
             throw { status: 400, message: 'Неверный ключ проекта' };
         }
 
+        const settings = parseProjectSettings(project.settings);
+        const network = getAgentNetworkSettings(settings);
+
+        if (network.enabled === true && network.require_invite_ref === true && !ref) {
+            throw { status: 400, message: 'Регистрация только по приглашению (ref)' };
+        }
+
+        let resolvedPartnerId = null;
+        const hasPartnerInput =
+            (partner_agent_id != null && String(partner_agent_id).trim() !== '') || partner_ref_url;
+        if (hasPartnerInput) {
+            resolvedPartnerId = parsePartnerAgentIdFromInput({ partner_agent_id, partner_ref_url }, settings);
+        } else if (isPartnerAgentIdRequired(settings, 'registration')) {
+            throw {
+                status: 400,
+                message: 'Укажите ID партнёра или ссылку из личного кабинета партнёра',
+            };
+        }
+        if (resolvedPartnerId) {
+            await assertPartnerAgentIdAvailable(project.id, resolvedPartnerId);
+        }
+
+        let parentAgentId = null;
+        if (ref) {
+            const parent = await agentNetworkService.resolveParentAgentFromRef(project.id, ref);
+            parentAgentId = parent.id;
+            await agentNetworkService.assertValidParentAssignment({
+                agentId: null,
+                parentAgentId,
+                projectSettings: settings,
+            });
+        }
+
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MINUTES * 60 * 1000);
+        const payload = {
+            first_name: first_name || null,
+            last_name: last_name || null,
+            partner_agent_id: resolvedPartnerId,
+            partner_agent_id_source: partner_ref_url ? 'registration_ref' : resolvedPartnerId ? 'registration_manual' : null,
+            parent_agent_id: parentAgentId,
+            ref: ref || null,
+            registration_attribution: agentNetworkService.buildRegistrationAttribution(body),
+        };
+
+        await db('email_verifications')
+            .where({ email, purpose: 'agent_register', verified: false })
+            .del();
+
+        await db('email_verifications').insert({
+            email,
+            code,
+            project_id: project.id,
+            name: [first_name, last_name].filter(Boolean).join(' ').trim() || 'Агент',
+            purpose: 'agent_register',
+            payload: JSON.stringify(payload),
+            expires_at: expiresAt,
+            verified: false,
+        });
+
+        await emailService.sendVerificationCode(email, code, { purpose: 'agent' });
+
+        return {
+            message: 'Код подтверждения отправлен на вашу почту',
+            email,
+            expires_in_minutes: VERIFICATION_CODE_TTL_MINUTES,
+        };
+    }
+
+    /**
+     * Step 2: verify code and create agent account.
+     */
+    async verifyAndCreateAgent({ email, code, password }) {
+        const verification = await db('email_verifications')
+            .where({ email, code, purpose: 'agent_register', verified: false })
+            .where('expires_at', '>', new Date())
+            .orderBy('created_at', 'desc')
+            .first();
+
+        if (!verification) {
+            throw { status: 400, message: 'Неверный или истёкший код подтверждения' };
+        }
+
+        const existingUser = await db('users').where({ email }).first();
+        if (existingUser) {
+            throw { status: 400, message: 'Пользователь с таким email уже существует' };
+        }
+
+        let payload = {};
+        try {
+            payload =
+                typeof verification.payload === 'string'
+                    ? JSON.parse(verification.payload)
+                    : verification.payload || {};
+        } catch (_) {
+            payload = {};
+        }
+
+        await db('email_verifications')
+            .where({ id: verification.id })
+            .update({ verified: true });
+
+        return this._createAgentAccount({
+            email,
+            password,
+            project_id: verification.project_id,
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            partner_agent_id: payload.partner_agent_id,
+            partner_agent_id_source: payload.partner_agent_id_source,
+            parent_agent_id: payload.parent_agent_id,
+            registration_attribution: payload.registration_attribution,
+        });
+    }
+
+    /**
+     * @deprecated Используйте initiateAgentRegistration + verifyAndCreateAgent
+     */
+    async registerAgent(body) {
+        if (body.code && body.password) {
+            return this.verifyAndCreateAgent({
+                email: body.email,
+                code: body.code,
+                password: body.password,
+            });
+        }
+        return this.initiateAgentRegistration(body);
+    }
+
+    async _createAgentAccount({
+        email,
+        password,
+        project_id,
+        first_name,
+        last_name,
+        partner_agent_id,
+        partner_agent_id_source,
+        parent_agent_id,
+        registration_attribution,
+    }) {
         const passwordHash = await bcrypt.hash(password, 10);
         const name = [first_name, last_name].filter(Boolean).join(' ').trim() || 'Агент';
         const agentUuid = crypto.randomUUID();
+        const referralSlug = agentNetworkService.generateReferralSlug();
 
         const result = await db.transaction(async (trx) => {
             const [agentId] = await trx('agents').insert({
-                project_id: project.id,
+                project_id,
                 first_name: first_name || null,
                 last_name: last_name || null,
                 uuid: agentUuid,
+                partner_agent_id: partner_agent_id || null,
+                partner_agent_id_source: partner_agent_id ? partner_agent_id_source : null,
+                parent_agent_id: parent_agent_id || null,
+                referral_slug: referralSlug,
+                registration_attribution: registration_attribution
+                    ? JSON.stringify(registration_attribution)
+                    : null,
                 is_active: true,
                 created_at: new Date(),
-                updated_at: new Date()
+                updated_at: new Date(),
             });
             const aid = typeof agentId === 'object' ? agentId.id : agentId;
 
             const [userId] = await trx('users').insert({
                 agent_id: aid,
-                project_id: project.id,
+                project_id,
                 email,
                 password_hash: passwordHash,
                 name,
                 role: 'agent',
                 is_active: true,
                 created_at: new Date(),
-                updated_at: new Date()
+                updated_at: new Date(),
             });
             const uid = typeof userId === 'object' ? userId.id : userId;
 
-            return { userId: uid, agentId: aid };
+            return { userId: uid, agentId: aid, parentAgentId: parent_agent_id };
         });
 
-        smmService.syncAgent(result.agentId).catch(err => console.error('[AuthService] SMM sync after agent registration failed:', err));
+        if (result.parentAgentId) {
+            commissionService
+                .recordCommissionEvent({
+                    projectId: project_id,
+                    eventType: 'subagent_registered',
+                    agentId: result.agentId,
+                    beneficiaryAgentId: result.parentAgentId,
+                    subagentId: result.agentId,
+                })
+                .catch((err) => console.error('[AuthService] commission subagent_registered failed:', err));
+        }
+
+        smmService.syncAgent(result.agentId).catch((err) =>
+            console.error('[AuthService] SMM sync after agent registration failed:', err)
+        );
 
         const payload = {
             id: agentUuid,
@@ -414,11 +594,13 @@ class AuthService {
             email,
             role: 'agent',
             agentId: result.agentId,
-            projectId: project.id
+            projectId: project_id,
         };
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-        console.log(`[AuthService] Agent self-registered: userId=${result.userId}, agentId=${result.agentId}, project=${project.id}`);
+        console.log(
+            `[AuthService] Agent registered: userId=${result.userId}, agentId=${result.agentId}, project=${project_id}`
+        );
 
         return {
             token,
@@ -428,8 +610,8 @@ class AuthService {
                 name,
                 role: 'agent',
                 agentId: result.agentId,
-                projectId: project.id
-            }
+                projectId: project_id,
+            },
         };
     }
 }

@@ -3,7 +3,8 @@ info:
   title: Agent LK API (Личный кабинет агента)
   description: |
     API для управления инвестиционными продуктами и портфелями со стороны Агента.
-    Авторизация происходит через стандартный `/api/auth/login`. 
+    **Авторизация и регистрация агента:** `POST /auth/login`, двухшаговая регистрация `POST /auth/register-agent` → `POST /auth/verify-agent-registration` (код **6 цифр** на email через **Resend**, отправитель `noreply@…` при `RESEND_FROM_EMAIL={agent}@domain`). Поля партнёра: `partner_agent_id`, `partner_ref_url`, `ref` (приглашение субагента). См. тег **«Регистрация и профиль агента»**.
+
     Все методы работают с привязкой к `project_id` авторизованного агента.
     Системные (дефолтные) продукты и портфели (где `project_id == null`) доступны Агенту только на чтение и клонирование.
 
@@ -33,7 +34,7 @@ info:
     - **`POST /pfp/clients/nda/send`** — клиента в БД ещё нет (до first-run), только JWT агента.
     - **`POST /pfp/clients/{clientId}/nda/send`** — клиент уже есть; проверяется привязка к агенту.
     - **`POST /pfp/clients/{clientId}/life-insurance/send-email`** — отправить клиенту HTML-письмо по продукту «Подушка безопасности» с кнопкой **«Оформить НСЖ»**.
-    - **`POST /pfp/clients/{clientId}/broker-account/send-email`** — отправить клиенту письмо с открытием брокерского счёта Финам и ссылками на спецакции.
+    - **`POST /pfp/clients/{clientId}/broker-account/send-email`** — письмо Финам (Resend); ссылки с UTM и `partner_agent_id`, если включён `partner_link_tracking` в settings проекта.
   version: 1.0.0
 servers:
   - url: /api
@@ -43,6 +44,142 @@ security:
   - bearerAuth: []
 
 paths:
+  # ==================== РЕГИСТРАЦИЯ И ПРОФИЛЬ АГЕНТА ====================
+  /auth/login:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Вход агента (JWT)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 6 }
+                project_key: { type: string, description: "Опционально, игнорируется" }
+      responses:
+        '200':
+          description: JWT и профиль пользователя
+
+  /auth/register-agent:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: "Регистрация агента, шаг 1 — отправить код на email (Resend)"
+      description: |
+        Публичный endpoint. Проверяет `project_key`, Finam ID (если `require_on_registration` в settings), `ref` пригласившего агента.
+        Генерирует 6-значный код, сохраняет черновик в `email_verifications` (`purpose=agent_register`), отправляет письмо через **Resend**.
+
+        **From:** `getVerificationFrom()` в `emailService` — при `RESEND_FROM_EMAIL` вида `{agent}@bank-future.com` используется **`noreply@bank-future.com`** (или `RESEND_SYSTEM_LOCAL`, по умолчанию `noreply`).
+
+        **Env:** `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (verified домен), опционально `RESEND_SYSTEM_LOCAL=noreply`.
+
+        Пароль на этом шаге **не** передаётся.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegisterStep1Request'
+      responses:
+        '200':
+          description: Код отправлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationCodeSentResponse'
+        '400':
+          description: Email занят, нет Finam ID, неверный ref
+        '409':
+          description: partner_agent_id уже занят в проекте
+        '502':
+          description: Ошибка Resend (в production)
+
+  /auth/verify-agent-registration:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: "Регистрация агента, шаг 2 — код + пароль → JWT"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegisterStep2Request'
+      responses:
+        '201':
+          description: Аккаунт создан, JWT как при login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentAuthResponse'
+        '400':
+          description: Неверный или просроченный код
+
+  /auth/parse-partner-agent:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Распознать partner_agent_id из ссылки или текста
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParsePartnerAgentRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsePartnerAgentResponse'
+
+  /auth/me:
+    get:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Текущий пользователь (JWT)
+      responses:
+        '200':
+          description: OK
+
+  /pfp/agents/me/subagents:
+    get:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Прямые субагенты текущего агента
+      description: Список с `partner_agent_id`, email, `clients_count`. Требует `agent_network.enabled` в проекте.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AgentSubagentRow'
+
+  /pfp/agents/me/invite-link:
+    get:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Реферальная ссылка для приглашения субагентов
+      description: |
+        Возвращает `url` с `project_key` и `ref={referral_slug}`.
+        База URL: env `AGENT_REGISTER_BASE_URL` или `FRONTEND_AGENT_REGISTER_URL` (fallback в коде).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentInviteLinkResponse'
+
   # ==================== ПРОДУКТЫ ====================
   /pfp/products:
     get:
@@ -923,9 +1060,12 @@ paths:
       tags: [ "Клиенты B2C в ЛК Агента" ]
       summary: Отправить клиенту письмо по открытию брокерского счёта Финам
       description: |
-        Отправляет клиенту из карточки (`clients.email`) письмо через Resend с:
+        Отправляет клиенту из карточки (`clients.email`) письмо через **Resend** с:
         - ссылкой открытия брокерского счёта Финам;
-        - блоком спецакций (официальные страницы «Финам Бонус» и «Выгодный переход»).
+        - блоком спецакций («Финам Бонус», «Выгодный переход»).
+
+        Если у агента заполнен `partner_agent_id` и в `projects.settings` включён `partner_link_tracking.enabled`,
+        в `open_url` и `promo_urls` автоматически добавляются UTM и параметр агента (см. `partner_link_tracking` в settings проекта).
 
         Доступ: агент-владелец клиента, admin, super_admin.
       parameters:
@@ -2355,6 +2495,94 @@ paths:
 
 components:
   schemas:
+    AgentRegisterStep1Request:
+      type: object
+      required: [email, project_key]
+      properties:
+        email: { type: string, format: email }
+        first_name: { type: string, maxLength: 100 }
+        last_name: { type: string, maxLength: 100 }
+        project_key: { type: string, description: "Публичный ключ проекта (pk_…)" }
+        partner_agent_id:
+          type: string
+          maxLength: 64
+          description: "Finam ID / ID партнёра (если require_on_registration)"
+        partner_ref_url:
+          type: string
+          description: Ссылка из ЛК партнёра — ID извлекается на сервере
+        ref:
+          type: string
+          description: referral_slug или uuid пригласившего агента
+        utm_source: { type: string }
+        utm_medium: { type: string }
+        utm_campaign: { type: string }
+        utm_content: { type: string }
+        utm_term: { type: string }
+
+    AgentRegisterStep2Request:
+      type: object
+      required: [email, code, password]
+      properties:
+        email: { type: string, format: email }
+        code: { type: string, pattern: '^[0-9]{6}$' }
+        password: { type: string, minLength: 6 }
+
+    VerificationCodeSentResponse:
+      type: object
+      properties:
+        message: { type: string, example: "Код подтверждения отправлен на вашу почту" }
+        email: { type: string, format: email }
+        expires_in_minutes: { type: integer, example: 10 }
+
+    AgentAuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user:
+          type: object
+          properties:
+            id: { type: integer }
+            email: { type: string }
+            name: { type: string }
+            role: { type: string, example: agent }
+            agentId: { type: integer }
+            projectId: { type: integer }
+
+    ParsePartnerAgentRequest:
+      type: object
+      required: [project_key]
+      properties:
+        project_key: { type: string }
+        partner_agent_id: { type: string }
+        partner_ref_url: { type: string }
+
+    ParsePartnerAgentResponse:
+      type: object
+      properties:
+        partner_agent_id: { type: string }
+        label: { type: string, example: "Finam ID" }
+
+    AgentSubagentRow:
+      type: object
+      properties:
+        id: { type: integer }
+        uuid: { type: string, format: uuid }
+        first_name: { type: string }
+        last_name: { type: string }
+        email: { type: string, format: email }
+        partner_agent_id: { type: string, nullable: true }
+        referral_slug: { type: string, nullable: true }
+        is_active: { type: boolean }
+        clients_count: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    AgentInviteLinkResponse:
+      type: object
+      properties:
+        url: { type: string, format: uri }
+        referral_slug: { type: string }
+        ref: { type: string }
+
     AiAssistantChatMessage:
       type: object
       properties:

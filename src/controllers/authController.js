@@ -37,13 +37,32 @@ const registerFastSchema = Joi.object({
     name: Joi.string().min(2).max(255).optional()
 });
 
-// Agent self-registration (no email verification)
+// Agent registration step 1 — send code (Resend)
 const registerAgentSchema = Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
-    password: Joi.string().min(6).required(),
     first_name: Joi.string().max(100).allow('').optional(),
     last_name: Joi.string().max(100).allow('').optional(),
-    project_key: Joi.string().required()
+    project_key: Joi.string().required(),
+    partner_agent_id: Joi.string().max(64).allow('').optional(),
+    partner_ref_url: Joi.string().max(2048).allow('').optional(),
+    ref: Joi.string().max(128).allow('').optional(),
+    utm_source: Joi.string().max(128).allow('').optional(),
+    utm_medium: Joi.string().max(128).allow('').optional(),
+    utm_campaign: Joi.string().max(128).allow('').optional(),
+    utm_content: Joi.string().max(128).allow('').optional(),
+    utm_term: Joi.string().max(128).allow('').optional(),
+});
+
+const verifyAgentRegistrationSchema = Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    code: Joi.string().length(6).required(),
+    password: Joi.string().min(6).required(),
+});
+
+const parsePartnerAgentSchema = Joi.object({
+    project_key: Joi.string().required(),
+    partner_agent_id: Joi.string().max(64).allow('').optional(),
+    partner_ref_url: Joi.string().max(2048).allow('').optional(),
 });
 
 class AuthController {
@@ -132,9 +151,8 @@ class AuthController {
     }
 
     /**
-     * Agent self-registration (no email verification).
+     * Agent registration step 1 — send verification code (Resend, noreply@).
      * POST /auth/register-agent
-     * Body: email, password, first_name, last_name, project_key
      */
     async registerAgent(req, res, next) {
         try {
@@ -143,8 +161,58 @@ class AuthController {
                 return res.status(400).json({ error: validation.error.details[0].message });
             }
 
-            const result = await authService.registerAgent(req.body);
+            const result = await authService.initiateAgentRegistration(validation.value);
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Agent registration step 2 — verify code and create account.
+     * POST /auth/verify-agent-registration
+     */
+    async verifyAgentRegistration(req, res, next) {
+        try {
+            const validation = verifyAgentRegistrationSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const result = await authService.verifyAndCreateAgent(validation.value);
             res.status(201).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /auth/parse-partner-agent
+     */
+    async parsePartnerAgent(req, res, next) {
+        try {
+            const validation = parsePartnerAgentSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const projectService = require('../services/projectService');
+            const { parsePartnerAgentIdFromInput } = require('../utils/partnerAgentId');
+            const { parseProjectSettings, getPartnerAgentIdSettings } = require('../utils/projectSettings');
+
+            const project = await projectService.getProjectByPublicKey(validation.value.project_key);
+            if (!project) {
+                return res.status(400).json({ error: 'Неверный ключ проекта' });
+            }
+
+            const settings = parseProjectSettings(project.settings);
+            const partnerAgentId = parsePartnerAgentIdFromInput(validation.value, settings);
+            if (!partnerAgentId) {
+                return res.status(400).json({ error: 'Не удалось определить ID партнёра' });
+            }
+
+            const label = getPartnerAgentIdSettings(settings).label || 'ID партнёра';
+            res.json({ partner_agent_id: partnerAgentId, label });
         } catch (err) {
             next(err);
         }

@@ -276,13 +276,29 @@ class EmailService {
      * @param {string} code - 6-digit verification code
      * @returns {Promise<object>} Resend API response
      */
-    async sendVerificationCode(email, code) {
+    /**
+     * Код на почту (Resend). From: `getVerificationFrom()` — при шаблоне `{agent}@domain` в RESEND_FROM_EMAIL → `noreply@domain`.
+     * @param {string} email
+     * @param {string} code
+     * @param {{ purpose?: 'client'|'agent' }} [opts]
+     */
+    async sendVerificationCode(email, code, opts = {}) {
+        const purpose = opts.purpose === 'agent' ? 'agent' : 'client';
+        const subject =
+            purpose === 'agent'
+                ? 'Код подтверждения — регистрация в личном кабинете агента'
+                : 'Код подтверждения регистрации';
+        const intro =
+            purpose === 'agent'
+                ? 'Для завершения регистрации в личном кабинете агента введите код:'
+                : 'Для завершения регистрации введите код:';
+
         try {
             const { data, error } = await getResendClient().emails.send({
                 from: getVerificationFrom(),
                 to: email,
-                subject: 'Код подтверждения регистрации',
-                html: this._buildVerificationEmail(code)
+                subject,
+                html: this._buildVerificationEmail(code, intro)
             });
 
             if (error) {
@@ -668,7 +684,10 @@ class EmailService {
         }
     }
 
-    _buildVerificationEmail(code) {
+    _buildVerificationEmail(code, introLine) {
+        const intro =
+            introLine ||
+            'Здравствуйте! Для завершения регистрации введите код:';
         return `
 <!DOCTYPE html>
 <html>
@@ -691,7 +710,7 @@ class EmailService {
                     <tr>
                         <td style="padding:32px 40px;">
                             <p style="margin:0 0 16px;color:#51545e;font-size:15px;line-height:1.5;">
-                                Здравствуйте! Для завершения регистрации введите код:
+                                ${escapeHtmlLite(intro)}
                             </p>
                             <div style="text-align:center;margin:24px 0;">
                                 <span style="display:inline-block;background:#f4f4f7;border:2px solid #667eea;border-radius:8px;padding:16px 32px;font-size:32px;font-weight:700;letter-spacing:8px;color:#333;">
