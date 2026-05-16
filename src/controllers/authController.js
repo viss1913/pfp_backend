@@ -42,6 +42,7 @@ const registerAgentSchema = Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
     first_name: Joi.string().max(100).allow('').optional(),
     last_name: Joi.string().max(100).allow('').optional(),
+    phone: Joi.string().max(50).allow('').optional(),
     project_key: Joi.string().required(),
     partner_agent_id: Joi.string().max(64).allow('').optional(),
     partner_ref_url: Joi.string().max(2048).allow('').optional(),

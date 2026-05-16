@@ -14,17 +14,20 @@ description: Куратор агентской сети PFP — partner_agent_id
    - Утилиты: `src/utils/partnerAgentId.js`
 
 2. **Регистрация агента (2 шага, Resend)**
-   - Шаг 1: `POST /auth/register-agent` → код на email
+   - Шаг 1: `POST /auth/register-agent` → код на email (поля: `email`, `project_key`, `first_name`, `last_name`, **`phone`**, `ref`, `utm_*`, опционально свой `partner_agent_id`)
    - Шаг 2: `POST /auth/verify-agent-registration` → JWT
-   - `email_verifications`: `purpose=agent_register`, `payload` (черновик)
-   - Письмо: `emailService.sendVerificationCode(..., { purpose: 'agent' })`, from **`noreply@domain`** при шаблоне `{agent}@…` в `RESEND_FROM_EMAIL`
-   - Контракт для фронта: **`docs/api/agent_lk.yaml`** (тег «Регистрация и профиль агента»)
+   - `email_verifications`: `purpose=agent_register`, `payload` (черновик, в т.ч. `parent_agent_id`, `phone`)
+   - Письмо кода: `emailService.sendVerificationCode(..., { purpose: 'agent' })`, from **`noreply@domain`** при шаблоне `{agent}@…` в `RESEND_FROM_EMAIL`
+   - Finam (project **14**): `require_on_registration: false` (миграция `20260517120000_…`); `require_for_full_access` — гейт Finam ID на фронте
+   - Контракт для фронта: **`docs/api/agent_lk.yaml`**, handoff v0: **`docs/FRONT_AGENT_INVITE_V0.md`**
    - При правках почты — сверяйся с субагентом **resend-email-service** / skill `resend-email-service`
 
-3. **Субагентская сеть**
-   - `agents.parent_agent_id`, `referral_slug`, `registration_attribution`
-   - `ref` при регистрации (slug или uuid родителя)
-   - API: `GET /pfp/agents/me/subagents`, `GET /pfp/agents/me/invite-link`
+3. **Субагентская сеть и приглашения**
+   - Связь с куратором: **`ref`** в URL и в `register-agent` → `agents.parent_agent_id` (не путать с `utm_partner_finam` — только attribution JSON)
+   - `agents.referral_slug`, `registration_attribution`
+   - API: `GET /pfp/agents/me/subagents`, `GET /pfp/agents/me/invite-link`, **`POST /pfp/agents/me/subagent-invite/send-email`**
+   - Ссылка регистрации: `src/utils/agentRegistrationInviteUrl.js` — base `AGENT_REGISTER_BASE_URL` (по умолчанию `https://pfp-front-ver3.vercel.app/register`), query: `project_key`, `ref`, UTM + `utm_partner_finam` пригласившего
+   - Письмо приглашения: `emailService.sendSubagentInviteEmail`
    - Settings: `agent_network` (max_depth, require_invite_ref, видимость клиентов)
    - Сервис: `src/services/agentNetworkService.js`
 
@@ -50,9 +53,10 @@ description: Куратор агентской сети PFP — partner_agent_id
 |---------|--------|
 | Auth | `src/services/authService.js`, `src/controllers/authController.js`, `src/routes/authRoutes.js` |
 | Agents CRUD | `src/services/agentService.js`, `src/controllers/agentController.js`, `src/routes/agentRoutes.js` |
-| Документация ЛК | `docs/api/agent_lk.yaml` |
+| Invite URL | `src/utils/agentRegistrationInviteUrl.js` |
+| Документация ЛК | `docs/api/agent_lk.yaml`, `docs/FRONT_AGENT_INVITE_V0.md` |
 | OpenAPI общий | `openapi/OPENAPI_SPEC.yaml`, `openapi/admin-management.yaml` |
-| Миграции | `database/migrations/20260516120000_agent_partner_network_and_commission.js`, `20260516130000_email_verifications_purpose_payload.js` |
+| Миграции | `20260516120000_agent_partner_network_and_commission.js`, `20260516130000_email_verifications_purpose_payload.js`, `20260517120000_finam_require_partner_id_on_register_off.js` |
 | Settings seed Finam | project id **14** в миграции |
 
 ## Рабочий процесс при вызове
@@ -62,7 +66,7 @@ description: Куратор агентской сети PFP — partner_agent_id
 3. Любое новое поле агента — **все проекты**, включение через `projects.settings`, не хардкод `project_id === 14` в бизнес-логике (кроме seed/тестов).
 4. После правок API — обнови **`docs/api/agent_lk.yaml`** и при необходимости OpenAPI.
 5. Регистрация с почтой — проверь env: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_SYSTEM_LOCAL`.
-6. Прогони релевантные тесты: `node --test tests/unit/trackedPartnerUrl.test.js`; при миграциях — `npx knex migrate:latest`.
+6. Прогони тесты: `node --test tests/unit/trackedPartnerUrl.test.js tests/unit/agentRegistrationInviteUrl.test.js`; при миграциях — `npx knex migrate:latest`.
 7. Отчёт: что изменилось, breaking changes для фронта (2-step register!), чек-лист ручной проверки.
 
 ## Правила

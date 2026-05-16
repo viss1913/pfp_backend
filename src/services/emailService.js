@@ -736,7 +736,90 @@ class EmailService {
         </tr>
     </table>
 </body>
-</html>`;
+        </html>`;
+    }
+
+    /**
+     * Приглашение субагента: ссылка на регистрацию с ref и UTM пригласившего.
+     * @param {{ to: string, inviteUrl: string, inviterFullName: string, inviterEmail?: string, inviterAgent?: { id: number, email?: string|null, email_corp?: string|null }, recipientName?: string }} opts
+     */
+    async sendSubagentInviteEmail({
+        to,
+        inviteUrl,
+        inviterFullName,
+        inviterEmail,
+        inviterAgent,
+        recipientName,
+    }) {
+        const safeUrl = String(inviteUrl || '').trim();
+        if (!safeUrl) {
+            throw { status: 400, message: 'Не задана ссылка приглашения' };
+        }
+
+        const greetName = String(recipientName || '').trim();
+        const greeting = greetName
+            ? `Здравствуйте, ${escapeHtmlLite(greetName)}!`
+            : 'Здравствуйте!';
+        const inviter = escapeHtmlLite(String(inviterFullName || 'Ваш коллега').trim() || 'Ваш коллега');
+        const subject = 'Приглашение в личный кабинет агента';
+
+        const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:20px;background:#f4f4f7;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#333;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+        <tr><td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:28px 32px;text-align:center;">
+          <h1 style="margin:0;color:#fff;font-size:20px;font-weight:600;">Приглашение в ЛК агента</h1>
+        </td></tr>
+        <tr><td style="padding:28px 32px;font-size:15px;line-height:1.55;color:#51545e;">
+          <p style="margin:0 0 16px;">${greeting}</p>
+          <p style="margin:0 0 16px;"><strong>${inviter}</strong> приглашает вас зарегистрироваться в личном кабинете финансового планировщика.</p>
+          <p style="margin:0 0 20px;">Перейдите по ссылке, укажите ФИО, телефон и email — мы отправим код подтверждения на почту.</p>
+          <p style="text-align:center;margin:0 0 20px;">
+            <a href="${escapeHtmlLite(safeUrl)}" style="display:inline-block;background:#667eea;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Зарегистрироваться</a>
+          </p>
+          <p style="margin:0;font-size:13px;word-break:break-all;"><a href="${escapeHtmlLite(safeUrl)}">${escapeHtmlLite(safeUrl)}</a></p>
+        </td></tr>
+        <tr><td style="padding:14px 32px;background:#f9f9fb;text-align:center;font-size:11px;color:#a8aaaf;">Финансовый планировщик</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+        const ndaMailbox = resolveNdaMailbox(inviterAgent || {});
+        const fromHeader = buildNdaFromHeader(inviterFullName, ndaMailbox);
+        const replyTo = buildNdaReplyTo(inviterEmail, ndaMailbox);
+
+        try {
+            const { data, error } = await getResendClient().emails.send({
+                from: fromHeader,
+                to,
+                ...(replyTo ? { reply_to: replyTo } : {}),
+                subject,
+                html,
+            });
+
+            if (error) {
+                console.error('[EmailService] Resend subagent invite error:', JSON.stringify(error));
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn(`[EmailService] DEV: subagent invite to ${to}, url=${safeUrl}`);
+                    return { id: 'dev-mode', inviteUrl: safeUrl };
+                }
+                throw { status: 502, message: 'Не удалось отправить приглашение' };
+            }
+
+            console.log(`[EmailService] Subagent invite sent to ${to}, messageId: ${data?.id}`);
+            return data;
+        } catch (err) {
+            if (err.status) throw err;
+            console.error('[EmailService] Subagent invite send error:', err.message || err);
+            if (process.env.NODE_ENV !== 'production') {
+                return { id: 'dev-mode-fallback', inviteUrl: safeUrl };
+            }
+            throw { status: 500, message: 'Email service unavailable' };
+        }
     }
 }
 

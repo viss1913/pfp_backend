@@ -69,6 +69,7 @@ node scripts/smoke_resend.js получатель@example.com
 | Сценарий | Триггер | Метод / файл | Примечание |
 |----------|---------|--------------|------------|
 | Код регистрации агента (ЛК) | `POST /api/auth/register-agent` | `EmailService.sendVerificationCode(email, code, { purpose: 'agent' })` | From: `getVerificationFrom()` → `noreply@domain` при шаблоне `{agent}@…` в `RESEND_FROM_EMAIL` |
+| Приглашение субагента | `POST /api/pfp/agents/me/subagent-invite/send-email` | `EmailService.sendSubagentInviteEmail` | From/Reply-To как NDA (имя агента + `{agent}` mailbox) |
 | Код регистрации B2C-клиента | `POST /api/auth/register-client` | `sendVerificationCode(…, { purpose: 'client' })` | Тот же шаблон письма |
 | Подушка безопасности (Сбер) | Клик в ЛК агента `POST /api/pfp/clients/{id}/life-insurance/send-email` | `EmailService.sendSberLifeOfferEmail` / `src/services/emailService.js` | HTML-письмо (зелёная тема, лого Сбера, CTA «Оформить НСЖ») |
 

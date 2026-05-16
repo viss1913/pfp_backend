@@ -70,7 +70,8 @@ paths:
       tags: [ "Регистрация и профиль агента" ]
       summary: "Регистрация агента, шаг 1 — отправить код на email (Resend)"
       description: |
-        Публичный endpoint. Проверяет `project_key`, Finam ID (если `require_on_registration` в settings), `ref` пригласившего агента.
+        Публичный endpoint. Проверяет `project_key`, Finam ID (если `require_on_registration` в settings проекта), `ref` пригласившего агента (связь `parent_agent_id`).
+        Для Finam после миграции `20260517120000`: регистрация **без** обязательного Finam ID на шаге 1; поле `phone` сохраняется в профиле агента.
         Генерирует 6-значный код, сохраняет черновик в `email_verifications` (`purpose=agent_register`), отправляет письмо через **Resend**.
 
         **From:** `getVerificationFrom()` в `emailService` — при `RESEND_FROM_EMAIL` вида `{agent}@bank-future.com` используется **`noreply@bank-future.com`** (или `RESEND_SYSTEM_LOCAL`, по умолчанию `noreply`).
@@ -170,8 +171,11 @@ paths:
       tags: [ "Регистрация и профиль агента" ]
       summary: Реферальная ссылка для приглашения субагентов
       description: |
-        Возвращает `url` с `project_key` и `ref={referral_slug}`.
-        База URL: env `AGENT_REGISTER_BASE_URL` или `FRONTEND_AGENT_REGISTER_URL` (fallback в коде).
+        Возвращает `url` с `project_key`, `ref={referral_slug}` и UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_partner_finam` пригласившего).
+        База URL: env `AGENT_REGISTER_BASE_URL` или `FRONTEND_AGENT_REGISTER_URL` (по умолчанию `https://pfp-front-ver3.vercel.app/register`).
+
+        **Связь субагента с куратором:** параметр `ref` в ссылке → поле `ref` в `POST /auth/register-agent` → `agents.parent_agent_id`.
+        `utm_partner_finam` — только атрибуция в `registration_attribution`, **не** подставлять в `partner_agent_id` нового агента.
       responses:
         '200':
           description: OK
@@ -179,6 +183,31 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AgentInviteLinkResponse'
+
+  /pfp/agents/me/subagent-invite/send-email:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Отправить приглашение субагенту на email (Resend)
+      description: |
+        Строит ту же ссылку, что `GET .../invite-link`, и отправляет HTML-письмо с кнопкой «Зарегистрироваться».
+        From/Reply-To — как у писем агента (NDA/broker), если настроен `RESEND_FROM_EMAIL` с `{agent}`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubagentInviteEmailRequest'
+      responses:
+        '200':
+          description: Письмо отправлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubagentInviteEmailResponse'
+        '400':
+          description: Невалидный email
+        '502':
+          description: Ошибка Resend
 
   # ==================== ПРОДУКТЫ ====================
   /pfp/products:
@@ -2503,6 +2532,7 @@ components:
         email: { type: string, format: email }
         first_name: { type: string, maxLength: 100 }
         last_name: { type: string, maxLength: 100 }
+        phone: { type: string, maxLength: 50, description: "Телефон агента" }
         project_key: { type: string, description: "Публичный ключ проекта (pk_…)" }
         partner_agent_id:
           type: string
@@ -2580,6 +2610,22 @@ components:
     AgentInviteLinkResponse:
       type: object
       properties:
+        url: { type: string, format: uri }
+        referral_slug: { type: string }
+        ref: { type: string }
+
+    SubagentInviteEmailRequest:
+      type: object
+      required: [to_email]
+      properties:
+        to_email: { type: string, format: email }
+        recipient_name: { type: string, maxLength: 255, description: "Имя в приветствии письма" }
+
+    SubagentInviteEmailResponse:
+      type: object
+      properties:
+        message: { type: string, example: "Приглашение отправлено" }
+        to_email: { type: string, format: email }
         url: { type: string, format: uri }
         referral_slug: { type: string }
         ref: { type: string }

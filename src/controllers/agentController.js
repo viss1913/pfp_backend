@@ -1,10 +1,18 @@
 const fs = require('fs');
 const path = require('path');
+const Joi = require('joi');
 const agentService = require('../services/agentService');
 const agentNetworkService = require('../services/agentNetworkService');
 const projectService = require('../services/projectService');
+const emailService = require('../services/emailService');
 const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
 const { bufferToWebp } = require('../utils/imageToWebp');
+const { buildAgentRegistrationInviteUrl } = require('../utils/agentRegistrationInviteUrl');
+
+const subagentInviteEmailSchema = Joi.object({
+    to_email: Joi.string().email({ tlds: { allow: false } }).required(),
+    recipient_name: Joi.string().max(255).allow('').optional(),
+});
 
 class AgentController {
     /**
@@ -113,19 +121,80 @@ class AgentController {
             if (!Number.isFinite(agentId) || agentId <= 0) {
                 return res.status(403).json({ error: 'Forbidden' });
             }
-            const slug = await agentNetworkService.ensureReferralSlug(agentId);
-            const project = await projectService.getProjectById(projectId);
-            const base =
-                process.env.AGENT_REGISTER_BASE_URL ||
-                process.env.FRONTEND_AGENT_REGISTER_URL ||
-                'https://finam.bank-future.com/register';
-            const sep = base.includes('?') ? '&' : '?';
-            const projectKey = project?.public_key ? `project_key=${encodeURIComponent(project.public_key)}` : '';
-            const url = `${base}${sep}${projectKey}${projectKey ? '&' : ''}ref=${encodeURIComponent(slug)}`;
-            res.json({ url, referral_slug: slug, ref: slug });
+            const payload = await this._buildInviteLinkPayload(agentId, projectId);
+            res.json(payload);
         } catch (err) {
             next(err);
         }
+    }
+
+    async sendSubagentInviteEmail(req, res, next) {
+        try {
+            const validation = subagentInviteEmailSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const projectId = req.projectId || req.user?.projectId;
+            const agentId = Number(req.user?.agentId);
+            if (!Number.isFinite(agentId) || agentId <= 0) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+
+            const inviter = await agentService.getAgentById(agentId, projectId);
+            if (!inviter) {
+                return res.status(404).json({ error: 'Agent not found' });
+            }
+
+            const { url, referral_slug: slug, ref } = await this._buildInviteLinkPayload(
+                agentId,
+                projectId,
+                inviter
+            );
+
+            const inviterFullName =
+                [inviter.first_name, inviter.last_name].filter(Boolean).join(' ').trim() || 'Агент';
+
+            await emailService.sendSubagentInviteEmail({
+                to: validation.value.to_email,
+                inviteUrl: url,
+                inviterFullName,
+                inviterEmail: inviter.email,
+                inviterAgent: {
+                    id: inviter.id,
+                    email: inviter.email,
+                    email_corp: inviter.email_corp,
+                },
+                recipientName: validation.value.recipient_name,
+            });
+
+            res.json({
+                message: 'Приглашение отправлено',
+                to_email: validation.value.to_email,
+                url,
+                referral_slug: slug,
+                ref,
+            });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async _buildInviteLinkPayload(agentId, projectId, inviterRow = null) {
+        const slug = await agentNetworkService.ensureReferralSlug(agentId);
+        const project = await projectService.getProjectById(projectId);
+        if (!project?.public_key) {
+            throw { status: 500, message: 'У проекта не задан public_key' };
+        }
+
+        const inviter = inviterRow || (await agentService.getAgentById(agentId, projectId));
+        const url = buildAgentRegistrationInviteUrl({
+            projectPublicKey: project.public_key,
+            referralRef: slug,
+            inviterPartnerAgentId: inviter?.partner_agent_id || null,
+        });
+
+        return { url, referral_slug: slug, ref: slug };
     }
 
     async getSubagentsById(req, res, next) {

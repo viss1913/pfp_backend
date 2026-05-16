@@ -29,6 +29,10 @@ router.get('/', agentController.getAll);
 router.post('/', agentController.create);
 router.get('/me/subagents', agentController.getMySubagents.bind(agentController));
 router.get('/me/invite-link', agentController.getInviteLink.bind(agentController));
+router.post(
+    '/me/subagent-invite/send-email',
+    agentController.sendSubagentInviteEmail.bind(agentController)
+);
 router.get('/:id/subagents', agentController.getSubagentsById.bind(agentController));
 router.post(
     '/:id/signature-upload',
