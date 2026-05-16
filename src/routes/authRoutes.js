@@ -19,6 +19,8 @@ router.post('/register-fast', authController.registerFast);
 router.post('/register-agent', authController.registerAgent);
 router.post('/verify-agent-registration', authController.verifyAgentRegistration.bind(authController));
 router.post('/parse-partner-agent', authController.parsePartnerAgent.bind(authController));
+router.get('/agent-invite/preview', authController.previewAgentInvite.bind(authController));
+router.post('/activate-agent-invite', authController.activateAgentInvite.bind(authController));
 
 // Protected routes (auth required)
 router.get('/me', authMiddleware, authController.me);

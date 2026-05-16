@@ -144,9 +144,54 @@ paths:
     get:
       tags: [ "Регистрация и профиль агента" ]
       summary: Текущий пользователь (JWT)
+      description: |
+        Для роли `agent` дополнительно: профиль, `partner_agent_id`, `partner_agent_id_required` (гейт Finam ID на фронте).
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMeResponse'
+
+  /auth/agent-invite/preview:
+    get:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Проверить magic-link приглашения (Family Office)
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentInvitePreviewResponse'
+
+  /auth/activate-agent-invite:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Активировать приглашение — задать пароль и получить JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateAgentInviteRequest'
+      responses:
+        '200':
+          description: JWT как при login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentAuthResponse'
+        '400':
+          description: Невалидный, просроченный или использованный token
 
   /pfp/agents/me/subagents:
     get:
@@ -206,6 +251,35 @@ paths:
                 $ref: '#/components/schemas/SubagentInviteEmailResponse'
         '400':
           description: Невалидный email
+        '502':
+          description: Ошибка Resend
+
+  /pfp/agents/me/family-office-invite:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Пригласить в Family Office (провижининг + magic-link)
+      description: |
+        Куратор передаёт профиль будущего субагента (как при ПФП клиента). Бэкенд сразу создаёт `agents` + `users`
+        с `parent_agent_id` = текущий агент, генерирует одноразовый token и шлёт премиальное письмо со ссылкой активации
+        (без кода на email). Субагент задаёт пароль через `POST /auth/activate-agent-invite`.
+
+        Env: `AGENT_INVITE_ACTIVATE_BASE_URL` (по умолчанию `https://pfp-front-ver3.vercel.app/invite/activate`),
+        `AGENT_INVITE_TOKEN_TTL_DAYS` (по умолчанию 7).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyOfficeInviteRequest'
+      responses:
+        '201':
+          description: Агент создан, письмо отправлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FamilyOfficeInviteResponse'
+        '409':
+          description: Email уже занят
         '502':
           description: Ошибка Resend
 
@@ -2629,6 +2703,65 @@ components:
         url: { type: string, format: uri }
         referral_slug: { type: string }
         ref: { type: string }
+
+    FamilyOfficeInviteRequest:
+      type: object
+      required: [email, first_name, last_name, phone]
+      properties:
+        email: { type: string, format: email }
+        first_name: { type: string, maxLength: 100 }
+        last_name: { type: string, maxLength: 100 }
+        phone: { type: string, maxLength: 50 }
+        middle_name: { type: string, maxLength: 100 }
+        birth_date: { type: string, format: date }
+        gender: { type: string, enum: [male, female, M, F, мужской, женский] }
+        source_note: { type: string, maxLength: 500, description: "Аудит, напр. демо ПФП" }
+
+    FamilyOfficeInviteResponse:
+      type: object
+      properties:
+        message: { type: string }
+        agent_id: { type: integer }
+        email: { type: string, format: email }
+        expires_at: { type: string, format: date-time }
+
+    ActivateAgentInviteRequest:
+      type: object
+      required: [token, password]
+      properties:
+        token: { type: string, minLength: 16, maxLength: 128 }
+        password: { type: string, minLength: 6 }
+
+    AgentInvitePreviewResponse:
+      type: object
+      properties:
+        valid: { type: boolean }
+        expired: { type: boolean }
+        used: { type: boolean }
+        email: { type: string, format: email, nullable: true }
+        first_name: { type: string, nullable: true }
+        last_name: { type: string, nullable: true }
+
+    AuthMeResponse:
+      type: object
+      properties:
+        id: { type: integer }
+        uuid: { type: string }
+        email: { type: string }
+        role: { type: string }
+        agentId: { type: integer }
+        projectId: { type: integer }
+        clientId: { type: integer, description: "Только для role=client" }
+        first_name: { type: string, nullable: true }
+        last_name: { type: string, nullable: true }
+        middle_name: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        birth_date: { type: string, format: date, nullable: true }
+        gender: { type: string, enum: [male, female], nullable: true }
+        partner_agent_id: { type: string, nullable: true }
+        partner_agent_id_label: { type: string, example: "Finam ID" }
+        partner_agent_id_required: { type: boolean, description: "Фронт: блокировать ЛК без Finam ID" }
+        parent_agent_id: { type: integer, nullable: true }
 
     AiAssistantChatMessage:
       type: object

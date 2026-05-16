@@ -5,6 +5,7 @@ const agentService = require('../services/agentService');
 const agentNetworkService = require('../services/agentNetworkService');
 const projectService = require('../services/projectService');
 const emailService = require('../services/emailService');
+const agentInviteService = require('../services/agentInviteService');
 const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
 const { bufferToWebp } = require('../utils/imageToWebp');
 const { buildAgentRegistrationInviteUrl } = require('../utils/agentRegistrationInviteUrl');
@@ -12,6 +13,20 @@ const { buildAgentRegistrationInviteUrl } = require('../utils/agentRegistrationI
 const subagentInviteEmailSchema = Joi.object({
     to_email: Joi.string().email({ tlds: { allow: false } }).required(),
     recipient_name: Joi.string().max(255).allow('').optional(),
+});
+
+const familyOfficeInviteSchema = Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    first_name: Joi.string().max(100).required(),
+    last_name: Joi.string().max(100).required(),
+    phone: Joi.string().max(50).required(),
+    middle_name: Joi.string().max(100).allow('').optional(),
+    birth_date: Joi.string().isoDate().allow('').optional(),
+    gender: Joi.string()
+        .valid('male', 'female', 'M', 'F', 'мужской', 'женский')
+        .allow('')
+        .optional(),
+    source_note: Joi.string().max(500).allow('').optional(),
 });
 
 class AgentController {
@@ -123,6 +138,36 @@ class AgentController {
             }
             const payload = await this._buildInviteLinkPayload(agentId, projectId);
             res.json(payload);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async sendFamilyOfficeInvite(req, res, next) {
+        try {
+            const validation = familyOfficeInviteSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const projectId = req.projectId || req.user?.projectId;
+            const agentId = Number(req.user?.agentId);
+            if (!Number.isFinite(agentId) || agentId <= 0) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+
+            const inviter = await agentService.getAgentById(agentId, projectId);
+            if (!inviter) {
+                return res.status(404).json({ error: 'Agent not found' });
+            }
+
+            const result = await agentInviteService.provisionFamilyOfficeInvite(
+                agentId,
+                projectId,
+                validation.value,
+                inviter
+            );
+            res.status(201).json(result);
         } catch (err) {
             next(err);
         }

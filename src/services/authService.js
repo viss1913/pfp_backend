@@ -10,7 +10,11 @@ const {
     isPartnerAgentIdRequired,
     assertPartnerAgentIdAvailable,
 } = require('../utils/partnerAgentId');
-const { parseProjectSettings, getAgentNetworkSettings } = require('../utils/projectSettings');
+const {
+    parseProjectSettings,
+    getAgentNetworkSettings,
+    getPartnerAgentIdSettings,
+} = require('../utils/projectSettings');
 const agentNetworkService = require('./agentNetworkService');
 const commissionService = require('./commissionService');
 
@@ -530,11 +534,15 @@ class AuthService {
         project_id,
         first_name,
         last_name,
+        middle_name,
         phone,
+        birth_date,
+        gender,
         partner_agent_id,
         partner_agent_id_source,
         parent_agent_id,
         registration_attribution,
+        skipToken = false,
     }) {
         const passwordHash = await bcrypt.hash(password, 10);
         const name = [first_name, last_name].filter(Boolean).join(' ').trim() || 'Агент';
@@ -546,7 +554,10 @@ class AuthService {
                 project_id,
                 first_name: first_name || null,
                 last_name: last_name || null,
+                middle_name: middle_name || null,
                 phone: phone || null,
+                birth_date: birth_date || null,
+                gender: gender || null,
                 uuid: agentUuid,
                 partner_agent_id: partner_agent_id || null,
                 partner_agent_id_source: partner_agent_id ? partner_agent_id_source : null,
@@ -593,6 +604,24 @@ class AuthService {
             console.error('[AuthService] SMM sync after agent registration failed:', err)
         );
 
+        console.log(
+            `[AuthService] Agent registered: userId=${result.userId}, agentId=${result.agentId}, project=${project_id}`
+        );
+
+        const baseResult = {
+            userId: result.userId,
+            agentId: result.agentId,
+            agentUuid,
+            parentAgentId: result.parentAgentId,
+            email,
+            name,
+            projectId: project_id,
+        };
+
+        if (skipToken) {
+            return baseResult;
+        }
+
         const payload = {
             id: agentUuid,
             user_id: result.userId,
@@ -603,11 +632,8 @@ class AuthService {
         };
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-        console.log(
-            `[AuthService] Agent registered: userId=${result.userId}, agentId=${result.agentId}, project=${project_id}`
-        );
-
         return {
+            ...baseResult,
             token,
             user: {
                 id: result.userId,
@@ -617,6 +643,151 @@ class AuthService {
                 agentId: result.agentId,
                 projectId: project_id,
             },
+        };
+    }
+
+    /**
+     * Issue JWT for an existing user (after magic-link activation or login).
+     */
+    async issueTokenForUserId(userId) {
+        const user = await db('users')
+            .leftJoin('agents', 'users.agent_id', 'agents.id')
+            .where({ 'users.id': userId, 'users.is_active': true })
+            .select('users.*', 'agents.uuid as agent_uuid')
+            .first();
+
+        if (!user) {
+            throw { status: 404, message: 'Пользователь не найден' };
+        }
+
+        const payload = {
+            id: user.agent_uuid,
+            user_id: user.id,
+            email: user.email,
+            role: user.role,
+            agentId: user.agent_id,
+            projectId: user.project_id,
+        };
+
+        if (user.role === 'client') {
+            const client = await db('clients').where({ user_id: user.id }).first();
+            if (client) payload.clientId = client.id;
+        }
+
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+        const responseUser = {
+            id: user.id,
+            uuid: user.agent_uuid,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            agentId: user.agent_id,
+            projectId: user.project_id,
+        };
+        if (payload.clientId) responseUser.clientId = payload.clientId;
+
+        return { token, user: responseUser };
+    }
+
+    /**
+     * @param {string} token
+     */
+    async previewAgentInviteToken(token) {
+        const row = await this._loadValidInviteTokenRow(token, { allowUsed: true, allowExpired: true });
+        if (!row) {
+            throw { status: 400, message: 'Недействительная ссылка приглашения' };
+        }
+
+        const agent = await db('agents').where({ id: row.agent_id }).first();
+        const user = await db('users').where({ id: row.user_id }).first();
+
+        const now = new Date();
+        const expired = row.expires_at && new Date(row.expires_at) <= now;
+        const used = row.used_at != null;
+
+        return {
+            valid: !expired && !used,
+            expired,
+            used,
+            email: user?.email || null,
+            first_name: agent?.first_name || null,
+            last_name: agent?.last_name || null,
+        };
+    }
+
+    /**
+     * @param {{ token: string, password: string }} input
+     */
+    async activateAgentInvite({ token, password }) {
+        const row = await this._loadValidInviteTokenRow(token, { allowUsed: false, allowExpired: false });
+        if (!row) {
+            throw { status: 400, message: 'Ссылка приглашения недействительна, просрочена или уже использована' };
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        await db.transaction(async (trx) => {
+            await trx('users').where({ id: row.user_id }).update({
+                password_hash: passwordHash,
+                updated_at: new Date(),
+            });
+            await trx('agent_invite_tokens').where({ id: row.id }).update({ used_at: new Date() });
+        });
+
+        return this.issueTokenForUserId(row.user_id);
+    }
+
+    /**
+     * @param {string} token
+     * @param {{ allowUsed?: boolean, allowExpired?: boolean }} opts
+     */
+    async _loadValidInviteTokenRow(token, opts = {}) {
+        const raw = String(token || '').trim();
+        if (!raw) return null;
+
+        const row = await db('agent_invite_tokens').where({ token: raw }).first();
+        if (!row) return null;
+
+        const now = new Date();
+        if (!opts.allowExpired && row.expires_at && new Date(row.expires_at) <= now) {
+            return null;
+        }
+        if (!opts.allowUsed && row.used_at != null) {
+            return null;
+        }
+
+        return row;
+    }
+
+    /**
+     * Profile fields for GET /auth/me (agents).
+     */
+    async getAgentMeProfile(agentId, projectId) {
+        const agent = await db('agents')
+            .leftJoin('users', 'agents.id', 'users.agent_id')
+            .where('agents.id', agentId)
+            .where('agents.project_id', projectId)
+            .select('agents.*', 'users.email as user_email')
+            .first();
+
+        if (!agent) return null;
+
+        const project = await projectService.getProjectById(projectId);
+        const settings = parseProjectSettings(project?.settings);
+        const partnerCfg = getPartnerAgentIdSettings(settings);
+
+        return {
+            first_name: agent.first_name,
+            last_name: agent.last_name,
+            middle_name: agent.middle_name,
+            phone: agent.phone,
+            birth_date: agent.birth_date,
+            gender: agent.gender,
+            partner_agent_id: agent.partner_agent_id,
+            partner_agent_id_label: partnerCfg.label || 'ID партнёра',
+            partner_agent_id_required: partnerCfg.require_for_full_access === true,
+            parent_agent_id: agent.parent_agent_id,
         };
     }
 }

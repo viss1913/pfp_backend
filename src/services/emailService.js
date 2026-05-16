@@ -743,6 +743,88 @@ class EmailService {
      * Приглашение субагента: ссылка на регистрацию с ref и UTM пригласившего.
      * @param {{ to: string, inviteUrl: string, inviterFullName: string, inviterEmail?: string, inviterAgent?: { id: number, email?: string|null, email_corp?: string|null }, recipientName?: string }} opts
      */
+    async sendFamilyOfficeInviteEmail({
+        to,
+        activateUrl,
+        inviterFullName,
+        inviterEmail,
+        inviterAgent,
+        inviteeFirstName,
+    }) {
+        const safeUrl = String(activateUrl || '').trim();
+        if (!safeUrl) {
+            throw { status: 400, message: 'Не задана ссылка активации' };
+        }
+
+        const greet =
+            inviteeFirstName && String(inviteeFirstName).trim()
+                ? `Здравствуйте, ${escapeHtmlLite(String(inviteeFirstName).trim())}!`
+                : 'Здравствуйте!';
+        const inviter = escapeHtmlLite(String(inviterFullName || 'Ваш куратор').trim());
+        const subject = 'Приглашение открыть ваш Family Office';
+
+        const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:24px;background:#0f1419;font-family:Georgia,'Times New Roman',serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#1a222c;border-radius:16px;overflow:hidden;border:1px solid #2d3a4a;">
+        <tr><td style="padding:36px 40px 24px;text-align:center;border-bottom:1px solid #2d3a4a;">
+          <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#c9a962;">Family Office</p>
+          <h1 style="margin:0;font-size:26px;font-weight:400;color:#f5f0e8;line-height:1.3;">Ваш личный кабинет</h1>
+        </td></tr>
+        <tr><td style="padding:32px 40px;font-size:16px;line-height:1.65;color:#c8d0d8;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+          <p style="margin:0 0 20px;color:#e8eaed;">${greet}</p>
+          <p style="margin:0 0 20px;"><strong style="color:#f5f0e8;">${inviter}</strong> приглашает вас в закрытый контур Family Office&nbsp;— единое пространство для финансового планирования, клиентов и отчётности.</p>
+          <p style="margin:0 0 28px;">Нажмите кнопку ниже, задайте пароль и войдите в личный кабинет. Код подтверждения не требуется.</p>
+          <p style="text-align:center;margin:0 0 28px;">
+            <a href="${escapeHtmlLite(safeUrl)}" style="display:inline-block;background:linear-gradient(135deg,#c9a962 0%,#a68b4b 100%);color:#1a222c;text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;letter-spacing:0.02em;">Активировать доступ</a>
+          </p>
+          <p style="margin:0;font-size:13px;color:#8b95a1;word-break:break-all;">Если кнопка не открывается: <a href="${escapeHtmlLite(safeUrl)}" style="color:#c9a962;">${escapeHtmlLite(safeUrl)}</a></p>
+        </td></tr>
+        <tr><td style="padding:20px 40px;background:#141a22;text-align:center;font-size:11px;color:#6b7680;font-family:Segoe UI,Roboto,Arial,sans-serif;">
+          Финансовый планировщик · Family Office
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+        const ndaMailbox = resolveNdaMailbox(inviterAgent || {});
+        const fromHeader = buildNdaFromHeader(inviterFullName, ndaMailbox);
+        const replyTo = buildNdaReplyTo(inviterEmail, ndaMailbox);
+
+        try {
+            const { data, error } = await getResendClient().emails.send({
+                from: fromHeader,
+                to,
+                ...(replyTo ? { reply_to: replyTo } : {}),
+                subject,
+                html,
+            });
+
+            if (error) {
+                console.error('[EmailService] Resend family office invite error:', JSON.stringify(error));
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn(`[EmailService] DEV: family office invite to ${to}`);
+                    return { id: 'dev-mode', activateUrl: safeUrl };
+                }
+                throw { status: 502, message: 'Не удалось отправить приглашение' };
+            }
+
+            console.log(`[EmailService] Family office invite sent to ${to}, messageId: ${data?.id}`);
+            return data;
+        } catch (err) {
+            if (err.status) throw err;
+            console.error('[EmailService] Family office invite send error:', err.message || err);
+            if (process.env.NODE_ENV !== 'production') {
+                return { id: 'dev-mode-fallback', activateUrl: safeUrl };
+            }
+            throw { status: 500, message: 'Email service unavailable' };
+        }
+    }
+
     async sendSubagentInviteEmail({
         to,
         inviteUrl,

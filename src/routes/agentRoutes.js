@@ -33,6 +33,10 @@ router.post(
     '/me/subagent-invite/send-email',
     agentController.sendSubagentInviteEmail.bind(agentController)
 );
+router.post(
+    '/me/family-office-invite',
+    agentController.sendFamilyOfficeInvite.bind(agentController)
+);
 router.get('/:id/subagents', agentController.getSubagentsById.bind(agentController));
 router.post(
     '/:id/signature-upload',

@@ -66,6 +66,11 @@ const parsePartnerAgentSchema = Joi.object({
     partner_ref_url: Joi.string().max(2048).allow('').optional(),
 });
 
+const activateAgentInviteSchema = Joi.object({
+    token: Joi.string().min(16).max(128).required(),
+    password: Joi.string().min(6).required(),
+});
+
 class AuthController {
     async login(req, res, next) {
         try {
@@ -219,6 +224,33 @@ class AuthController {
         }
     }
 
+    async previewAgentInvite(req, res, next) {
+        try {
+            const token = req.query.token;
+            if (!token || String(token).trim() === '') {
+                return res.status(400).json({ error: 'token is required' });
+            }
+            const preview = await authService.previewAgentInviteToken(String(token).trim());
+            res.json(preview);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async activateAgentInvite(req, res, next) {
+        try {
+            const validation = activateAgentInviteSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const result = await authService.activateAgentInvite(validation.value);
+            res.status(200).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
     async me(req, res, next) {
         try {
             const response = {
@@ -227,12 +259,21 @@ class AuthController {
                 email: req.user.email,
                 role: req.user.role,
                 agentId: req.user.agentId,
-                projectId: req.user.projectId
+                projectId: req.user.projectId,
             };
 
-            // Add clientId for client role
             if (req.user.clientId) {
                 response.clientId = req.user.clientId;
+            }
+
+            if (req.user.role === 'agent' && req.user.agentId && req.user.projectId) {
+                const profile = await authService.getAgentMeProfile(
+                    req.user.agentId,
+                    req.user.projectId
+                );
+                if (profile) {
+                    Object.assign(response, profile);
+                }
             }
 
             res.json(response);

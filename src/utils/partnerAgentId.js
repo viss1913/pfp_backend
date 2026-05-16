@@ -72,6 +72,7 @@ function isPartnerAgentIdRequired(projectSettings, context) {
     const cfg = getPartnerAgentIdSettings(projectSettings);
     if (context === 'admin_create') return cfg.require_on_admin_create === true;
     if (context === 'registration') return cfg.require_on_registration === true;
+    if (context === 'full_access') return cfg.require_for_full_access === true;
     return false;
 }
 
