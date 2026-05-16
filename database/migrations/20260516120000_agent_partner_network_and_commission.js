@@ -12,7 +12,7 @@ const DEFAULT_FINAM_PROJECT_SETTINGS = {
         require_on_registration: true,
         require_on_admin_create: false,
         ref_parse: {
-            query_params: ['agent_id', 'agentId', 'consultant_id', 'id'],
+            query_params: ['utm_partner_finam', 'agent_id', 'agentId', 'consultant_id', 'id'],
             path_regex: null,
         },
     },
@@ -27,7 +27,7 @@ const DEFAULT_FINAM_PROJECT_SETTINGS = {
             idu: { utm_campaign: 'idu' },
             pds: { utm_campaign: 'pds' },
         },
-        agent_id_param: 'agent_id',
+        agent_id_param: 'utm_partner_finam',
         agent_id_in: 'query',
     },
     agent_network: {

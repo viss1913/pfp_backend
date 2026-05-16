@@ -38,7 +38,7 @@ function inferLinkTypeFromUrl(urlString) {
 
 /**
  * @param {string} baseUrl
- * @param {{ linkType?: string, agent?: object, projectSettings?: object, clientId?: number }} opts
+ * @param {{ linkType?: string, agent?: object, projectSettings?: object, clientId?: number, paramOverrides?: object }} opts
  */
 function buildTrackedPartnerUrl(baseUrl, opts = {}) {
     const raw = String(baseUrl || '').trim();
@@ -47,8 +47,10 @@ function buildTrackedPartnerUrl(baseUrl, opts = {}) {
     const tracking = getPartnerLinkTrackingSettings(opts.projectSettings);
     if (tracking.enabled !== true) return raw;
 
-    const partnerId = opts.agent?.partner_agent_id;
-    if (!partnerId) return raw;
+    const partnerId =
+        opts.agent?.partner_agent_id != null && String(opts.agent.partner_agent_id).trim() !== ''
+            ? String(opts.agent.partner_agent_id).trim()
+            : null;
 
     let parsed;
     try {
@@ -70,11 +72,16 @@ function buildTrackedPartnerUrl(baseUrl, opts = {}) {
             : {};
     const typeParams = perType[linkType] && typeof perType[linkType] === 'object' ? perType[linkType] : {};
 
-    const params = { ...defaults, ...typeParams };
+    // Без partner_agent_id — ссылка остаётся базовой, без UTM и без utm_partner_finam.
+    if (!partnerId) return raw;
 
-    const agentParam = tracking.agent_id_param || 'agent_id';
+    const overrides =
+        opts.paramOverrides && typeof opts.paramOverrides === 'object' ? opts.paramOverrides : {};
+    const params = { ...defaults, ...typeParams, ...overrides };
+
+    const agentParam = tracking.agent_id_param || 'utm_partner_finam';
     if (agentParam) {
-        params[agentParam] = String(partnerId);
+        params[agentParam] = partnerId;
     }
 
     if (opts.clientId != null && Number.isFinite(Number(opts.clientId))) {
@@ -90,7 +97,7 @@ const HREF_RE = /href=(["'])(https?:\/\/[^"']+)\1/gi;
  * Post-process HTML: track partner URLs in href attributes.
  */
 function applyTrackedPartnerUrlsToHtml(html, linkContext = {}) {
-    if (!html || linkContext?.enabled !== true || !linkContext?.agent?.partner_agent_id) {
+    if (!html || linkContext?.enabled !== true) {
         return html;
     }
     return String(html).replace(HREF_RE, (match, quote, url) => {

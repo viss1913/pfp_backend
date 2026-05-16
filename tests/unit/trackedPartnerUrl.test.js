@@ -12,7 +12,7 @@ const settings = {
         domain_whitelist: ['finam.ru'],
         defaults: { utm_source: 'pfp', utm_medium: 'report_pdf' },
         per_link_type: { broker_open: { utm_campaign: 'open_account' } },
-        agent_id_param: 'agent_id',
+        agent_id_param: 'utm_partner_finam',
     },
 };
 
@@ -29,10 +29,22 @@ test('buildTrackedPartnerUrl adds agent and utm', () => {
         projectSettings: settings,
         clientId: 42,
     });
-    assert.ok(url.includes('agent_id=ABC123'));
+    assert.ok(url.includes('utm_partner_finam=ABC123'));
     assert.ok(url.includes('utm_source=pfp'));
     assert.ok(url.includes('utm_campaign=open_account'));
     assert.ok(url.includes('utm_content=42'));
+});
+
+test('buildTrackedPartnerUrl without partner_agent_id keeps base URL without utm', () => {
+    const base = 'https://www.finam.ru/open/order/russia/';
+    const url = buildTrackedPartnerUrl(base, {
+        linkType: 'broker_open',
+        agent: { partner_agent_id: null },
+        projectSettings: settings,
+        clientId: 99,
+    });
+    assert.equal(url, base);
+    assert.ok(!url.includes('utm_'));
 });
 
 test('buildTrackedPartnerUrl no-op when disabled', () => {
@@ -44,6 +56,16 @@ test('buildTrackedPartnerUrl no-op when disabled', () => {
     assert.equal(url, base);
 });
 
+test('applyTrackedPartnerUrlsToHtml without partner_agent_id leaves href unchanged', () => {
+    const html = '<a href="https://www.finam.ru/open/order/russia/">x</a>';
+    const out = applyTrackedPartnerUrlsToHtml(html, {
+        enabled: true,
+        agent: { id: 1, partner_agent_id: null },
+        projectSettings: settings,
+    });
+    assert.equal(out, html);
+});
+
 test('applyTrackedPartnerUrlsToHtml', () => {
     const html =
         '<a href="https://www.finam.ru/open/order/russia/">x</a>';
@@ -52,5 +74,16 @@ test('applyTrackedPartnerUrlsToHtml', () => {
         agent: { partner_agent_id: 'Z9' },
         projectSettings: settings,
     });
-    assert.ok(out.includes('agent_id=Z9'));
+    assert.ok(out.includes('utm_partner_finam=Z9'));
+});
+
+test('buildTrackedPartnerUrl applies paramOverrides (email medium)', () => {
+    const url = buildTrackedPartnerUrl('https://www.finam.ru/open/order/russia/', {
+        linkType: 'broker_open',
+        agent: { partner_agent_id: 'P1' },
+        projectSettings: settings,
+        paramOverrides: { utm_medium: 'email' },
+    });
+    assert.ok(url.includes('utm_medium=email'));
+    assert.ok(url.includes('utm_partner_finam=P1'));
 });

@@ -72,7 +72,7 @@ paths:
                       description: label, require_on_registration, ref_parse
                     partner_link_tracking:
                       type: object
-                      description: enabled, domain_whitelist, defaults, per_link_type, agent_id_param
+                      description: enabled, domain_whitelist, defaults, per_link_type, agent_id_param (default utm_partner_finam)
                     agent_network:
                       type: object
                       description: enabled, max_depth, parent_can_list_subagents

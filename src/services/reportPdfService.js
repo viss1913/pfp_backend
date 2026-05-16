@@ -51,7 +51,7 @@ async function applyPartnerLinkTrackingToPages(pageHtmlList, { projectId, agentI
     if (!Number.isFinite(id) || id <= 0) return pageHtmlList;
 
     const agent = await agentService.getAgentById(id, projectId);
-    if (!agent?.partner_agent_id) return pageHtmlList;
+    if (!agent) return pageHtmlList;
 
     const linkContext = {
         enabled: true,

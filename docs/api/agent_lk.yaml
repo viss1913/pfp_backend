@@ -1065,7 +1065,8 @@ paths:
         - блоком спецакций («Финам Бонус», «Выгодный переход»).
 
         Если у агента заполнен `partner_agent_id` и в `projects.settings` включён `partner_link_tracking.enabled`,
-        в `open_url` и `promo_urls` автоматически добавляются UTM и параметр агента (см. `partner_link_tracking` в settings проекта).
+        в `open_url` и `promo_urls` автоматически добавляются UTM и `utm_partner_finam=<partner_agent_id>`
+        (см. `partner_link_tracking` в settings проекта; для писем `utm_medium=email`).
 
         Доступ: агент-владелец клиента, admin, super_admin.
       parameters:

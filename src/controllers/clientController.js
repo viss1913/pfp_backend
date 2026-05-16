@@ -946,19 +946,24 @@ class ClientController {
 
             const project = await projectService.getProjectById(projectId);
             const projectSettings = parseProjectSettings(project?.settings);
-            const linkOpts = { agent, projectSettings, clientId };
+            const emailLinkOpts = {
+                agent,
+                projectSettings,
+                clientId,
+                paramOverrides: { utm_medium: 'email' },
+            };
 
             const openUrl = buildTrackedPartnerUrl(
                 validation.value.open_url || 'https://www.finam.ru/open/order/russia/',
-                { ...linkOpts, linkType: 'broker_open' }
+                { ...emailLinkOpts, linkType: 'broker_open' }
             );
             const promoBonusUrl = buildTrackedPartnerUrl('https://bonus.finam.ru/2025/', {
-                ...linkOpts,
+                ...emailLinkOpts,
                 linkType: 'bonus',
             });
             const promoTransferUrl = buildTrackedPartnerUrl(
                 'https://broker.finam.ru/landing/vygodniy-perekhod/',
-                { ...linkOpts, linkType: 'transfer' }
+                { ...emailLinkOpts, linkType: 'transfer' }
             );
 
             const emailResult = await emailService.sendFinamBrokerOfferEmail({
