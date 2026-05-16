@@ -9,9 +9,13 @@ const {
 const settings = {
     partner_link_tracking: {
         enabled: true,
-        domain_whitelist: ['finam.ru'],
+        domain_whitelist: ['finam.ru', 'funds.finam.ru', 'comon.ru'],
         defaults: { utm_source: 'pfp', utm_medium: 'report_pdf' },
-        per_link_type: { broker_open: { utm_campaign: 'open_account' } },
+        per_link_type: {
+            broker_open: { utm_campaign: 'open_account' },
+            idu: { utm_campaign: 'idu' },
+            comon: { utm_campaign: 'comon_autofollow' },
+        },
         agent_id_param: 'utm_partner_finam',
     },
 };
@@ -75,6 +79,24 @@ test('applyTrackedPartnerUrlsToHtml', () => {
         projectSettings: settings,
     });
     assert.ok(out.includes('utm_partner_finam=Z9'));
+});
+
+test('buildTrackedPartnerUrl tracks comon.ru strategy links', () => {
+    const url = buildTrackedPartnerUrl('https://www.comon.ru/strategies/109003/', {
+        agent: { partner_agent_id: 'CM1' },
+        projectSettings: settings,
+    });
+    assert.ok(url.includes('utm_partner_finam=CM1'));
+    assert.ok(url.includes('utm_campaign=comon_autofollow'));
+});
+
+test('buildTrackedPartnerUrl tracks funds.finam.ru idu', () => {
+    const url = buildTrackedPartnerUrl('https://funds.finam.ru/idu/key-rate/', {
+        agent: { partner_agent_id: 'DU9' },
+        projectSettings: settings,
+    });
+    assert.ok(url.includes('utm_partner_finam=DU9'));
+    assert.ok(url.includes('utm_campaign=idu'));
 });
 
 test('buildTrackedPartnerUrl applies paramOverrides (email medium)', () => {

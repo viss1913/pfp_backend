@@ -28,6 +28,7 @@ function hostMatchesWhitelist(hostname, whitelist = []) {
 
 function inferLinkTypeFromUrl(urlString) {
     const u = String(urlString || '').toLowerCase();
+    if (u.includes('comon.ru')) return 'comon';
     if (u.includes('open/order')) return 'broker_open';
     if (u.includes('bonus.finam')) return 'bonus';
     if (u.includes('vygodniy-perekhod') || u.includes('broker.finam.ru/landing')) return 'transfer';

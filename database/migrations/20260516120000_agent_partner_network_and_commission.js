@@ -18,13 +18,14 @@ const DEFAULT_FINAM_PROJECT_SETTINGS = {
     },
     partner_link_tracking: {
         enabled: true,
-        domain_whitelist: ['finam.ru', 'broker.finam.ru', 'bonus.finam.ru', 'funds.finam.ru'],
+        domain_whitelist: ['finam.ru', 'broker.finam.ru', 'bonus.finam.ru', 'funds.finam.ru', 'comon.ru'],
         defaults: { utm_source: 'pfp', utm_medium: 'report_pdf' },
         per_link_type: {
             broker_open: { utm_campaign: 'open_account' },
             bonus: { utm_campaign: 'finam_bonus' },
             transfer: { utm_campaign: 'vygodniy_perekhod' },
             idu: { utm_campaign: 'idu' },
+            comon: { utm_campaign: 'comon_autofollow' },
             pds: { utm_campaign: 'pds' },
         },
         agent_id_param: 'utm_partner_finam',
