@@ -162,6 +162,9 @@ async function startServer() {
         const macroScheduler = require('./services/macroScheduler');
         macroScheduler.initScheduler();
 
+        const newsScheduler = require('./services/newsScheduler');
+        newsScheduler.initScheduler();
+
         app.listen(PORT, () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📚 Swagger UI: http://localhost:${PORT}/api-docs`);

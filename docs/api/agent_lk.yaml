@@ -35,6 +35,13 @@ info:
     - **`POST /pfp/clients/{clientId}/nda/send`** — клиент уже есть; проверяется привязка к агенту.
     - **`POST /pfp/clients/{clientId}/life-insurance/send-email`** — отправить клиенту HTML-письмо по продукту «Подушка безопасности» с кнопкой **«Оформить НСЖ»**.
     - **`POST /pfp/clients/{clientId}/broker-account/send-email`** — письмо Финам (Resend); ссылки с UTM и `partner_agent_id`, если включён `partner_link_tracking` в settings проекта.
+
+    **Макро и новости (два отдельных виджета в ЛК):**
+    - **`GET /pfp/macro/latest`** — цифры (ставка ЦБ, курс, ИПЦ, индексы). Графики и плашки «как сейчас».
+    - **`GET /pfp/news/feed`** — короткая лента важных событий (3–7 карточек), не агрегатор. При `quiet: true` — empty state, не ошибка.
+    - Цифры в карточках новостей не дублировать — актуальные значения из macro.
+    - Опрос ленты: раз в 15–30 мин или при focus вкладки (не чаще 5 мин).
+    - Дисклеймер: «Материал носит ознакомительный характер и не является индивидуальной инвестиционной рекомендацией».
   version: 1.0.0
 servers:
   - url: /api
@@ -1675,6 +1682,67 @@ paths:
           description: История очищена
         '400':
           description: Не передан client_id
+
+  # ==================== НОВОСТИ ДЛЯ АГЕНТА ====================
+  /pfp/news/feed:
+    get:
+      tags: [ "Новости для агента" ]
+      summary: Лента важных финансовых новостей
+      description: |
+        Отфильтрованная лента (по умолчанию до 7 карточек за 48 ч.).
+        Бэкенд отсекает нерелевантные RSS; при пустой выдаче `quiet: true`.
+        Отдельно от `GET /pfp/macro/latest` — не смешивать виджеты на фронте.
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 10, default: 7 }
+        - name: hours
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 168, default: 48 }
+        - name: event_type
+          in: query
+          schema:
+            $ref: '#/components/schemas/NewsEventType'
+      responses:
+        '200':
+          description: Лента или пустое состояние
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsFeedResponse'
+
+  /pfp/news/{id}/read:
+    post:
+      tags: [ "Новости для агента" ]
+      summary: Отметить новость прочитанной
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        '200':
+          description: Отмечено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  articleId: { type: integer, format: int64 }
+        '404':
+          description: Статья не найдена или не в статусе published
+
+  /pfp/news/sync:
+    post:
+      tags: [ "Новости для агента" ]
+      summary: Ручной запуск ingest RSS (отладка)
+      description: Аналог `POST /pfp/macro/sync`. В проде ограничить admin при необходимости.
+      responses:
+        '200':
+          description: Ingest завершён
+        '503':
+          description: NEWS_ENABLED=false
 
   /pfp/crm/briefing:
     get:
@@ -3600,6 +3668,63 @@ components:
         content: { type: string }
         is_active: { type: boolean }
         priority: { type: integer }
+
+    NewsEventType:
+      type: string
+      enum:
+        - RATE_CHANGE
+        - INFLATION
+        - SANCTIONS
+        - TAX_CHANGE
+        - OIL
+        - BANKING
+        - STOCK_MARKET
+        - CURRENCY
+        - OTHER
+
+    NewsFeedItem:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        url: { type: string, format: uri }
+        source:
+          type: object
+          properties:
+            slug: { type: string }
+            name: { type: string }
+        publishedAt: { type: string, format: date-time }
+        eventType:
+          $ref: '#/components/schemas/NewsEventType'
+        score: { type: integer }
+        tags:
+          type: array
+          items: { type: string }
+        agentTakeaway: { type: string, nullable: true }
+        alsoReportedBy:
+          type: array
+          items: { type: string }
+        read: { type: boolean }
+
+    NewsFeedResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        generatedAt: { type: string, format: date-time }
+        quiet: { type: boolean }
+        message: { type: string, nullable: true }
+        filters:
+          type: object
+          properties:
+            limit: { type: integer }
+            hours: { type: integer }
+            minScore: { type: integer }
+            eventType: { type: string, nullable: true }
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NewsFeedItem'
 
   securitySchemes:
     bearerAuth:

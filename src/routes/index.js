@@ -115,6 +115,10 @@ router.use('/my', pfpMiddleware, clientCabinetRoutes);
 const macroRoutes = require('./macroRoutes');
 router.use('/pfp/macro', pfpMiddleware, macroRoutes);
 
+// Financial news feed (Agent LK)
+const newsRoutes = require('./newsRoutes');
+router.use('/pfp/news', pfpMiddleware, newsRoutes);
+
 // Comon / Finam strategies (прокси + разбор публичной страницы)
 const comonRoutes = require('./comonRoutes');
 router.use('/pfp/comon', pfpMiddleware, comonRoutes);
