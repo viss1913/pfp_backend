@@ -96,6 +96,16 @@ function getVerificationFrom() {
 }
 
 /**
+ * Служебные письма (макро-синк, алерты): отдельный from, не {agent}@domain.
+ * RESEND_OPS_FROM_EMAIL — например `PFP <ops@bank-future.com>` или `noreply@bank-future.com`.
+ */
+function getOpsFrom() {
+    const ops = (process.env.RESEND_OPS_FROM_EMAIL || '').trim();
+    if (ops) return ops;
+    return getVerificationFrom();
+}
+
+/**
  * NDA: «ФИО» + конкретный ящик (в т.ч. ivanov@bank-future.com из шаблона).
  */
 function buildNdaFromHeader(agentFullName, ndaMailboxEmail) {
@@ -964,7 +974,7 @@ class EmailService {
 
         try {
             const { data, error: resendError } = await getResendClient().emails.send({
-                from: getVerificationFrom(),
+                from: getOpsFrom(),
                 to: recipients,
                 subject,
                 html,

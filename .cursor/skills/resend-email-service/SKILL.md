@@ -18,7 +18,8 @@ description: Транзакционная почта PFP через Resend дл�
 | Переменная | Назначение |
 |------------|------------|
 | `RESEND_API_KEY` | API-ключ (**обязателен**). В CI/хостинге — только секреты. |
-| `RESEND_FROM_EMAIL` | `from`, например `Имя <noreply@bank-future.com>`. Должен быть адрес с домена в статусе **Verified** в кабинете Resend. Без переменной — в коде fallback `onboarding@resend.dev` (ограничения тестового режима по доке Resend). |
+| `RESEND_FROM_EMAIL` | `from` для агентских писем (NDA, отчёты), часто `{agent}@bank-future.com`. Verified домен в Resend. |
+| `RESEND_OPS_FROM_EMAIL` | `from` для **служебных** писем (макро-синк, алерты), напр. `PFP <ops@bank-future.com>`. Без `{agent}`. Если пусто — `noreply@domain` из шаблона `RESEND_FROM_EMAIL`. |
 
 Шаблон переменных: **`.env.example`** (блок Resend).
 
@@ -73,7 +74,7 @@ node scripts/smoke_resend.js получатель@example.com
 | Family Office (magic-link) | `POST /api/pfp/agents/me/family-office-invite` | `EmailService.sendFamilyOfficeInviteEmail` | Премиальный HTML, ссылка активации без кода |
 | Код регистрации B2C-клиента | `POST /api/auth/register-client` | `sendVerificationCode(…, { purpose: 'client' })` | Тот же шаблон письма |
 | Подушка безопасности (Сбер) | Клик в ЛК агента `POST /api/pfp/clients/{id}/life-insurance/send-email` | `EmailService.sendSberLifeOfferEmail` / `src/services/emailService.js` | HTML-письмо (зелёная тема, лого Сбера, CTA «Оформить НСЖ») |
-| ИПЦ г/г (макро, ЦБ Excel) | cron вт/10-е, `POST /macro/sync`, `run_macro_sync.js` | `runCbrInflationYoySync` → `sendMacroInflationYoySyncEmail` | `MACRO_SYNC_NOTIFY_EMAIL`, `RESEND_API_KEY` |
+| ИПЦ г/г (макро, ЦБ Excel) | cron вт/10-е, `POST /macro/sync`, `run_macro_sync.js` | `runCbrInflationYoySync` → `sendMacroInflationYoySyncEmail` | `MACRO_SYNC_NOTIFY_EMAIL`, `RESEND_OPS_FROM_EMAIL`, `RESEND_API_KEY` |
 
 ## Ключевые файлы
 
