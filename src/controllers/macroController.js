@@ -1,15 +1,21 @@
 const macroService = require('../services/macroService');
 const rosstatService = require('../services/rosstatService');
+const { runCbrInflationYoySync } = require('../services/macroInflationSyncNotifyService');
 
 /**
  * Контроллер макроэкономических данных
  */
+const INFLATION_YOY_SLUG = 'russia_cpi_inflation_yoy';
+
 const getLatest = async (req, res) => {
     try {
         const data = await macroService.getLatestValues();
+        const inflationYoy = data.find((row) => row.slug === INFLATION_YOY_SLUG) || null;
         res.json({
             success: true,
-            data
+            data,
+            /** Основной ряд ИПЦ г/г для виджетов и ЛК — slug russia_cpi_inflation_yoy */
+            inflation_yoy: inflationYoy,
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -46,7 +52,7 @@ const triggerSync = async (req, res) => {
 
         // CBR (SOAP + HTML)
         await macroService.fetchCbrKeyRate();
-        await macroService.fetchCbrInflation();
+        await runCbrInflationYoySync('api:sync');
         await macroService.fetchCbrDepositRates();
         await macroService.fetchCbrGold();
         await macroService.fetchCbrCurrencyRates();

@@ -393,7 +393,9 @@ paths:
     get:
       tags: [ "Макро" ]
       summary: Текущие макроэкономические данные
-      description: Банковские ставки, инфляция (для виджетов)
+      description: |
+        Банковские ставки, макропоказатели для виджетов.
+        ИПЦ г/г для UI — поле **inflation_yoy** (slug `russia_cpi_inflation_yoy`, источник ЦБ Excel).
 
   /pfp/macro/history/{slug}:
     get:

@@ -34,7 +34,7 @@ description: Парсинг и синхронизация внешних рын�
 
 | Источник | Транспорт | Сервис | Примечание |
 |----------|-----------|--------|------------|
-| ЦБ РФ | SOAP `DailyInfo.asmx`, частично HTML (`avgprocstav` и т.д.) | `macroService` | `CBR_SOAP_URL`, `xml2js`, `axios.post` с SOAP envelope |
+| ЦБ РФ | SOAP `DailyInfo.asmx`, Excel UniDbQuery **132934** (ИПЦ г/г), HTML (`avgprocstav`) | `macroService` | `fetchCbrInflationYoyExcel` → slug `russia_cpi_inflation_yoy`; SOAP — ключевая ставка |
 | MOEX | REST ISS JSON | `macroService` | IMOEX, ОФЗ, корп. облигации (`syncImoex`, `syncOfzYields`, `syncCorpBonds`) |
 | Росстат | HTTP (страницы, файлы) | `rosstatService` | Инфляция и др. |
 | **Финам (Finam)** | Публичный экспорт/API котировок (формат по документации Finam: CSV, JSON и т.д.) | *после добавления в репо:* например `finamService.js` или изолированный блок в `macroService` | Соблюдать ToS и лимиты; токены/ключи только из env; не путать с MOEX primary, если дублируете инструмент — явно описать slug и приоритет источника |
@@ -65,7 +65,8 @@ description: Парсинг и синхронизация внешних рын�
 
 - `parse_macro_history.js` — глубокая история (ЦБ, MOEX, золото, инфляция и т.д.).
 - `run_macro_sync.js` — запуск синка без поднятия полного UI.
-- `test_cbr_soap.js`, `test_cbr_urls.js`, `test_cbr_inflation.js`, `test_macro.js` — точечная проверка источников.
+- `test_cbr_soap.js`, `test_cbr_urls.js`, `test_cbr_inflation.js`, `test_cbr_inflation_yoy_excel.js`, `test_macro.js` — точечная проверка источников.
+- После `fetchCbrInflationYoyExcel` / cron — письмо Resend на `MACRO_SYNC_NOTIFY_EMAIL` (OK / FAILED).
 
 ## Чеклист перед PR (внешние макроданные)
 

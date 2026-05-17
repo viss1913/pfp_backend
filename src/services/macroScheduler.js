@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const macroService = require('./macroService');
 const rosstatService = require('./rosstatService');
+const { runCbrInflationYoySync } = require('./macroInflationSyncNotifyService');
 
 /**
  * Планировщик задач по сбору макроданных
@@ -35,11 +36,11 @@ class MacroScheduler {
             }
         });
 
-        // 3. Еженедельная инфляция ЦБР и Росстата — каждый вторник в 10:30
+        // 3. ИПЦ г/г (Excel ЦБ) + Росстат weekly — каждый вторник в 10:30
         cron.schedule('30 10 * * 2', async () => {
             console.log('⏰ Running weekly Inflation sync...');
             try {
-                await macroService.fetchCbrInflation();
+                await runCbrInflationYoySync('cron:weekly');
                 await rosstatService.fetchWeeklyInflation();
                 console.log('✅ Weekly Inflation sync completed');
             } catch (error) {
@@ -47,12 +48,13 @@ class MacroScheduler {
             }
         });
 
-        // 4. Месячная инфляция Росстата — 10-го числа в 11:00
+        // 4. ИПЦ г/г (Excel ЦБ) + месячная инфляция Росстата — 10-го числа в 11:00
         cron.schedule('0 11 10 * *', async () => {
-            console.log('⏰ Running monthly Rosstat Inflation sync...');
+            console.log('⏰ Running monthly Inflation sync...');
             try {
+                await runCbrInflationYoySync('cron:monthly');
                 await rosstatService.fetchMonthlyInflation();
-                console.log('✅ Monthly Rosstat Inflation sync completed');
+                console.log('✅ Monthly Inflation sync completed');
             } catch (error) {
                 console.error('❌ Monthly Rosstat sync failed:', error.message);
             }

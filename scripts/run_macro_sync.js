@@ -6,6 +6,7 @@ require('dotenv').config();
 const db = require('../src/config/database');
 const macroService = require('../src/services/macroService');
 const rosstatService = require('../src/services/rosstatService');
+const { runCbrInflationYoySync } = require('../src/services/macroInflationSyncNotifyService');
 
 async function run() {
     console.log('🚀 Manual macro sync (direct run)...\n');
@@ -15,7 +16,7 @@ async function run() {
         await macroService.syncOfzYields();
         await macroService.syncCorpBonds();
         await macroService.fetchCbrKeyRate();
-        await macroService.fetchCbrInflation();
+        await runCbrInflationYoySync('script:run_macro_sync');
         await macroService.fetchCbrDepositRates();
         await macroService.fetchCbrGold();
         await macroService.fetchCbrCurrencyRates();

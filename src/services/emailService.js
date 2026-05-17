@@ -903,6 +903,95 @@ class EmailService {
             throw { status: 500, message: 'Email service unavailable' };
         }
     }
+
+    /**
+     * Служебное уведомление: синхронизация ИПЦ г/г (Excel ЦБ → russia_cpi_inflation_yoy).
+     * @param {{ to: string|string[], success: boolean, trigger?: string, saved?: number, latest?: { period?: string, value?: number, date?: string }|null, error?: string|null, startedAt?: Date }} opts
+     */
+    async sendMacroInflationYoySyncEmail({
+        to,
+        success,
+        trigger = 'manual',
+        saved = 0,
+        latest = null,
+        error = null,
+        startedAt = new Date(),
+    }) {
+        const recipients = (Array.isArray(to) ? to : [to]).filter(Boolean);
+        if (!recipients.length) {
+            console.warn('[EmailService] Macro inflation notify: нет получателей');
+            return { skipped: true };
+        }
+
+        const envLabel = process.env.NODE_ENV || 'development';
+        const ok = Boolean(success);
+        const subject = ok
+            ? `[PFP ${envLabel}] ИПЦ г/г: синхронизация OK`
+            : `[PFP ${envLabel}] ИПЦ г/г: синхронизация FAILED`;
+        const statusColor = ok ? '#16a34a' : '#dc2626';
+        const statusText = ok ? 'Успешно' : 'Ошибка';
+        const when = startedAt instanceof Date ? startedAt.toISOString() : String(startedAt);
+        const latestLine = latest
+            ? `${escapeHtmlLite(latest.period || latest.date || '—')}: <strong>${escapeHtmlLite(String(latest.value ?? '—'))}%</strong> (дата в БД: ${escapeHtmlLite(latest.date || '—')})`
+            : '—';
+        const errBlock = error
+            ? `<p style="margin:12px 0 0;padding:12px;background:#fef2f2;border-radius:8px;color:#991b1b;font-size:14px;"><strong>Ошибка:</strong> ${escapeHtmlLite(error)}</p>`
+            : '';
+
+        const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:20px;background:#f4f4f7;font-family:Segoe UI,Roboto,Arial,sans-serif;color:#333;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr><td style="padding:24px 28px;border-bottom:4px solid ${statusColor};">
+        <h1 style="margin:0 0 8px;font-size:18px;">ИПЦ г/г — ${statusText}</h1>
+        <p style="margin:0;font-size:13px;color:#64748b;">Источник: ЦБ РФ Excel UniDbQuery 132934 → slug <code>russia_cpi_inflation_yoy</code></p>
+      </td></tr>
+      <tr><td style="padding:24px 28px;font-size:14px;line-height:1.55;">
+        <table width="100%" style="font-size:14px;">
+          <tr><td style="padding:4px 0;color:#64748b;">Запуск</td><td style="padding:4px 0;text-align:right;"><strong>${escapeHtmlLite(trigger)}</strong></td></tr>
+          <tr><td style="padding:4px 0;color:#64748b;">Время (UTC)</td><td style="padding:4px 0;text-align:right;">${escapeHtmlLite(when)}</td></tr>
+          <tr><td style="padding:4px 0;color:#64748b;">Сохранено точек</td><td style="padding:4px 0;text-align:right;"><strong>${saved}</strong></td></tr>
+          <tr><td style="padding:4px 0;color:#64748b;">Последнее значение</td><td style="padding:4px 0;text-align:right;">${latestLine}</td></tr>
+        </table>
+        ${errBlock}
+      </td></tr>
+      <tr><td style="padding:12px 28px;background:#f9f9fb;font-size:11px;color:#a8aaaf;text-align:center;">PFP macro sync · Resend</td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+
+        try {
+            const { data, error: resendError } = await getResendClient().emails.send({
+                from: getVerificationFrom(),
+                to: recipients,
+                subject,
+                html,
+            });
+
+            if (resendError) {
+                console.error('[EmailService] Resend macro inflation notify error:', JSON.stringify(resendError));
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn(`[EmailService] DEV: macro inflation notify → ${recipients.join(', ')}`);
+                    return { id: 'dev-mode-macro-notify' };
+                }
+                throw { status: 502, message: 'Не удалось отправить уведомление о синхронизации макро' };
+            }
+
+            console.log(
+                `[EmailService] Macro inflation YoY notify sent to ${recipients.join(', ')}, messageId: ${data?.id}`
+            );
+            return data;
+        } catch (err) {
+            if (err.status) throw err;
+            console.error('[EmailService] Macro inflation notify send error:', err.message || err);
+            if (process.env.NODE_ENV !== 'production') {
+                return { id: 'dev-mode-macro-notify-fallback' };
+            }
+            throw { status: 500, message: 'Email service unavailable' };
+        }
+    }
 }
 
 module.exports = new EmailService();

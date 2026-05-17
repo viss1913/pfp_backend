@@ -73,6 +73,7 @@ node scripts/smoke_resend.js получатель@example.com
 | Family Office (magic-link) | `POST /api/pfp/agents/me/family-office-invite` | `EmailService.sendFamilyOfficeInviteEmail` | Премиальный HTML, ссылка активации без кода |
 | Код регистрации B2C-клиента | `POST /api/auth/register-client` | `sendVerificationCode(…, { purpose: 'client' })` | Тот же шаблон письма |
 | Подушка безопасности (Сбер) | Клик в ЛК агента `POST /api/pfp/clients/{id}/life-insurance/send-email` | `EmailService.sendSberLifeOfferEmail` / `src/services/emailService.js` | HTML-письмо (зелёная тема, лого Сбера, CTA «Оформить НСЖ») |
+| ИПЦ г/г (макро, ЦБ Excel) | cron вт/10-е, `POST /macro/sync`, `run_macro_sync.js` | `runCbrInflationYoySync` → `sendMacroInflationYoySyncEmail` | `MACRO_SYNC_NOTIFY_EMAIL`, `RESEND_API_KEY` |
 
 ## Ключевые файлы
 

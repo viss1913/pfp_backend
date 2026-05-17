@@ -1,8 +1,30 @@
 const axios = require('axios');
+const XLSX = require('xlsx');
 const db = require('../config/database');
 const { parseStringPromise } = require('xml2js');
 
 const CBR_SOAP_URL = 'https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx';
+/** UniDbQuery «Инфляция и ключевая ставка» — колонка «Инфляция, % г/г» */
+const CBR_INFLATION_YOY_QUERY_ID = '132934';
+const CBR_INFLATION_YOY_SLUG = 'russia_cpi_inflation_yoy';
+const CBR_INFLATION_YOY_HISTORY_YEARS = 12;
+
+function lastDayOfMonthUtc(year, month1to12) {
+    return new Date(Date.UTC(year, month1to12, 0, 12, 0, 0));
+}
+
+function formatCbrUniDbQueryDate(d) {
+    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
+function parseCbrMonthPeriod(period) {
+    const m = /^(\d{2})\.(\d{4})$/.exec(String(period).trim());
+    if (!m) return null;
+    const mm = parseInt(m[1], 10);
+    const yyyy = parseInt(m[2], 10);
+    if (mm < 1 || mm > 12) return null;
+    return lastDayOfMonthUtc(yyyy, mm);
+}
 
 /** Логирует детали ошибки запроса (статус, тело ответа) */
 function logFetchError(context, err, responseBody = null) {
@@ -20,7 +42,8 @@ function logFetchError(context, err, responseBody = null) {
  * 
  * Источники:
  *  - MOEX ISS JSON API (IMOEX, ОФЗ, корп. облигации)
- *  - CBR SOAP DailyInfo.asmx (ключевая ставка, инфляция)
+ *  - CBR SOAP DailyInfo.asmx (ключевая ставка)
+ *  - CBR UniDbQuery Excel 132934 (ИПЦ г/г → russia_cpi_inflation_yoy)
  *  - CBR HTML /statistics/avgprocstav/ (макс. ставка по вкладам)
  */
 class MacroService {
@@ -255,6 +278,89 @@ class MacroService {
             }
         } catch (error) {
             logFetchError('CBR Currency', error);
+        }
+    }
+
+    /**
+     * ИПЦ г/г из Excel UniDbQuery ЦБ (отчёты, /macro/latest → inflation_yoy).
+     * https://www.cbr.ru/hd_base/infl/
+     */
+    async fetchCbrInflationYoyExcel() {
+        const to = new Date();
+        const from = new Date();
+        from.setFullYear(from.getFullYear() - CBR_INFLATION_YOY_HISTORY_YEARS);
+
+        const qs = new URLSearchParams({
+            FromDate: formatCbrUniDbQueryDate(from),
+            ToDate: formatCbrUniDbQueryDate(to),
+            posted: 'False',
+        });
+        const url = `https://www.cbr.ru/Queries/UniDbQuery/DownloadExcel/${CBR_INFLATION_YOY_QUERY_ID}?${qs}`;
+
+        console.log(`📡 Fetching CBR inflation YoY (Excel ${CBR_INFLATION_YOY_QUERY_ID})...`);
+
+        try {
+            const response = await axios.get(url, {
+                responseType: 'arraybuffer',
+                timeout: 60000,
+                headers: {
+                    ...this.commonHeaders,
+                    Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,*/*',
+                },
+            });
+
+            const workbook = XLSX.read(response.data, { type: 'buffer' });
+            const sheetName = workbook.SheetNames[0];
+            if (!sheetName) {
+                console.warn('[macro] CBR inflation YoY Excel: нет листов');
+                return { saved: 0 };
+            }
+
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+            if (rows.length < 2) {
+                console.warn('[macro] CBR inflation YoY Excel: мало строк');
+                return { saved: 0 };
+            }
+
+            const header = rows[0].map((c) => String(c).trim());
+            let colDate = header.findIndex((h) => /^дата$/i.test(h));
+            let colYoy = header.findIndex((h) => /инфляц/i.test(h) && /г\s*\/\s*г/i.test(h));
+            if (colDate < 0) colDate = 0;
+            if (colYoy < 0) colYoy = 2;
+
+            let saved = 0;
+            let latest = null;
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                if (!row || row[colDate] === '' || row[colDate] == null) continue;
+
+                const date = parseCbrMonthPeriod(row[colDate]);
+                if (!date) continue;
+
+                const value = parseFloat(String(row[colYoy]).replace(',', '.'));
+                if (Number.isNaN(value)) continue;
+
+                const period = String(row[colDate]).trim();
+                await this.saveIndicatorValue(CBR_INFLATION_YOY_SLUG, value, date, {
+                    source: `cbr_unidbquery_${CBR_INFLATION_YOY_QUERY_ID}`,
+                    period,
+                });
+                saved += 1;
+                // ЦБ отдаёт строки от нового месяца к старым — первая валидная строка = последняя публикация
+                if (!latest) {
+                    latest = {
+                        period,
+                        value,
+                        date: date.toISOString().split('T')[0],
+                    };
+                }
+            }
+
+            console.log(`✅ CBR inflation YoY: ${saved} points → ${CBR_INFLATION_YOY_SLUG}`);
+            return { saved, latest };
+        } catch (error) {
+            logFetchError('fetchCbrInflationYoyExcel', error);
+            throw error;
         }
     }
 

@@ -1,4 +1,5 @@
 const macroService = require('../src/services/macroService');
+const { runCbrInflationYoySync } = require('../src/services/macroInflationSyncNotifyService');
 const db = require('../src/config/database');
 
 async function testMacro() {
@@ -17,8 +18,8 @@ async function testMacro() {
         console.log('\n4. Syncing Key Rate (CBR SOAP)...');
         await macroService.fetchCbrKeyRate();
 
-        console.log('\n5. Syncing Weekly Inflation (CBR SOAP)...');
-        await macroService.fetchCbrInflation();
+        console.log('\n5. Syncing inflation YoY (CBR Excel)...');
+        await runCbrInflationYoySync('script:test_macro');
 
         console.log('\n6. Syncing Deposit Rates (CBR HTML)...');
         await macroService.fetchCbrDepositRates();
