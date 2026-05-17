@@ -222,6 +222,27 @@ paths:
         '400':
           description: Нет куратора, у куратора нет Finam ID, или не удалось распознать ID
 
+  /pfp/agents/me/subagents/dashboard:
+    get:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Дашборд сети субагентов (KPI + метрики по клиентам/ПФП)
+      description: |
+        Прямые субагенты (`parent_agent_id` = текущий агент) с агрегатами по клиентам и последнему `goals_summary`.
+        Требует `agent_network.enabled` в settings проекта.
+
+        **НСЖ:** `nsj_annual_premium_rub` (годовая премия LIFE), `nsj_contract_premium_rub` (премия контракта из расчёта).
+        **Прочие цели:** `investment_capital_rub` (сумма `initial_capital` не-LIFE целей).
+        **CRM:** счётчики по `clients.crm_status`. Данные — снимок расчёта ПФП, не факт оформления полиса.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubagentDashboardResponse'
+        '403':
+          description: Агентская сеть отключена
+
   /pfp/agents/me/subagents:
     get:
       tags: [ "Регистрация и профиль агента" ]
@@ -2762,6 +2783,56 @@ components:
       properties:
         partner_agent_id: { type: string }
         label: { type: string, example: "Finam ID" }
+
+    SubagentDashboardResponse:
+      type: object
+      properties:
+        enabled: { type: boolean, example: true }
+        summary:
+          $ref: '#/components/schemas/SubagentDashboardSummary'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubagentDashboardRow'
+
+    SubagentDashboardSummary:
+      type: object
+      properties:
+        subagents_count: { type: integer }
+        clients_count: { type: integer }
+        clients_with_plan_count: { type: integer, description: "Клиенты с непустым goals_summary" }
+        nsj_annual_premium_rub: { type: number, description: "Сумма годовых премий НСЖ по сети" }
+        nsj_contract_premium_rub: { type: number, description: "Сумма премий контракта НСЖ по сети" }
+        nsj_clients_count: { type: integer, description: "Клиенты с целью LIFE в расчёте" }
+        investment_capital_rub: { type: number, description: "Сумма initial_capital не-LIFE целей" }
+        avg_term_months: { type: number, nullable: true, description: "Среднее avg_term_months по субагентам" }
+
+    SubagentDashboardRow:
+      allOf:
+        - $ref: '#/components/schemas/AgentSubagentRow'
+        - type: object
+          properties:
+            metrics:
+              $ref: '#/components/schemas/SubagentMetrics'
+
+    SubagentMetrics:
+      type: object
+      properties:
+        clients_count: { type: integer }
+        clients_with_plan_count: { type: integer }
+        nsj_annual_premium_rub: { type: number }
+        nsj_contract_premium_rub: { type: number }
+        nsj_clients_count: { type: integer }
+        investment_capital_rub: { type: number }
+        avg_term_months: { type: number, nullable: true }
+        crm:
+          type: object
+          properties:
+            THINKING: { type: integer }
+            BOUGHT: { type: integer }
+            REFUSED: { type: integer }
+            RENEWAL: { type: integer }
+        last_client_at: { type: string, format: date-time, nullable: true }
 
     AgentSubagentRow:
       type: object

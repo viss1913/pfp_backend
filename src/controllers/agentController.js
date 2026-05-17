@@ -11,6 +11,7 @@ const { bufferToWebp } = require('../utils/imageToWebp');
 const { buildAgentRegistrationInviteUrl } = require('../utils/agentRegistrationInviteUrl');
 const authService = require('../services/authService');
 const agentPartnerIdWizardService = require('../services/agentPartnerIdWizardService');
+const subagentDashboardService = require('../services/subagentDashboardService');
 
 const partnerIdWizardSchema = Joi.object({
     action: Joi.string().valid('set', 'skip').required(),
@@ -132,6 +133,20 @@ class AgentController {
             }
             const list = await agentNetworkService.listSubagents(agentId, projectId);
             res.json({ data: list });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async getMySubagentsDashboard(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            const agentId = Number(req.user?.agentId);
+            if (!Number.isFinite(agentId) || agentId <= 0) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+            const payload = await subagentDashboardService.getSubagentDashboard(agentId, projectId);
+            res.json(payload);
         } catch (err) {
             next(err);
         }

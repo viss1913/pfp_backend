@@ -5,28 +5,7 @@ const productRepository = require('../repositories/productRepository');
 const resolutService = require('./resolutService');
 const { buildResolutQuoteParameters } = require('./resolutQuoteParameters');
 const { isResolutIszhProduct } = require('./resolutIszhQuoteParameters');
-
-/**
- * @param {unknown} stored — clients.goals_summary (string или object)
- * @returns {{ summary?: object, goals?: array }|null}
- */
-function parseGoalsSummary(stored) {
-    if (stored == null || stored === '') return null;
-    let raw = stored;
-    if (typeof stored === 'string') {
-        try {
-            raw = JSON.parse(stored);
-        } catch {
-            return null;
-        }
-    }
-    const calc = raw.calculation || raw;
-    if (!calc || typeof calc !== 'object') return null;
-    return {
-        summary: calc.summary || null,
-        goals: Array.isArray(calc.goals) ? calc.goals : []
-    };
-}
+const { parseGoalsSummary } = require('../utils/goalsSummaryMetrics');
 
 function maxTermMonthsFromGoals(goals) {
     let m = 0;
