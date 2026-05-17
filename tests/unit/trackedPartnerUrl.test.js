@@ -4,6 +4,7 @@ const {
     appendQueryParams,
     buildTrackedPartnerUrl,
     applyTrackedPartnerUrlsToHtml,
+    inferLinkTypeFromUrl,
 } = require('../../src/utils/trackedPartnerUrl');
 
 const settings = {
@@ -13,6 +14,7 @@ const settings = {
         defaults: { utm_source: 'pfp', utm_medium: 'report_pdf' },
         per_link_type: {
             broker_open: { utm_campaign: 'open_account' },
+            agent_register: { utm_campaign: 'agent_landing' },
             idu: { utm_campaign: 'idu' },
             comon: { utm_campaign: 'comon_autofollow' },
         },
@@ -97,6 +99,28 @@ test('buildTrackedPartnerUrl tracks funds.finam.ru idu', () => {
     });
     assert.ok(url.includes('utm_partner_finam=DU9'));
     assert.ok(url.includes('utm_campaign=idu'));
+});
+
+test('inferLinkTypeFromUrl detects agent landing', () => {
+    assert.equal(
+        inferLinkTypeFromUrl('https://broker.finam.ru/landing/agent/'),
+        'agent_register'
+    );
+});
+
+test('buildTrackedPartnerUrl tracks agent_register landing', () => {
+    const url = buildTrackedPartnerUrl('https://broker.finam.ru/landing/agent/', {
+        agent: { partner_agent_id: 'AG77' },
+        projectSettings: {
+            ...settings,
+            partner_link_tracking: {
+                ...settings.partner_link_tracking,
+                domain_whitelist: ['broker.finam.ru'],
+            },
+        },
+    });
+    assert.ok(url.includes('utm_partner_finam=AG77'));
+    assert.ok(url.includes('utm_campaign=agent_landing'));
 });
 
 test('buildTrackedPartnerUrl applies paramOverrides (email medium)', () => {

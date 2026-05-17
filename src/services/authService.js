@@ -17,6 +17,13 @@ const {
 } = require('../utils/projectSettings');
 const agentNetworkService = require('./agentNetworkService');
 const commissionService = require('./commissionService');
+const { buildAgentFinamUrls } = require('../utils/finamAgentLandingUrl');
+const {
+    resolveEffectivePartnerAgentId,
+    resolvePartnerAgentIdMode,
+    hasPartnerFullAccess,
+    agentForPartnerTracking,
+} = require('../utils/effectivePartnerAgent');
 
 if (!process.env.JWT_SECRET) {
     console.warn('CRITICAL WARNING: JWT_SECRET environment variable is not set!');
@@ -632,6 +639,8 @@ class AuthService {
         };
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
+        const profileExtras = await this.getAgentMeProfile(result.agentId, project_id);
+
         return {
             ...baseResult,
             token,
@@ -643,6 +652,7 @@ class AuthService {
                 agentId: result.agentId,
                 projectId: project_id,
             },
+            ...(profileExtras || {}),
         };
     }
 
@@ -777,6 +787,25 @@ class AuthService {
         const settings = parseProjectSettings(project?.settings);
         const partnerCfg = getPartnerAgentIdSettings(settings);
 
+        let parentAgent = null;
+        if (agent.parent_agent_id != null) {
+            parentAgent = await db('agents')
+                .where({ id: agent.parent_agent_id, project_id: projectId })
+                .select('id', 'partner_agent_id')
+                .first();
+        }
+
+        const partnerIdRequired = partnerCfg.require_for_full_access === true;
+        const effectivePartnerAgentId = resolveEffectivePartnerAgentId(agent, parentAgent);
+        const partnerAgentIdMode = resolvePartnerAgentIdMode(agent, parentAgent);
+        const trackingAgent = agentForPartnerTracking(agent, parentAgent);
+
+        const finamUrls = buildAgentFinamUrls({
+            projectSettings: settings,
+            agent: trackingAgent,
+            parentAgent,
+        });
+
         return {
             first_name: agent.first_name,
             last_name: agent.last_name,
@@ -785,9 +814,14 @@ class AuthService {
             birth_date: agent.birth_date,
             gender: agent.gender,
             partner_agent_id: agent.partner_agent_id,
+            effective_partner_agent_id: effectivePartnerAgentId,
+            partner_agent_id_mode: partnerAgentIdMode,
+            inherit_parent_partner_agent_id: agent.inherit_parent_partner_agent_id === true,
             partner_agent_id_label: partnerCfg.label || 'ID партнёра',
-            partner_agent_id_required: partnerCfg.require_for_full_access === true,
+            partner_agent_id_required: partnerIdRequired,
+            has_partner_full_access: hasPartnerFullAccess(agent, parentAgent, partnerIdRequired),
             parent_agent_id: agent.parent_agent_id,
+            ...finamUrls,
         };
     }
 }

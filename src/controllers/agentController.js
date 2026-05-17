@@ -9,6 +9,14 @@ const agentInviteService = require('../services/agentInviteService');
 const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
 const { bufferToWebp } = require('../utils/imageToWebp');
 const { buildAgentRegistrationInviteUrl } = require('../utils/agentRegistrationInviteUrl');
+const authService = require('../services/authService');
+const agentPartnerIdWizardService = require('../services/agentPartnerIdWizardService');
+
+const partnerIdWizardSchema = Joi.object({
+    action: Joi.string().valid('set', 'skip').required(),
+    partner_agent_id: Joi.string().max(64).allow('').optional(),
+    partner_ref_url: Joi.string().max(2048).allow('').optional(),
+});
 
 const subagentInviteEmailSchema = Joi.object({
     to_email: Joi.string().email({ tlds: { allow: false } }).required(),
@@ -124,6 +132,39 @@ class AgentController {
             }
             const list = await agentNetworkService.listSubagents(agentId, projectId);
             res.json({ data: list });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async completePartnerIdWizard(req, res, next) {
+        try {
+            const validation = partnerIdWizardSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const projectId = req.projectId || req.user?.projectId;
+            const agentId = Number(req.user?.agentId);
+            if (!Number.isFinite(agentId) || agentId <= 0) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+
+            const wizardResult = await agentPartnerIdWizardService.completePartnerIdWizard(
+                agentId,
+                projectId,
+                validation.value
+            );
+            const profile = await authService.getAgentMeProfile(agentId, projectId);
+
+            res.json({
+                message:
+                    validation.value.action === 'skip'
+                        ? 'Используется Finam ID куратора'
+                        : 'Finam ID сохранён',
+                ...wizardResult,
+                ...(profile || {}),
+            });
         } catch (err) {
             next(err);
         }

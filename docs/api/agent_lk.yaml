@@ -113,11 +113,13 @@ paths:
               $ref: '#/components/schemas/AgentRegisterStep2Request'
       responses:
         '201':
-          description: Аккаунт создан, JWT как при login
+          description: |
+            Аккаунт создан, JWT как при login. Дополнительно поля профиля агента
+            (`partner_agent_id`, `has_partner_full_access`, `finam_agent_registration_url`, …) — как в `GET /auth/me`.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentAuthResponse'
+                $ref: '#/components/schemas/AgentRegisterVerifyResponse'
         '400':
           description: Неверный или просроченный код
 
@@ -145,7 +147,8 @@ paths:
       tags: [ "Регистрация и профиль агента" ]
       summary: Текущий пользователь (JWT)
       description: |
-        Для роли `agent` дополнительно: профиль, `partner_agent_id`, `partner_agent_id_required` (гейт Finam ID на фронте).
+        Для роли `agent` дополнительно: профиль, `partner_agent_id`, `partner_agent_id_required` (гейт Finam ID на фронте),
+        `has_partner_full_access`, ссылки на регистрацию/рефералку агента у Финама (`finam_agent_*`).
       responses:
         '200':
           description: OK
@@ -192,6 +195,32 @@ paths:
                 $ref: '#/components/schemas/AgentAuthResponse'
         '400':
           description: Невалидный, просроченный или использованный token
+
+  /pfp/agents/me/partner-id-wizard:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Wizard Finam ID — ввести свой или пропустить (ID куратора)
+      description: |
+        После регистрации без своего Finam ID. **`action: set`** — сохранить свой ID (или распарсить `partner_ref_url`).
+        **`action: skip`** — не вводить свой ID; для UTM/отчётов используется Finam ID куратора (`parent_agent_id`),
+        без записи в `partner_agent_id` (уникальность в проекте). Доступен только если агент пришёл по `ref` и у куратора есть Finam ID.
+
+        Ответ включает поля как `GET /auth/me` (`has_partner_full_access`, `effective_partner_agent_id`, …).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartnerIdWizardRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartnerIdWizardResponse'
+        '400':
+          description: Нет куратора, у куратора нет Finam ID, или не удалось распознать ID
 
   /pfp/agents/me/subagents:
     get:
@@ -2653,6 +2682,73 @@ components:
             agentId: { type: integer }
             projectId: { type: integer }
 
+    AgentRegisterVerifyResponse:
+      allOf:
+        - $ref: '#/components/schemas/AgentAuthResponse'
+        - $ref: '#/components/schemas/AgentMeProfileFields'
+
+    PartnerIdWizardRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [set, skip]
+        partner_agent_id:
+          type: string
+          maxLength: 64
+          description: "При action=set"
+        partner_ref_url:
+          type: string
+          maxLength: 2048
+          description: "При action=set — альтернатива partner_agent_id"
+
+    PartnerIdWizardResponse:
+      allOf:
+        - type: object
+          properties:
+            message: { type: string }
+            action: { type: string, enum: [set, skip] }
+        - $ref: '#/components/schemas/AgentMeProfileFields'
+
+    AgentMeProfileFields:
+      type: object
+      properties:
+        first_name: { type: string, nullable: true }
+        last_name: { type: string, nullable: true }
+        partner_agent_id:
+          type: string
+          nullable: true
+          description: "Собственный Finam ID в БД (null при skip)"
+        effective_partner_agent_id:
+          type: string
+          nullable: true
+          description: "Для UTM/отчётов: свой ID или ID куратора при skip"
+        partner_agent_id_mode:
+          type: string
+          nullable: true
+          enum: [own, parent_inherited]
+        inherit_parent_partner_agent_id:
+          type: boolean
+          description: "true после action=skip"
+        partner_agent_id_label: { type: string, example: "Finam ID" }
+        partner_agent_id_required: { type: boolean }
+        has_partner_full_access:
+          type: boolean
+          description: "true если Finam ID не обязателен, свой ID есть, или skip с Finam ID куратора"
+        parent_agent_id: { type: integer, nullable: true }
+        finam_agent_registration_url:
+          type: string
+          format: uri
+          description: |
+            Ссылка на регистрацию агента у Финама (`broker.finam.ru/landing/agent/`).
+            Если агент пришёл по ref и у куратора есть Finam ID — URL с `utm_partner_finam` куратора; иначе базовая без query.
+        finam_agent_referral_url:
+          type: string
+          format: uri
+          nullable: true
+          description: "Собственная реферальная ссылка агента на тот же лендинг; null пока нет partner_agent_id"
+
     ParsePartnerAgentRequest:
       type: object
       required: [project_key]
@@ -2743,25 +2839,21 @@ components:
         last_name: { type: string, nullable: true }
 
     AuthMeResponse:
-      type: object
-      properties:
-        id: { type: integer }
-        uuid: { type: string }
-        email: { type: string }
-        role: { type: string }
-        agentId: { type: integer }
-        projectId: { type: integer }
-        clientId: { type: integer, description: "Только для role=client" }
-        first_name: { type: string, nullable: true }
-        last_name: { type: string, nullable: true }
-        middle_name: { type: string, nullable: true }
-        phone: { type: string, nullable: true }
-        birth_date: { type: string, format: date, nullable: true }
-        gender: { type: string, enum: [male, female], nullable: true }
-        partner_agent_id: { type: string, nullable: true }
-        partner_agent_id_label: { type: string, example: "Finam ID" }
-        partner_agent_id_required: { type: boolean, description: "Фронт: блокировать ЛК без Finam ID" }
-        parent_agent_id: { type: integer, nullable: true }
+      allOf:
+        - type: object
+          properties:
+            id: { type: integer }
+            uuid: { type: string }
+            email: { type: string }
+            role: { type: string }
+            agentId: { type: integer }
+            projectId: { type: integer }
+            clientId: { type: integer, description: "Только для role=client" }
+            middle_name: { type: string, nullable: true }
+            phone: { type: string, nullable: true }
+            birth_date: { type: string, format: date, nullable: true }
+            gender: { type: string, enum: [male, female], nullable: true }
+        - $ref: '#/components/schemas/AgentMeProfileFields'
 
     AiAssistantChatMessage:
       type: object

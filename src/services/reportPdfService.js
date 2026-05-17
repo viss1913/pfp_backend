@@ -53,9 +53,13 @@ async function applyPartnerLinkTrackingToPages(pageHtmlList, { projectId, agentI
     const agent = await agentService.getAgentById(id, projectId);
     if (!agent) return pageHtmlList;
 
+    const { loadAgentWithParent } = require('./agentPartnerIdWizardService');
+    const { agentForPartnerTracking } = require('../utils/effectivePartnerAgent');
+    const { parentAgent } = await loadAgentWithParent(id, projectId);
+
     const linkContext = {
         enabled: true,
-        agent,
+        agent: agentForPartnerTracking(agent, parentAgent),
         projectSettings,
         clientId: clientId != null ? Number(clientId) : undefined,
     };

@@ -53,7 +53,21 @@ Content-Type: application/json
 
 ## Шаг 2 (UI можно позже)
 
-`POST /api/auth/verify-agent-registration` — `{ email, code, password }` → JWT.
+`POST /api/auth/verify-agent-registration` — `{ email, code, password }` → JWT и поля профиля (как `GET /auth/me`).
+
+## После verify / auth/me: ссылка на Finam
+
+| Поле | Назначение фронта |
+|------|-------------------|
+| `finam_agent_registration_url` | Кнопка «Зарегистрироваться агентом Финама». База: `https://broker.finam.ru/landing/agent/`. Если пришёл по `ref` и у куратора есть Finam ID — URL с `utm_partner_finam` куратора |
+| `finam_agent_referral_url` | Своя реферальная на Finam; `null`, пока нет `partner_agent_id` |
+| `has_partner_full_access` | `false` → ограничить ЛК / wizard Finam ID |
+| `effective_partner_agent_id` | ID для UTM (свой или куратора после skip) |
+| `partner_agent_id_mode` | `own` \| `parent_inherited` \| null |
+
+Wizard: `POST /api/pfp/agents/me/partner-id-wizard` — `action: set` (свой ID) или `action: skip` (наследовать Finam ID куратора, без записи в `partner_agent_id`).
+
+Env бэкенда (опционально): `FINAM_AGENT_LANDING_URL`.
 
 ## API для куратора в ЛК
 

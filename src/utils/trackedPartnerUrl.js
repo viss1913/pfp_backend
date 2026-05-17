@@ -31,6 +31,7 @@ function inferLinkTypeFromUrl(urlString) {
     if (u.includes('comon.ru')) return 'comon';
     if (u.includes('open/order')) return 'broker_open';
     if (u.includes('bonus.finam')) return 'bonus';
+    if (u.includes('/landing/agent')) return 'agent_register';
     if (u.includes('vygodniy-perekhod') || u.includes('broker.finam.ru/landing')) return 'transfer';
     if (u.includes('/idu/') || u.includes('funds.finam.ru')) return 'idu';
     if (u.includes('/pds')) return 'pds';

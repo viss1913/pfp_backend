@@ -44,7 +44,15 @@ Content-Type: application/json
 
 После входа: `GET /api/auth/me`
 
-Если `partner_agent_id_required === true` и `partner_agent_id` пустой — full-screen wizard (PATCH `/api/pfp/agents/{agentId}` с Finam ID или `partner_ref_url`).
+Если `has_partner_full_access === false` — wizard Finam ID:
+
+| Действие | API |
+|----------|-----|
+| Ввести свой ID | `POST /api/pfp/agents/me/partner-id-wizard` `{ "action": "set", "partner_agent_id": "…" }` или `partner_ref_url` |
+| Пропустить (ID куратора для UTM) | `{ "action": "skip" }` — только если есть `parent_agent_id` и у куратора есть Finam ID |
+| Альтернатива | `PATCH /api/pfp/agents/{agentId}` с `partner_agent_id` |
+
+После wizard — смотреть `GET /api/auth/me`: `effective_partner_agent_id`, `partner_agent_id_mode` (`own` | `parent_inherited`).
 
 ## Env бэкенда
 

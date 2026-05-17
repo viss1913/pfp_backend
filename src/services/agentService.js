@@ -168,9 +168,11 @@ class AgentService {
                 await assertPartnerAgentIdAvailable(projectId, nextId, id);
                 profile.partner_agent_id = nextId;
                 profile.partner_agent_id_source = partner_ref_url ? 'registration_ref' : 'admin';
+                profile.inherit_parent_partner_agent_id = false;
             } else if (profile.partner_agent_id === null || profile.partner_agent_id === '') {
                 profile.partner_agent_id = null;
                 profile.partner_agent_id_source = null;
+                profile.inherit_parent_partner_agent_id = false;
             }
         }
 

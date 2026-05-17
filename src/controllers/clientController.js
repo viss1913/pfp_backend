@@ -944,10 +944,14 @@ class ClientController {
                 return res.status(404).json({ error: 'Agent not found' });
             }
 
+            const { loadAgentWithParent } = require('../services/agentPartnerIdWizardService');
+            const { agentForPartnerTracking } = require('../utils/effectivePartnerAgent');
+            const { parentAgent } = await loadAgentWithParent(emailAgentId, projectId);
+
             const project = await projectService.getProjectById(projectId);
             const projectSettings = parseProjectSettings(project?.settings);
             const emailLinkOpts = {
-                agent,
+                agent: agentForPartnerTracking(agent, parentAgent),
                 projectSettings,
                 clientId,
                 paramOverrides: { utm_medium: 'email' },
