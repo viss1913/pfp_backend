@@ -54,5 +54,6 @@ router.post(
 );
 router.get('/:id', agentController.getById);
 router.patch('/:id', agentController.update);
+router.delete('/:id', agentController.delete.bind(agentController));
 
 module.exports = router;

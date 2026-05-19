@@ -2590,6 +2590,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Agent'
 
+    delete:
+      summary: Деактивировать агента (админка)
+      description: |
+        Мягкое удаление (is_active=false у agents и users). Только admin / super_admin.
+        Клиенты и субагенты в БД не удаляются и не переназначаются — только деактивация записи агента.
+      tags: [Agents]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204': { description: Агент деактивирован }
+        '403': { description: Forbidden }
+        '404': { description: Agent not found }
+
   /pfp/agents/me/subagents:
     get:
       summary: Список прямых субагентов текущего агента

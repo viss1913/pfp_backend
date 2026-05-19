@@ -120,6 +120,21 @@ class AgentController {
         }
     }
 
+    async delete(req, res, next) {
+        try {
+            const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+            if (!isAdmin) {
+                return res.status(403).json({ error: 'Forbidden: Admin role required' });
+            }
+            const isSuperAdmin = req.user.role === 'super_admin';
+            const projectId = isSuperAdmin ? null : (req.projectId || req.user?.projectId);
+            await agentService.deleteAgent(req.params.id, projectId);
+            return res.status(204).send();
+        } catch (err) {
+            next(err);
+        }
+    }
+
     /**
      * POST /api/pfp/agents/:id/signature-upload
      * multipart field `image` (jpeg, png, webp, max 8MB) → R2 или локальный fallback, URL в agents.signature_image_url

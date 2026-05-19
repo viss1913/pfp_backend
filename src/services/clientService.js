@@ -174,12 +174,17 @@ class ClientService {
                 ...nestedClientAssets
             ];
 
+            if (!clientData.project_id && clientData.agent_id) {
+                const agentRow = await trx("agents").where({ id: clientData.agent_id }).first();
+                if (agentRow) clientData.project_id = agentRow.project_id;
+            }
+
             // 1. Check if client exists by email (Upsert logic)
             if (clientData.email) {
-                const existing = await clientRepository.findByEmail(clientData.email, null, trx);
+                const existing = await clientRepository.findByEmail(clientData.email, clientData.project_id || null, trx);
                 if (existing) {
                     clientId = existing.id;
-                    await clientRepository.update(clientId, clientData, null, trx);
+                    await clientRepository.update(clientId, clientData, clientData.project_id || null, trx);
 
                     // Clear existing related data to replace with new data (Fresh Start)
                     await clientRepository.deleteAssets(clientId, trx);

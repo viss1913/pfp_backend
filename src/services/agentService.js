@@ -242,6 +242,32 @@ class AgentService {
             return result;
         });
     }
+
+    async deleteAgent(id, projectId = null) {
+        const agentId = Number(id);
+        if (!Number.isFinite(agentId) || agentId <= 0) {
+            throw { status: 400, message: 'Invalid agent id' };
+        }
+        const existing = await this.getAgentById(agentId, projectId);
+        if (!existing) throw { status: 404, message: 'Agent not found' };
+        const resolvedProjectId = existing.project_id;
+        if (projectId != null && Number(resolvedProjectId) !== Number(projectId)) {
+            throw { status: 404, message: 'Agent not found' };
+        }
+        // Клиентов и субагентов не удаляем и не переназначаем — только деактивация агента.
+        const now = new Date();
+        await knex.transaction(async (trx) => {
+            await trx('agents').where({ id: agentId, project_id: resolvedProjectId }).update({
+                is_active: false,
+                updated_at: now,
+            });
+            await trx('users').where({ agent_id: agentId, project_id: resolvedProjectId }).update({
+                is_active: false,
+                updated_at: now,
+            });
+        });
+        smmService.syncAgent(agentId).catch((err) => console.error('SMM sync delete failed:', err));
+    }
 }
 
 module.exports = new AgentService();
