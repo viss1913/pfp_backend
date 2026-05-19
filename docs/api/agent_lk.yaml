@@ -279,6 +279,10 @@ paths:
 
         **Связь субагента с куратором:** параметр `ref` в ссылке → поле `ref` в `POST /auth/register-agent` → `agents.parent_agent_id`.
         `utm_partner_finam` — только атрибуция в `registration_attribution`, **не** подставлять в `partner_agent_id` нового агента.
+
+        **Глубина сети:** лимит `projects.settings.agent_network.max_depth` (по умолчанию после миграции `20260519120000` — **2**).
+        При `max_depth=2` приглашать могут куратор (depth 0) и субагент (depth 1); при `max_depth=1` — только куратор.
+        Превышение → `400` с текстом про `max_depth`.
       responses:
         '200':
           description: OK

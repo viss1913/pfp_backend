@@ -48,6 +48,43 @@ async function resolveParentAgentFromRef(projectId, ref, trx = knex) {
     return parent;
 }
 
+/**
+ * Tree depth: 0 = root (no parent_agent_id), 1 = direct subagent, etc.
+ * @param {number} parentDepth
+ * @param {number} maxDepth
+ * @returns {boolean}
+ */
+function canParentInviteSubagent(parentDepth, maxDepth) {
+    const max = Number(maxDepth) > 0 ? Number(maxDepth) : 1;
+    return Number(parentDepth) < max;
+}
+
+/**
+ * @param {number} agentId
+ * @param {import('knex').Knex} [trx]
+ * @returns {Promise<number>}
+ */
+async function getAgentTreeDepth(agentId, trx = knex) {
+    const startId = Number(agentId);
+    if (!Number.isFinite(startId) || startId <= 0) return 0;
+
+    let depth = 0;
+    let cursor = await trx('agents').where({ id: startId }).first();
+    const seen = new Set();
+
+    while (cursor?.parent_agent_id) {
+        if (seen.has(cursor.id)) break;
+        seen.add(cursor.id);
+        depth += 1;
+        const parentId = Number(cursor.parent_agent_id);
+        if (!Number.isFinite(parentId) || parentId <= 0) break;
+        cursor = await trx('agents').where({ id: parentId }).first();
+        if (!cursor) break;
+    }
+
+    return depth;
+}
+
 async function assertValidParentAssignment({ agentId, parentAgentId, projectSettings, trx = knex }) {
     if (parentAgentId == null || parentAgentId === '') return;
 
@@ -68,10 +105,11 @@ async function assertValidParentAssignment({ agentId, parentAgentId, projectSett
         throw { status: 400, message: 'Родительский агент не найден' };
     }
 
-    if (maxDepth <= 1 && parent.parent_agent_id != null) {
+    const parentDepth = await getAgentTreeDepth(parentId, trx);
+    if (!canParentInviteSubagent(parentDepth, maxDepth)) {
         throw {
             status: 400,
-            message: 'Родитель уже является субагентом — глубина сети ограничена',
+            message: `Достигнут лимит глубины сети (max_depth=${maxDepth})`,
         };
     }
 
@@ -167,6 +205,8 @@ module.exports = {
     generateReferralSlug,
     ensureReferralSlug,
     resolveParentAgentFromRef,
+    canParentInviteSubagent,
+    getAgentTreeDepth,
     assertValidParentAssignment,
     enrichRegistrationAttributionBody,
     buildRegistrationAttribution,

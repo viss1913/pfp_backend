@@ -21,7 +21,7 @@ https://pfp-front-ver3.vercel.app/register
 | Query | Действие фронта |
 |-------|-----------------|
 | `project_key` | Сохранить → `register-agent.project_key` |
-| `ref` | **Обязательно** сохранить (sessionStorage) → `register-agent.ref` → связь с куратором (`parent_agent_id`) |
+| `ref` | **Обязательно** сохранить (sessionStorage) → `register-agent.ref` → связь с пригласившим (`parent_agent_id`). Субагент тоже может звать своих, если в проекте `agent_network.max_depth` ≥ 2 |
 | `utm_*` | Пробросить в body `register-agent` как одноимённые поля (рекомендуется) |
 | `utm_partner_finam` | Только UTM / attribution; **не** писать в `partner_agent_id` нового агента. Если не передать в body, но есть `ref` — бэк подставит Finam ID куратора сам |
 
