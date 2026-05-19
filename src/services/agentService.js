@@ -11,6 +11,7 @@ const {
 } = require('../utils/partnerAgentId');
 const { parseProjectSettings } = require('../utils/projectSettings');
 const agentNetworkService = require('./agentNetworkService');
+const { releaseUserEmailOnDeactivation } = require('../utils/userEmailRegistration');
 
 const AGENT_STRIP_KEYS = new Set([
     'email',
@@ -261,10 +262,12 @@ class AgentService {
                 is_active: false,
                 updated_at: now,
             });
-            await trx('users').where({ agent_id: agentId, project_id: resolvedProjectId }).update({
-                is_active: false,
-                updated_at: now,
-            });
+            const userRow = await trx('users')
+                .where({ agent_id: agentId, project_id: resolvedProjectId })
+                .first();
+            if (userRow) {
+                await releaseUserEmailOnDeactivation(userRow, trx);
+            }
         });
         smmService.syncAgent(agentId).catch((err) => console.error('SMM sync delete failed:', err));
     }

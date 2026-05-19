@@ -8,6 +8,7 @@ const {
 } = require('../utils/familyOfficeActivateUrl');
 const { withNormalizedBirthDate } = require('../utils/normalizeMysqlDate');
 const { normalizeGender } = require('../utils/normalizeGender');
+const { assertActiveUserEmailAvailable } = require('../utils/userEmailRegistration');
 
 function buildProvisionAttribution(inviterAgent, sourceNote) {
     const out = {
@@ -38,10 +39,7 @@ class AgentInviteService {
             throw { status: 400, message: 'Укажите email' };
         }
 
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 409, message: 'Пользователь с таким email уже существует' };
-        }
+        await assertActiveUserEmailAvailable(email, projectId);
 
         const profile = withNormalizedBirthDate({
             first_name: body.first_name || null,

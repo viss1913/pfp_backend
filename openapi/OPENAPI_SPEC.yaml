@@ -2593,8 +2593,9 @@ paths:
     delete:
       summary: Деактивировать агента (админка)
       description: |
-        Мягкое удаление (is_active=false у agents и users). Только admin / super_admin.
-        Клиенты и субагенты в БД не удаляются и не переназначаются — только деактивация записи агента.
+        Мягкое удаление (is_active=false у agents; email пользователя освобождается для повторной регистрации).
+        Только admin / super_admin. Клиенты и субагенты в БД не удаляются и не переназначаются.
+        Один email можно завести в другом project_id (уникальность users: email + project_id).
       tags: [Agents]
       parameters:
         - in: path

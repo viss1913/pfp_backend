@@ -30,6 +30,11 @@ const {
     getMainFinamPartnerIdFromEnv,
     assertFamilyOfficeProjectAllowed,
 } = require('../utils/mainFinamPartnerId');
+const {
+    normalizeRegistrationEmail,
+    assertActiveUserEmailAvailable,
+    purgeInactiveUserForEmail,
+} = require('../utils/userEmailRegistration');
 
 const FAMILY_OFFICE_SELF_REGISTER_PURPOSE = 'family_office_self_register';
 
@@ -146,10 +151,15 @@ class AuthService {
     async register(data) {
         const { email, password, name, agentId, projectId } = data;
 
-        // Check if user already exists
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 400, message: 'User with this email already exists' };
+        if (projectId) {
+            await assertActiveUserEmailAvailable(email, projectId);
+        } else {
+            const existingUser = await db('users')
+                .where({ email: normalizeRegistrationEmail(email), is_active: true })
+                .first();
+            if (existingUser) {
+                throw { status: 400, message: 'User with this email already exists' };
+            }
         }
 
         // Hash password
@@ -182,17 +192,12 @@ class AuthService {
      * @param {{ email: string, name: string, project_key: string }} data
      */
     async initiateClientRegistration({ email, name, project_key }) {
-        // Check if user already exists
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 400, message: 'Пользователь с таким email уже существует' };
-        }
-
-        // Find project by public key
         const project = await projectService.getProjectByPublicKey(project_key);
         if (!project) {
             throw { status: 400, message: 'Неверный ключ проекта' };
         }
+
+        await assertActiveUserEmailAvailable(email, project.id);
 
         // Generate 6-digit code
         const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -242,11 +247,7 @@ class AuthService {
             throw { status: 400, message: 'Неверный или истёкший код подтверждения' };
         }
 
-        // Double-check user doesn't exist (race condition guard)
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 400, message: 'Пользователь с таким email уже существует' };
-        }
+        await assertActiveUserEmailAvailable(email, verification.project_id);
 
         // Mark code as verified
         await db('email_verifications')
@@ -261,12 +262,16 @@ class AuthService {
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
+        const normalizedEmail = normalizeRegistrationEmail(email);
+
         // Create user + client in a transaction
         const result = await db.transaction(async (trx) => {
+            await purgeInactiveUserForEmail(normalizedEmail, verification.project_id, trx);
+
             // Create user
             const [userId] = await trx('users').insert({
                 project_id: verification.project_id,
-                email,
+                email: normalizedEmail,
                 password_hash: passwordHash,
                 name: verification.name || 'Client',
                 role: 'client',
@@ -316,17 +321,12 @@ class AuthService {
      * @param {{ email: string, password: string, project_key: string, name?: string }} data
      */
     async registerFastClient({ email, password, project_key, name }) {
-        // Double-check user doesn't exist
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 400, message: 'Пользователь с таким email уже существует' };
-        }
-
-        // Find project by public key
         const project = await projectService.getProjectByPublicKey(project_key);
         if (!project) {
             throw { status: 400, message: 'Неверный ключ проекта' };
         }
+
+        await assertActiveUserEmailAvailable(email, project.id);
 
         // Parse name into first/last
         const clientName = name || 'Client';
@@ -402,15 +402,12 @@ class AuthService {
             ref,
         } = body;
 
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 400, message: 'Пользователь с таким email уже существует' };
-        }
-
         const project = await projectService.getProjectByPublicKey(project_key);
         if (!project) {
             throw { status: 400, message: 'Неверный ключ проекта' };
         }
+
+        await assertActiveUserEmailAvailable(email, project.id);
 
         const settings = parseProjectSettings(project.settings);
         const network = getAgentNetworkSettings(settings);
@@ -503,10 +500,7 @@ class AuthService {
             throw { status: 400, message: 'Неверный или истёкший код подтверждения' };
         }
 
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 400, message: 'Пользователь с таким email уже существует' };
-        }
+        await assertActiveUserEmailAvailable(email, verification.project_id);
 
         let payload = {};
         try {
@@ -556,15 +550,12 @@ class AuthService {
             utm_partner_finam,
         } = body;
 
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 400, message: 'Пользователь с таким email уже существует' };
-        }
-
         const project = await projectService.getProjectByPublicKey(project_key);
         if (!project) {
             throw { status: 400, message: 'Неверный ключ проекта' };
         }
+
+        await assertActiveUserEmailAvailable(email, project.id);
 
         assertFamilyOfficeProjectAllowed(project.id);
 
@@ -638,10 +629,7 @@ class AuthService {
             throw { status: 400, message: 'Неверный или истёкший код подтверждения' };
         }
 
-        const existingUser = await db('users').where({ email }).first();
-        if (existingUser) {
-            throw { status: 400, message: 'Пользователь с таким email уже существует' };
-        }
+        await assertActiveUserEmailAvailable(email, verification.project_id);
 
         let payload = {};
         try {
@@ -703,12 +691,15 @@ class AuthService {
         registration_attribution,
         skipToken = false,
     }) {
+        const normalizedEmail = normalizeRegistrationEmail(email);
         const passwordHash = await bcrypt.hash(password, 10);
         const name = [first_name, last_name].filter(Boolean).join(' ').trim() || 'Агент';
         const agentUuid = crypto.randomUUID();
         const referralSlug = agentNetworkService.generateReferralSlug();
 
         const result = await db.transaction(async (trx) => {
+            await purgeInactiveUserForEmail(normalizedEmail, project_id, trx);
+
             const [agentId] = await trx('agents').insert({
                 project_id,
                 first_name: first_name || null,
@@ -734,7 +725,7 @@ class AuthService {
             const [userId] = await trx('users').insert({
                 agent_id: aid,
                 project_id,
-                email,
+                email: normalizedEmail,
                 password_hash: passwordHash,
                 name,
                 role: 'agent',
