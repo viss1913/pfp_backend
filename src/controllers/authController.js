@@ -61,6 +61,30 @@ const verifyAgentRegistrationSchema = Joi.object({
     password: Joi.string().min(6).required(),
 });
 
+const registerFamilyOfficeSchema = Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    first_name: Joi.string().max(100).required(),
+    last_name: Joi.string().max(100).required(),
+    middle_name: Joi.string().max(100).allow('').optional(),
+    phone: Joi.string().max(50).required(),
+    gender: Joi.string()
+        .valid('male', 'female', 'M', 'F', 'мужской', 'женский')
+        .required(),
+    project_key: Joi.string().required(),
+    utm_source: Joi.string().max(128).allow('').optional(),
+    utm_medium: Joi.string().max(128).allow('').optional(),
+    utm_campaign: Joi.string().max(128).allow('').optional(),
+    utm_content: Joi.string().max(128).allow('').optional(),
+    utm_term: Joi.string().max(128).allow('').optional(),
+    utm_partner_finam: Joi.string().max(64).allow('').optional(),
+});
+
+const verifyFamilyOfficeRegistrationSchema = Joi.object({
+    email: Joi.string().email({ tlds: { allow: false } }).required(),
+    code: Joi.string().length(6).required(),
+    password: Joi.string().min(6).required(),
+});
+
 const parsePartnerAgentSchema = Joi.object({
     project_key: Joi.string().required(),
     partner_agent_id: Joi.string().max(64).allow('').optional(),
@@ -187,6 +211,42 @@ class AuthController {
             }
 
             const result = await authService.verifyAndCreateAgent(validation.value);
+            res.status(201).json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Family Office self-registration step 1 — send verification code.
+     * POST /auth/register-family-office
+     */
+    async registerFamilyOffice(req, res, next) {
+        try {
+            const validation = registerFamilyOfficeSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const result = await authService.initiateFamilyOfficeSelfRegistration(validation.value);
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Family Office self-registration step 2 — verify code and create account.
+     * POST /auth/verify-family-office-registration
+     */
+    async verifyFamilyOfficeRegistration(req, res, next) {
+        try {
+            const validation = verifyFamilyOfficeRegistrationSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const result = await authService.verifyAndCreateFamilyOfficeAgent(validation.value);
             res.status(201).json(result);
         } catch (err) {
             next(err);

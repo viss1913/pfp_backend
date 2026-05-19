@@ -3,7 +3,7 @@ info:
   title: Agent LK API (Личный кабинет агента)
   description: |
     API для управления инвестиционными продуктами и портфелями со стороны Агента.
-    **Авторизация и регистрация агента:** `POST /auth/login`, двухшаговая регистрация `POST /auth/register-agent` → `POST /auth/verify-agent-registration` (код **6 цифр** на email через **Resend**, отправитель `noreply@…` при `RESEND_FROM_EMAIL={agent}@domain`). Поля партнёра: `partner_agent_id`, `partner_ref_url`, `ref` (приглашение субагента). См. тег **«Регистрация и профиль агента»**.
+    **Авторизация и регистрация агента:** `POST /auth/login`, двухшаговая регистрация `POST /auth/register-agent` → `POST /auth/verify-agent-registration` (код **6 цифр** на email через **Resend**, отправитель `noreply@…` при `RESEND_FROM_EMAIL={agent}@domain`). Поля партнёра: `partner_agent_id`, `partner_ref_url`, `ref` (приглашение субагента). **Самостоятельное открытие Family Office с сайта:** `POST /auth/register-family-office` → `POST /auth/verify-family-office-registration` (ФИО, телефон, пол, email + код). См. тег **«Регистрация и профиль агента»** и `docs/FRONT_FAMILY_OFFICE_SELF_REGISTER.md`.
 
     Все методы работают с привязкой к `project_id` авторизованного агента.
     Системные (дефолтные) продукты и портфели (где `project_id == null`) доступны Агенту только на чтение и клонирование.
@@ -124,6 +124,57 @@ paths:
           description: |
             Аккаунт создан, JWT как при login. Дополнительно поля профиля агента
             (`partner_agent_id`, `has_partner_full_access`, `finam_agent_registration_url`, …) — как в `GET /auth/me`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRegisterVerifyResponse'
+        '400':
+          description: Неверный или просроченный код
+
+  /auth/register-family-office:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: "Family Office с сайта, шаг 1 — анкета и код на email"
+      description: |
+        Публичный endpoint для лендинга «Открой свой Family Office».
+        Обязательны email, имя, фамилия, телефон, пол, **project_key** (выбор проекта на фронте).
+        Не требует ref и не проверяет `require_invite_ref`.
+        `parent_agent_id` при создании аккаунта = null.
+        purpose в `email_verifications`: `family_office_self_register`.
+
+        **Env:** `PFP_MAIN_FINAM_AGENT_ID` — платформенный Finam ID для UTM в отчётах/ссылках (effective, не в колонку `partner_agent_id`).
+        Опционально `FAMILY_OFFICE_SELF_REGISTER_PROJECT_IDS` — whitelist numeric `project_id` (400, если проект не в списке).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FamilyOfficeSelfRegisterStep1Request'
+      responses:
+        '200':
+          description: Код отправлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationCodeSentResponse'
+        '400':
+          description: Email занят, неверный project_key, проект не в whitelist FO, не указан пол
+
+  /auth/verify-family-office-registration:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: "Family Office с сайта, шаг 2 — код + пароль → JWT"
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegisterStep2Request'
+      responses:
+        '201':
+          description: Аккаунт FO создан, JWT как при login
           content:
             application/json:
               schema:
@@ -2722,6 +2773,26 @@ paths:
 
 components:
   schemas:
+    FamilyOfficeSelfRegisterStep1Request:
+      type: object
+      required: [email, first_name, last_name, phone, gender, project_key]
+      properties:
+        email: { type: string, format: email }
+        first_name: { type: string, maxLength: 100 }
+        last_name: { type: string, maxLength: 100 }
+        middle_name: { type: string, maxLength: 100 }
+        phone: { type: string, maxLength: 50 }
+        gender:
+          type: string
+          enum: [male, female, M, F, мужской, женский]
+        project_key: { type: string }
+        utm_source: { type: string }
+        utm_medium: { type: string }
+        utm_campaign: { type: string }
+        utm_content: { type: string }
+        utm_term: { type: string }
+        utm_partner_finam: { type: string, maxLength: 64 }
+
     AgentRegisterStep1Request:
       type: object
       required: [email, project_key]
@@ -2823,11 +2894,12 @@ components:
         effective_partner_agent_id:
           type: string
           nullable: true
-          description: "Для UTM/отчётов: свой ID или ID куратора при skip"
+          description: "Для UTM/отчётов: свой ID, ID куратора при skip, или PFP_MAIN_FINAM_AGENT_ID для FO self-register"
         partner_agent_id_mode:
           type: string
           nullable: true
-          enum: [own, parent_inherited]
+          enum: [own, parent_inherited, platform_default]
+          description: "platform_default — FO с сайта и задан env PFP_MAIN_FINAM_AGENT_ID"
         inherit_parent_partner_agent_id:
           type: boolean
           description: "true после action=skip"
@@ -2835,7 +2907,7 @@ components:
         partner_agent_id_required: { type: boolean }
         has_partner_full_access:
           type: boolean
-          description: "true если Finam ID не обязателен, свой ID есть, или skip с Finam ID куратора"
+          description: "true если Finam ID не обязателен, свой ID есть, skip с Finam ID куратора, или platform_default (FO self-register)"
         parent_agent_id: { type: integer, nullable: true }
         finam_agent_registration_url:
           type: string

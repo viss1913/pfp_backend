@@ -24,6 +24,14 @@ const {
     hasPartnerFullAccess,
     agentForPartnerTracking,
 } = require('../utils/effectivePartnerAgent');
+const { normalizeGender } = require('../utils/normalizeGender');
+const {
+    FAMILY_OFFICE_SELF_REGISTER_UTM_MEDIUM,
+    getMainFinamPartnerIdFromEnv,
+    assertFamilyOfficeProjectAllowed,
+} = require('../utils/mainFinamPartnerId');
+
+const FAMILY_OFFICE_SELF_REGISTER_PURPOSE = 'family_office_self_register';
 
 if (!process.env.JWT_SECRET) {
     console.warn('CRITICAL WARNING: JWT_SECRET environment variable is not set!');
@@ -524,6 +532,143 @@ class AuthService {
             partner_agent_id: payload.partner_agent_id,
             partner_agent_id_source: payload.partner_agent_id_source,
             parent_agent_id: payload.parent_agent_id,
+            registration_attribution: payload.registration_attribution,
+        });
+    }
+
+    /**
+     * Step 1: public self-registration — open own Family Office (no curator invite).
+     */
+    async initiateFamilyOfficeSelfRegistration(body) {
+        const {
+            email,
+            first_name,
+            last_name,
+            middle_name,
+            phone,
+            gender,
+            project_key,
+            utm_source,
+            utm_medium,
+            utm_campaign,
+            utm_content,
+            utm_term,
+            utm_partner_finam,
+        } = body;
+
+        const existingUser = await db('users').where({ email }).first();
+        if (existingUser) {
+            throw { status: 400, message: 'Пользователь с таким email уже существует' };
+        }
+
+        const project = await projectService.getProjectByPublicKey(project_key);
+        if (!project) {
+            throw { status: 400, message: 'Неверный ключ проекта' };
+        }
+
+        assertFamilyOfficeProjectAllowed(project.id);
+
+        const normalizedGender = normalizeGender(gender);
+        if (!normalizedGender) {
+            throw { status: 400, message: 'Укажите пол (male / female)' };
+        }
+
+        const mainFinamId = getMainFinamPartnerIdFromEnv();
+        const registrationAttribution = {
+            captured_at: new Date().toISOString(),
+            utm_source: utm_source ? String(utm_source).trim() : 'pfp',
+            utm_medium: utm_medium ? String(utm_medium).trim() : FAMILY_OFFICE_SELF_REGISTER_UTM_MEDIUM,
+            utm_campaign: utm_campaign ? String(utm_campaign).trim() : 'open_family_office',
+        };
+        if (utm_content) registrationAttribution.utm_content = String(utm_content).trim();
+        if (utm_term) registrationAttribution.utm_term = String(utm_term).trim();
+        if (utm_partner_finam) {
+            registrationAttribution.utm_partner_finam = String(utm_partner_finam).trim();
+        } else if (mainFinamId) {
+            registrationAttribution.utm_partner_finam = mainFinamId;
+        }
+
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MINUTES * 60 * 1000);
+        const payload = {
+            first_name: first_name || null,
+            last_name: last_name || null,
+            middle_name: middle_name || null,
+            phone: phone != null && String(phone).trim() !== '' ? String(phone).trim() : null,
+            gender: normalizedGender,
+            parent_agent_id: null,
+            registration_attribution: registrationAttribution,
+        };
+
+        await db('email_verifications')
+            .where({ email, purpose: FAMILY_OFFICE_SELF_REGISTER_PURPOSE, verified: false })
+            .del();
+
+        await db('email_verifications').insert({
+            email,
+            code,
+            project_id: project.id,
+            name: [first_name, last_name].filter(Boolean).join(' ').trim() || 'Агент',
+            purpose: FAMILY_OFFICE_SELF_REGISTER_PURPOSE,
+            payload: JSON.stringify(payload),
+            expires_at: expiresAt,
+            verified: false,
+        });
+
+        await emailService.sendVerificationCode(email, code, { purpose: 'agent' });
+
+        return {
+            message: 'Код подтверждения отправлен на вашу почту',
+            email,
+            expires_in_minutes: VERIFICATION_CODE_TTL_MINUTES,
+        };
+    }
+
+    /**
+     * Step 2: verify code and create Family Office owner account.
+     */
+    async verifyAndCreateFamilyOfficeAgent({ email, code, password }) {
+        const verification = await db('email_verifications')
+            .where({ email, code, purpose: FAMILY_OFFICE_SELF_REGISTER_PURPOSE, verified: false })
+            .where('expires_at', '>', new Date())
+            .orderBy('created_at', 'desc')
+            .first();
+
+        if (!verification) {
+            throw { status: 400, message: 'Неверный или истёкший код подтверждения' };
+        }
+
+        const existingUser = await db('users').where({ email }).first();
+        if (existingUser) {
+            throw { status: 400, message: 'Пользователь с таким email уже существует' };
+        }
+
+        let payload = {};
+        try {
+            payload =
+                typeof verification.payload === 'string'
+                    ? JSON.parse(verification.payload)
+                    : verification.payload || {};
+        } catch (_) {
+            payload = {};
+        }
+
+        await db('email_verifications')
+            .where({ id: verification.id })
+            .update({ verified: true });
+
+        return this._createAgentAccount({
+            email,
+            password,
+            project_id: verification.project_id,
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            middle_name: payload.middle_name,
+            phone: payload.phone,
+            gender: payload.gender,
+            partner_agent_id: null,
+            partner_agent_id_source: null,
+            parent_agent_id: null,
             registration_attribution: payload.registration_attribution,
         });
     }

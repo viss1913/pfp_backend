@@ -18,6 +18,13 @@ router.post('/register-fast', authController.registerFast);
 // Agent self-registration (2-step, Resend verification code)
 router.post('/register-agent', authController.registerAgent);
 router.post('/verify-agent-registration', authController.verifyAgentRegistration.bind(authController));
+
+// Family Office self-registration (public site, 2-step with email code)
+router.post('/register-family-office', authController.registerFamilyOffice.bind(authController));
+router.post(
+    '/verify-family-office-registration',
+    authController.verifyFamilyOfficeRegistration.bind(authController)
+);
 router.post('/parse-partner-agent', authController.parsePartnerAgent.bind(authController));
 router.get('/agent-invite/preview', authController.previewAgentInvite.bind(authController));
 router.post('/activate-agent-invite', authController.activateAgentInvite.bind(authController));

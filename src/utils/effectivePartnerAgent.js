@@ -3,6 +3,11 @@
  * Never copy parent ID into agents.partner_agent_id (unique per project).
  */
 
+const {
+    getMainFinamPartnerIdFromEnv,
+    isFamilyOfficeSelfRegisterAgent,
+} = require('./mainFinamPartnerId');
+
 function normalizePartnerId(raw) {
     if (raw == null) return null;
     const s = String(raw).trim();
@@ -11,6 +16,11 @@ function normalizePartnerId(raw) {
 
 function isInheritParentPartnerId(agent) {
     return agent?.inherit_parent_partner_agent_id === true;
+}
+
+function resolvePlatformDefaultPartnerId(agent) {
+    if (!isFamilyOfficeSelfRegisterAgent(agent)) return null;
+    return getMainFinamPartnerIdFromEnv();
 }
 
 /**
@@ -22,19 +32,21 @@ function resolveEffectivePartnerAgentId(agent, parentAgent = null) {
     const own = normalizePartnerId(agent?.partner_agent_id);
     if (own) return own;
     if (isInheritParentPartnerId(agent)) {
-        return normalizePartnerId(parentAgent?.partner_agent_id);
+        const parentId = normalizePartnerId(parentAgent?.partner_agent_id);
+        if (parentId) return parentId;
     }
-    return null;
+    return resolvePlatformDefaultPartnerId(agent);
 }
 
 /**
- * @returns {'own'|'parent_inherited'|null}
+ * @returns {'own'|'parent_inherited'|'platform_default'|null}
  */
 function resolvePartnerAgentIdMode(agent, parentAgent = null) {
     if (normalizePartnerId(agent?.partner_agent_id)) return 'own';
     if (isInheritParentPartnerId(agent) && normalizePartnerId(parentAgent?.partner_agent_id)) {
         return 'parent_inherited';
     }
+    if (resolvePlatformDefaultPartnerId(agent)) return 'platform_default';
     return null;
 }
 
@@ -50,6 +62,7 @@ function hasPartnerFullAccess(agent, parentAgent, partnerIdRequired) {
     ) {
         return true;
     }
+    if (resolvePlatformDefaultPartnerId(agent)) return true;
     return false;
 }
 

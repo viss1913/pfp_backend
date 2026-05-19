@@ -53,3 +53,48 @@ test('agentForPartnerTracking sets effective id on copy', () => {
     assert.equal(tracked.partner_agent_id, 'PARENT1');
     assert.equal(resolvePartnerAgentIdMode(agent, parent), 'parent_inherited');
 });
+
+test('resolveEffectivePartnerAgentId uses platform default for FO self-register', () => {
+    const prev = process.env.PFP_MAIN_FINAM_AGENT_ID;
+    process.env.PFP_MAIN_FINAM_AGENT_ID = 'PLATFORM1';
+    const agent = {
+        partner_agent_id: null,
+        inherit_parent_partner_agent_id: false,
+        registration_attribution: JSON.stringify({
+            utm_medium: 'family_office_self_register',
+        }),
+    };
+    assert.equal(resolveEffectivePartnerAgentId(agent, null), 'PLATFORM1');
+    assert.equal(resolvePartnerAgentIdMode(agent, null), 'platform_default');
+    assert.equal(hasPartnerFullAccess(agent, null, true), true);
+    if (prev === undefined) delete process.env.PFP_MAIN_FINAM_AGENT_ID;
+    else process.env.PFP_MAIN_FINAM_AGENT_ID = prev;
+});
+
+test('resolveEffectivePartnerAgentId prefers own over platform default', () => {
+    const prev = process.env.PFP_MAIN_FINAM_AGENT_ID;
+    process.env.PFP_MAIN_FINAM_AGENT_ID = 'PLATFORM1';
+    const agent = {
+        partner_agent_id: 'OWN99',
+        registration_attribution: JSON.stringify({
+            utm_medium: 'family_office_self_register',
+        }),
+    };
+    assert.equal(resolveEffectivePartnerAgentId(agent, null), 'OWN99');
+    assert.equal(resolvePartnerAgentIdMode(agent, null), 'own');
+    if (prev === undefined) delete process.env.PFP_MAIN_FINAM_AGENT_ID;
+    else process.env.PFP_MAIN_FINAM_AGENT_ID = prev;
+});
+
+test('FO self-register without env platform id returns null effective', () => {
+    const prev = process.env.PFP_MAIN_FINAM_AGENT_ID;
+    delete process.env.PFP_MAIN_FINAM_AGENT_ID;
+    const agent = {
+        partner_agent_id: null,
+        registration_attribution: JSON.stringify({
+            utm_medium: 'family_office_self_register',
+        }),
+    };
+    assert.equal(resolveEffectivePartnerAgentId(agent, null), null);
+    if (prev !== undefined) process.env.PFP_MAIN_FINAM_AGENT_ID = prev;
+});

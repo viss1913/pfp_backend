@@ -2,12 +2,14 @@
 
 Спека API: [`docs/api/agent_lk.yaml`](api/agent_lk.yaml).
 
-## Два режима приглашения субагента
+## Режимы онбординга агента / Family Office
 
 | Режим | API | UX |
 |-------|-----|-----|
-| Саморегистрация | `POST .../subagent-invite/send-email` | Ссылка на `/register`, код на email |
-| **Family Office** | `POST .../family-office-invite` | Куратор заполняет анкету → письмо с magic-link → `/invite/activate` |
+| Саморегистрация субагента | `POST /auth/register-agent` | Ссылка на `/register`, код на email |
+| Приглашение субагента (письмо) | `POST .../subagent-invite/send-email` | Ссылка на `/register` |
+| **FO от куратора** | `POST .../family-office-invite` | Куратор → magic-link → `/invite/activate` |
+| **FO с сайта (сам)** | `POST /auth/register-family-office` | См. [`FRONT_FAMILY_OFFICE_SELF_REGISTER.md`](FRONT_FAMILY_OFFICE_SELF_REGISTER.md) |
 
 ## Куратор: форма приглашения
 
