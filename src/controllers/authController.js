@@ -52,6 +52,7 @@ const registerAgentSchema = Joi.object({
     utm_campaign: Joi.string().max(128).allow('').optional(),
     utm_content: Joi.string().max(128).allow('').optional(),
     utm_term: Joi.string().max(128).allow('').optional(),
+    utm_partner_finam: Joi.string().max(64).allow('').optional(),
 });
 
 const verifyAgentRegistrationSchema = Joi.object({

@@ -22,8 +22,8 @@ https://pfp-front-ver3.vercel.app/register
 |-------|-----------------|
 | `project_key` | Сохранить → `register-agent.project_key` |
 | `ref` | **Обязательно** сохранить (sessionStorage) → `register-agent.ref` → связь с куратором (`parent_agent_id`) |
-| `utm_*` | Пробросить в body `register-agent` как одноимённые поля |
-| `utm_partner_finam` | Только UTM / attribution; **не** писать в `partner_agent_id` нового агента |
+| `utm_*` | Пробросить в body `register-agent` как одноимённые поля (рекомендуется) |
+| `utm_partner_finam` | Только UTM / attribution; **не** писать в `partner_agent_id` нового агента. Если не передать в body, но есть `ref` — бэк подставит Finam ID куратора сам |
 
 ## Регистрация шаг 1
 

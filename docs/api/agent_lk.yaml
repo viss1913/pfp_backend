@@ -78,6 +78,7 @@ paths:
       summary: "Регистрация агента, шаг 1 — отправить код на email (Resend)"
       description: |
         Публичный endpoint. Проверяет `project_key`, Finam ID (если `require_on_registration` в settings проекта), `ref` пригласившего агента (связь `parent_agent_id`).
+        При валидном `ref` сервер дополняет `utm_partner_finam` из Finam ID куратора (`partner_agent_id` пригласившего), если поле не передано; при расхождении с body побеждает ID куратора.
         Для Finam после миграции `20260517120000`: регистрация **без** обязательного Finam ID на шаге 1; поле `phone` сохраняется в профиле агента.
         Генерирует 6-значный код, сохраняет черновик в `email_verifications` (`purpose=agent_register`), отправляет письмо через **Resend**.
 
@@ -2741,6 +2742,12 @@ components:
         utm_campaign: { type: string }
         utm_content: { type: string }
         utm_term: { type: string }
+        utm_partner_finam:
+          type: string
+          maxLength: 64
+          description: |
+            Finam ID пригласившего куратора — только атрибуция в `registration_attribution`,
+            **не** подставлять в `partner_agent_id` нового агента. При `ref` сервер может дополнить из профиля куратора.
 
     AgentRegisterStep2Request:
       type: object

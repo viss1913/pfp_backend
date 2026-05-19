@@ -427,15 +427,21 @@ class AuthService {
         }
 
         let parentAgentId = null;
+        let parentAgent = null;
         if (ref) {
-            const parent = await agentNetworkService.resolveParentAgentFromRef(project.id, ref);
-            parentAgentId = parent.id;
+            parentAgent = await agentNetworkService.resolveParentAgentFromRef(project.id, ref);
+            parentAgentId = parentAgent.id;
             await agentNetworkService.assertValidParentAssignment({
                 agentId: null,
                 parentAgentId,
                 projectSettings: settings,
             });
         }
+
+        const attributionBody = agentNetworkService.enrichRegistrationAttributionBody(
+            body,
+            parentAgent
+        );
 
         const code = String(Math.floor(100000 + Math.random() * 900000));
         const expiresAt = new Date(Date.now() + VERIFICATION_CODE_TTL_MINUTES * 60 * 1000);
@@ -447,7 +453,8 @@ class AuthService {
             partner_agent_id_source: partner_ref_url ? 'registration_ref' : resolvedPartnerId ? 'registration_manual' : null,
             parent_agent_id: parentAgentId,
             ref: ref || null,
-            registration_attribution: agentNetworkService.buildRegistrationAttribution(body),
+            registration_attribution:
+                agentNetworkService.buildRegistrationAttribution(attributionBody),
         };
 
         await db('email_verifications')

@@ -88,6 +88,25 @@ async function assertValidParentAssignment({ agentId, parentAgentId, projectSett
     }
 }
 
+/**
+ * When ref resolves to a parent with Finam ID, set utm_partner_finam for attribution only.
+ * Parent wins over client-supplied value (anti-spoof).
+ * @param {object} body
+ * @param {{ partner_agent_id?: string|null }|null} parentAgent
+ * @returns {object}
+ */
+function enrichRegistrationAttributionBody(body = {}, parentAgent = null) {
+    const out = { ...body };
+    const parentFinamId =
+        parentAgent?.partner_agent_id != null && String(parentAgent.partner_agent_id).trim() !== ''
+            ? String(parentAgent.partner_agent_id).trim()
+            : null;
+    if (parentFinamId) {
+        out.utm_partner_finam = parentFinamId;
+    }
+    return out;
+}
+
 function buildRegistrationAttribution(body = {}) {
     const utm = {};
     for (const [key, value] of Object.entries(body)) {
@@ -149,6 +168,7 @@ module.exports = {
     ensureReferralSlug,
     resolveParentAgentFromRef,
     assertValidParentAssignment,
+    enrichRegistrationAttributionBody,
     buildRegistrationAttribution,
     listSubagents,
     resolveReferredByAgentId,
