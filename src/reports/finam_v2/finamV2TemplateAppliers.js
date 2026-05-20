@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { buildRepleneshmentRows } = require('../finam/buildFinamReportHtml');
+const { calculateOwnFundsFromSchedule, sumReplenishmentsFromSchedule } = require('../shared/ownFundsFromSchedule');
 const { FINAM_REPORT_V2_PAGE_TYPES } = require('./finamReportV2Contract');
 const { isAtbBankProject, applyAtbLifeGoalDisplay, atbBrandingRiskDeclarationHtml } = require('./finamV2AtbBranding');
 const {
@@ -769,17 +770,29 @@ function scheduleYearAmount(goal, fieldName) {
     return { year, amount };
 }
 
-function capitalComposition({ initial, monthly, months, total, cofin = 0 }) {
-    const own = Math.max(0, finite(initial, 0) + finite(monthly, 0) * Math.max(0, Math.round(finite(months, 0))));
-    const extra = Math.max(0, finite(total, 0) - own);
-    // Tax refunds are displayed as benefits, but only cofinancing is included in projected capital.
+function capitalComposition({ goal = null, initial, monthly, months, total, cofin = 0, schedule = null } = {}) {
+    const monthlySchedule = schedule ?? goal?.details?.monthly_schedule;
+    const initialValue = finite(initial, 0);
+    const fallbackOwn = Math.max(
+        0,
+        initialValue + finite(monthly, 0) * Math.max(0, Math.round(finite(months, 0)))
+    );
+    let own = calculateOwnFundsFromSchedule(monthlySchedule, fallbackOwn);
+    const totalValue = Math.max(0, finite(total, 0));
+    if (totalValue > 0 && own > totalValue) own = totalValue;
+    const replenishmentsFromSchedule = sumReplenishmentsFromSchedule(monthlySchedule);
+    const replenishments =
+        replenishmentsFromSchedule > 0
+            ? replenishmentsFromSchedule
+            : Math.max(0, own - initialValue);
+    const extra = Math.max(0, totalValue - own);
     const investment = Math.max(0, extra - finite(cofin, 0));
     return {
         own,
-        replenishments: Math.max(0, finite(monthly, 0) * Math.max(0, Math.round(finite(months, 0)))),
+        replenishments,
         investment,
         extra,
-        total: Math.max(finite(total, 0), own + extra),
+        total: totalValue > 0 ? totalValue : Math.max(own + extra, 0),
     };
 }
 
@@ -881,7 +894,7 @@ function normalizePensionGoal(goal, helpers) {
     const cofinYear = scheduleYearAmount(goal, 'cofinancing');
     const totalTax = finite(s.total_tax_benefit ?? s.total_tax_deductions ?? d.total_tax_deductions, taxYear.amount);
     const totalCofin = finite(s.total_cofinancing ?? d.total_cofinancing ?? d.total_cofinancing_nominal, cofinYear.amount);
-    const composition = capitalComposition({ initial, monthly, months, total: capital, tax: totalTax, cofin: totalCofin });
+    const composition = capitalComposition({ goal, initial, monthly, months, total: capital, cofin: totalCofin });
     const payoutYield = finite(s.payout_yield_percent, 8);
 
     return {
@@ -1020,6 +1033,140 @@ function replacePensionGoalPage(html, context) {
         out = out.replace(/377&nbsp;376(?:&nbsp;|\s)₽/g, gapFutureHtml);
         out = out.replace(/Чтобы закрыть разрыв\s+около <strong>[\s\S]*?<\/strong>, план формирует личный пенсионный капитал\./, `Чтобы закрыть разрыв около <strong>${gapFutureHtml}</strong>, нужен дополнительный капитал ${capitalHtml}; в плане он работает под ${payoutYieldHtml} годовых в консервативных инструментах.`);
         out = out.replace(/<div class="finam-v2-pension__chart-total">разрыв[\s\S]*?<\/div>/, `<div class="finam-v2-pension__chart-total">разрыв ${moneyHtml(helpers, p.gapFuture, { short: true, perMonth: true })}</div>`);
+    }
+    return out;
+}
+
+function isPassiveIncomeGoalType(goal) {
+    const gt = String(goal?.goal_type || '').toUpperCase();
+    const id = Number(goal?.goal_type_id);
+    return gt === 'PASSIVE_INCOME' || gt === 'RENT' || id === 2 || id === 8;
+}
+
+function passiveIncomePresentValue(goal) {
+    const s = goal?.summary || {};
+    return finite(goal?.desired_monthly_income ?? s.target_amount_initial ?? goal?.target_amount, 0);
+}
+
+function normalizePassiveIncomeGoal(goal, helpers) {
+    const s = goal?.summary || {};
+    const d = goal?.details || {};
+    const months = goalMonthsValue(goal);
+    const years = Math.max(1, Math.round(months / 12));
+    const initial = finite(s.initial_capital ?? d.initial_capital ?? goal?.initial_capital, 0);
+    const monthly = finite(s.monthly_replenishment ?? d.monthly_replenishment ?? goal?.monthly_replenishment, 0);
+    const incomePresent = passiveIncomePresentValue(goal);
+    const incomeFuture = finite(s.target_amount_future, 0);
+    const projected = finite(s.projected_capital_at_end, 0);
+    const taxYear = scheduleYearAmount(goal, 'tax_deduction');
+    const cofinYear = scheduleYearAmount(goal, 'cofinancing');
+    const totalTax = finite(s.total_tax_benefit ?? d.total_tax_deductions, 0);
+    const totalCofin = finite(s.total_cofinancing ?? d.total_cofinancing, 0);
+    const composition = capitalComposition({ goal, initial, monthly, months, total: projected, cofin: totalCofin });
+    const investmentIncome = Math.max(0, composition.total - composition.own);
+
+    return {
+        title: goalName(goal, helpers),
+        months,
+        years,
+        initial,
+        monthly,
+        incomePresent,
+        incomeFuture,
+        projected,
+        payoutYear: targetYearFromGoal(goal, months),
+        inflation: maybeFinite(s.inflation_rate),
+        accumulationYield: maybeFinite(s.accumulation_yield_percent ?? goal?.pdf_metrics?.portfolio_yield_percent),
+        payoutYield: maybeFinite(s.payout_yield_percent, 8),
+        composition: { ...composition, investmentIncome },
+        totalTax,
+        totalCofin,
+        taxYear,
+        cofinYear,
+        riskProfile: riskProfileDetailsForGoal(goal),
+    };
+}
+
+function passiveRow(label, valueHtml) {
+    return `<div class="finam-v2-passive-income__row"><span>${escapeHtml(label)}</span><span>${valueHtml}</span></div>`;
+}
+
+function replacePassiveIncomeGoalPage(html, context) {
+    const { goal, helpers } = context;
+    if (!goal) return html;
+    const p = normalizePassiveIncomeGoal(goal, helpers);
+    const title = escapeHtml(p.title);
+    const incomePresentHtml = moneyHtml(helpers, p.incomePresent, { perMonth: true });
+    const incomeFutureHtml = moneyHtml(helpers, p.incomeFuture, { perMonth: true });
+    const projectedHtml = moneyHtml(helpers, p.projected, { short: true });
+    const projectedFullHtml = moneyHtml(helpers, p.projected);
+    const initialHtml = moneyHtml(helpers, p.initial);
+    const monthlyHtml = moneyHtml(helpers, p.monthly);
+    const yearsLabel = yearsLabelFromMonths(p.months);
+    const accumulationYieldHtml = formatPercentHtml(p.accumulationYield);
+    const inflationHtml = formatPercentHtml(p.inflation);
+    const payoutYieldHtml = formatPercentHtml(p.payoutYield);
+    const passiveHeroIntroHtml = 'Отличная цель! я создам план как накопить капитал. что бы он давал нужный доход.';
+    const passiveHeroNarrativeHtml = `Вы хотели бы получать <strong>${incomePresentHtml}</strong> в ${escapeHtml(p.payoutYear)} г. С учётом инфляции ${inflationHtml} это уже <strong>${incomeFutureHtml}</strong>.`;
+    const capitalNarrativeHtml = `Для получения ежемесячного пассивного дохода <strong>${incomeFutureHtml}</strong> понадобится капитал <strong>${projectedFullHtml}</strong>. В плане считаем, что его можно инвестировать под ${payoutYieldHtml} годовых в депозиты, облигации и другие консервативные инструменты.`;
+    const bars = [
+        { label: 'Собственные средства', valueHtml: moneyHtml(helpers, p.composition.own, { short: true }), percent: barPct(p.composition.own, p.composition.total), color: '#002a4a' },
+        { label: 'Инвест. доход', valueHtml: moneyHtml(helpers, p.composition.investmentIncome, { short: true }), percent: barPct(p.composition.investmentIncome, p.composition.total), color: '#4f8fd9' },
+        { label: 'Итоговый капитал', valueHtml: moneyHtml(helpers, p.composition.total, { short: true }), percent: 100, color: '#166534' },
+    ];
+
+    let out = String(html || '');
+    if ((out.match(/<article\b[^>]*\bfinam-v2-page\b[^>]*>/g) || []).length > 1) {
+        return replaceFinamV2PageArticles(out, (articleHtml) => replacePassiveIncomeGoalPage(articleHtml, context));
+    }
+    const pageNo = out.includes('· 2/2') ? 2 : 1;
+    if (pageNo === 1) {
+        out = out.replace(/<h1 class="finam-v2-passive-income__page-title">[\s\S]*?<\/h1>/, `<h1 class="finam-v2-passive-income__page-title">Цель - ${title}</h1>`);
+        out = out.replace(
+            /<section class="finam-v2-passive-income__hero">[\s\S]*?<\/section>/,
+            `<section class="finam-v2-passive-income__hero">
+      <div>
+        <div class="finam-v2-passive-income__kicker">Пассивный доход</div>
+        <p class="finam-v2-passive-income__text">${escapeHtml(passiveHeroIntroHtml)}</p>
+        <p class="finam-v2-passive-income__text">${passiveHeroNarrativeHtml}</p>
+      </div>
+      <div class="finam-v2-passive-income__hero-image">
+        <img src="assets/goal-passive-income.webp" width="156" height="116" alt="" decoding="async" />
+      </div>
+    </section>`
+        );
+        out = replaceNthElementByClass(out, 'finam-v2-passive-income__grid-2', `<div class="finam-v2-passive-income__grid-2">
+      <section class="finam-v2-passive-income__card">
+        <div class="finam-v2-passive-income__card-title">Целевой доход</div>
+        ${passiveRow('Старт выплат', escapeHtml(p.payoutYear))}
+        ${passiveRow('Доход в сегодняшних рублях', incomePresentHtml)}
+        ${passiveRow('Доход с учётом инфляции', incomeFutureHtml)}
+        ${passiveRow('Инфляция модели', inflationHtml)}
+      </section>
+      <section class="finam-v2-passive-income__card">
+        <div class="finam-v2-passive-income__card-title">Ежемесячный пассивный доход с капитала.</div>
+        <p class="finam-v2-passive-income__text">С учётом прогнозируемой инфляции ${inflationHtml}</p>
+        <div class="finam-v2-passive-income__big-value">${incomeFutureHtml}</div>
+        <div class="finam-v2-passive-income__big-sub">целевой пассивный доход в месяц</div>
+      </section>
+    </div>`, 1);
+        out = out.replace(/<div class="finam-v2-passive-income__section-kicker">[\s\S]*?<\/div>\s*<p class="finam-v2-passive-income__text">[\s\S]*?<\/p>\s*<\/div>\s*<div class="finam-v2-passive-income__capital-value">[\s\S]*?<\/div>/, `<div class="finam-v2-passive-income__section-kicker">Капитал для получения пассивного дохода</div>\n        <p class="finam-v2-passive-income__text">${capitalNarrativeHtml}</p>\n      </div>\n      <div class="finam-v2-passive-income__capital-value">${projectedHtml}</div>`);
+        out = replaceFirstMatches(out, /<div class="finam-v2-passive-income__metric-value">[\s\S]*?<\/div>/g, [
+            `<div class="finam-v2-passive-income__metric-value">${initialHtml}</div>`,
+            `<div class="finam-v2-passive-income__metric-value">${monthlyHtml}</div>`,
+            `<div class="finam-v2-passive-income__metric-value">${escapeHtml(yearsLabel)}</div>`,
+            `<div class="finam-v2-passive-income__metric-value">${accumulationYieldHtml}</div>`,
+        ]);
+        out = replaceRiskProfileBlock(out, 'passive-income', goal);
+        out = out.replace(/<div class="finam-v2-passive-income__risk-value">[\s\S]*?<\/div>/, `<div class="finam-v2-passive-income__risk-value">${escapeHtml(p.riskProfile.label)}</div>`);
+        out = out.replace(/<p class="finam-v2-passive-income__risk-text">[\s\S]*?<\/p>/, `<p class="finam-v2-passive-income__risk-text">${escapeHtml(p.riskProfile.description)}</p>`);
+    } else {
+        out = out.replace(/<div class="finam-v2-passive-income__bubble finam-v2-passive-income__bubble--green">[\s\S]*?<\/div>\s*<\/div>\s*<p class="finam-v2-passive-income__section-kicker">/, `<div class="finam-v2-passive-income__bubble finam-v2-passive-income__bubble--green"><p>Собственные взносы и инвестиционный доход формируют капитал; итог <strong>${projectedFullHtml}</strong> — из графика цели.</p></div>\n    </div>\n\n    <p class="finam-v2-passive-income__section-kicker">`);
+        out = replaceNthElementByClass(out, 'finam-v2-passive-income__bars', buildGoalBarsHtml('passive-income', bars), 1);
+        out = out.replace(/<div class="finam-v2-passive-income__chart-title">[\s\S]*?<\/div>/, `<div class="finam-v2-passive-income__chart-title">Прогноз капитала: ${escapeHtml(firstScheduleYear(goal))} — ${escapeHtml(p.payoutYear)}</div>`);
+        out = out.replace(/<div class="finam-v2-passive-income__chart-total">[\s\S]*?<\/div>/, `<div class="finam-v2-passive-income__chart-total">${projectedHtml}</div>`);
+        out = out.replace(/<svg viewBox="0 0 500 210"[\s\S]*?<\/svg>/, buildGoalCapitalChartSvg({ goal, initial: p.initial, final: p.projected, months: p.months, blockName: 'passive-income-capital-chart-svg', gradientId: 'finamV2PassiveIncomeChartGrad', height: 150 }));
+        out = out.replace(/<div class="finam-v2-passive-income__bubble finam-v2-passive-income__bubble--green">\s*<p>\s*<strong>Ключевой вывод:[\s\S]*?<\/div>/, '<div class="finam-v2-passive-income__bubble finam-v2-passive-income__bubble--green"><p><strong>Ключевой вывод:</strong> цель устойчива, когда капитал покрывает выплаты без вынужденных продаж в неудачный момент.</p></div>');
     }
     return out;
 }
@@ -1328,7 +1475,7 @@ function normalizeOtherGoal(goal, helpers) {
     const projected = finite(s.projected_capital_at_end ?? future, future);
     const tax = finite(s.total_tax_benefit ?? d.total_tax_deductions, 0);
     const cofin = finite(s.total_cofinancing ?? d.total_cofinancing, 0);
-    const composition = capitalComposition({ initial, monthly, months, total: projected, tax, cofin });
+    const composition = capitalComposition({ goal, initial, monthly, months, total: projected, cofin });
     const subtype = otherSubtype(goal);
     return {
         title: goalName(goal, helpers),
@@ -1758,7 +1905,10 @@ function moneyNoCurrencyHtml(helpers, value, opts = {}) {
 }
 
 function isPensionMonthlyCostRow(row) {
-    return row?.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION;
+    return (
+        row?.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION ||
+        row?.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME
+    );
 }
 
 function goalCostHtml(row, field, helpers) {
@@ -1802,10 +1952,16 @@ function buildGoalsPillarsHtml(diagnostics, helpers) {
     const groups = Array.isArray(diagnostics?.groups) ? diagnostics.groups : [];
     return `<div class="finam-v2-goals__pillars">
       ${groups.map((group) => {
-        const rows = (group.goals || []).slice(0, 3).map((goal) => `<div class="finam-v2-goals__pillar-line">
-          <span>${escapeHtml(goal.title)}</span>
-          <span>${moneyHtml(helpers, goal.monthly)}</span>
-        </div>`).join('\n        ');
+        const rows = (group.goals || []).slice(0, 3).map((goal) => {
+            const isPassive = isPassiveIncomeGoalType(goal);
+            const amountHtml = isPassive
+                ? moneyHtml(helpers, passiveIncomePresentValue(goal), { perMonth: true })
+                : moneyHtml(helpers, finite(goal?.summary?.monthly_replenishment ?? goal?.monthly_replenishment, 0));
+            return `<div class="finam-v2-goals__pillar-line">
+          <span>${escapeHtml(goalName(goal, helpers))}</span>
+          <span>${amountHtml}</span>
+        </div>`;
+        }).join('\n        ');
         const rest = (group.goals || []).length > 3
             ? `<div class="finam-v2-goals__pillar-line">
           <span>Ещё ${(group.goals || []).length - 3}</span>
@@ -3623,6 +3779,7 @@ function applyTemplateData(html, context = {}) {
             .replace(/377&nbsp;376(?:&nbsp;|\s)₽/g, moneyHtml(context.helpers, pension.gapFuture));
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME) {
+        out = replacePassiveIncomeGoalPage(out, context);
         out = replaceInvestmentGoalArtifacts(out, context, 'passive-income');
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW) {

@@ -242,8 +242,22 @@ function pickGoalTarget(goal) {
     );
 }
 
+function isPassiveIncomeGoalType(goal) {
+    const gt = String(goal?.goal_type || '').toUpperCase();
+    const id = Number(goal?.goal_type_id);
+    return gt === 'PASSIVE_INCOME' || gt === 'RENT' || id === 2 || id === 8;
+}
+
 function pickGoalCostNow(goal) {
     const summary = goal?.summary || {};
+    if (isPassiveIncomeGoalType(goal)) {
+        return (
+            goal?.desired_monthly_income ??
+            summary.target_amount_initial ??
+            goal?.target_amount ??
+            0
+        );
+    }
     return (
         summary.target_amount_initial ??
         summary.target_amount_now ??
@@ -257,6 +271,9 @@ function pickGoalCostNow(goal) {
 
 function pickGoalCostFuture(goal) {
     const summary = goal?.summary || {};
+    if (isPassiveIncomeGoalType(goal)) {
+        return summary.target_amount_future ?? goal?.target_amount_future ?? 0;
+    }
     return (
         summary.target_amount_future ??
         summary.target_amount_with_inflation ??
