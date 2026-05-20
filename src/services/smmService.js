@@ -1,12 +1,15 @@
 const axios = require('axios');
 const knex = require('../config/database');
+const logger = require('../utils/logger');
 
 class SmmService {
     constructor() {
         this.apiUrl = process.env.SMM_API_URL || 'http://localhost:4000/api';
         this.apiKey = process.env.INTERNAL_API_KEY || process.env.SMM_INTERNAL_API_KEY;
         if (!this.apiKey) {
-            console.warn('CRITICAL WARNING: SMM_INTERNAL_API_KEY or INTERNAL_API_KEY environment variable is not set!');
+            logger.info(
+                '[SmmService] INTERNAL_API_KEY / SMM_INTERNAL_API_KEY not set — agent→SMM sync webhooks are disabled until configured.'
+            );
         }
     }
 
@@ -16,6 +19,10 @@ class SmmService {
      * @returns {Promise<boolean>}
      */
     async syncAgent(agentId) {
+        if (!this.apiKey) {
+            logger.debug(`[SmmService] syncAgent(${agentId}) skipped: no internal API key`);
+            return false;
+        }
         try {
             const agent = await knex('agents')
                 .leftJoin('users', 'agents.id', 'users.agent_id')
