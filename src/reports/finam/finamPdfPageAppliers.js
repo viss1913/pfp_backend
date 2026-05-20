@@ -131,7 +131,7 @@ function goalTypeTagClassAndLabel(goal) {
         if (type === 'RENT' || id === 8) return { cls: 'rent', label: 'Рента' };
         return { cls: 'passive', label: 'Пассивный доход' };
     }
-    if (type === 'INVESTMENT' || id === 3) return { cls: 'growth', label: 'Рост капитала' };
+    if (type === 'INVESTMENT' || type === 'INHERITANCE' || id === 3 || id === 11) return { cls: 'growth', label: 'Рост капитала' };
     return { cls: '', label: 'Цель' };
 }
 

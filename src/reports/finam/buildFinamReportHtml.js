@@ -1280,7 +1280,7 @@ function isSaveGrowGoal(goal) {
     const goalType = String(goal?.goal_type || '').toUpperCase();
     const goalTypeId = Number(goal?.goal_type_id);
     const name = String(goal?.goal_name || '').toLowerCase();
-    return goalType === 'INVESTMENT' || goalTypeId === 3 || /сохран|приумнож/.test(name);
+    return goalType === 'INVESTMENT' || goalType === 'INHERITANCE' || goalTypeId === 3 || goalTypeId === 11 || /сохран|приумнож/.test(name);
 }
 
 function stripOtherChartSection(html, goal) {
@@ -2789,7 +2789,7 @@ function applyFinamAiAvatarHtml(html, avatarUrl) {
 function filterGoalsByTypes(goals, goalTypesRaw) {
     const list = Array.isArray(goals) ? goals : [];
     if (!goalTypesRaw) return list;
-    const valid = new Set(['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'OTHER', 'PASSIVE_INCOME', 'RENT']);
+    const valid = new Set(['FIN_RESERVE', 'LIFE', 'PENSION', 'INVESTMENT', 'INHERITANCE', 'OTHER', 'PASSIVE_INCOME', 'RENT']);
     const requested = new Set(
         String(goalTypesRaw)
             .split(',')

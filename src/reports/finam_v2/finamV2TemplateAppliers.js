@@ -1267,6 +1267,32 @@ function normalizeInvestmentGoalArtifacts(goal) {
     };
 }
 
+function formatPaymentCoeffHtml(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '—';
+    return escapeHtml(n.toLocaleString('ru-RU', { maximumFractionDigits: 3 }));
+}
+
+function replaceInheritanceInsuranceRisksSlot(html, context) {
+    const { goal } = context;
+    const marker = /<section class="finam-v2-save-grow__inheritance-risks-slot"[^>]*><\/section>/;
+    const risks = goal?.details?.insurance_risks;
+    let out = String(html || '');
+    if (!Array.isArray(risks) || risks.length === 0) {
+        return out.replace(marker, '');
+    }
+    const rows = risks.map((r) => {
+        const yld = r.yield_percent != null && Number.isFinite(Number(r.yield_percent))
+            ? formatPercentHtml(Number(r.yield_percent))
+            : '—';
+        const pr = formatPaymentCoeffHtml(r.payment_ratio);
+        const term = `${escapeHtml(String(r.term_from_months ?? ''))}–${escapeHtml(String(r.term_to_months ?? ''))}`;
+        return `<tr><td style="padding:4px 6px;border-bottom:1px solid #e2e8f0;">${escapeHtml(r.risk_name || '—')}</td><td style="padding:4px 6px;border-bottom:1px solid #e2e8f0;">${term}</td><td style="padding:4px 6px;border-bottom:1px solid #e2e8f0;">${pr}</td><td style="padding:4px 6px;border-bottom:1px solid #e2e8f0;">${yld}</td></tr>`;
+    }).join('');
+    const table = `<section class="finam-v2-save-grow__inheritance-risks-slot" data-finam-v2-inheritance-risks="1"><p class="finam-v2-save-grow__section-kicker">Риски ИСЖ (матрица продукта)</p><table style="width:100%;border-collapse:collapse;font-size:8.5px;margin-top:4px;"><thead><tr><th align="left" style="padding:4px 6px;">Риск</th><th align="left" style="padding:4px 6px;">Срок, мес.</th><th align="left" style="padding:4px 6px;">Выплата (коэф.)</th><th align="left" style="padding:4px 6px;">Доходность</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+    return out.replace(marker, table);
+}
+
 function replaceInvestmentGoalArtifacts(html, context, prefix) {
     const { goal, helpers } = context;
     if (!goal) return html;
@@ -1750,6 +1776,7 @@ function inlineGoalIconSvg(pageType) {
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION]: '<path d="M12 8v8M8 12h8M4 19h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />',
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME]: '<path d="M4 19V5M4 19h16M8 17l3-6 4 3 5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />',
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW]: '<path d="M4 18h4l10-10M9 5h4v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />',
+        [FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE]: '<path d="M12 3l7 4v5c0 3-2 6-7 9-5-3-7-6-7-9V7l7-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />',
     };
     return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">${pathByType[pageType] || '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />'}</svg>`;
 }
@@ -3498,6 +3525,7 @@ function replaceGoalSamples(html, { pageType, goal, helpers }) {
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION]: ['Достойная пенсия', 'Пенсионная цель'],
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME]: ['Пассивный доход'],
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW]: ['Сохранить и приумножить'],
+        [FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE]: ['Наследство'],
         [FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER]: ['Крупная покупка', 'Крупная цель', 'Квартира'],
     };
     const titlePlaceholder = '__FINAM_V2_GOAL_TITLE__';
@@ -3599,6 +3627,10 @@ function applyTemplateData(html, context = {}) {
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW) {
         out = replaceInvestmentGoalArtifacts(out, context, 'save-grow');
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE) {
+        out = replaceInvestmentGoalArtifacts(out, context, 'save-grow');
+        out = replaceInheritanceInsuranceRisksSlot(out, context);
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER) {
         out = replaceOtherGoalPage(out, context);

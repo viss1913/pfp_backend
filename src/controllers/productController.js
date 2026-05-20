@@ -2,6 +2,22 @@ const productService = require('../services/productService');
 const productTypeService = require('../services/productTypeService');
 const Joi = require('joi');
 
+const productLineSchema = Joi.object({
+    min_term_months: Joi.number().integer().optional(),
+    max_term_months: Joi.number().integer().optional(),
+    term_from_months: Joi.number().integer().optional(),
+    term_to_months: Joi.number().integer().optional(),
+    min_amount: Joi.number().optional(),
+    max_amount: Joi.number().optional(),
+    amount_from: Joi.number().optional(),
+    amount_to: Joi.number().optional(),
+    yield_percent: Joi.number().allow(null).optional(),
+    risk_name: Joi.string().allow(null, '').optional(),
+    age_from: Joi.number().integer().allow(null).optional(),
+    age_to: Joi.number().integer().allow(null).optional(),
+    payment_ratio: Joi.number().allow(null).optional()
+});
+
 const productSchema = Joi.object({
     name: Joi.string().required(),
     product_type: Joi.string().min(1).required()
@@ -19,17 +35,7 @@ const productSchema = Joi.object({
         yield_percent: Joi.number().required()
     })).optional(),
     lines: Joi.alternatives().try(
-        Joi.array().items(Joi.object({
-            min_term_months: Joi.number().integer().optional(),
-            max_term_months: Joi.number().integer().optional(),
-            term_from_months: Joi.number().integer().optional(),
-            term_to_months: Joi.number().integer().optional(),
-            min_amount: Joi.number().optional(),
-            max_amount: Joi.number().optional(),
-            amount_from: Joi.number().optional(),
-            amount_to: Joi.number().optional(),
-            yield_percent: Joi.number().required()
-        })),
+        Joi.array().items(productLineSchema),
         Joi.string(),
         Joi.object()
     ).optional(),

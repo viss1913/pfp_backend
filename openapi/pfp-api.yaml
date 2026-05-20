@@ -187,7 +187,9 @@ components:
       properties:
         goal_type_id:
           type: integer
-          description: Portfolio class ID (from portfolio_classes). Use 5 for LIFE goals, 7 for FIN_RESERVE, 8 for RENT
+          description: |
+            ID класса портфеля из `portfolio_classes` (см. `GET /api/pfp/portfolios/classes`).
+            Примеры: `2` — пассивный доход, `3` — инвестиции, `5` — НСЖ (LIFE), `7` — финподушка, `8` — аренда, **`11` — наследство (INHERITANCE, ИСЖ-матрица)**.
           example: 5
         name:
           type: string
@@ -272,7 +274,9 @@ components:
         birth_date:
           type: string
           format: date
-          description: Client birth date (YYYY-MM-DD or ISO 8601). Required for accurate NSJ calculations
+          description: |
+            Дата рождения клиента (YYYY-MM-DD или ISO 8601). Для НСЖ (LIFE) желательна для точного расчёта.
+            Для цели **наследство** (`goal_type_id: 11`) вместе с `goal.start_date` используется для попадания в возрастные коридоры `age_from`/`age_to` в матрице `lines` продукта ISZH.
           example: "1980-01-01"
         sex:
           type: string
@@ -667,150 +671,151 @@ components:
                 portfolio_yield_annual:
                   type: number
                   description: Portfolio annual yield percent
+    GoalCalculationSummary:
+      type: object
+      description: |
+        Краткая сводка по цели после расчёта; конкретный набор полей зависит от типа цели (портфель, НСЖ, пенсия и т.д.).
+      additionalProperties: true
+      properties:
+        status:
+          type: string
+          description: Например OK или GAP.
+        initial_capital:
+          type: number
+        monthly_replenishment:
+          type: number
+        target_months:
+          type: integer
+        projected_capital_at_end:
+          type: number
+        total_tax_benefit:
+          type: number
+        total_cofinancing:
+          type: number
+        accumulation_yield_percent:
+          type: number
     PortfolioCalculationResult:
       type: object
+      description: |
+        Результат портфельного расчёта для **INVESTMENT** (`goal_type_id` 3) и **INHERITANCE** / «Наследство» (`11`).
+        Сервис расчёта добавляет к ответу калькулятора `goal_name`, `term_months`, `risk_profile`, `risk_profile_extended`.
+        Для ИСЖ в наследстве годовая доходность симуляции берётся со строки матрицы риска **«Дожитие»** в `products.lines`
+        (остальные строки — для UI/отчёта и `details.insurance_risks`). См. `ProductLine` / `ProductYield` в `openapi/OPENAPI_SPEC.yaml`.
       properties:
         goal_id:
           type: integer
         goal_name:
           type: string
-        portfolio:
-          type: object
-          properties:
-            id:
-              type: integer
-            name:
-              type: string
-            currency:
-              type: string
-        products:
-          type: array
-          description: Array of products in the portfolio with their yields
-          items:
-            type: object
-            properties:
-              product_id:
-                type: integer
-                description: Product ID
-              name:
-                type: string
-                description: Product name
-              share_percent:
-                type: number
-                description: Share percentage in portfolio
-              yield_percent:
-                type: number
-                description: Yield percentage for this product (matched from product yields)
-              matched_line:
-                type: object
-                nullable: true
-                description: Matched yield line from product yields
-                properties:
-                  term_from_months:
-                    type: integer
-                  term_to_months:
-                    type: integer
-                  amount_from:
-                    type: number
-                  amount_to:
-                    type: number
-                  yield_percent:
-                    type: number
-        financials:
-          type: object
-          properties:
-            cost_initial:
-              type: number
-            cost_with_inflation:
-              type: number
-            inflation_annual_percent:
-              type: number
-            investment_expense_growth_monthly_percent:
-              type: number
-            investment_expense_growth_annual_percent:
-              type: number
-            initial_capital:
-              type: number
-            capital_gap:
-              type: number
-            recommended_replenishment:
-              type: number
-            monthly_replenishment_without_pds:
-              type: number
-              description: Recommended monthly replenishment without PDS cofinancing (₽)
-            portfolio_yield_annual_percent:
-              type: number
-        pds_cofinancing:
+        goal_type_id:
+          type: integer
+          description: Обычно 3 (инвестиции) или 11 (наследство).
+        goal_type:
+          type: string
+          enum: [INVESTMENT, INHERITANCE]
+        term_months:
+          type: integer
+          nullable: true
+        risk_profile:
+          type: string
+          nullable: true
+        risk_profile_extended:
+          type: string
+          nullable: true
+        risk_profile_details:
           type: object
           nullable: true
-          description: Данные по софинансированию ПДС (присутствует только если в портфеле есть продукт типа PDS и указан avg_monthly_income)
-          properties:
-            cofinancing_next_year:
-              type: number
-              description: Софинансирование в следующем году (за первый год участия, ₽)
-            total_cofinancing_nominal:
-              type: number
-              description: Номинальное софинансирование за весь период (без учета процентов, ₽)
-            total_cofinancing_with_investment:
-              type: number
-              description: Будущая стоимость софинансирования с учетом процентов (₽)
-            pds_yield_annual_percent:
-              type: number
-              description: Годовая доходность продукта ПДС (%)
-            new_capital_gap:
-              type: number
-              description: Скорректированная нехватка капитала с учетом софинансирования (₽)
-            yearly_breakdown:
-              type: array
-              description: Детализация по годам
-              items:
-                type: object
-                properties:
-                  year:
-                    type: integer
-                    description: Год
-                  capital_start_of_year:
-                    type: number
-                    description: Капитал на начало года (₽)
-                  client_contrib_year:
-                    type: number
-                    description: Взносы клиента за год (₽)
-                  cofinancing_for_year:
-                    type: number
-                    description: Софинансирование, рассчитанное по взносам этого года (будет начислено в августе следующего года, ₽)
-                  cofinancing_paid_in_year:
-                    type: number
-                    description: Софинансирование, реально зачисленное в этом году (за прошлый год, ₽)
-                  capital_end_of_year:
-                    type: number
-                    description: Капитал на конец года (₽)
-                  percentage_income:
-                    type: number
-                    description: Процентный доход за год (₽)
-                  tax_refund_received:
-                    type: number
-                    description: Полученный налоговый вычет (в апреле, за прошлый год)
-                  tax_refund_projected:
-                    type: number
-                    description: Прогноз налогового вычета (за взносы этого года)
-                  tax_refund_breakdown:
-                    type: object
-                    description: Детализация прогнозного налогового вычета по типам
-                    properties:
-                      pds:
-                        type: number
-                      iis:
-                        type: number
-                      children:
-                        type: number
-                  roi_immediate:
-                    type: integer
-                    description: Мгновенная доходность (ROI) в % (Софинансирование + Налоговый вычет / Взносы)
+          additionalProperties: true
         summary:
           $ref: '#/components/schemas/GoalCalculationSummary'
+        details:
+          type: object
+          properties:
+            portfolio_id:
+              type: integer
+            portfolio_name:
+              type: string
+            initial_instruments:
+              type: array
+              items:
+                $ref: '#/components/schemas/PortfolioInstrumentBreakdownLine'
+            monthly_instruments:
+              type: array
+              items:
+                $ref: '#/components/schemas/PortfolioInstrumentBreakdownLine'
+            yearly_breakdown:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            monthly_schedule:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            insurance_risks:
+              type: array
+              description: |
+                Строки матрицы ИСЖ в контексте срока, суммы и возраста клиента (только для INHERITANCE + продукты ISZH).
+              items:
+                $ref: '#/components/schemas/IszhInsuranceRiskRow'
         error:
           type: string
-          description: Error message if calculation failed
+          description: Сообщение об ошибке расчёта
+    PortfolioInstrumentBreakdownLine:
+      type: object
+      description: Доля инструмента/продукта в портфеле цели после расчёта.
+      properties:
+        name:
+          type: string
+        share:
+          type: number
+        yield:
+          type: number
+          description: Годовая доходность инструмента в процентах.
+        amount:
+          type: number
+        product_type:
+          type: string
+          nullable: true
+        product_id:
+          type: integer
+          nullable: true
+        resolut_pfp_code:
+          type: string
+          nullable: true
+    IszhInsuranceRiskRow:
+      type: object
+      description: Одна строка матрицы ИСЖ в ответе калькулятора (наследство).
+      properties:
+        product_id:
+          type: integer
+          nullable: true
+        product_name:
+          type: string
+        risk_name:
+          type: string
+        term_from_months:
+          type: number
+        term_to_months:
+          type: number
+        age_from:
+          type: integer
+          nullable: true
+        age_to:
+          type: integer
+          nullable: true
+        amount_from:
+          type: number
+        amount_to:
+          type: number
+        payment_ratio:
+          type: number
+          nullable: true
+          description: Коэффициент платежа для отображения (не подменяет логику доходности).
+        yield_percent:
+          type: number
+          nullable: true
+          description: Для строки «Дожитие» заполнено; для прочих рисков может быть null.
     LifeCalculationResult:
       type: object
       description: Result for LIFE goal type (NSJ calculation)
@@ -2089,11 +2094,17 @@ paths:
         - The calculation then proceeds with standard replenishment logic using the calculated required capital
         - Inflation is applied to income, not to capital (no double inflation)
         - Returns `PassiveIncomeCalculationResult` with detailed breakdown
-        
+
+        **INHERITANCE goals (`goal_type_id: 11`, «Наследство»):**
+        - Same portfolio simulation shape as INVESTMENT (`PortfolioCalculationResult`): `summary`, `details.initial_instruments`, `yearly_breakdown`, etc.
+        - Products of type **ISZH** must define a risk matrix in `lines` with `risk_name`; annual plan yield is taken **only** from the **«Дожитие»** row (see `openapi/OPENAPI_SPEC.yaml` `ProductLine`).
+        - Provide `client.birth_date` (and goal `start_date` when needed) so age bands `age_from`/`age_to` match.
+        - `details.insurance_risks` lists matrix rows that apply to the goal context (for UI/reports); other risks may carry `payment_ratio` without `yield_percent`.
+
         **PDS Cofinancing (automatic calculation):**
         - If a portfolio contains a product with `product_type: "PDS"`, the system automatically calculates PDS cofinancing effect
         - For PDS cofinancing calculation, provide `avg_monthly_income` in the goal (average monthly income BEFORE NDFL deduction)
-        - The cofinancing result is included in `pds_cofinancing` field of `PortfolioCalculationResult` or `PassiveIncomeCalculationResult`
+        - Cofinancing and tax effects are reflected in simulation breakdown and summary fields (not a separate top-level `pds_cofinancing` on portfolio goals).
         - Cofinancing reduces the capital gap and adjusts recommended monthly replenishment
       requestBody:
         required: true

@@ -10,6 +10,7 @@ function getPriorityForCalculation(goal) {
         7: 1,
         5: 2,
         3: 3,
+        11: 3,
         1: 4,
         2: 5
     };

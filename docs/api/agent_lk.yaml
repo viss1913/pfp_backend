@@ -23,7 +23,7 @@ info:
     **Конструктор ИИ (бот для клиентов, CJM-команды, brain-contexts):** префикс **`/pfp/constructor`**. Регистрация бота (Telegram / MAX и др.), шаблоны команд сценария (`GET/POST/PUT/DELETE …/commands`), дополнительные контексты (`…/brain-contexts`), клиенты и переписка. Алиасы путей для совместимости: `templates`, `constructor_commands`, `constructor_brain_contexts` — те же обработчики, что и у `commands` / `brain-contexts`. Вебхук MAX: `POST /api/pfp/constructor/webhook/max/{botId}` (без JWT, секрет в заголовке при настройке бота).
 
     **Расчёт ПФП и налоги (для сценариев агента):**
-    - **`POST /client/calculate`** — stateless-расчёт по массиву целей; в ответе в т.ч. агрегаты налоговых льгот (`summary.tax_benefits_summary`). Контекст проекта: заголовок **`x-project-key`** и/или опционально **`Authorization: Bearer`** (из JWT берётся `projectId`).
+    - **`POST /client/calculate`** — stateless-расчёт по массиву целей; в ответе в т.ч. агрегаты налоговых льгот (`summary.tax_benefits_summary`). Контекст проекта: заголовок **`x-project-key`** и/или опционально **`Authorization: Bearer`** (из JWT берётся `projectId`). Цель **«Наследство»**: `goal_type_id: 11` (`portfolio_classes` / `GET /pfp/portfolios/classes`), в ответе как у инвестиций + при ИСЖ в `details.insurance_risks` строки матрицы `products.lines` (доходность плана — со строки **«Дожитие»**; см. `openapi/OPENAPI_SPEC.yaml` → `ProductLine` / `ProductYield`).
     - **`POST /client/tax-planning/calculate`** — только расширенное налоговое планирование (имущественный вычет, %% ипотеки, соцвычет до 150k, дети); **без** массива `goals`. Требуется JWT агента (как у `first-run`).
     Полные схемы тел: **`openapi/pfp-api.yaml`** (`CalculationRequest`, `TaxPlanningRequest`). В этой спеке — тег **«Расчёт ПФП и налоги»**.
     Для карточки клиента кредиты передаются как `liabilities` (основной контракт) либо как алиас `credits` (`type`, `balance`, `monthlyPayment`, `rate`) с серверным маппингом в `liabilities`.
@@ -812,6 +812,8 @@ paths:
     get:
       tags: [ "Портфели Агента (Справочники)" ]
       summary: Получить классы портфелей (для мультиселектов)
+      description: |
+        Справочник `portfolio_classes` (id, code, name). Для новой цели **«Наследство»** используйте класс с **`id: 11`**, **`code: INHERITANCE`** (миграция БД + сид). Портфели этого класса стыкуются с расчётом через `goal_type_id: 11` в `POST /client/calculate` (см. `openapi/pfp-api.yaml`).
 
   # ==================== НАСТРОЙКИ ПЛАНОВ (ИНФЛЯЦИЯ И ДР.) ====================
   /pfp/settings:
@@ -956,6 +958,8 @@ paths:
         В элементах **`goals`** (см. `CalculationGoal` в `openapi/pfp-api.yaml`): опционально **`risk_profile_extended`**
         (5 уровней, те же строки, что `profile_type` в портфеле при наличии срезов `MODERATELY_*`). Поле **`risk_profile`**
         остаётся тройкой для совместимости; бэкенд может проставлять extended после анкеты на first-run / пересчёте.
+
+        **Наследство (`goal_type_id: 11`):** портфель класса INHERITANCE; продукты **ISZH** с матрицей в `lines` (`risk_name`, опционально `age_from`/`age_to`, `payment_ratio`). Для подбора возрастных диапазонов в теле расчёта укажите **`client.birth_date`**. В ответе — `goal_type: INHERITANCE`, структура как у инвестиций, плюс при необходимости **`details.insurance_risks`** (строки матрицы в контексте цели).
       security: []
       parameters:
         - name: x-project-key

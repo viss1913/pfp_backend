@@ -1,4 +1,36 @@
 const productRepository = require('../repositories/productRepository');
+const { validateIszhProductLines } = require('../utils/validateIszhProductLines');
+
+function parseLinesFromPayload(data) {
+    if (!data || data.lines == null) return null;
+    if (Array.isArray(data.lines)) return data.lines;
+    if (typeof data.lines === 'string') {
+        try {
+            const p = JSON.parse(data.lines);
+            if (Array.isArray(p)) return p;
+            if (p && typeof p === 'object') return [p];
+            return null;
+        } catch {
+            return null;
+        }
+    }
+    if (typeof data.lines === 'object') {
+        return Array.isArray(data.lines) ? data.lines : [data.lines];
+    }
+    return null;
+}
+
+function assertIszhLinesIfNeeded(data) {
+    const pt = String(data.product_type || '').toUpperCase().trim();
+    const lines = parseLinesFromPayload(data);
+    if (pt !== 'ISZH' || !lines || !lines.length) return;
+    const v = validateIszhProductLines(lines);
+    if (!v.ok) {
+        const err = new Error(v.error);
+        err.status = 400;
+        throw err;
+    }
+}
 
 class ProductService {
     async getAllProducts(projectId, query) {
@@ -21,6 +53,7 @@ class ProductService {
     }
 
     async createProduct(agentId, projectId, data) {
+        assertIszhLinesIfNeeded(data);
         const { yields, ...productFields } = data;
         // Ensure agent_id and project_id are set
         productFields.agent_id = agentId;
@@ -46,6 +79,11 @@ class ProductService {
         }
 
         const { yields, ...productFields } = data;
+        const effectiveType = String(productFields.product_type || product.product_type || '').toUpperCase().trim();
+        if (effectiveType === 'ISZH') {
+            assertIszhLinesIfNeeded({ ...product, ...productFields, lines: productFields.lines !== undefined ? productFields.lines : product.lines });
+        }
+
         await productRepository.update(id, productFields, yields, projectId);
         return this.getProductById(id, projectId);
     }

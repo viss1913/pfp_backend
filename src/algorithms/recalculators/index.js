@@ -1,6 +1,7 @@
 const pensionRecalculator = require('./PensionRecalculator');
 const passiveIncomeRecalculator = require('./PassiveIncomeRecalculator');
 const investmentRecalculator = require('./InvestmentRecalculator');
+const inheritanceRecalculator = require('./InheritanceRecalculator');
 const homeOwnersRecalculator = require('./HomeOwnersRecalculator');
 const lifeInsuranceRecalculator = require('./LifeInsuranceRecalculator');
 const finReserveRecalculator = require('./FinReserveRecalculator');
@@ -17,7 +18,8 @@ const RECALCULATORS = {
     7: finReserveRecalculator, // FIN_RESERVE
     8: rentRecalculator,       // RENT (Ежемесячный процент)
     9: defaultRecalculator,    // OTHER
-    10: homeOwnersRecalculator // INSURANCE (Property) - placeholder
+    10: homeOwnersRecalculator, // INSURANCE (Property) - placeholder
+    11: inheritanceRecalculator // INHERITANCE
 };
 
 /**

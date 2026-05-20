@@ -5,7 +5,7 @@
 const LIFE_GOAL_TYPE_ID = 5;
 const LIFE_GOAL_TYPE = 'LIFE';
 
-const INVESTMENT_GOAL_TYPE_IDS = new Set([1, 2, 3, 4, 6, 7]);
+const INVESTMENT_GOAL_TYPE_IDS = new Set([1, 2, 3, 4, 6, 7, 11]);
 const INVESTMENT_GOAL_TYPES = new Set([
     'PENSION',
     'PASSIVE_INCOME',
@@ -13,6 +13,7 @@ const INVESTMENT_GOAL_TYPES = new Set([
     'OTHER',
     'GOS_PENSION',
     'FIN_RESERVE',
+    'INHERITANCE',
 ]);
 
 const CRM_STATUSES = ['THINKING', 'BOUGHT', 'REFUSED', 'RENEWAL'];

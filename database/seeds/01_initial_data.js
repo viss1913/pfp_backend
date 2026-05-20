@@ -30,7 +30,8 @@ exports.seed = async function (knex) {
         { id: 4, code: 'OTHER', name: 'Прочее' },
         { id: 5, code: 'LIFE', name: 'Жизнь' },
         { id: 6, code: 'GOS_PENSION', name: 'Госпенсия' },
-        { id: 7, code: 'FIN_RESERVE', name: 'Финрезерв' }
+        { id: 7, code: 'FIN_RESERVE', name: 'Финрезерв' },
+        { id: 11, code: 'INHERITANCE', name: 'Наследство' }
     ]);
 
     // 2. Создаём продукт ПДС НПФ (agent_id = NULL = дефолтный) с линией доходности
@@ -58,7 +59,8 @@ exports.seed = async function (knex) {
         { code: 'OTHER', name: 'Прочее' },
         { code: 'LIFE', name: 'Жизнь' },
         { code: 'GOS_PENSION', name: 'Госпенсия' },
-        { code: 'FIN_RESERVE', name: 'Финрезерв' }
+        { code: 'FIN_RESERVE', name: 'Финрезерв' },
+        { code: 'INHERITANCE', name: 'Наследство' }
     ];
 
     for (const portfolioClass of portfolioClasses) {

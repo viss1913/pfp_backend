@@ -88,6 +88,12 @@
 
 ---
 
+### 4a. Наследство (INHERITANCE, goal_type_id = 11)
+
+Как инвестиции по полям пересчёта (`InvestmentRecalculator` / `InheritanceRecalculator`), ответ API совместим с INVESTMENT; доходность по продуктам **ISZH** берётся из строки матрицы `lines` с риском «Дожитие», а не из котировки Resolut.
+
+---
+
 ### 5. Защита жизни (LIFE, goal_type_id = 5)
 
 Пересчёт страховой суммы (`target_amount`) и срока (`term_months`), интеграция с НСЖ/внешними API по контракту.

@@ -46,6 +46,11 @@ const FINAM_V2_TEMPLATE_MANIFEST = Object.freeze({
         title: 'Сохранить и приумножить',
         goalPage: true,
     },
+    [FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE]: {
+        fileName: 'page-goal-inheritance-v2.html',
+        title: 'Наследство',
+        goalPage: true,
+    },
     [FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER]: {
         fileName: 'page-goal-other-v2.html',
         title: 'Крупная цель',

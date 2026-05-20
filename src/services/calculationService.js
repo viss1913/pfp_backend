@@ -11,7 +11,7 @@ const passiveIncomeCalculator = require('../algorithms/calculators/PassiveIncome
 const lifeInsuranceCalculator = require('../algorithms/calculators/LifeInsuranceCalculator');
 const finReserveCalculator = require('../algorithms/calculators/FinReserveCalculator');
 const otherGoalCalculator = require('../algorithms/calculators/OtherGoalCalculator');
-const rentCalculator = require('../algorithms/calculators/RentCalculator');
+const inheritanceCalculator = require('../algorithms/calculators/InheritanceCalculator');
 const riskProfileService = require('./riskProfileService');
 const clientService = require('./clientService');
 const portfolioAggregator = require('../algorithms/PortfolioAggregator');
@@ -30,7 +30,8 @@ const CALCULATORS = {
     7: finReserveCalculator,    // FIN_RESERVE
     8: rentCalculator,          // RENT
     9: otherGoalCalculator,      // Map 9 to OTHER
-    6: otherGoalCalculator       // Map 6 to OTHER
+    6: otherGoalCalculator,       // Map 6 to OTHER
+    11: inheritanceCalculator    // INHERITANCE (ИСЖ / наследство)
 };
 
 /** Доля пула под первоначальный капитал пенсии: от возраста, макс. 20% */
@@ -419,10 +420,10 @@ class CalculationService {
 
         const hasOtherGoals = indexedGoals.some(i => {
             const p = this._getPriority(i.goal);
-            return p > 2 && i.goal.goal_type_id !== 3 && i.goal.goal_type_id !== 8;
+            return p > 2 && i.goal.goal_type_id !== 3 && i.goal.goal_type_id !== 11 && i.goal.goal_type_id !== 8;
         });
 
-        const invGoals = indexedGoals.filter(i => i.goal.goal_type_id === 3).map(i => i.goal);
+        const invGoals = indexedGoals.filter(i => i.goal.goal_type_id === 3 || i.goal.goal_type_id === 11).map(i => i.goal);
         const rentGoals = indexedGoals.filter(i => i.goal.goal_type_id === 8).map(i => i.goal);
         const hasInv = invGoals.length > 0;
         const hasRent = rentGoals.length > 0;
@@ -458,7 +459,7 @@ class CalculationService {
             .map(({ goal }) => goal)
             .filter(g => {
                 const p = this._getPriority(g);
-                return p > 2 && g.goal_type_id !== 3 && g.goal_type_id !== 8 && g.goal_type_id !== 1;
+                return p > 2 && g.goal_type_id !== 3 && g.goal_type_id !== 11 && g.goal_type_id !== 8 && g.goal_type_id !== 1;
             });
 
         // 3a. Пенсия — доля от остатка по возрасту (макс. 20%), либо весь остаток, если больше некуда класть капитал

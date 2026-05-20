@@ -1,6 +1,10 @@
 const TaxService = require('../TaxService');
 const settingsService = require('../../services/settingsService');
 const resolutPortfolioQuoteYieldService = require('../../services/resolutPortfolioQuoteYieldService');
+const {
+    resolveIszhSurvivalYieldsFromMatrix,
+    buildInsuranceRiskRows
+} = require('./iszhSurvivalYield');
 const { findPortfolioRiskProfileRow } = require('./riskProfileSlice');
 
 /** @param {Date} d */
@@ -469,11 +473,25 @@ class BaseCalculator {
     /**
      * Доходность инструмента для взвешенного портфеля: котировка Resolut (только project RESOLUT_PROJECT_ID + resolut_pfp_code)
      * или матрица lines/yields.
+     * @param {{ yieldMode?: string }|null} [yieldOptions]
      * @returns {Promise<{ productYield: number, shortTermYield: number }>}
      */
-    async resolveInstrumentYieldsForWeightedPortfolio(product, goal, allocatedAmount, projectId, context) {
+    async resolveInstrumentYieldsForWeightedPortfolio(product, goal, allocatedAmount, projectId, context, yieldOptions = null) {
         const termMonths = Number(goal.term_months || 0);
         const yields = product.yields || [];
+        const prodType = (product.product_type || '').toUpperCase().trim();
+        const inheritanceIszh = yieldOptions && yieldOptions.yieldMode === 'iszh_survival_matrix' && prodType === 'ISZH';
+
+        if (inheritanceIszh) {
+            const { productYield, shortTermYield } = resolveIszhSurvivalYieldsFromMatrix(
+                product,
+                goal,
+                allocatedAmount,
+                context
+            );
+            return { productYield, shortTermYield };
+        }
+
         let usedResolut = false;
         let productYield = null;
 
@@ -492,6 +510,14 @@ class BaseCalculator {
             }
         }
 
+        const parseYield = (line) => {
+            if (!line) return 0;
+            const raw = line.yield_percent;
+            if (raw === null || raw === undefined || raw === '') return 0;
+            const n = parseFloat(raw);
+            return Number.isFinite(n) ? n : 0;
+        };
+
         if (!usedResolut) {
             const line = yields.find(l =>
                 termMonths >= l.term_from_months &&
@@ -499,7 +525,7 @@ class BaseCalculator {
                 allocatedAmount >= parseFloat(l.amount_from) &&
                 allocatedAmount <= parseFloat(l.amount_to)
             ) || yields[0];
-            productYield = line ? parseFloat(line.yield_percent) : 0;
+            productYield = parseYield(line);
         }
 
         let shortTermYield;
@@ -515,7 +541,7 @@ class BaseCalculator {
                     (parseFloat(l.term_to_months) || 999) < (parseFloat(min.term_to_months) || 999) ? l : min
                     , matchingAmountRows[0])
                 : null;
-            shortTermYield = shortTermLine ? parseFloat(shortTermLine.yield_percent) : productYield;
+            shortTermYield = shortTermLine ? parseYield(shortTermLine) : productYield;
         }
 
         return { productYield, shortTermYield };
@@ -528,9 +554,10 @@ class BaseCalculator {
      * @param {Object} goal - The goal object (needs initial_capital and term_months).
      * @param {Object} productRepository - Repository to fetch products.
      * @param {Object|null} context - Расчётный контекст (client, agentUserId) для котировки Resolut в портфеле.
-     * @returns {Promise<number>} Weighted annual yield percentage (e.g. 0.15 for 15%).
+     * @param {{ yieldMode?: string }|null} [yieldOptions] — например `{ yieldMode: 'iszh_survival_matrix' }` для цели Наследство.
+     * @returns {Promise<Object>} weightedYieldAnnual, initial_instruments, monthly_instruments, pdsProductId, insurance_risks?
      */
-    async calculateWeightedYield(portfolio, goal, productRepository, projectId = null, context = null) {
+    async calculateWeightedYield(portfolio, goal, productRepository, projectId = null, context = null, yieldOptions = null) {
         let riskProfiles = portfolio.riskProfiles || portfolio.risk_profiles || [];
 
         if (typeof riskProfiles === 'string') {
@@ -575,6 +602,7 @@ class BaseCalculator {
         const initial_instruments = [];
         const monthly_instruments = [];
         let pdsProductId = null;
+        const insurance_risks = [];
 
         for (const item of allBuckets) {
             const product = await productRepository.findById(item.product_id, projectId);
@@ -590,8 +618,13 @@ class BaseCalculator {
                 goal,
                 allocatedAmount,
                 projectId,
-                context
+                context,
+                yieldOptions
             );
+
+            if (yieldOptions && yieldOptions.yieldMode === 'iszh_survival_matrix' && prodType === 'ISZH') {
+                insurance_risks.push(...buildInsuranceRiskRows(product, goal, allocatedAmount, context));
+            }
 
             const instrumentData = {
                 name: product.name,
@@ -615,7 +648,8 @@ class BaseCalculator {
             weightedYieldAnnual: weightedYieldAnnual,
             initial_instruments,
             monthly_instruments,
-            pdsProductId
+            pdsProductId,
+            insurance_risks: insurance_risks.length > 0 ? insurance_risks : undefined
         };
     }
 

@@ -81,6 +81,11 @@ components:
             Имплицитная годовая доходность из ответа `quote` в расчётах портфеля сейчас поддерживается для `0`; иначе используется матрица `lines`/`yields`, если заполнена.
     ProductYield:
       type: object
+      description: |
+        Нормализованная линия доходности (из `products.lines` при отдаче в API).
+        Для обычных продуктов — только срок/сумма/`yield_percent`.
+        Для **ИСЖ** (матрица рисков в цели «Наследство») дополнительно: `risk_name`, возрастной коридор, `payment_ratio`;
+        `yield_percent` обязателен минимум у строки риска **«Дожитие»** (с неё берётся годовая доходность в симуляции).
       properties:
         term_from_months:
           type: integer
@@ -92,6 +97,24 @@ components:
           type: number
         yield_percent:
           type: number
+          nullable: true
+          description: Годовая доходность %; для строк матрицы ИСЖ без доходности может быть null (кроме «Дожитие»).
+        risk_name:
+          type: string
+          nullable: true
+          description: Название риска в матрице ИСЖ (например «Дожитие», «Уход из жизни»).
+        age_from:
+          type: integer
+          nullable: true
+          description: Нижняя граница возраста клиента (полных лет), включительно.
+        age_to:
+          type: integer
+          nullable: true
+          description: Верхняя граница возраста клиента (полных лет), включительно.
+        payment_ratio:
+          type: number
+          nullable: true
+          description: Коэффициент/доля платежа для UI и отчёта (не смешивать с `yield_percent`).
     ProductCreate:
       type: object
       required:
@@ -121,7 +144,9 @@ components:
           example: RUB
         lines:
           type: array
-          description: Массив линий доходности продукта
+          description: |
+            Массив линий доходности продукта.
+            Для **ISZH** (ИСЖ в цели «Наследство») — матрица рисков с полем `risk_name` и обязательной строкой «Дожитие» с `yield_percent` (см. `ProductLine`).
           items:
             $ref: '#/components/schemas/ProductLine'
         resolut_pfp_code:
@@ -139,13 +164,17 @@ components:
             Периодичность для `quote`; для расчёта доходности из котировки в портфеле — задайте `0` или оставьте пустым (дефолт 0 / env `RESOLUT_PORTFOLIO_QUOTE_PTYPE`).
     ProductLine:
       type: object
-      description: Линия доходности продукта
+      description: |
+        Линия доходности продукта в теле создания/обновления (`lines`).
+        Для **ИСЖ** с типом продукта `ISZH` в проекте с наследственными портфелями — матрица по `risk_name`
+        (обязательно хотя бы одна строка с названием риска «Дожитие» и числовой `yield_percent`).
+        Остальные риски могут иметь только `payment_ratio` без `yield_percent`.
+        Допустимы алиасы полей срока/суммы: `term_from_months`/`term_to_months`, `amount_from`/`amount_to` (см. бэкенд `productLineSchema`).
       required:
         - min_term_months
         - max_term_months
         - min_amount
         - max_amount
-        - yield_percent
       properties:
         min_term_months:
           type: number
@@ -161,7 +190,22 @@ components:
           description: Максимальная сумма (включительно)
         yield_percent:
           type: number
-          description: Доходность в процентах годовых (%)
+          nullable: true
+          description: Доходность в % годовых; для ИСЖ обязательна у строки «Дожитие», у остальных рисков — опционально.
+        risk_name:
+          type: string
+          nullable: true
+          description: Риск матрицы ИСЖ (обязателен для каждой строки матрицы при `product_type` = ISZH).
+        age_from:
+          type: integer
+          nullable: true
+        age_to:
+          type: integer
+          nullable: true
+        payment_ratio:
+          type: number
+          nullable: true
+          description: Коэффициент платежа для отображения (UI/отчёт).
     ProductType:
       type: object
       description: Тип продукта

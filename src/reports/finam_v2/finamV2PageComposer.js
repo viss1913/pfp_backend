@@ -20,7 +20,8 @@ function defaultGoalPageType(goal) {
     if (type === 'PASSIVE_INCOME' || type === 'RENT' || id === 2 || id === 8) {
         return FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME;
     }
-    if (type === 'INVESTMENT') return FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW;
+    if (type === 'INVESTMENT' || id === 3) return FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW;
+    if (type === 'INHERITANCE' || id === 11) return FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE;
     return FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER;
 }
 

@@ -1,5 +1,53 @@
 const db = require('../config/database');
 
+/**
+ * Нормализация строки products.lines → объект yields[] (в т.ч. матрица ИСЖ: risk_name, age, payment_ratio).
+ * @param {Object} line
+ * @returns {Object}
+ */
+function mapProductLineToYield(line) {
+    if (!line || typeof line !== 'object') {
+        return {
+            term_from_months: 0,
+            term_to_months: 0,
+            amount_from: 0,
+            amount_to: 0,
+            yield_percent: 0
+        };
+    }
+    const hasRisk = line.risk_name != null && String(line.risk_name).trim() !== '';
+    let yp = line.yield_percent;
+    if (yp === null || yp === undefined || yp === '') {
+        yp = hasRisk ? null : 0;
+    } else {
+        const n = Number(yp);
+        yp = Number.isFinite(n) ? n : (hasRisk ? null : 0);
+    }
+    const row = {
+        term_from_months: line.min_term_months || line.term_from_months || 0,
+        term_to_months: line.max_term_months || line.term_to_months || 0,
+        amount_from: line.min_amount || line.amount_from || 0,
+        amount_to: line.max_amount || line.amount_to || 0,
+        yield_percent: yp
+    };
+    if (hasRisk) {
+        row.risk_name = String(line.risk_name).trim();
+    }
+    if (line.age_from != null && line.age_from !== '') {
+        const n = Number(line.age_from);
+        if (Number.isFinite(n)) row.age_from = n;
+    }
+    if (line.age_to != null && line.age_to !== '') {
+        const n = Number(line.age_to);
+        if (Number.isFinite(n)) row.age_to = n;
+    }
+    if (line.payment_ratio != null && line.payment_ratio !== '') {
+        const n = Number(line.payment_ratio);
+        if (Number.isFinite(n)) row.payment_ratio = n;
+    }
+    return row;
+}
+
 class ProductRepository {
     async findAll({ projectId = null, includeDefaults = true, filters = {} }) {
         const query = db('products')
@@ -38,13 +86,7 @@ class ProductRepository {
                     if (Array.isArray(lines)) {
                         // Convert from lines format (min_term_months, max_term_months, min_amount, max_amount, yield_percent)
                         // to yields format (term_from_months, term_to_months, amount_from, amount_to, yield_percent)
-                        yields = lines.map(line => ({
-                            term_from_months: line.min_term_months || line.term_from_months || 0,
-                            term_to_months: line.max_term_months || line.term_to_months || 0,
-                            amount_from: line.min_amount || line.amount_from || 0,
-                            amount_to: line.max_amount || line.amount_to || 0,
-                            yield_percent: line.yield_percent || 0
-                        }));
+                        yields = lines.map((line) => mapProductLineToYield(line));
                     }
                 } catch (error) {
                     console.error(`Error parsing lines JSON for product ${row.id}:`, error);
@@ -80,13 +122,7 @@ class ProductRepository {
                 if (Array.isArray(lines)) {
                     // Convert from lines format (min_term_months, max_term_months, min_amount, max_amount, yield_percent)
                     // to yields format (term_from_months, term_to_months, amount_from, amount_to, yield_percent)
-                    yields = lines.map(line => ({
-                        term_from_months: line.min_term_months || line.term_from_months || 0,
-                        term_to_months: line.max_term_months || line.term_to_months || 0,
-                        amount_from: line.min_amount || line.amount_from || 0,
-                        amount_to: line.max_amount || line.amount_to || 0,
-                        yield_percent: line.yield_percent || 0
-                    }));
+                    yields = lines.map((line) => mapProductLineToYield(line));
                 }
             } catch (error) {
                 console.error(`Error parsing lines JSON for product ${id}:`, error);
@@ -102,12 +138,16 @@ class ProductRepository {
         return db.transaction(async (trx) => {
             // Convert yieldsData to lines format if provided
             if (yieldsData && yieldsData.length > 0) {
-                const lines = yieldsData.map(y => ({
+                const lines = yieldsData.map((y) => ({
                     min_term_months: y.term_from_months || y.min_term_months || 0,
                     max_term_months: y.term_to_months || y.max_term_months || 0,
                     min_amount: y.amount_from || y.min_amount || 0,
                     max_amount: y.amount_to || y.max_amount || 0,
-                    yield_percent: y.yield_percent || 0
+                    yield_percent: y.yield_percent,
+                    risk_name: y.risk_name,
+                    age_from: y.age_from,
+                    age_to: y.age_to,
+                    payment_ratio: y.payment_ratio
                 }));
                 productData.lines = JSON.stringify(lines);
             } else if (productData.lines !== undefined) {
@@ -141,12 +181,16 @@ class ProductRepository {
             // Convert yieldsData to lines format if provided
             if (yieldsData !== undefined) {
                 if (yieldsData && yieldsData.length > 0) {
-                    const lines = yieldsData.map(y => ({
+                    const lines = yieldsData.map((y) => ({
                         min_term_months: y.term_from_months || y.min_term_months || 0,
                         max_term_months: y.term_to_months || y.max_term_months || 0,
                         min_amount: y.amount_from || y.min_amount || 0,
                         max_amount: y.amount_to || y.max_amount || 0,
-                        yield_percent: y.yield_percent || 0
+                        yield_percent: y.yield_percent,
+                        risk_name: y.risk_name,
+                        age_from: y.age_from,
+                        age_to: y.age_to,
+                        payment_ratio: y.payment_ratio
                     }));
                     productData.lines = JSON.stringify(lines);
                 } else {

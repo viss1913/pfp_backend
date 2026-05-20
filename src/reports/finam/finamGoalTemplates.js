@@ -81,6 +81,7 @@ function resolveGoalTemplateFile(goal) {
         if (id === 2) return 'goal-page-passive-income-finam.html';
         if (id === 8) return 'goal-page-passive-income-finam.html';
         if (id === 3) return resolveInvestmentTemplateFile(label);
+        if (id === 11) return resolveInvestmentTemplateFile(label);
         if (id === 4 || id === 6 || id === 9) return resolveOtherGoalTemplateFile();
     }
 
@@ -91,6 +92,7 @@ function resolveGoalTemplateFile(goal) {
     if (goalType === 'PASSIVE_INCOME') return 'goal-page-passive-income-finam.html';
     if (goalType === 'RENT') return 'goal-page-passive-income-finam.html';
     if (goalType === 'INVESTMENT') return resolveInvestmentTemplateFile(label);
+    if (goalType === 'INHERITANCE') return resolveInvestmentTemplateFile(label);
     if (goalType === 'OTHER') return resolveOtherGoalTemplateFile();
     return null;
 }

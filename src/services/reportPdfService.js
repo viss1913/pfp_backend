@@ -22,7 +22,7 @@ const projectService = require('./projectService');
 const { parseProjectSettings, getPartnerLinkTrackingSettings } = require('../utils/projectSettings');
 const { applyTrackedPartnerUrlsToHtml } = require('../utils/trackedPartnerUrl');
 
-const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'RENT', 'INVESTMENT', 'OTHER'];
+const SUPPORTED_GOAL_TYPES = ['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'RENT', 'INVESTMENT', 'INHERITANCE', 'OTHER'];
 
 function buildAdvisorFromAgent(agent) {
     if (!agent) return null;

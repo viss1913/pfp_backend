@@ -23,6 +23,7 @@ const GOAL_TYPE_TO_PAGE_TYPE = Object.freeze({
     PASSIVE_INCOME: FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME,
     RENT: FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME,
     INVESTMENT: FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW,
+    INHERITANCE: FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE,
     OTHER: FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER,
 });
 
@@ -37,6 +38,7 @@ const PAGE_TITLES = Object.freeze({
     [FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION]: 'Пенсионная цель',
     [FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME]: 'Пассивный доход',
     [FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW]: 'Сохранить и приумножить',
+    [FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE]: 'Наследство',
     [FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER]: 'Крупная цель',
     [FINAM_REPORT_V2_PAGE_TYPES.PORTFOLIO_SUMMARY]: 'Итоговый портфель',
     [FINAM_REPORT_V2_PAGE_TYPES.TAX_PLANNING]: 'Налоговое планирование',
@@ -59,6 +61,7 @@ const ASSET_BY_GOAL_TYPE = Object.freeze({
     PASSIVE_INCOME: 'goal-passive-income.webp',
     RENT: 'goal-passive-income.webp',
     INVESTMENT: 'goal-save-grow.webp',
+    INHERITANCE: 'goal-save-grow.webp',
     OTHER: 'goal-other.webp',
 });
 
@@ -175,12 +178,15 @@ function goalPageType(goal) {
     if (type === 'PASSIVE_INCOME' || type === 'RENT' || id === 2 || id === 8) {
         return FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME;
     }
+    if (type === 'INHERITANCE' || id === 11) {
+        return FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE;
+    }
     return GOAL_TYPE_TO_PAGE_TYPE[type] || FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER;
 }
 
 function normalizeGoalFilter(goalTypesRaw) {
     if (!goalTypesRaw) return null;
-    const valid = new Set(['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'RENT', 'INVESTMENT', 'OTHER']);
+    const valid = new Set(['FIN_RESERVE', 'LIFE', 'PENSION', 'PASSIVE_INCOME', 'RENT', 'INVESTMENT', 'INHERITANCE', 'OTHER']);
     const items = String(goalTypesRaw)
         .split(',')
         .map((s) => s.trim().toUpperCase())
@@ -297,6 +303,7 @@ function goalSortWeight(goal) {
         FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION,
         FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME,
         FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW,
+        FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE,
         FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER,
     ];
     const idx = order.indexOf(pageType);
@@ -1432,6 +1439,9 @@ async function buildFinamReportV2PageHtml({
         'save-and-grow': FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW,
         'goal-save-grow': FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW,
         goalsavegrow: FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW,
+        inheritance: FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE,
+        'goal-inheritance': FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE,
+        goalinheritance: FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE,
         other: FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER,
         'goal-other': FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER,
         goalother: FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER,
