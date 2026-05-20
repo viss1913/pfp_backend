@@ -10,6 +10,7 @@ const investmentCalculator = require('../algorithms/calculators/InvestmentCalcul
 const passiveIncomeCalculator = require('../algorithms/calculators/PassiveIncomeCalculator');
 const lifeInsuranceCalculator = require('../algorithms/calculators/LifeInsuranceCalculator');
 const finReserveCalculator = require('../algorithms/calculators/FinReserveCalculator');
+const rentCalculator = require('../algorithms/calculators/RentCalculator');
 const otherGoalCalculator = require('../algorithms/calculators/OtherGoalCalculator');
 const inheritanceCalculator = require('../algorithms/calculators/InheritanceCalculator');
 const riskProfileService = require('./riskProfileService');
