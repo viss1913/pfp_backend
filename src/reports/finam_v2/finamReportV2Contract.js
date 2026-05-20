@@ -11,6 +11,8 @@ const FINAM_REPORT_V2_PAGE_TYPES = Object.freeze({
     COMON_AUTOFOLLOW: 'comonAutofollow',
     IDU_STRATEGIES: 'iduStrategies',
     FINAM_OFFERS: 'finamOffers',
+    SBER_EQUITIES_SHOWCASE: 'sberEquitiesShowcase',
+    SBER_BONDS_SHOWCASE: 'sberBondsShowcase',
     INFLATION: 'inflation',
     RISK_DECLARATION: 'riskDeclaration',
     DETAILED_PLAN: 'detailedPlan',

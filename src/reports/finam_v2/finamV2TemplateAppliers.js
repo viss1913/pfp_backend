@@ -3,6 +3,12 @@ const path = require('path');
 const { buildRepleneshmentRows } = require('../finam/buildFinamReportHtml');
 const { FINAM_REPORT_V2_PAGE_TYPES } = require('./finamReportV2Contract');
 const { isAtbBankProject, applyAtbLifeGoalDisplay, atbBrandingRiskDeclarationHtml } = require('./finamV2AtbBranding');
+const {
+    isSberProject,
+    replaceSberEquitiesPage,
+    replaceSberBondsPage,
+    applySberReportBranding,
+} = require('./finamV2SberBranding');
 
 function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -3559,6 +3565,12 @@ function applyTemplateData(html, context = {}) {
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES) {
         out = replaceIduStrategiesPage(out, context);
     }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.SBER_EQUITIES_SHOWCASE) {
+        out = replaceSberEquitiesPage(out);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.SBER_BONDS_SHOWCASE) {
+        out = replaceSberBondsPage(out);
+    }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.INFLATION) {
         out = replaceInflationPage(out, context);
     }
@@ -3590,6 +3602,9 @@ function applyTemplateData(html, context = {}) {
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER) {
         out = replaceOtherGoalPage(out, context);
+    }
+    if (isSberProject(context.model?.meta?.projectId)) {
+        out = applySberReportBranding(out);
     }
     return out;
 }

@@ -71,6 +71,14 @@ const FINAM_V2_TEMPLATE_MANIFEST = Object.freeze({
         fileName: 'page-finam-offers-v2.html',
         title: 'Предложения Финам',
     },
+    [FINAM_REPORT_V2_PAGE_TYPES.SBER_EQUITIES_SHOWCASE]: {
+        fileName: 'page-sber-equities-v2.html',
+        title: 'Акции — витрина Сбер',
+    },
+    [FINAM_REPORT_V2_PAGE_TYPES.SBER_BONDS_SHOWCASE]: {
+        fileName: 'page-sber-bonds-v2.html',
+        title: 'Облигации — витрина Сбер',
+    },
     [FINAM_REPORT_V2_PAGE_TYPES.INFLATION]: {
         fileName: 'page-inflation-v2.html',
         title: 'Макроконтур',

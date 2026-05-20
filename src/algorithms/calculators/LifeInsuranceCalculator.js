@@ -1,6 +1,7 @@
 const BaseCalculator = require('./BaseCalculator');
 const { fetchLifeNsjResult, deriveLifeCostNow } = require('./lifeUpfrontAmount');
-const FINAM_PROJECT_ID = 14;
+/** Проекты с расчётом «Подушка безопасности» (Сбер Жизнь), не АТБ (28 — бренд Лучи в PDF, тариф тот же в lifeUpfrontAmount). */
+const SBER_LIFE_CALC_PROJECT_IDS = new Set([14, 29]);
 const SBER_LIFE_TERM_MONTHS = 15 * 12;
 const SBER_LIFE_TARIFF = 0.0144;
 
@@ -66,7 +67,7 @@ class LifeInsuranceCalculator extends BaseCalculator {
 
         // 1. Calculate NSJ Parameters first (we need the premium amount)
         const projectId = resolveProjectId(context);
-        const isFinamSberLife = projectId === FINAM_PROJECT_ID;
+        const isFinamSberLife = projectId != null && SBER_LIFE_CALC_PROJECT_IDS.has(projectId);
         const termMonths = isFinamSberLife ? SBER_LIFE_TERM_MONTHS : Number(goal.term_months || 120);
         const targetAmount = Number(goal.target_amount || 0);
 

@@ -1,9 +1,9 @@
 const { FINAM_REPORT_V2_PAGE_TYPES, FINAM_REPORT_V2_SCHEMA_VERSION } = require('./finamReportV2Contract');
 const {
     FINAM_V2_SUMMARY_PAGE_ORDER,
-    FINAM_V2_TAIL_PAGE_ORDER,
     FINAM_V2_TEMPLATE_MANIFEST,
 } = require('./finamV2PageManifest');
+const { resolveTailPageOrder } = require('./finamV2SberPageConfig');
 const {
     loadTemplateDocument,
     loadTemplatePhysicalPages,
@@ -94,7 +94,8 @@ function buildFinamV2TemplatePackage({
         addSection(goalPageType(goal), goal);
     }
 
-    for (const pageType of FINAM_V2_TAIL_PAGE_ORDER) addSection(pageType);
+    const tailOrder = resolveTailPageOrder(model?.meta?.projectId);
+    for (const pageType of tailOrder) addSection(pageType);
     if (includePartnerValue) addSection(FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE);
 
     const pageHtmlList = [];

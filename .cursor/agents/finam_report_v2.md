@@ -193,6 +193,17 @@ python -m http.server 8766 --bind 127.0.0.1
 - Делать одну общую pie-диаграмму там, где по смыслу нужны две разные структуры: первоначальный капитал и ежемесячное пополнение.
 - Хардкодить проценты в donut отдельно от легенды/контракта без проверки суммы `100%`.
 
+## White-label тенанты (Сбер, АТБ) — не путать с правками «для всех»
+
+Общий движок v2 один: порядок страниц, composer, appliers, контракт данных. Тенанты **не форкают** `page-*-v2.html` под себя.
+
+| Агент | projectId | Что меняют |
+|--------|-----------|------------|
+| [`sber-report`](sber-report.md) | **29** | Брендинг/цвета, скрытие Finam-only листов, ссылки Сбера — **только** через `finamV2SberBranding` / page config |
+| [`atb-bank`](atb-bank.md) | **28** | [`finamV2AtbBranding.js`](src/reports/finam_v2/finamV2AtbBranding.js) |
+
+Задачи «покрасить Сбер» → **sber-report**, не правки manifest/шаблонов «заодно для Сбера» в общих файлах.
+
 ## Связанные файлы (ориентиры)
 
 - v1 (не ломать): [`reportPdfService.js`](src/services/reportPdfService.js), [`buildFinamReportHtml.js`](src/reports/finam/buildFinamReportHtml.js), [`injectReportPdfPageFillA4.js`](src/utils/injectReportPdfPageFillA4.js).

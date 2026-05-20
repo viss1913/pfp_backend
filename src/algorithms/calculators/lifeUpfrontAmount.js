@@ -4,8 +4,8 @@
  */
 
 const nsjApiServiceSingleton = require('../../services/nsjApiService');
-/** Finam (14) и АТБ white-label (28) — один упрощённый NSJ-shape для графика/премии. */
-const NSJ_FINAM_STYLE_PROJECT_IDS = new Set([14, 28]);
+/** Finam (14), АТБ (28), SBER (29) — один упрощённый NSJ-shape для графика/премии. */
+const NSJ_FINAM_STYLE_PROJECT_IDS = new Set([14, 28, 29]);
 const SBER_LIFE_TARIFF = 0.0144;
 
 /**
