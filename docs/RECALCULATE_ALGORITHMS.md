@@ -92,6 +92,8 @@
 
 Как инвестиции по полям пересчёта (`InvestmentRecalculator` / `InheritanceRecalculator`), ответ API совместим с INVESTMENT; доходность по продуктам **ISZH** берётся из строки матрицы `lines` с риском «Дожитие», а не из котировки Resolut.
 
+**Умное распределение пула (first-run):** после FIN_RESERVE и LIFE с `total_liquid_capital` резервируется **`goal.initial_capital`** (если 0 — с пула не берётся). Инвестиции (3) и аренда (8) — следующая фаза; OTHER и пассивка — в хвосте (3b). В расчёт уходит **`smart_initial_capital`**; **`target_amount`** — целевой капитал к сроку в симуляции, не сумма резерва из пула.
+
 ---
 
 ### 5. Защита жизни (LIFE, goal_type_id = 5)

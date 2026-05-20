@@ -388,10 +388,11 @@ class CalculationService {
 
     /**
      * Smart Capital Allocation
-     * Фаза 1: резерв + LIFE (первый взнос по NSJ/fallback).
-     * Фаза 2: 60% остатка (или 100%) — инвестиции (3) и RENT (8), 50/50 между классами при обоих; внутри класса — по весу стоимость/срок.
-     * Фаза 3a: пенсия — доля остатка от возраста, макс. 20%; если в плане нет инвестиций/аренды и нет «хвостовых» целей (пассивка, прочее) — весь остаток пула на пенсию.
-     * Фаза 3b: остальные цели — пропорционально стоимость/срок, последняя в группе забирает бюджетный хвост.
+     * Фаза 1: FIN_RESERVE + LIFE (первый взнос по NSJ/fallback).
+     * Фаза 1b: INHERITANCE (11) — фикс. резерв по goal.initial_capital (без fallback на target_amount).
+     * Фаза 2: 60% остатка (или 100%) — только INVESTMENT (3) и RENT (8); внутри класса — по весу стоимость/срок.
+     * Фаза 3a: пенсия — доля остатка от возраста, макс. 20%.
+     * Фаза 3b: PASSIVE_INCOME (2) + OTHER (4,6,9) — пропорционально стоимость/срок из оставшегося пула.
      */
     async _calculateSmartAllocation(indexedGoals, context) {
         let pool = context.poolBalance || 0;
@@ -403,6 +404,7 @@ class CalculationService {
         for (const { goal } of indexedGoals) {
             const priority = this._getPriority(goal);
             if (priority > 2) continue;
+            if (goal.goal_type_id === 11) continue;
 
             let needed = 0;
             if (goal.goal_type_id === 5) {
@@ -419,12 +421,28 @@ class CalculationService {
             logger.info(`[CalculationService] Reserved ${actualTaken} for ${goal.name} (Priority ${priority})`);
         }
 
+        // 1b. Наследство — резерв из пула только по initial_capital
+        for (const { goal } of indexedGoals) {
+            if (goal.goal_type_id !== 11) continue;
+            const needed = Number(goal.initial_capital) || 0;
+            if (needed <= 0) {
+                goal.smart_initial_capital = 0;
+                logger.info(`[CalculationService] Inheritance ${goal.name}: initial_capital=0, skip pool reserve`);
+                continue;
+            }
+            const take = Math.min(tempPool, needed);
+            const actualTaken = this._internalDeduct(take, context);
+            goal.smart_initial_capital = actualTaken;
+            tempPool -= actualTaken;
+            logger.info(`[CalculationService] Reserved ${actualTaken} for inheritance ${goal.name} (initial_capital=${needed})`);
+        }
+
         const hasOtherGoals = indexedGoals.some(i => {
             const p = this._getPriority(i.goal);
             return p > 2 && i.goal.goal_type_id !== 3 && i.goal.goal_type_id !== 11 && i.goal.goal_type_id !== 8;
         });
 
-        const invGoals = indexedGoals.filter(i => i.goal.goal_type_id === 3 || i.goal.goal_type_id === 11).map(i => i.goal);
+        const invGoals = indexedGoals.filter(i => i.goal.goal_type_id === 3).map(i => i.goal);
         const rentGoals = indexedGoals.filter(i => i.goal.goal_type_id === 8).map(i => i.goal);
         const hasInv = invGoals.length > 0;
         const hasRent = rentGoals.length > 0;

@@ -230,7 +230,10 @@ components:
           type: number
           minimum: 0
           default: 0
-          description: Initial capital (optional, default 0)
+          description: |
+            Стартовый капитал цели (₽). Для **INHERITANCE** (`goal_type_id: 11`) на first-run с умным распределением —
+            сумма резерва из `client.total_liquid_capital` (после FIN_RESERVE и LIFE); при 0 с пула не резервируется.
+            Для INVESTMENT — ввод вручную / результат smart allocation. Для OTHER — в основном через smart allocation в фазе 3b.
           example: 0
         inflation_rate:
           type: number
@@ -2097,6 +2100,7 @@ paths:
 
         **INHERITANCE goals (`goal_type_id: 11`, «Наследство»):**
         - Same portfolio simulation shape as INVESTMENT (`PortfolioCalculationResult`): `summary`, `details.initial_instruments`, `yearly_breakdown`, etc.
+        - On first-run smart allocation: pool reserve uses **`initial_capital` only** (after FIN_RESERVE and LIFE), not a share of the investment phase; result in **`summary.initial_capital`** (`smart_initial_capital`).
         - Products of type **ISZH** must define a risk matrix in `lines` with `risk_name`; annual plan yield is taken **only** from the **«Дожитие»** row (see `openapi/OPENAPI_SPEC.yaml` `ProductLine`).
         - Provide `client.birth_date` (and goal `start_date` when needed) so age bands `age_from`/`age_to` match.
         - `details.insurance_risks` lists matrix rows that apply to the goal context (for UI/reports); other risks may carry `payment_ratio` without `yield_percent`.

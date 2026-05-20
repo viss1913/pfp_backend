@@ -959,7 +959,7 @@ paths:
         (5 уровней, те же строки, что `profile_type` в портфеле при наличии срезов `MODERATELY_*`). Поле **`risk_profile`**
         остаётся тройкой для совместимости; бэкенд может проставлять extended после анкеты на first-run / пересчёте.
 
-        **Наследство (`goal_type_id: 11`):** портфель класса INHERITANCE; продукты **ISZH** с матрицей в `lines` (`risk_name`, опционально `age_from`/`age_to`, `payment_ratio`). Для подбора возрастных диапазонов в теле расчёта укажите **`client.birth_date`**. В ответе — `goal_type: INHERITANCE`, структура как у инвестиций, плюс при необходимости **`details.insurance_risks`** (строки матрицы в контексте цели).
+        **Наследство (`goal_type_id: 11`):** портфель класса INHERITANCE; продукты **ISZH** с матрицей в `lines` (`risk_name`, опционально `age_from`/`age_to`, `payment_ratio`). Для подбора возрастных диапазонов в теле расчёта укажите **`client.birth_date`**. На first-run из **`client.total_liquid_capital`** после резерва и жизни резервируется **`goals[].initial_capital`** (если 0 — с пула не берётся); инвестиции и OTHER — следующими фазами умного распределения. В ответе — `goal_type: INHERITANCE`, структура как у инвестиций, плюс при необходимости **`details.insurance_risks`** (строки матрицы в контексте цели).
       security: []
       parameters:
         - name: x-project-key
