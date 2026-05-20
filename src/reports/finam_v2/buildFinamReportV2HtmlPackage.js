@@ -61,7 +61,7 @@ const ASSET_BY_GOAL_TYPE = Object.freeze({
     PASSIVE_INCOME: 'goal-passive-income.webp',
     RENT: 'goal-passive-income.webp',
     INVESTMENT: 'goal-save-grow.webp',
-    INHERITANCE: 'goal-save-grow.webp',
+    INHERITANCE: 'goal-inheritance.webp',
     OTHER: 'goal-other.webp',
 });
 

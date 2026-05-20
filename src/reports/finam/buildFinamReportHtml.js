@@ -42,6 +42,7 @@ const FINAM_GOAL_CARD_PLACEHOLDER_MAP = {
     'goal-house.webp': 'zagorodnayanedvizhimost.webp',
     'goal-pension.webp': 'gospensiya.webp',
     'goal-grow.webp': 'sohranit__i_preumnozhit.webp',
+    'goal-inheritance.webp': 'INHERITANCE.webp',
     'goal-rent.webp': 'drugoe.webp',
 };
 
@@ -1276,11 +1277,31 @@ function isOtherLikeGoal(goal) {
     return goalType === 'OTHER' || goalTypeId === 4 || goalTypeId === 6 || goalTypeId === 9;
 }
 
+function isInheritanceGoal(goal) {
+    const goalType = String(goal?.goal_type || '').toUpperCase();
+    const goalTypeId = Number(goal?.goal_type_id);
+    return goalType === 'INHERITANCE' || goalTypeId === 11;
+}
+
 function isSaveGrowGoal(goal) {
     const goalType = String(goal?.goal_type || '').toUpperCase();
     const goalTypeId = Number(goal?.goal_type_id);
     const name = String(goal?.goal_name || '').toLowerCase();
     return goalType === 'INVESTMENT' || goalType === 'INHERITANCE' || goalTypeId === 3 || goalTypeId === 11 || /сохран|приумнож/.test(name);
+}
+
+/** Страница save-grow для INHERITANCE: своя картинка и подписи в hero. */
+function applyInheritanceGoalHeroImage(html, goal) {
+    if (!isInheritanceGoal(goal)) return html;
+    const title = escapeHtml(finamTemplateLabel(goal) || 'Наследство');
+    let out = html;
+    out = out.replace(
+        /(<div class="savegrow-hero-image">\s*<img src=")(\.\.\/\.\.\/\.\.\/assets\/reports\/goal-cards\/)[^"]+(")/i,
+        `$1$2INHERITANCE.webp$3`
+    );
+    out = out.replace(/<div class="savegrow-tag">Инвестиции<\/div>/, '<div class="savegrow-tag">Наследство</div>');
+    out = out.replace(/<div class="savegrow-hero-title">Сохранить и приумножить<\/div>/, `<div class="savegrow-hero-title">${title}</div>`);
+    return out;
 }
 
 function stripOtherChartSection(html, goal) {
@@ -1509,6 +1530,7 @@ function applyGoalFactsToTemplate(html, goal) {
     const goalTypeId = Number(goal?.goal_type_id);
 
     out = applyFinamOtherScenarioFromEducationBase(out, goal);
+    out = applyInheritanceGoalHeroImage(out, goal);
     out = applyPensionHeroPlaceholders(out, goal);
     out = applyPensionGapMetrics(out, goal);
     out = stripPensionChartSection(out, goal);

@@ -37,7 +37,7 @@ Finam Report v2 — порядок макетов (черновик).
   assets/icon-roadmap.png, icon-control.png, icon-freedom.png — иконки трёх карточек на page-intro-v2
   assets/avatar-ai-finam-v2.png — аватар ИИ на page-current-state-v2 (можно заменить на фото/data URL)
   assets/goal-reserve.webp, goal-lifeinsurance.webp, goal-pension.webp,
-  goal-passive-income.webp, goal-save-grow.webp, goal-other-*.webp — локальные копии goal-cards для v2-превью
+  goal-passive-income.webp, goal-save-grow.webp, goal-inheritance.webp, goal-other-*.webp — локальные копии goal-cards для v2-превью
 
 Страницы:
   1. page-cover-v2.html — обложка

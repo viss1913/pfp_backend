@@ -103,6 +103,10 @@ function computeGoalFacts(goal) {
 }
 
 function goalCardImagePlaceholder(goal) {
+    const type = String(goal?.goal_type || '').toUpperCase();
+    const id = Number(goal?.goal_type_id);
+    if (type === 'INHERITANCE' || id === 11) return 'goal-inheritance.webp';
+
     const file = resolveGoalTemplateFile(goal);
     const map = {
         'goal-page-fin-reserve-finam.html': 'goal-reserve.webp',
