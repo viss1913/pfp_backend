@@ -1106,6 +1106,7 @@ function replacePassiveIncomeGoalPage(html, context) {
     const accumulationYieldHtml = formatPercentHtml(p.accumulationYield);
     const inflationHtml = formatPercentHtml(p.inflation);
     const payoutYieldHtml = formatPercentHtml(p.payoutYield);
+    const goalImageUrl = fileToDataUrl('assets/goal-passive-income.webp');
     const passiveHeroIntroHtml = 'Отличная цель! я создам план как накопить капитал. что бы он давал нужный доход.';
     const passiveHeroNarrativeHtml = `Вы хотели бы получать <strong>${incomePresentHtml}</strong> в ${escapeHtml(p.payoutYear)} г. С учётом инфляции ${inflationHtml} это уже <strong>${incomeFutureHtml}</strong>.`;
     const capitalNarrativeHtml = `Для получения ежемесячного пассивного дохода <strong>${incomeFutureHtml}</strong> понадобится капитал <strong>${projectedFullHtml}</strong>. В плане считаем, что его можно инвестировать под ${payoutYieldHtml} годовых в депозиты, облигации и другие консервативные инструменты.`;
@@ -1131,7 +1132,7 @@ function replacePassiveIncomeGoalPage(html, context) {
         <p class="finam-v2-passive-income__text">${passiveHeroNarrativeHtml}</p>
       </div>
       <div class="finam-v2-passive-income__hero-image">
-        <img src="assets/goal-passive-income.webp" width="156" height="116" alt="" decoding="async" />
+        <img src="${goalImageUrl}" width="156" height="116" alt="" decoding="async" />
       </div>
     </section>`
         );
@@ -1948,20 +1949,34 @@ function takeawayIconSvg() {
     return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" /><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>';
 }
 
+function pillarRowTitle(row, helpers) {
+    if (row?.title) return String(row.title);
+    return goalName(row?.goal || row, helpers);
+}
+
+/** Столпы «Структура целей» — только ежемесячное пополнение из goalsDiagnostics.rows. */
+function pillarRowMonthlyHtml(row, helpers) {
+    const rawGoal = row?.goal || row;
+    if (isPassiveIncomeGoalType(rawGoal)) {
+        const income = passiveIncomePresentValue(rawGoal);
+        return income > 0 ? moneyHtml(helpers, income, { perMonth: true }) : '—';
+    }
+    const monthly = finite(
+        row?.monthly ?? rawGoal?.summary?.monthly_replenishment ?? rawGoal?.monthly_replenishment,
+        0
+    );
+    if (monthly <= 0) return '—';
+    return moneyHtml(helpers, monthly, { perMonth: true });
+}
+
 function buildGoalsPillarsHtml(diagnostics, helpers) {
     const groups = Array.isArray(diagnostics?.groups) ? diagnostics.groups : [];
     return `<div class="finam-v2-goals__pillars">
       ${groups.map((group) => {
-        const rows = (group.goals || []).slice(0, 3).map((goal) => {
-            const isPassive = isPassiveIncomeGoalType(goal);
-            const amountHtml = isPassive
-                ? moneyHtml(helpers, passiveIncomePresentValue(goal), { perMonth: true })
-                : moneyHtml(helpers, finite(goal?.summary?.monthly_replenishment ?? goal?.monthly_replenishment, 0));
-            return `<div class="finam-v2-goals__pillar-line">
-          <span>${escapeHtml(goalName(goal, helpers))}</span>
-          <span>${amountHtml}</span>
-        </div>`;
-        }).join('\n        ');
+        const rows = (group.goals || []).slice(0, 3).map((row) => `<div class="finam-v2-goals__pillar-line">
+          <span>${escapeHtml(pillarRowTitle(row, helpers))}</span>
+          <span>${pillarRowMonthlyHtml(row, helpers)}</span>
+        </div>`).join('\n        ');
         const rest = (group.goals || []).length > 3
             ? `<div class="finam-v2-goals__pillar-line">
           <span>Ещё ${(group.goals || []).length - 3}</span>
@@ -2061,6 +2076,11 @@ function replaceGoalsPage(html, { model, helpers }) {
     out = out.replace(
         /<p class="finam-v2-goals__sub">[\s\S]*?<\/p>/,
         `<p class="finam-v2-goals__sub">${escapeHtml(diagnostics.subline || 'Цифры на странице собраны из расчётной модели клиента.')}</p>`
+    );
+    out = out.replace(
+        /<p class="finam-v2-goals__section-kicker">Структура целей<\/p>/,
+        `<p class="finam-v2-goals__section-kicker">Структура целей</p>
+    <p class="finam-v2-goals__section-note">В столпах — только ежемесячное пополнение (₽/мес). Цели без регулярных взносов (например, наследство) и стартовый капитал — в таблице ниже.</p>`
     );
     out = out.replace(
         /<div class="finam-v2-goals__pillars">[\s\S]*?<\/div>\s*\n\s*<p class="finam-v2-goals__section-kicker">Распределение ежемесячного ресурса<\/p>/,

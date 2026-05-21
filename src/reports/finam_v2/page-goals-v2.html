@@ -116,6 +116,14 @@
       margin-bottom: 6px;
     }
 
+    .finam-v2-goals__section-note {
+      font-size: 8px;
+      line-height: 1.35;
+      color: #64748b;
+      margin: -2px 0 8px;
+      max-width: 520px;
+    }
+
     /* —— три столпа: отдельные карточки, между ними «воздух» —— */
     .finam-v2-goals__pillars {
       display: flex;
@@ -404,7 +412,7 @@
 <body>
   <!--
     Маппинг (см. buildFinamReportHtml.js → computeGoalFacts):
-    • Столпы: goals[] → группы Защита | Накопления | Пенсия (в Пенсии: госпенсия, пассивный доход, рента — по goal_type).
+    • Столпы: goals[] → группы Защита | Накопления | Пенсия; в строках только monthly_replenishment (₽/мес), без стартового капитала.
     • Таблица: goal_name, срок, monthly_replenishment, capital/target; колонки «Сейчас» = target_amount_initial;
       «С инфляцией» = target_amount_future (или эквивалент из summary).
     • Полоса распределения: доли от суммарного ежемесячного взноса по целям/категориям.
