@@ -766,6 +766,17 @@ function hasApartmentOtherGoalInFullCalc(fullGoals) {
     });
 }
 
+const { FINAM_PROJECT_ID, FINAM_LIFE_TERM_MONTHS } = require('../algorithms/calculators/lifeTermDefaults');
+
+/** Finam first-run: срок цели LIFE (5) — 5 лет, если LLM не задал иной явный срок. */
+function applyFinamLifeDefaultTermMonthsToExtractedGoals(extracted, projectId) {
+    if (Number(projectId) !== FINAM_PROJECT_ID) return;
+    if (!extracted || !Array.isArray(extracted.goals)) return;
+    extracted.goals = extracted.goals.map((g) =>
+        Number(g?.goal_type_id) === 5 ? { ...g, term_months: FINAM_LIFE_TERM_MONTHS } : g
+    );
+}
+
 /** После LLM-экстракции: для goal_type_id 3 и для «Квартира» (4) выставить term_months из client.birth_date и client.sex. */
 function applyB2cPolicyHorizonTermMonthsToExtractedGoals(extracted) {
     const c = extracted?.client;
@@ -2073,6 +2084,13 @@ class ConstructorAiService {
             }
 
             applyB2cPolicyHorizonTermMonthsToExtractedGoals(extracted);
+
+            let extractionProjectId = null;
+            if (sessionClient?.bot_id != null) {
+                const bot = await knex('bots').where('id', sessionClient.bot_id).select('project_id').first();
+                extractionProjectId = bot?.project_id;
+            }
+            applyFinamLifeDefaultTermMonthsToExtractedGoals(extracted, extractionProjectId);
 
             console.log(`[AI Extraction] Extracted with Balanced Profile:`, extracted);
             return extracted;

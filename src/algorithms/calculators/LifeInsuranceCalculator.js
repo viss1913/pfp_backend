@@ -1,8 +1,11 @@
 const BaseCalculator = require('./BaseCalculator');
 const { fetchLifeNsjResult, deriveLifeCostNow } = require('./lifeUpfrontAmount');
-/** Проекты с расчётом «Подушка безопасности» (Сбер Жизнь), не АТБ (28 — бренд Лучи в PDF, тариф тот же в lifeUpfrontAmount). */
-const SBER_LIFE_CALC_PROJECT_IDS = new Set([14, 29]);
-const SBER_LIFE_TERM_MONTHS = 15 * 12;
+const {
+    fixedLifeTermMonthsForProject,
+    fixedLifeTermYearsForProject,
+} = require('./lifeTermDefaults');
+/** Проекты с расчётом «Подушка безопасности» (тариф 1,44% / год). */
+const SBER_LIFE_CALC_PROJECT_IDS = new Set([14, 28, 29]);
 const SBER_LIFE_TARIFF = 0.0144;
 
 function resolveProjectId(context) {
@@ -68,7 +71,8 @@ class LifeInsuranceCalculator extends BaseCalculator {
         // 1. Calculate NSJ Parameters first (we need the premium amount)
         const projectId = resolveProjectId(context);
         const isFinamSberLife = projectId != null && SBER_LIFE_CALC_PROJECT_IDS.has(projectId);
-        const termMonths = isFinamSberLife ? SBER_LIFE_TERM_MONTHS : Number(goal.term_months || 120);
+        const fixedTermMonths = fixedLifeTermMonthsForProject(projectId);
+        const termMonths = fixedTermMonths != null ? fixedTermMonths : Number(goal.term_months || 120);
         const targetAmount = Number(goal.target_amount || 0);
 
         let nsjResult;
@@ -77,7 +81,7 @@ class LifeInsuranceCalculator extends BaseCalculator {
             const annualPremiumFixed = Math.round(targetAmount * SBER_LIFE_TARIFF * 100) / 100;
             nsjResult = {
                 success: true,
-                term_years: 15,
+                term_years: fixedLifeTermYearsForProject(projectId) ?? Math.ceil(termMonths / 12),
                 total_premium: annualPremiumFixed,
                 total_limit: targetAmount,
                 program: 'Подушка безопасности',
