@@ -67,18 +67,36 @@ function mapCreditToLiabilityRow(credit) {
     };
 }
 
+function liabilityDedupeKey(row) {
+    const type = String(row?.type || 'OTHER').toLowerCase();
+    const remaining = Math.round(Number(row?.remaining_amount ?? 0));
+    const monthly = Math.round(Number(row?.monthly_payment ?? 0));
+    return `${type}|${remaining}|${monthly}`;
+}
+
+function dedupeLiabilityRows(rows) {
+    const seen = new Set();
+    const out = [];
+    for (const row of rows) {
+        if (!row || typeof row !== 'object') continue;
+        const key = liabilityDedupeKey(row);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(row);
+    }
+    return out;
+}
+
+/** credits — алиас liabilities (OpenAPI); не склеивать оба массива, иначе долги в отчёте ×2. */
 function mergeLiabilitiesWithCredits(payload) {
+    const credits = Array.isArray(payload?.credits) ? payload.credits : [];
+    if (credits.length > 0) {
+        return credits.map(mapCreditToLiabilityRow).filter(Boolean);
+    }
+
     const fromClient = Array.isArray(payload?.client?.liabilities) ? payload.client.liabilities : [];
     const rootLiabilities = Array.isArray(payload?.liabilities) ? payload.liabilities : [];
-    const directLiabilities = [...fromClient, ...rootLiabilities];
-    const credits = Array.isArray(payload?.credits) ? payload.credits : [];
-    if (credits.length === 0) return directLiabilities;
-
-    const creditLiabilities = credits
-        .map(mapCreditToLiabilityRow)
-        .filter(Boolean);
-
-    return [...directLiabilities, ...creditLiabilities];
+    return dedupeLiabilityRows([...fromClient, ...rootLiabilities]);
 }
 
 function mapLiabilityToCredit(liability) {
@@ -563,6 +581,42 @@ class ClientService {
     async deleteGoal(clientId, goalId) {
         await clientRepository.deleteGoal(clientId, goalId);
         return true;
+    }
+
+    /**
+     * Удаляет дубликаты в client_liabilities (тип + остаток + платёж) и пересчитывает net_worth.
+     * Для клиентов, сохранённых до фикса mergeLiabilitiesWithCredits (долги ×2 в отчёте).
+     */
+    async repairClientLiabilitiesDuplicates(clientId) {
+        const id = Number(clientId);
+        if (!Number.isFinite(id) || id <= 0) {
+            throw new Error('Invalid clientId');
+        }
+        const liabilities = await clientRepository.getLiabilities(id);
+        const deduped = dedupeLiabilityRows(liabilities);
+        if (deduped.length === liabilities.length) {
+            await this.updateFinancialAggregates(id);
+            return { changed: false, before: liabilities.length, after: deduped.length };
+        }
+
+        const rowsForInsert = deduped.map((row) => ({
+            client_id: id,
+            type: String(row.type || 'OTHER').slice(0, 50),
+            name: String(row.name || row.type || 'Кредит').slice(0, 255),
+            remaining_amount: Number(row.remaining_amount ?? 0),
+            monthly_payment: Number(row.monthly_payment ?? 0),
+            interest_rate: Number(row.interest_rate ?? 0),
+        }));
+
+        await knex.transaction(async (trx) => {
+            await clientRepository.deleteLiabilities(id, trx);
+            if (rowsForInsert.length > 0) {
+                await clientRepository.addLiabilities(rowsForInsert, trx);
+            }
+            await this.updateFinancialAggregates(id, trx);
+        });
+
+        return { changed: true, before: liabilities.length, after: deduped.length };
     }
 }
 
