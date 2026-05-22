@@ -36,8 +36,8 @@ class MacroScheduler {
             }
         });
 
-        // 3. ИПЦ г/г (Excel ЦБ) + Росстат weekly — каждый вторник в 10:30
-        cron.schedule('30 10 * * 2', async () => {
+        // 3. ИПЦ г/г (Excel ЦБ) + Росстат weekly — каждый четверг в 10:30 (после типичной публикации Росстата/ЦБ)
+        cron.schedule('30 10 * * 4', async () => {
             console.log('⏰ Running weekly Inflation sync...');
             try {
                 await runCbrInflationYoySync('cron:weekly');

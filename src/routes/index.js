@@ -111,6 +111,11 @@ router.use('/admin/ai-b2c', pfpMiddleware, aiB2cRoutes);
 const clientCabinetRoutes = require('./clientCabinetRoutes');
 router.use('/my', pfpMiddleware, clientCabinetRoutes);
 
+// Macro cron (без JWT — секрет MACRO_CRON_SECRET; для Railway Cron / ручного дерганья из браузера)
+const macroController = require('../controllers/macroController');
+const macroCronAuthMiddleware = require('../middlewares/macroCronAuthMiddleware');
+router.post('/pfp/macro/cron/inflation', macroCronAuthMiddleware, macroController.triggerCronInflationSync);
+
 // Macro Data Routes
 const macroRoutes = require('./macroRoutes');
 router.use('/pfp/macro', pfpMiddleware, macroRoutes);

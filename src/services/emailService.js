@@ -15,6 +15,46 @@ function getResendClient() {
     return resend;
 }
 
+function isTransientResendNetworkError(error) {
+    const msg = String(error?.message || error || '').toLowerCase();
+    return (
+        msg.includes('could not be resolved') ||
+        msg.includes('unable to fetch') ||
+        msg.includes('fetch failed') ||
+        msg.includes('econnreset') ||
+        msg.includes('etimedout') ||
+        msg.includes('network')
+    );
+}
+
+/** Resend с retry при сбоях DNS/сети (часто на VPS/Docker, api.resend.com → IPv6). */
+async function sendViaResend(payload, { attempts = 5 } = {}) {
+    let lastError = null;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        try {
+            const { data, error } = await getResendClient().emails.send(payload);
+            if (!error) return { data, error: null };
+            lastError = error;
+            if (!isTransientResendNetworkError(error) || attempt >= attempts - 1) {
+                break;
+            }
+        } catch (err) {
+            lastError = err;
+            if (!isTransientResendNetworkError(err) || attempt >= attempts - 1) {
+                break;
+            }
+        }
+        const delayMs = Math.min(5000, 500 * 2 ** attempt);
+        const msg = lastError?.message || String(lastError);
+        console.warn(
+            `[EmailService] Resend transient error (attempt ${attempt + 1}/${attempts}), retry in ${delayMs}ms:`,
+            msg
+        );
+        await new Promise((r) => setTimeout(r, delayMs));
+    }
+    return { data: null, error: lastError };
+}
+
 const RESEND_FROM_RAW = () => (process.env.RESEND_FROM_EMAIL || '').trim();
 
 /** Из строки вида `Имя <addr@domain>` или просто `addr@domain` — только email. */
@@ -304,7 +344,7 @@ class EmailService {
                 : 'Для завершения регистрации введите код:';
 
         try {
-            const { data, error } = await getResendClient().emails.send({
+            const { data, error } = await sendViaResend({
                 from: getVerificationFrom(),
                 to: email,
                 subject,
@@ -373,7 +413,7 @@ class EmailService {
         const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
 
         try {
-            const { data, error } = await getResendClient().emails.send({
+            const { data, error } = await sendViaResend({
                 from: fromHeader,
                 to,
                 ...(cc ? { cc } : {}),
@@ -458,7 +498,7 @@ class EmailService {
         const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
 
         try {
-            const { data, error } = await getResendClient().emails.send({
+            const { data, error } = await sendViaResend({
                 from: fromHeader,
                 to,
                 ...(cc ? { cc } : {}),
@@ -559,7 +599,7 @@ class EmailService {
         const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
 
         try {
-            const { data, error } = await getResendClient().emails.send({
+            const { data, error } = await sendViaResend({
                 from: fromHeader,
                 to,
                 ...(replyTo ? { reply_to: replyTo } : {}),
@@ -665,7 +705,7 @@ class EmailService {
         const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
 
         try {
-            const { data, error } = await getResendClient().emails.send({
+            const { data, error } = await sendViaResend({
                 from: fromHeader,
                 to,
                 ...(replyTo ? { reply_to: replyTo } : {}),
@@ -806,7 +846,7 @@ class EmailService {
         const replyTo = buildNdaReplyTo(inviterEmail, ndaMailbox);
 
         try {
-            const { data, error } = await getResendClient().emails.send({
+            const { data, error } = await sendViaResend({
                 from: fromHeader,
                 to,
                 ...(replyTo ? { reply_to: replyTo } : {}),
@@ -885,7 +925,7 @@ class EmailService {
         const replyTo = buildNdaReplyTo(inviterEmail, ndaMailbox);
 
         try {
-            const { data, error } = await getResendClient().emails.send({
+            const { data, error } = await sendViaResend({
                 from: fromHeader,
                 to,
                 ...(replyTo ? { reply_to: replyTo } : {}),
@@ -973,7 +1013,7 @@ class EmailService {
 </body></html>`;
 
         try {
-            const { data, error: resendError } = await getResendClient().emails.send({
+            const { data, error: resendError } = await sendViaResend({
                 from: getOpsFrom(),
                 to: recipients,
                 subject,

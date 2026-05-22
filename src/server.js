@@ -162,6 +162,9 @@ async function startServer() {
         const macroScheduler = require('./services/macroScheduler');
         macroScheduler.initScheduler();
 
+        const { scheduleStaleInflationSyncOnStartup } = require('./services/macroStartupSync');
+        scheduleStaleInflationSyncOnStartup();
+
         const newsScheduler = require('./services/newsScheduler');
         newsScheduler.initScheduler();
 

@@ -31,6 +31,7 @@ exports.seed = async function (knex) {
         { id: 5, code: 'LIFE', name: 'Жизнь' },
         { id: 6, code: 'GOS_PENSION', name: 'Госпенсия' },
         { id: 7, code: 'FIN_RESERVE', name: 'Финрезерв' },
+        { id: 8, code: 'RENT', name: 'Рента' },
         { id: 11, code: 'INHERITANCE', name: 'Наследство' }
     ]);
 
@@ -60,6 +61,7 @@ exports.seed = async function (knex) {
         { code: 'LIFE', name: 'Жизнь' },
         { code: 'GOS_PENSION', name: 'Госпенсия' },
         { code: 'FIN_RESERVE', name: 'Финрезерв' },
+        { code: 'RENT', name: 'Рента' },
         { code: 'INHERITANCE', name: 'Наследство' }
     ];
 

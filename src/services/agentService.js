@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const smmService = require('./smmService');
 const projectService = require('./projectService');
-const { withNormalizedBirthDate } = require('../utils/normalizeMysqlDate');
+const { withNormalizedBirthDate, isInvalidBirthDateInput } = require('../utils/normalizeMysqlDate');
 const {
     parsePartnerAgentIdFromInput,
     isPartnerAgentIdRequired,
@@ -67,6 +67,12 @@ class AgentService {
     }
 
     async createAgent(projectId, data) {
+        if (isInvalidBirthDateInput(data?.birth_date)) {
+            throw {
+                status: 400,
+                message: 'Некорректная дата рождения. Укажите формат YYYY-MM-DD, например 1980-08-15',
+            };
+        }
         const { email, password, partner_ref_url, profile } = splitAgentPayload(data);
         const settings = await resolveProjectSettings(projectId);
 
@@ -154,6 +160,12 @@ class AgentService {
     }
 
     async updateAgent(id, projectId, data) {
+        if (isInvalidBirthDateInput(data?.birth_date)) {
+            throw {
+                status: 400,
+                message: 'Некорректная дата рождения. Укажите формат YYYY-MM-DD, например 1980-08-15',
+            };
+        }
         const { email, password, partner_ref_url, profile } = splitAgentPayload(data);
         const settings = await resolveProjectSettings(projectId);
 

@@ -685,7 +685,7 @@ class SettingsService {
     /** Дефолтные линии доходности, если агент ещё не настроил по проекту */
     static get DEFAULT_PASSIVE_INCOME_YIELD_LINES() {
         return [
-            { min_term_months: 0, max_term_months: 60, min_amount: 0, max_amount: 1000000000000, yield_percent: 14.0 }
+            { min_term_months: 0, max_term_months: 360, min_amount: 0, max_amount: 1000000000000, yield_percent: 14.0 },
         ];
     }
 

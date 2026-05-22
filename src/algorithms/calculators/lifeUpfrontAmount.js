@@ -8,8 +8,7 @@ const {
     fixedLifeTermMonthsForProject,
     fixedLifeTermYearsForProject,
 } = require('./lifeTermDefaults');
-/** Finam (14), АТБ (28), SBER (29) — один упрощённый NSJ-shape для графика/премии. */
-const NSJ_FINAM_STYLE_PROJECT_IDS = new Set([14, 28, 29]);
+const { isSberLifeCalcProject } = require('./sberLifeProjectIds');
 const SBER_LIFE_TARIFF = 0.0144;
 
 /**
@@ -38,7 +37,7 @@ async function fetchLifeNsjResult(goal, context) {
             : (context?.client?.project_id != null ? Number(context.client.project_id) : null);
     const agentUserId = context?.agentUserId != null ? Number(context.agentUserId) : null;
 
-    if (ctxProjectId != null && NSJ_FINAM_STYLE_PROJECT_IDS.has(ctxProjectId)) {
+    if (ctxProjectId != null && isSberLifeCalcProject(ctxProjectId)) {
         const annualPremium = Math.round(targetAmount * SBER_LIFE_TARIFF * 100) / 100;
         const termYears =
             fixedLifeTermYearsForProject(ctxProjectId) ?? Math.ceil(termMonths / 12);

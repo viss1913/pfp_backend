@@ -41,6 +41,45 @@ const getHistory = async (req, res) => {
     }
 };
 
+async function runInflationBundle(trigger) {
+    const cbr = await runCbrInflationYoySync(trigger);
+    let rosstatWeekly = null;
+    let rosstatMonthly = null;
+    try {
+        rosstatWeekly = await rosstatService.fetchWeeklyInflation();
+    } catch (e) {
+        console.warn('[macro] Rosstat weekly failed:', e.message);
+    }
+    return { cbr, rosstatWeekly, rosstatMonthly };
+}
+
+/**
+ * POST /api/pfp/macro/cron/inflation — только MACRO_CRON_SECRET, без JWT (Railway / внешний cron).
+ */
+const triggerCronInflationSync = async (req, res) => {
+    try {
+        const includeMonthly = req.query.monthly === '1' || req.query.monthly === 'true';
+        console.log('⏰ Cron inflation sync triggered');
+        const result = await runInflationBundle('api:cron:inflation');
+        if (includeMonthly) {
+            try {
+                result.rosstatMonthly = await rosstatService.fetchMonthlyInflation();
+            } catch (e) {
+                console.warn('[macro] Rosstat monthly failed:', e.message);
+            }
+        }
+        const latestRow = (await macroService.getLatestValues()).find((r) => r.slug === INFLATION_YOY_SLUG);
+        res.json({
+            success: true,
+            message: 'Inflation macro sync completed',
+            saved: result.cbr?.saved,
+            inflation_yoy: latestRow || null,
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 const triggerSync = async (req, res) => {
     try {
         console.log('🚀 Manual macro sync triggered');
@@ -52,14 +91,12 @@ const triggerSync = async (req, res) => {
 
         // CBR (SOAP + HTML)
         await macroService.fetchCbrKeyRate();
-        await runCbrInflationYoySync('api:sync');
+        await runInflationBundle('api:sync');
         await macroService.fetchCbrDepositRates();
         await macroService.fetchCbrGold();
         await macroService.fetchCbrCurrencyRates();
 
-        // Rosstat
         await rosstatService.fetchMonthlyInflation();
-        await rosstatService.fetchWeeklyInflation();
 
         res.json({
             success: true,
@@ -73,5 +110,6 @@ const triggerSync = async (req, res) => {
 module.exports = {
     getLatest,
     getHistory,
-    triggerSync
+    triggerSync,
+    triggerCronInflationSync,
 };

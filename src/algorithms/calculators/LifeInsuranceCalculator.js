@@ -4,8 +4,7 @@ const {
     fixedLifeTermMonthsForProject,
     fixedLifeTermYearsForProject,
 } = require('./lifeTermDefaults');
-/** Проекты с расчётом «Подушка безопасности» (тариф 1,44% / год). */
-const SBER_LIFE_CALC_PROJECT_IDS = new Set([14, 28, 29]);
+const { isSberLifeCalcProject } = require('./sberLifeProjectIds');
 const SBER_LIFE_TARIFF = 0.0144;
 
 function resolveProjectId(context) {
@@ -70,7 +69,7 @@ class LifeInsuranceCalculator extends BaseCalculator {
 
         // 1. Calculate NSJ Parameters first (we need the premium amount)
         const projectId = resolveProjectId(context);
-        const isFinamSberLife = projectId != null && SBER_LIFE_CALC_PROJECT_IDS.has(projectId);
+        const isFinamSberLife = isSberLifeCalcProject(projectId);
         const fixedTermMonths = fixedLifeTermMonthsForProject(projectId);
         const termMonths = fixedTermMonths != null ? fixedTermMonths : Number(goal.term_months || 120);
         const targetAmount = Number(goal.target_amount || 0);
@@ -210,6 +209,12 @@ class LifeInsuranceCalculator extends BaseCalculator {
                 program_name: isFinamSberLife
                     ? 'Подушка безопасности · Сбер Страхование Жизни'
                     : (nsjResult.program || goal.program || (isFallback ? 'НСЖ Династия' : 'Страхование жизни')),
+                ...(isFinamSberLife
+                    ? {
+                        company_name: 'Сбер Страхование жизни',
+                        insurer_name: 'Сбер Страхование жизни',
+                    }
+                    : {}),
                 annual_premium: isFallback ? Math.round(fallbackInitialCapital * 100) / 100 : annualPremium,
                 tax_deduction_2026: Math.round(taxDeduction2026 * 100) / 100,
                 total_tax_deductions: Math.round(totalTaxDeductions * 100) / 100,
@@ -218,7 +223,9 @@ class LifeInsuranceCalculator extends BaseCalculator {
         };
 
         if (isFallback || isFinamSberLife) {
-            const instrumentName = isFinamSberLife ? 'Подушка безопасности' : 'НСЖ Династия';
+            const instrumentName = isFinamSberLife
+                ? 'Подушка безопасности · Сбер Страхование жизни'
+                : 'НСЖ Династия';
             result.summary.monthly_replenishment = Math.round(fallbackMonthlyReplenishment * 100) / 100;
             if (isFinamSberLife) {
                 result.summary.monthly_replenishment = Math.round((annualPremium / 12) * 100) / 100;
