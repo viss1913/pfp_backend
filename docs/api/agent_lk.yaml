@@ -404,8 +404,11 @@ paths:
       parameters:
         - name: includeDefaults
           in: query
-          schema: { type: boolean, default: true }
-          description: Включать ли в выдачу системные дефолтные продукты
+          schema: { type: boolean, default: false }
+          description: |
+            Включать системные продукты (`project_id` IS NULL).
+            Для роли **agent** бэкенд всегда принудительно `false` (как у портфелей).
+            Admin/super_admin может передать `true`.
       responses:
         '200':
           description: Успешно
@@ -1036,6 +1039,11 @@ paths:
           при первом сообщении пользователя бэкенд создаёт запись в `clients` и связывает её с `constructor_clients.pfp_client_id`, чтобы агент видел диалог **до** расчёта ПФП.
         Пустые массивы, если по каналу не было переписки или выключена подгрузка (`include_chat_ai=false`).
         Клиенты без целей / без расчёта в списке остаются — как и раньше.
+
+        **CRM-даты (на каждой строке `data[]`):**
+        - `created_at` — создание карточки;
+        - `last_rebalance_at` — последний пересчёт / first-run (`goals_summary`), `null` без плана;
+        - `has_plan` — есть непустой `goals_summary`.
       parameters:
         - name: page
           in: query
@@ -1050,6 +1058,7 @@ paths:
           in: query
           required: false
           schema: { type: string, default: created_at }
+          description: Можно сортировать по `created_at`, `updated_at` и др. полям БД
         - name: order
           in: query
           required: false
@@ -1811,13 +1820,43 @@ paths:
       description: |
         Генерирует текстовый брифинг по клиентам агента
         (в первую очередь статусы THINKING и RENEWAL).
+        Scope клиентов совпадает с `GET /pfp/clients` (`agents_see_all_clients`).
       responses:
         '200':
-          description: Текст CRM-сводки
+          description: Текст CRM-сводки и счётчики внимания
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmBriefingResponse'
+
+  /pfp/crm/dashboard:
+    get:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Дашборд «Мои клиенты» (CRM)
+      description: |
+        Агрегаты по клиентам текущего агента (тот же scope, что `GET /pfp/clients`).
+
+        **Капитал:** сумма по последнему `goals_summary` → `summary.consolidated_portfolio.assets_allocation`,
+        группировка по **названию продукта из админки** (`name`, при наличии `product_id`).
+
+        **Даты:** `clients_new_this_month` — `clients.created_at`; `clients_rebalanced_this_month` —
+        последний пересчёт ПФП (`goals_summary.generated_at` / `calculation.*`), TZ `Europe/Moscow`.
+
+        **Тренды:** `trends_pct` в v1 всегда `null` (нет истории снимков).
+
+        Query `include_clients=1` — компактный список `{ id, created_at, last_rebalance_at, has_plan }`.
+      parameters:
+        - name: include_clients
+          in: query
+          schema: { type: string, enum: ['0', '1', 'true', 'false'] }
+          description: Вернуть массив `clients` с датами (по умолчанию нет)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmAgentDashboardResponse'
 
   /pfp/crm/status:
     post:
@@ -3095,6 +3134,59 @@ components:
         briefing:
           type: string
           description: AI-generated daily briefing text
+        clients_attention_count:
+          type: integer
+          description: THINKING + RENEWAL с наступившим next_action_date
+        critical_events_count:
+          type: integer
+          description: Пока равно clients_attention_count
+
+    CrmAgentDashboardResponse:
+      type: object
+      properties:
+        clients_total: { type: integer }
+        clients_new_this_month: { type: integer }
+        clients_rebalanced_this_month:
+          type: integer
+          description: Клиенты с пересчётом ПФП в текущем календарном месяце (Europe/Moscow)
+        capital_by_product:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmCapitalByProductRow'
+        insurance_premiums_rub:
+          type: number
+          description: Сумма годовых премий НСЖ (LIFE) по клиентам с планом
+        trends_pct:
+          type: object
+          nullable: true
+          description: v1 — null; phase 2 — % к снимку на начало месяца
+        as_of: { type: string, format: date-time }
+        clients:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmDashboardClientRow'
+
+    CrmCapitalByProductRow:
+      type: object
+      properties:
+        product_id: { type: integer, nullable: true }
+        name: { type: string }
+        product_type: { type: string, nullable: true }
+        amount_rub: { type: number }
+
+    CrmDashboardClientRow:
+      type: object
+      properties:
+        id: { type: integer }
+        created_at: { type: string, format: date-time, nullable: true }
+        last_rebalance_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Последний пересчёт / first-run (из goals_summary), не clients.updated_at
+        has_plan: { type: boolean }
+        first_name: { type: string, nullable: true }
+        last_name: { type: string, nullable: true }
 
     ClientCrmUpdate:
       type: object

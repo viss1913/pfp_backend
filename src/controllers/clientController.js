@@ -207,6 +207,24 @@ const projectService = require('../services/projectService');
 const emailService = require('../services/emailService');
 const commissionService = require('../services/commissionService');
 const { buildTrackedPartnerUrl } = require('../utils/trackedPartnerUrl');
+const { extractLastRebalanceAt, hasPlan } = require('../utils/goalsSummaryMetrics');
+
+function attachCrmClientDates(clientRow) {
+    const createdAt = clientRow.created_at;
+    let created_at_iso = createdAt;
+    if (createdAt instanceof Date) {
+        created_at_iso = createdAt.toISOString();
+    } else if (createdAt != null && typeof createdAt !== 'string') {
+        const d = new Date(createdAt);
+        created_at_iso = Number.isNaN(d.getTime()) ? createdAt : d.toISOString();
+    }
+    return {
+        ...clientRow,
+        created_at: created_at_iso,
+        last_rebalance_at: extractLastRebalanceAt(clientRow.goals_summary),
+        has_plan: hasPlan(clientRow.goals_summary),
+    };
+}
 const { parseProjectSettings } = require('../utils/projectSettings');
 const { ensureClientReportPdfReady } = require('../services/reportPdfStorageService');
 const pdfWarmupScheduleByClient = new Map();
@@ -413,7 +431,7 @@ class ClientController {
 
             const clients = await clientService.getClientsByAgent(agentId, projectId, { page, limit, sort, order, search });
             if (clients.data) {
-                let data = clients.data.map((c) => calculationService.simplify(c));
+                let data = clients.data.map((c) => attachCrmClientDates(calculationService.simplify(c)));
 
                 const skipChatAi = req.query.include_chat_ai === '0' || req.query.include_chat_ai === 'false';
                 if (!skipChatAi && data.length > 0) {

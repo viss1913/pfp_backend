@@ -17,6 +17,7 @@ const INVESTMENT_GOAL_TYPES = new Set([
 ]);
 
 const CRM_STATUSES = ['THINKING', 'BOUGHT', 'REFUSED', 'RENEWAL'];
+const CRM_DASHBOARD_TZ = 'Europe/Moscow';
 
 function roundRub(value) {
     const n = Number(value);
@@ -33,6 +34,174 @@ function toNum(value) {
  * @param {unknown} stored — clients.goals_summary (string или object)
  * @returns {{ summary?: object, goals?: array }|null}
  */
+function toIsoTimestamp(value) {
+    if (value == null || value === '') return null;
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString();
+}
+
+/**
+ * Дата последнего пересчёта ПФП (ребалансировка), не clients.updated_at.
+ * @param {unknown} stored
+ * @returns {string|null} ISO-8601
+ */
+function extractLastRebalanceAt(stored) {
+    if (stored == null || stored === '') return null;
+    let raw = stored;
+    if (typeof stored === 'string') {
+        try {
+            raw = JSON.parse(stored);
+        } catch {
+            return null;
+        }
+    }
+    if (!raw || typeof raw !== 'object') return null;
+    const calc = raw.calculation || raw;
+    return (
+        toIsoTimestamp(raw.generated_at) ||
+        toIsoTimestamp(calc?.generated_at) ||
+        toIsoTimestamp(calc?.updated_at) ||
+        toIsoTimestamp(calc?.created_at) ||
+        toIsoTimestamp(raw.updated_at) ||
+        null
+    );
+}
+
+function hasPlan(goalsSummaryStored) {
+    return aggregateGoalsSummaryMetrics(goalsSummaryStored).has_plan;
+}
+
+function getMoscowYearMonth(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: CRM_DASHBOARD_TZ,
+        year: 'numeric',
+        month: '2-digit',
+    });
+    const parts = formatter.formatToParts(date);
+    const year = parts.find((p) => p.type === 'year')?.value;
+    const month = parts.find((p) => p.type === 'month')?.value;
+    return year && month ? `${year}-${month}` : null;
+}
+
+function isInCurrentCalendarMonthMoscow(value) {
+    const iso = toIsoTimestamp(value);
+    if (!iso) return false;
+    const targetYm = getMoscowYearMonth(new Date(iso));
+    const nowYm = getMoscowYearMonth(new Date());
+    return Boolean(targetYm && nowYm && targetYm === nowYm);
+}
+
+function allocationProductKey(row) {
+    const productId = row?.product_id != null ? Number(row.product_id) : null;
+    if (productId != null && Number.isFinite(productId)) {
+        return `id:${productId}`;
+    }
+    const name = String(row?.name || 'Unknown').trim() || 'Unknown';
+    return `name:${name}`;
+}
+
+/**
+ * @param {Array<{ goals_summary?: unknown }>} clients
+ * @returns {Array<{ product_id: number|null, name: string, product_type: string|null, amount_rub: number }>}
+ */
+function aggregateCapitalByProduct(clients = []) {
+    const map = new Map();
+
+    for (const client of clients) {
+        const parsed = parseGoalsSummary(client.goals_summary);
+        const consolidated = parsed?.summary?.consolidated_portfolio;
+        const allocation = consolidated?.assets_allocation;
+        if (!Array.isArray(allocation)) continue;
+
+        for (const row of allocation) {
+            const amount = toNum(row?.amount);
+            if (amount <= 0) continue;
+
+            const key = allocationProductKey(row);
+            const productId =
+                row?.product_id != null && Number.isFinite(Number(row.product_id))
+                    ? Number(row.product_id)
+                    : null;
+            const name = String(row?.name || 'Unknown').trim() || 'Unknown';
+            const productType = row?.product_type != null ? String(row.product_type).toUpperCase().trim() : null;
+
+            if (!map.has(key)) {
+                map.set(key, {
+                    product_id: productId,
+                    name,
+                    product_type: productType || null,
+                    amount_rub: 0,
+                });
+            }
+
+            const entry = map.get(key);
+            entry.amount_rub += amount;
+            if (!entry.product_type && productType) entry.product_type = productType;
+            if (entry.product_id == null && productId != null) entry.product_id = productId;
+        }
+    }
+
+    return Array.from(map.values())
+        .map((row) => ({ ...row, amount_rub: roundRub(row.amount_rub) }))
+        .filter((row) => row.amount_rub > 0)
+        .sort((a, b) => b.amount_rub - a.amount_rub);
+}
+
+/**
+ * @param {Array<{ id?: number, created_at?: Date|string, goals_summary?: unknown, first_name?: string, last_name?: string }>} clients
+ * @param {{ includeClients?: boolean, referenceDate?: Date }} [options]
+ */
+function buildCrmAgentDashboard(clients = [], options = {}) {
+    const includeClients = options.includeClients === true;
+    let clientsNewThisMonth = 0;
+    let clientsRebalancedThisMonth = 0;
+    let insurancePremiumsRub = 0;
+
+    const clientRows = [];
+
+    for (const client of clients) {
+        if (client.created_at && isInCurrentCalendarMonthMoscow(client.created_at)) {
+            clientsNewThisMonth += 1;
+        }
+
+        const metrics = aggregateGoalsSummaryMetrics(client.goals_summary);
+        insurancePremiumsRub += metrics.nsj_annual_premium_rub;
+
+        const lastRebalanceAt = extractLastRebalanceAt(client.goals_summary);
+        if (lastRebalanceAt && isInCurrentCalendarMonthMoscow(lastRebalanceAt)) {
+            clientsRebalancedThisMonth += 1;
+        }
+
+        if (includeClients) {
+            clientRows.push({
+                id: client.id,
+                created_at: toIsoTimestamp(client.created_at),
+                last_rebalance_at: lastRebalanceAt,
+                has_plan: metrics.has_plan,
+                first_name: client.first_name ?? null,
+                last_name: client.last_name ?? null,
+            });
+        }
+    }
+
+    const payload = {
+        clients_total: clients.length,
+        clients_new_this_month: clientsNewThisMonth,
+        clients_rebalanced_this_month: clientsRebalancedThisMonth,
+        capital_by_product: aggregateCapitalByProduct(clients),
+        insurance_premiums_rub: roundRub(insurancePremiumsRub),
+        trends_pct: null,
+        as_of: (options.referenceDate || new Date()).toISOString(),
+    };
+
+    if (includeClients) {
+        payload.clients = clientRows;
+    }
+
+    return payload;
+}
+
 function parseGoalsSummary(stored) {
     if (stored == null || stored === '') return null;
     let raw = stored;
@@ -252,9 +421,15 @@ module.exports = {
     LIFE_GOAL_TYPE_ID,
     LIFE_GOAL_TYPE,
     CRM_STATUSES,
+    CRM_DASHBOARD_TZ,
     parseGoalsSummary,
     isLifeGoal,
     isInvestmentGoal,
+    extractLastRebalanceAt,
+    hasPlan,
+    isInCurrentCalendarMonthMoscow,
+    aggregateCapitalByProduct,
+    buildCrmAgentDashboard,
     aggregateGoalsSummaryMetrics,
     aggregateClientsMetrics,
     buildNetworkSummary,

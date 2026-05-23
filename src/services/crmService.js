@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const aiService = require('./aiService');
+const clientService = require('./clientService');
 
 function safeParseJson(value) {
     if (!value) return null;
@@ -107,6 +108,37 @@ class CrmService {
     }
 
     /**
+     * Клиенты, требующие внимания (THINKING + RENEWAL с наступившим next_action_date).
+     * Scope совпадает с GET /pfp/clients (agents_see_all_clients).
+     */
+    async countAttentionClients(agentId, projectId = null) {
+        const result = await clientService.getClientsByAgent(agentId, projectId, { limit: null });
+        const rows = result.data || [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let clientsAttentionCount = 0;
+        for (const client of rows) {
+            const status = String(client.crm_status || 'THINKING').toUpperCase();
+            if (status === 'THINKING') {
+                clientsAttentionCount += 1;
+                continue;
+            }
+            if (status === 'RENEWAL' && client.next_action_date) {
+                const next = new Date(client.next_action_date);
+                if (!Number.isNaN(next.getTime()) && next <= today) {
+                    clientsAttentionCount += 1;
+                }
+            }
+        }
+
+        return {
+            clients_attention_count: clientsAttentionCount,
+            critical_events_count: clientsAttentionCount,
+        };
+    }
+
+    /**
      * Retrieves specific clients that need attention (Thinking or Renewal)
      */
     async getAttentionRequiredClients(agentId) {
@@ -183,8 +215,38 @@ class CrmService {
     /**
      * Generates the daily briefing text using AI
      */
-    async generateDailyBriefing(agentId, agentContext = null) {
-        const allClients = await this.getDetailedAgentClientsSummary(agentId);
+    async generateDailyBriefing(agentId, agentContext = null, projectId = null) {
+        let allClients;
+        if (projectId) {
+            const result = await clientService.getClientsByAgent(agentId, projectId, { limit: null });
+            const rows = result.data || [];
+            allClients = [];
+            for (const client of rows) {
+                const goalsMeta = extractGoalsMeta(client.goals_summary);
+                allClients.push({
+                    id: client.id,
+                    name: `${client.last_name || ''} ${client.first_name || ''}`.trim() || `Клиент #${client.id}`,
+                    phone: client.phone,
+                    email: client.email,
+                    created_at: formatIsoDate(client.created_at),
+                    status: client.crm_status,
+                    next_action: formatDateRu(client.next_action_date),
+                    finance: {
+                        net_worth: Math.round(client.net_worth || 0),
+                        goals_count: goalsMeta.goalsCount,
+                        top_goal: goalsMeta.topGoal,
+                        target: goalsMeta.targetAmount,
+                        main_asset: goalsMeta.strategy,
+                        total_initial_capital: goalsMeta.totalInitialCapital,
+                        total_monthly_replenishment: goalsMeta.totalMonthlyReplenishment,
+                        goal_types: goalsMeta.goalTypes,
+                        last_pfp_date: goalsMeta.lastPfpDate || formatIsoDate(client.updated_at),
+                    },
+                });
+            }
+        } else {
+            allClients = await this.getDetailedAgentClientsSummary(agentId);
+        }
         const agentName = await this.resolveAgentDisplayName(agentId, agentContext || {});
 
         if (allClients.length === 0) {

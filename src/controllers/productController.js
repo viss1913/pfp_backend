@@ -49,7 +49,13 @@ class ProductController {
     async getAll(req, res, next) {
         try {
             const projectId = req.projectId || req.user?.projectId;
-            const products = await productService.getAllProducts(projectId, req.query);
+            const role = String(req.user?.role || '').toLowerCase();
+            const isAdmin = ['admin', 'super_admin'].includes(role);
+            const query = { ...req.query };
+            if (!isAdmin) {
+                query.includeDefaults = 'false';
+            }
+            const products = await productService.getAllProducts(projectId, query);
             res.json(products);
         } catch (err) {
             next(err);

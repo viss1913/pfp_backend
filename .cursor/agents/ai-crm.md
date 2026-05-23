@@ -15,7 +15,8 @@ description: AI CRM specialist for Agent LK. Proactively use after changes in /p
    - `GET /api/pfp/ai/assistants`
    - `GET /api/pfp/ai/history/:assistant_id`
    - `POST /api/pfp/ai/chat` и `POST /api/pfp/ai/chat/stream`
-   - `GET /api/pfp/crm/briefing`
+   - `GET /api/pfp/crm/briefing` (+ `clients_attention_count`, `critical_events_count`)
+   - `GET /api/pfp/crm/dashboard` — дашборд «Мои клиенты» (`capital_by_product` по названию продукта из админки)
    - `POST /api/pfp/crm/status`
 2. Сверь код, OpenAPI и фактическое поведение (валидация, auth, ответы, ошибки).
 3. Проверь, что `AI CRM`:
