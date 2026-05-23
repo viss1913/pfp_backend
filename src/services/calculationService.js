@@ -895,6 +895,7 @@ class CalculationService {
                 : null;
 
             return {
+                generated_at: new Date().toISOString(),
                 client_id: data.client_id || (client ? client.id : null),
                 // Рост расходов на инвестиции (% годовых) — на верхнем уровне для удобства
                 investment_expense_growth_annual_percent: investmentExpenseGrowthPercent,

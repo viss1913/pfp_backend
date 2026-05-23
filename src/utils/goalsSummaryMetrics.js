@@ -72,6 +72,22 @@ function hasPlan(goalsSummaryStored) {
     return aggregateGoalsSummaryMetrics(goalsSummaryStored).has_plan;
 }
 
+/**
+ * last_rebalance_at: сначала generated_at в goals_summary, иначе clients.updated_at если есть план
+ * (для снимков до появления generated_at в calculateFirstRun).
+ * @param {unknown} goalsSummaryStored
+ * @param {Date|string|null|undefined} clientUpdatedAt
+ * @returns {string|null}
+ */
+function resolveLastRebalanceAt(goalsSummaryStored, clientUpdatedAt = null) {
+    const fromSnapshot = extractLastRebalanceAt(goalsSummaryStored);
+    if (fromSnapshot) return fromSnapshot;
+    if (hasPlan(goalsSummaryStored) && clientUpdatedAt != null) {
+        return toIsoTimestamp(clientUpdatedAt);
+    }
+    return null;
+}
+
 function getMoscowYearMonth(date = new Date()) {
     const formatter = new Intl.DateTimeFormat('en-CA', {
         timeZone: CRM_DASHBOARD_TZ,
@@ -168,7 +184,7 @@ function buildCrmAgentDashboard(clients = [], options = {}) {
         const metrics = aggregateGoalsSummaryMetrics(client.goals_summary);
         insurancePremiumsRub += metrics.nsj_annual_premium_rub;
 
-        const lastRebalanceAt = extractLastRebalanceAt(client.goals_summary);
+        const lastRebalanceAt = resolveLastRebalanceAt(client.goals_summary, client.updated_at);
         if (lastRebalanceAt && isInCurrentCalendarMonthMoscow(lastRebalanceAt)) {
             clientsRebalancedThisMonth += 1;
         }
@@ -177,7 +193,7 @@ function buildCrmAgentDashboard(clients = [], options = {}) {
             clientRows.push({
                 id: client.id,
                 created_at: toIsoTimestamp(client.created_at),
-                last_rebalance_at: lastRebalanceAt,
+                last_rebalance_at: resolveLastRebalanceAt(client.goals_summary, client.updated_at),
                 has_plan: metrics.has_plan,
                 first_name: client.first_name ?? null,
                 last_name: client.last_name ?? null,
@@ -426,6 +442,7 @@ module.exports = {
     isLifeGoal,
     isInvestmentGoal,
     extractLastRebalanceAt,
+    resolveLastRebalanceAt,
     hasPlan,
     isInCurrentCalendarMonthMoscow,
     aggregateCapitalByProduct,

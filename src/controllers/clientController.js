@@ -207,7 +207,7 @@ const projectService = require('../services/projectService');
 const emailService = require('../services/emailService');
 const commissionService = require('../services/commissionService');
 const { buildTrackedPartnerUrl } = require('../utils/trackedPartnerUrl');
-const { extractLastRebalanceAt, hasPlan } = require('../utils/goalsSummaryMetrics');
+const { resolveLastRebalanceAt, hasPlan } = require('../utils/goalsSummaryMetrics');
 
 function attachCrmClientDates(clientRow) {
     const createdAt = clientRow.created_at;
@@ -221,7 +221,7 @@ function attachCrmClientDates(clientRow) {
     return {
         ...clientRow,
         created_at: created_at_iso,
-        last_rebalance_at: extractLastRebalanceAt(clientRow.goals_summary),
+        last_rebalance_at: resolveLastRebalanceAt(clientRow.goals_summary, clientRow.updated_at),
         has_plan: hasPlan(clientRow.goals_summary),
     };
 }

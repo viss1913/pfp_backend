@@ -6,6 +6,7 @@ const {
     aggregateClientsMetrics,
     buildNetworkSummary,
     extractLastRebalanceAt,
+    resolveLastRebalanceAt,
     aggregateCapitalByProduct,
     buildCrmAgentDashboard,
 } = require('../../src/utils/goalsSummaryMetrics');
@@ -120,6 +121,11 @@ const allocationFixture = {
 test('extractLastRebalanceAt uses goals_summary timestamps', () => {
     assert.equal(extractLastRebalanceAt(allocationFixture), '2026-05-20T10:00:00.000Z');
     assert.equal(extractLastRebalanceAt(null), null);
+});
+
+test('resolveLastRebalanceAt falls back to client updated_at when snapshot has no generated_at', () => {
+    const gs = { summary: { consolidated_portfolio: { total_initial_capital: 1 } }, goals: [{ goal_type: 'INVESTMENT', goal_type_id: 3 }] };
+    assert.equal(resolveLastRebalanceAt(gs, '2026-05-22T15:00:00.000Z'), '2026-05-22T15:00:00.000Z');
 });
 
 test('aggregateCapitalByProduct sums by product name/id', () => {
