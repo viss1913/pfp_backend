@@ -368,6 +368,26 @@ class ClientService {
         return await clientRepository.update(id, data, projectId);
     }
 
+    /**
+     * Сохранить снимок ПФП с generated_at и обновить clients.updated_at.
+     * @param {number} id
+     * @param {object} calculationResponse
+     * @param {number|null} projectId
+     */
+    async persistGoalsSummary(id, calculationResponse, projectId = null) {
+        const {
+            stampGoalsSummarySnapshot,
+            stringifyGoalsSummarySnapshot,
+        } = require('../utils/goalsSummaryPersist');
+        const stamped = stampGoalsSummarySnapshot(calculationResponse);
+        await this.updateClient(
+            id,
+            { goals_summary: stringifyGoalsSummarySnapshot(stamped) },
+            projectId
+        );
+        return stamped;
+    }
+
     async updateFinancialAggregates(clientId, trx = null) {
         // Fetch fresh data (using transaction if provided, though repository methods here might need generic trx support or we assume read is safe)
         // For simplicity in this step, we just calculate from what we can fetch.

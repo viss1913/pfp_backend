@@ -361,10 +361,10 @@ class ClientController {
             // 5. SYNC IDs: Update calculation goals with real DB IDs
             await syncCalculationGoalsWithDatabase(clientId, calculation);
 
+            const projectId = req.projectId || req.user?.projectId || req.body.client.project_id;
+
             // Save Calculation Snapshot to Client record (with real IDs)
-            await clientService.updateClient(clientId, {
-                goals_summary: JSON.stringify(calculationResponse)
-            });
+            await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
 
             calculationResponse.client_id = clientId;
             warmupClientPdfInBackground({
@@ -716,9 +716,7 @@ class ClientController {
             await syncCalculationGoalsWithDatabase(clientId, calculation);
 
             // Save Snapshot
-            await clientService.updateClient(clientId, {
-                goals_summary: JSON.stringify(calculationResponse)
-            });
+            await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
 
             // Recalculate changes goal numbers used by PDF pages.
             // Force background regeneration to avoid returning stale cached PDF URL/content.

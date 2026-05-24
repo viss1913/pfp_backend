@@ -799,9 +799,7 @@ class ClientCabinetController {
             await syncCalculationGoalsWithDatabase(clientId, calculation);
 
             // Save calculation snapshot
-            await clientService.updateClient(clientId, {
-                goals_summary: JSON.stringify(calculationResponse)
-            });
+            await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
 
             calculationResponse.client_id = clientId;
             res.json(calculationService.simplify(calculationResponse));
@@ -959,9 +957,7 @@ class ClientCabinetController {
 
             await syncCalculationGoalsWithDatabase(clientId, calculation);
 
-            await clientService.updateClient(clientId, {
-                goals_summary: JSON.stringify(calculationResponse)
-            });
+            await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
 
             warmupClientPdfInBackgroundForCabinet({
                 clientId,

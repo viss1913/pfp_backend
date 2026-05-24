@@ -427,11 +427,7 @@ async function runCalcRecalculateFlow({
         await clientService.updateClient(numericClientId, clientPatch, projectId);
     }
     await syncCalculationGoalsWithDatabase(numericClientId, calculation);
-    await clientService.updateClient(
-        numericClientId,
-        { goals_summary: JSON.stringify(calculationResponse) },
-        projectId
-    );
+    await clientService.persistGoalsSummary(numericClientId, calculationResponse, projectId);
 
     let pdfUrl = null;
     if (uploadPdf && agentId && projectId) {

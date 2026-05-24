@@ -26,7 +26,8 @@ class ClientRepository {
         const query = knex('clients').where({ id });
         if (projectId) query.where({ project_id: projectId });
         if (trx) query.transacting(trx);
-        return query.update(data);
+        const payload = { ...data, updated_at: knex.fn.now() };
+        return query.update(payload);
     }
 
     // --- Related Entities ---

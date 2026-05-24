@@ -78,7 +78,7 @@ async function persistConstructorCalculationToPfpClient({
     await syncCalculationGoalsWithDatabase(clientId, calculation);
 
     await clientService.updateClient(clientId, {
-        goals_summary: JSON.stringify(calculationResponse),
+        goals_summary: require('../utils/goalsSummaryPersist').stringifyGoalsSummarySnapshot(calculationResponse),
     });
 
     await knex('constructor_clients').where('id', constructorClientRow.id).update({
