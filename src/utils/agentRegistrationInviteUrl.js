@@ -3,7 +3,7 @@
  */
 
 const DEFAULT_REGISTER_BASE =
-    'https://family-office.bank-future.com/register';
+    'https://family-office.bank-future.com/register/';
 
 function getAgentRegisterBaseUrl() {
     return (

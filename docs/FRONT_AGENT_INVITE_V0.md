@@ -1,6 +1,6 @@
 # Фронт: приглашение субагента (v0)
 
-Базовый фронт регистрации: [https://family-office.bank-future.com/](https://family-office.bank-future.com/) (путь `/register`).
+Базовый фронт регистрации: [https://family-office.bank-future.com/](https://family-office.bank-future.com/) (канонический путь `/register/`).
 
 Полный контракт API: [`docs/api/agent_lk.yaml`](api/agent_lk.yaml).
 
@@ -9,7 +9,7 @@
 Пример:
 
 ```text
-https://family-office.bank-future.com/register
+https://family-office.bank-future.com/register/
   ?project_key=pk_...
   &ref=a1b2c3d4e5f6
   &utm_source=pfp
@@ -80,7 +80,7 @@ Env бэкенда (опционально): `FINAM_AGENT_LANDING_URL`.
 ## Env бэкенда
 
 ```env
-AGENT_REGISTER_BASE_URL=https://family-office.bank-future.com/register
+AGENT_REGISTER_BASE_URL=https://family-office.bank-future.com/register/
 RESEND_API_KEY=...
 RESEND_FROM_EMAIL=...
 ```

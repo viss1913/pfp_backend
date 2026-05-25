@@ -326,7 +326,7 @@ paths:
       summary: Реферальная ссылка для приглашения субагентов
       description: |
         Возвращает `url` с `project_key`, `ref={referral_slug}` и UTM (`utm_source`, `utm_medium`, `utm_campaign`, `utm_partner_finam` пригласившего).
-        База URL: env `AGENT_REGISTER_BASE_URL` или `FRONTEND_AGENT_REGISTER_URL` (по умолчанию `https://family-office.bank-future.com/register`).
+        База URL: env `AGENT_REGISTER_BASE_URL` или `FRONTEND_AGENT_REGISTER_URL` (по умолчанию `https://family-office.bank-future.com/register/`).
 
         **Связь субагента с куратором:** параметр `ref` в ссылке → поле `ref` в `POST /auth/register-agent` → `agents.parent_agent_id`.
         `utm_partner_finam` — только атрибуция в `registration_attribution`, **не** подставлять в `partner_agent_id` нового агента.

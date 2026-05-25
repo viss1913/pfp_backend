@@ -11,7 +11,7 @@ test('getAgentRegisterBaseUrl falls back to family office domain', () => {
     delete process.env.AGENT_REGISTER_BASE_URL;
     delete process.env.FRONTEND_AGENT_REGISTER_URL;
 
-    assert.equal(getAgentRegisterBaseUrl(), 'https://family-office.bank-future.com/register');
+    assert.equal(getAgentRegisterBaseUrl(), 'https://family-office.bank-future.com/register/');
 
     if (prevBase !== undefined) process.env.AGENT_REGISTER_BASE_URL = prevBase;
     if (prevAlias !== undefined) process.env.FRONTEND_AGENT_REGISTER_URL = prevAlias;
