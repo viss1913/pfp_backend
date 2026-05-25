@@ -3,7 +3,7 @@
  */
 
 const DEFAULT_REGISTER_BASE =
-    'https://pfp-front-ver3.vercel.app/register';
+    'https://family-office.bank-future.com/register';
 
 function getAgentRegisterBaseUrl() {
     return (
