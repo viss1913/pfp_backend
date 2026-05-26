@@ -19,7 +19,7 @@ function getDefaultExecutablePath() {
 
 const BASE = process.env.FINAM_V2_PREVIEW_URL || 'http://127.0.0.1:8766';
 const OUT_DIR = path.join(__dirname, '..', 'tmp');
-const EXPECTED_MERGED_IFRAMES = 22;
+const EXPECTED_MERGED_IFRAMES = 21;
 
 async function assertNoA4Overflow(page, label) {
     const pageHeights = await page.$$eval('article.finam-v2-page', (pages) =>

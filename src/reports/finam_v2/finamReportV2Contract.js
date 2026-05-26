@@ -62,8 +62,6 @@ const FINAM_REPORT_V2_DYNAMIC_PAGE_TYPES = Object.freeze([
     FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE,
 ]);
 
-const FINAM_REPORT_V2_RISK_LEVELS = Object.freeze(['low', 'lowMedium', 'medium', 'mediumHigh', 'high']);
-
 const FINAM_REPORT_V2_TYPOGRAPHY_LIMITS = Object.freeze({
     bodyMinPx: 9,
     captionMinPx: 8,
@@ -262,85 +260,163 @@ const FINAM_REPORT_V2_SAMPLE_PAYLOAD = Object.freeze({
         },
     ],
     riskDeclaration: {
-        headline: 'Риски плана управляемы, если контролировать продуктовую концентрацию',
-        summaryRiskLevel: 'medium',
-        reviewCadence: 'квартально',
-        topRisks: ['Просадка рынка', 'Процентная ставка', 'Условия ПДС', 'Поведенческий риск клиента'],
-        legalNotes: [
-            'Материалы декларации носят информационный характер и не являются индивидуальной инвестиционной рекомендацией.',
-            'Прошлая доходность не гарантирует будущие результаты.',
+        headline: 'Информация для клиента по финансовому плану',
+        overview:
+            'Настоящая декларация подготовлена с целью объяснить ключевые риски, связанные с финансовым планом, инвестиционными решениями и страховыми продуктами.',
+        importantNote:
+            'Хранение капитала исключительно в денежной форме также несет риски, прежде всего риск инфляции и постепенного снижения покупательной способности денежных средств.',
+        sections: [
+            {
+                id: 'inflation',
+                title: '1. Инфляционный риск',
+                essence: [
+                    'Инфляция — это постепенное снижение покупательной способности денежных средств.',
+                    'Даже при сохранении номинальной суммы капитала его реальная стоимость со временем уменьшается.',
+                ],
+                riskPoints: [
+                    'накопления теряют покупательную способность',
+                    'доходность консервативных инструментов может быть ниже инфляции',
+                    'для будущих целей потребуется больший капитал',
+                ],
+                mitigations: [
+                    'диверсификация инструментов',
+                    'использование решений с доходностью выше инфляции',
+                    'регулярный пересмотр плана и ребалансировка портфеля',
+                ],
+            },
+            {
+                id: 'market',
+                title: '2. Рыночный риск',
+                essence: [
+                    'Стоимость инвестиционных активов зависит от экономики, ставок, действий регулятора, корпоративных событий и поведения участников рынка.',
+                    'Инвестиционные продукты могут показывать временные или существенные просадки.',
+                ],
+                riskPoints: ['цены могут как расти, так и снижаться', 'прошлая доходность не гарантирует результаты в будущем'],
+                mitigations: [
+                    'диверсификация между инструментами',
+                    'ограничение доли высокорисковых активов',
+                    'долгосрочный горизонт инвестирования и контроль структуры портфеля',
+                ],
+            },
+            {
+                id: 'autofollow',
+                title: '3. Риск повышенной волатильности и убытков по стратегиям автоследования',
+                essence: [
+                    'Стратегии автоследования могут использовать акции, фьючерсы, производные финансовые инструменты и активные торговые стратегии.',
+                ],
+                riskPoints: [
+                    'высокая волатильность',
+                    'резкие колебания стоимости',
+                    'возможность временных и существенных убытков',
+                    'доходность может отличаться от ожиданий клиента',
+                ],
+                mitigations: [
+                    'ограничение доли капитала в агрессивных стратегиях',
+                    'распределение активов по уровням риска',
+                    'регулярный мониторинг стратегии',
+                ],
+            },
+            {
+                id: 'credit',
+                title: '4. Кредитный и корпоративный риск',
+                essence: [
+                    'Эмитенты и контрагенты могут столкнуться с ухудшением финансового положения, дефолтом, изменением условий обслуживания и снижением надежности.',
+                ],
+                mitigations: [
+                    'использование регулируемых организаций',
+                    'распределение капитала между несколькими инструментами',
+                    'ограничение концентрации в одном инструменте или компании',
+                ],
+            },
+            {
+                id: 'liquidity',
+                title: '5. Риск ликвидности',
+                essence: [
+                    'Некоторые финансовые инструменты могут иметь ограниченную ликвидность, временно быть недоступны для продажи или реализовываться с дисконтом.',
+                ],
+                mitigations: [
+                    'формирование резервного капитала',
+                    'распределение средств между инструментами с разной ликвидностью',
+                    'планирование инвестиционного горизонта',
+                ],
+            },
+            {
+                id: 'regulatory',
+                title: '6. Регуляторный и налоговый риск',
+                essence: [
+                    'Законодательство, налоговые правила и регулирование финансового рынка могут изменяться и влиять на условия продуктов и итоговую доходность.',
+                ],
+                mitigations: [
+                    'регулярный пересмотр финансового плана',
+                    'адаптация структуры активов к изменениям законодательства',
+                    'использование регулируемых инструментов и организаций',
+                ],
+            },
+            {
+                id: 'insurance',
+                title: '7. Риски страховых продуктов',
+                essence: [
+                    'Программы страхования жизни и страховой защиты имеют условия действия, ограничения, исключения, сроки ожидания и установленный перечень страховых случаев.',
+                    'Страховая выплата осуществляется исключительно в соответствии с условиями договора страхования.',
+                ],
+                riskPoints: [
+                    'событие может не признаваться страховым случаем',
+                    'выплата может быть ограничена при недостоверной информации',
+                    'досрочное прекращение договора может привести к финансовым потерям',
+                ],
+                mitigations: [
+                    'внимательное ознакомление с договором страхования',
+                    'полное раскрытие информации при оформлении полиса',
+                    'регулярный пересмотр страхового покрытия',
+                ],
+            },
+            {
+                id: 'stability',
+                title: '8. Риск финансовой устойчивости финансовых организаций',
+                essence: [
+                    'Финансовые организации могут столкнуться с ограничением деятельности, отзывом лицензии, санацией или банкротством.',
+                    'Риск относится к НПФ, брокерам, страховым организациям, управляющим компаниям и иным финансовым посредникам.',
+                ],
+                riskPoints: [
+                    'временные ограничения доступа к активам',
+                    'задержки операций и выплат',
+                    'необходимость перевода активов к другому участнику рынка',
+                ],
+                mitigations: [
+                    'диверсификация капитала между организациями и инструментами',
+                    'ограничение концентрации средств в одной компании',
+                    'регулярный пересмотр используемых продуктов',
+                ],
+            },
+            {
+                id: 'expectations',
+                title: '9. Риск несоответствия ожиданий',
+                essence: [
+                    'Фактическая доходность инвестиций может отличаться от прогнозируемой или ожидаемой.',
+                    'Финансовый план строится на предположениях, сценариях и расчетах, которые не гарантируют конкретный результат.',
+                ],
+                mitigations: [
+                    'формирование реалистичных ожиданий',
+                    'долгосрочный подход к инвестированию',
+                    'контроль рисков и диверсификация',
+                ],
+            },
         ],
-        riskRegister: [
-            {
-                id: 'market-drawdown',
-                title: 'Просадка рынка',
-                category: 'market',
-                productIds: ['finam-du', 'finam-comon', 'equities'],
-                companyIds: ['finam', 'comon'],
-                probability: 'mediumHigh',
-                impact: 'high',
-                residualRisk: 'mediumHigh',
-                exposure: 'инвестиционная часть портфеля',
-                controls: ['лимиты долей', 'горизонт по целям', 'ребалансировка'],
-                reviewTriggers: ['просадка выше лимита', 'изменение риск-профиля'],
-                clientMessage: 'Рыночная просадка ожидаема; решение принимаем по правилам, а не по эмоциям.',
-            },
-            {
-                id: 'rate-duration',
-                title: 'Процентный риск облигаций',
-                category: 'market',
-                productIds: ['bonds'],
-                companyIds: ['finam'],
-                probability: 'medium',
-                impact: 'medium',
-                residualRisk: 'medium',
-                exposure: 'облигационная часть без конкретных выпусков',
-                controls: ['контроль дюрации', 'лестница сроков', 'пересмотр при изменении ключевой ставки'],
-                reviewTriggers: ['смена макросценария', 'рост инфляции выше прогноза'],
-                clientMessage: 'Облигации снижают волатильность, но не являются депозитом.',
-            },
-            {
-                id: 'product-terms',
-                title: 'Условия ПДС',
-                category: 'product',
-                productIds: ['pds-renessans'],
-                companyIds: ['renessans-npf'],
-                probability: 'lowMedium',
-                impact: 'medium',
-                residualRisk: 'medium',
-                exposure: 'пенсионный контур',
-                controls: ['проверка правил ПДС', 'мониторинг правил программы', 'платёжная дисциплина'],
-                reviewTriggers: ['изменение правил продукта', 'изменение налоговых условий'],
-                clientMessage: 'Налоговые льготы и софинансирование работают только при соблюдении условий ПДС.',
-            },
-            {
-                id: 'liquidity-return',
-                title: 'Низкая реальная доходность ликвидности',
-                category: 'product',
-                productIds: ['deposits-savings'],
-                companyIds: ['bank-liquidity'],
-                probability: 'medium',
-                impact: 'medium',
-                residualRisk: 'lowMedium',
-                exposure: 'депозит и накопительный счёт',
-                controls: ['сверка ставки с инфляцией', 'разделение резерва и долгого капитала', 'пересмотр при снижении ставок'],
-                reviewTriggers: ['ставка ниже инфляции', 'рост доли ликвидности выше лимита'],
-                clientMessage: 'Депозит и накопительный счёт нужны для доступности денег, но не должны заменять долгий инвестиционный контур.',
-            },
-            {
-                id: 'behavioral-risk',
-                title: 'Поведенческий риск клиента',
-                category: 'behavioral',
-                productIds: ['finam-du', 'finam-comon', 'bonds', 'equities', 'pds-renessans', 'deposits-savings'],
-                companyIds: ['finam', 'comon', 'renessans-npf', 'bank-liquidity'],
-                probability: 'medium',
-                impact: 'high',
-                residualRisk: 'medium',
-                exposure: 'весь финансовый план',
-                controls: ['дорожная карта', 'квартальная сверка', 'стресс- и оптимистичный сценарии'],
-                reviewTriggers: ['остановка пополнений', 'выход на просадке', 'крупный незапланированный расход'],
-                clientMessage: 'Главный риск плана часто не рынок, а нарушение дисциплины пополнений.',
-            },
+        conclusion: {
+            title: 'Важное заключение',
+            text: 'Финансовый план направлен не на полное исключение рисков, а на их разумное управление.',
+            bullets: [
+                'учитывает цели клиента',
+                'помогает снижать влияние инфляции',
+                'распределяет риски',
+                'формирует долгосрочную финансовую устойчивость',
+                'обеспечивает финансовую защиту семьи и капитала',
+            ],
+        },
+        legalNotes: [
+            'Материалы декларации носят информационный характер и не являются индивидуальной инвестиционной рекомендацией (ИИР).',
+            'Прошлая доходность не гарантирует будущие результаты.',
+            'Финансовые, пенсионные, брокерские и страховые условия, порядок гарантий, комиссии, ограничения и выплаты определяются действующим законодательством РФ, правилами провайдеров и документами конкретных продуктов.',
         ],
     },
     scenarios: [
@@ -408,29 +484,6 @@ function validatePercentAllocation(errors, path, items, { requireRole = false } 
     }
 }
 
-function validateIdArray(errors, path, ids, allowedIds) {
-    if (!Array.isArray(ids) || ids.length < 1) {
-        errors.push(`${path} must contain at least 1 id`);
-        return;
-    }
-
-    ids.forEach((id, index) => {
-        if (!id || typeof id !== 'string') {
-            errors.push(`${path}[${index}] must be a string`);
-            return;
-        }
-        if (allowedIds && !allowedIds.has(id)) {
-            errors.push(`${path}[${index}] references unknown id ${id}`);
-        }
-    });
-}
-
-function validateRiskLevel(errors, path, value) {
-    if (!FINAM_REPORT_V2_RISK_LEVELS.includes(value)) {
-        errors.push(`${path} must be one of ${FINAM_REPORT_V2_RISK_LEVELS.join(', ')}`);
-    }
-}
-
 function validateNonEmptyStringArray(errors, path, items) {
     if (!Array.isArray(items) || items.length < 1) {
         errors.push(`${path} must contain at least 1 item`);
@@ -444,120 +497,116 @@ function validateNonEmptyStringArray(errors, path, items) {
     });
 }
 
-function validateCompaniesAndProducts(errors, payload) {
-    const companyIds = new Set();
-    const productIds = new Set();
-
-    if (!Array.isArray(payload.companies) || payload.companies.length < 1) {
-        errors.push('companies must contain at least 1 item');
-    } else {
-        payload.companies.forEach((company, index) => {
-            if (!company || typeof company !== 'object') {
-                errors.push(`companies[${index}] must be an object`);
-                return;
-            }
-            ['id', 'name', 'role'].forEach((field) => {
-                if (!company[field]) {
-                    errors.push(`companies[${index}].${field} is required`);
-                }
-            });
-            if (company.id) {
-                if (companyIds.has(company.id)) {
-                    errors.push(`companies[${index}].id must be unique`);
-                }
-                companyIds.add(company.id);
-            }
-        });
-    }
-
-    if (!Array.isArray(payload.products) || payload.products.length < 1) {
-        errors.push('products must contain at least 1 item');
-    } else {
-        payload.products.forEach((product, index) => {
-            if (!product || typeof product !== 'object') {
-                errors.push(`products[${index}] must be an object`);
-                return;
-            }
-            ['id', 'name', 'type', 'companyId', 'role'].forEach((field) => {
-                if (!product[field]) {
-                    errors.push(`products[${index}].${field} is required`);
-                }
-            });
-            if (product.id) {
-                if (productIds.has(product.id)) {
-                    errors.push(`products[${index}].id must be unique`);
-                }
-                productIds.add(product.id);
-            }
-            if (product.companyId && !companyIds.has(product.companyId)) {
-                errors.push(`products[${index}].companyId references unknown company ${product.companyId}`);
-            }
-            if (!Array.isArray(product.goalIds)) {
-                errors.push(`products[${index}].goalIds must be an array`);
-            }
-            if (product.allocationPercent != null) {
-                const allocationPercent = Number(product.allocationPercent);
-                if (!Number.isFinite(allocationPercent) || allocationPercent < 0 || allocationPercent > 100) {
-                    errors.push(`products[${index}].allocationPercent must be 0..100`);
-                }
-            }
-        });
-    }
-
-    return { companyIds, productIds };
-}
-
-function validateRiskDeclaration(errors, payload, { companyIds, productIds }) {
+function validateRiskDeclaration(errors, payload) {
     const riskDeclaration = payload.riskDeclaration;
     if (!riskDeclaration || typeof riskDeclaration !== 'object') {
         errors.push('riskDeclaration is required');
         return;
     }
 
-    ['headline', 'summaryRiskLevel', 'reviewCadence'].forEach((field) => {
+    ['headline', 'overview', 'importantNote'].forEach((field) => {
         if (!riskDeclaration[field]) {
             errors.push(`riskDeclaration.${field} is required`);
         }
     });
-    if (riskDeclaration.summaryRiskLevel) {
-        validateRiskLevel(errors, 'riskDeclaration.summaryRiskLevel', riskDeclaration.summaryRiskLevel);
-    }
-    validateNonEmptyStringArray(errors, 'riskDeclaration.topRisks', riskDeclaration.topRisks);
-    validateNonEmptyStringArray(errors, 'riskDeclaration.legalNotes', riskDeclaration.legalNotes);
 
-    const riskRegister = riskDeclaration.riskRegister;
-    if (!Array.isArray(riskRegister) || riskRegister.length < 1) {
-        errors.push('riskDeclaration.riskRegister must contain at least 1 item');
+    if (riskDeclaration.legalNotes != null) {
+        validateNonEmptyStringArray(errors, 'riskDeclaration.legalNotes', riskDeclaration.legalNotes);
+    }
+
+    const sections = riskDeclaration.sections;
+    if (!Array.isArray(sections) || sections.length < 1) {
+        errors.push('riskDeclaration.sections must contain at least 1 item');
         return;
     }
 
-    riskRegister.forEach((risk, index) => {
-        if (!risk || typeof risk !== 'object') {
-            errors.push(`riskDeclaration.riskRegister[${index}] must be an object`);
+    sections.forEach((section, index) => {
+        if (!section || typeof section !== 'object') {
+            errors.push(`riskDeclaration.sections[${index}] must be an object`);
             return;
         }
-        ['id', 'title', 'category', 'probability', 'impact', 'residualRisk', 'exposure', 'clientMessage'].forEach((field) => {
-            if (!risk[field]) {
-                errors.push(`riskDeclaration.riskRegister[${index}].${field} is required`);
+        ['id', 'title'].forEach((field) => {
+            if (!section[field]) {
+                errors.push(`riskDeclaration.sections[${index}].${field} is required`);
             }
         });
-        ['probability', 'impact', 'residualRisk'].forEach((field) => {
-            if (risk[field]) {
-                validateRiskLevel(errors, `riskDeclaration.riskRegister[${index}].${field}`, risk[field]);
-            }
-        });
-        validateIdArray(errors, `riskDeclaration.riskRegister[${index}].productIds`, risk.productIds, productIds);
-        validateIdArray(errors, `riskDeclaration.riskRegister[${index}].companyIds`, risk.companyIds, companyIds);
-        validateNonEmptyStringArray(errors, `riskDeclaration.riskRegister[${index}].controls`, risk.controls);
-        validateNonEmptyStringArray(errors, `riskDeclaration.riskRegister[${index}].reviewTriggers`, risk.reviewTriggers);
-    });
-
-    productIds.forEach((productId) => {
-        const isCovered = riskRegister.some((risk) => Array.isArray(risk.productIds) && risk.productIds.includes(productId));
-        if (!isCovered) {
-            errors.push(`riskDeclaration.riskRegister must cover product ${productId}`);
+        validateNonEmptyStringArray(errors, `riskDeclaration.sections[${index}].essence`, section.essence);
+        validateNonEmptyStringArray(errors, `riskDeclaration.sections[${index}].mitigations`, section.mitigations);
+        if (section.riskPoints != null) {
+            validateNonEmptyStringArray(errors, `riskDeclaration.sections[${index}].riskPoints`, section.riskPoints);
         }
     });
+
+    const conclusion = riskDeclaration.conclusion;
+    if (!conclusion || typeof conclusion !== 'object') {
+        errors.push('riskDeclaration.conclusion is required');
+        return;
+    }
+
+    ['title', 'text'].forEach((field) => {
+        if (!conclusion[field]) {
+            errors.push(`riskDeclaration.conclusion.${field} is required`);
+        }
+    });
+    validateNonEmptyStringArray(errors, 'riskDeclaration.conclusion.bullets', conclusion.bullets);
+}
+
+function validateOptionalCompanyCatalog(errors, payload) {
+    const companyIds = new Set();
+
+    if (payload.companies != null) {
+        if (!Array.isArray(payload.companies) || payload.companies.length < 1) {
+            errors.push('companies must contain at least 1 item when provided');
+        } else {
+            payload.companies.forEach((company, index) => {
+                if (!company || typeof company !== 'object') {
+                    errors.push(`companies[${index}] must be an object`);
+                    return;
+                }
+                ['id', 'name', 'role'].forEach((field) => {
+                    if (!company[field]) {
+                        errors.push(`companies[${index}].${field} is required`);
+                    }
+                });
+                if (company.id) {
+                    if (companyIds.has(company.id)) {
+                        errors.push(`companies[${index}].id must be unique`);
+                    }
+                    companyIds.add(company.id);
+                }
+            });
+        }
+    }
+
+    if (payload.products != null) {
+        if (!Array.isArray(payload.products) || payload.products.length < 1) {
+            errors.push('products must contain at least 1 item when provided');
+        } else {
+            payload.products.forEach((product, index) => {
+                if (!product || typeof product !== 'object') {
+                    errors.push(`products[${index}] must be an object`);
+                    return;
+                }
+                ['id', 'name', 'type', 'companyId', 'role'].forEach((field) => {
+                    if (!product[field]) {
+                        errors.push(`products[${index}].${field} is required`);
+                    }
+                });
+                if (product.companyId && payload.companies != null && !companyIds.has(product.companyId)) {
+                    errors.push(`products[${index}].companyId references unknown company ${product.companyId}`);
+                }
+                if (!Array.isArray(product.goalIds)) {
+                    errors.push(`products[${index}].goalIds must be an array`);
+                }
+                if (product.allocationPercent != null) {
+                    const allocationPercent = Number(product.allocationPercent);
+                    if (!Number.isFinite(allocationPercent) || allocationPercent < 0 || allocationPercent > 100) {
+                        errors.push(`products[${index}].allocationPercent must be 0..100`);
+                    }
+                }
+            });
+        }
+    }
 }
 
 function validateFinamReportV2Payload(payload) {
@@ -617,8 +666,8 @@ function validateFinamReportV2Payload(payload) {
         }
     }
 
-    const catalog = validateCompaniesAndProducts(errors, payload);
-    validateRiskDeclaration(errors, payload, catalog);
+    validateOptionalCompanyCatalog(errors, payload);
+    validateRiskDeclaration(errors, payload);
 
     if (payload.scenarios != null) {
         if (!Array.isArray(payload.scenarios)) {

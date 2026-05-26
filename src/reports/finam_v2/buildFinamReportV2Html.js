@@ -14,6 +14,21 @@ function readLocalCss(fileName) {
     return fs.readFileSync(path.join(FINAM_V2_DIR, fileName), 'utf8');
 }
 
+const DEMO_PROD_CSS = `
+.finam-v2-prod__kicker { font-size: 9px; font-weight: 700; color: var(--finam-v2-color-accent-blue); text-transform: uppercase; letter-spacing: .09em; margin-bottom: 8px; }
+.finam-v2-prod__title { font-family: var(--finam-v2-font-display), Georgia, serif; font-size: 30px; line-height: 1.05; color: var(--finam-v2-color-navy-deep); margin: 0 0 12px; letter-spacing: -0.03em; }
+.finam-v2-prod__lead { font-size: 12px; line-height: 1.45; color: var(--finam-v2-color-text-soft); margin: 0 0 16px; max-width: 480px; }
+.finam-v2-prod__grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.finam-v2-prod__grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.finam-v2-prod__card { border: 1px solid var(--finam-v2-color-border); border-radius: 12px; background: #fff; padding: 12px; }
+.finam-v2-prod__card--soft { background: var(--finam-v2-color-soft-gray); }
+.finam-v2-prod__card--green { background: #ecfdf5; border-color: #d1fae5; }
+.finam-v2-prod__label { font-size: 8px; line-height: 1.2; color: var(--finam-v2-color-text-muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+.finam-v2-prod__text { font-size: 10px; line-height: 1.38; color: var(--finam-v2-color-text-soft); margin: 0; }
+.finam-v2-prod__list { margin: 0; padding-left: 15px; font-size: 9.5px; line-height: 1.4; color: var(--finam-v2-color-text-soft); }
+.finam-v2-prod__list li { margin: 0 0 5px; }
+`;
+
 function escapeHtml(value) {
     return String(value == null ? '' : value)
         .replace(/&/g, '&amp;')
@@ -85,90 +100,15 @@ function renderExecutiveSummary(payload) {
     );
 }
 
-function renderRiskPill(level) {
-    const riskLevel = String(level || '').toLowerCase();
-    const modifier = riskLevel.includes('high')
-        ? ' finam-v2-risk-memo__risk-tag--warn'
-        : '';
-    return `<span class="finam-v2-risk-memo__risk-tag${modifier}">${escapeHtml(level || 'medium')}</span>`;
-}
-
-function renderRiskReturnMatrix() {
-    return `
-    <p class="finam-v2-risk-memo__section-title">Риск / доходность</p>
-    <section class="finam-v2-risk-memo__matrix">
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Риск / доходность</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Низкая доходность</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Средняя доходность</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Высокая доходность</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Высокий риск</div>
-      <div class="finam-v2-risk-memo__matrix-cell"></div>
-      <div class="finam-v2-risk-memo__matrix-cell"></div>
-      <div class="finam-v2-risk-memo__matrix-cell">${renderRiskPill('акции')}</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Средний риск</div>
-      <div class="finam-v2-risk-memo__matrix-cell"></div>
-      <div class="finam-v2-risk-memo__matrix-cell">${renderRiskPill('ДУ')}${renderRiskPill('облигации')}</div>
-      <div class="finam-v2-risk-memo__matrix-cell">${renderRiskPill('автоследование')}</div>
-      <div class="finam-v2-risk-memo__matrix-cell finam-v2-risk-memo__matrix-head">Низкий риск</div>
-      <div class="finam-v2-risk-memo__matrix-cell">${renderRiskPill('депозит')}${renderRiskPill('накопительный счёт')}</div>
-      <div class="finam-v2-risk-memo__matrix-cell">${renderRiskPill('ПДС')}</div>
-      <div class="finam-v2-risk-memo__matrix-cell"></div>
-    </section>`;
-}
-
 function renderRiskDeclaration(payload) {
     const riskDeclaration = payload.riskDeclaration || {};
-    const companiesById = new Map((payload.companies || []).map((company) => [company.id, company]));
-    const products = payload.products || [];
-    const risks = riskDeclaration.riskRegister || [];
-    const companyLabelForProduct = (product) => {
-        if (['bonds', 'equities'].includes(product.type)) {
-            return 'класс активов / брокерский контур';
-        }
-        const company = companiesById.get(product.companyId) || {};
-        return company.name || product.companyId;
-    };
-    const productRows = products
-        .map((product) => {
-            return `<tr>
-          <td><strong>${escapeHtml(product.name)}</strong></td>
-          <td>${escapeHtml(companyLabelForProduct(product))}</td>
-          <td>${escapeHtml(product.role)}</td>
-          <td>${escapeHtml(product.exposure || '')}</td>
-          <td>${escapeHtml(product.allocationPercent == null ? '' : `${product.allocationPercent}%`)}</td>
-        </tr>`;
-        })
-        .join('');
-    const renderRiskCards = (items) => items
-        .map(
-            (risk) => `<div class="finam-v2-risk-memo__card">
-        <p class="finam-v2-risk-memo__card-title">${escapeHtml(risk.title)}</p>
-        <p class="finam-v2-risk-memo__card-text">${escapeHtml(risk.clientMessage)}</p>
-        <p class="finam-v2-risk-memo__section-title">Остаточный риск</p>
-        ${renderRiskPill(risk.residualRisk)}
-        <p class="finam-v2-risk-memo__section-title">Контроль</p>
-        <ul class="finam-v2-risk-memo__mini-list">
-          ${(risk.controls || []).map((control) => `<li>${escapeHtml(control)}</li>`).join('')}
-        </ul>
-      </div>`
-        )
-        .join('');
-    const topRiskRows = (riskDeclaration.topRisks || [])
-        .map((risk, index) => {
-            const registerItem = risks[index] || {};
-            return `<tr>
-          <td><strong>${escapeHtml(risk)}</strong></td>
-          <td>${renderRiskPill(registerItem.residualRisk || riskDeclaration.summaryRiskLevel)}</td>
-          <td>${escapeHtml(registerItem.exposure || 'весь план')}</td>
-          <td>${escapeHtml(registerItem.clientMessage || 'требует регулярного контроля')}</td>
-        </tr>`;
-        })
-        .join('');
-    const marketRisks = risks.filter((risk) => risk.category === 'market');
-    const productRisks = risks.filter((risk) => risk.category === 'product');
-    const behavioralRisks = risks.filter((risk) => risk.category === 'behavioral');
-    const reviewTriggers = [...new Set(risks.flatMap((risk) => risk.reviewTriggers || []))];
-    const legalNotes = (riskDeclaration.legalNotes || [])
+    const legalNotes = (Array.isArray(riskDeclaration.legalNotes) && riskDeclaration.legalNotes.length
+        ? riskDeclaration.legalNotes
+        : [
+            'Материалы декларации носят информационный характер и не являются индивидуальной инвестиционной рекомендацией (ИИР).',
+            'Прошлая доходность не гарантирует будущие результаты.',
+            'Финансовые, пенсионные, брокерские и страховые условия, порядок гарантий, комиссии, ограничения и выплаты определяются действующим законодательством РФ, правилами провайдеров и документами конкретных продуктов.',
+        ])
         .map((note) => escapeHtml(note))
         .join(' ');
 
@@ -176,80 +116,193 @@ function renderRiskDeclaration(payload) {
         wrapPage(
             'Риски плана · 1/5',
             `
-    <p class="finam-v2-wow__eyebrow">Декларация о рисках</p>
-    <h1 class="finam-v2-wow__headline">${escapeHtml(riskDeclaration.headline)}</h1>
-    <div class="finam-v2-risk-memo__hero">
-      <div>
-        <p class="finam-v2-wow__lead">Риск-декларация связывает продукты, компании, цели и меры контроля, а не живёт отдельным юридическим приложением.</p>
-        <section class="finam-v2-risk-memo__note"><strong>Контрольный ритм:</strong> ${escapeHtml(riskDeclaration.reviewCadence)}</section>
+    <p class="finam-v2-prod__kicker">Декларация о рисках</p>
+    <h1 class="finam-v2-prod__title">Информация для клиента по финансовому плану</h1>
+    <div class="finam-v2-prod__grid-2" style="grid-template-columns:minmax(0,1fr) 154px; align-items:stretch; margin-bottom:10px;">
+      <section class="finam-v2-prod__card">
+        <p class="finam-v2-prod__lead" style="margin-bottom:8px;">Настоящая декларация подготовлена с целью объяснить ключевые риски, связанные с финансовым планом, инвестиционными решениями и страховыми продуктами.</p>
+        <p class="finam-v2-prod__text">Любые инвестиции и финансовые инструменты предполагают возможность как получения дохода, так и возникновения убытков.</p>
+      </section>
+      <section class="finam-v2-prod__card" style="background:#eff6ff;border-color:#dbeafe;">
+        <p class="finam-v2-prod__text"><strong>Важно понимать:</strong> хранение капитала исключительно в денежной форме также несет риски, прежде всего риск инфляции и постепенного снижения покупательной способности денежных средств.</p>
+      </section>
+    </div>
+    <div class="finam-v2-prod__grid-3" style="margin-bottom:10px;">
+      <section class="finam-v2-prod__card"><div class="finam-v2-prod__label">Доход и убыток</div><p class="finam-v2-prod__text">Доходность не гарантирована, а финансовый результат зависит от горизонта, структуры и рыночной среды.</p></section>
+      <section class="finam-v2-prod__card"><div class="finam-v2-prod__label">Реальная стоимость</div><p class="finam-v2-prod__text">Даже номинально сохраненный капитал может терять покупательную способность.</p></section>
+      <section class="finam-v2-prod__card"><div class="finam-v2-prod__label">Контроль плана</div><p class="finam-v2-prod__text">Финансовый план требует регулярного пересмотра, ребалансировки и сверки рисков с целями клиента.</p></section>
+    </div>
+    <section class="finam-v2-prod__card">
+      <div class="finam-v2-prod__label">1. Инфляционный риск</div>
+      <p class="finam-v2-prod__text">Инфляция — это постепенное снижение покупательной способности денежных средств. Даже при сохранении номинальной суммы капитала его реальная стоимость со временем уменьшается.</p>
+      <div class="finam-v2-prod__label" style="margin-top:8px;">Что происходит</div>
+      <ul class="finam-v2-prod__list">
+        <li>накопления теряют свою покупательную способность;</li>
+        <li>доходность консервативных инструментов оказывается ниже инфляции;</li>
+        <li>для достижения финансовых целей в будущем потребуется существенно больший капитал.</li>
+      </ul>
+      <div class="finam-v2-prod__card finam-v2-prod__card--soft" style="margin-top:8px;padding:10px 11px;">
+        <p class="finam-v2-prod__text"><strong>Почему это важно:</strong> особенно значим данный риск при долгосрочном финансовом планировании, когда срок реализации цели составляет годы, а иногда и десятилетия.</p>
       </div>
-      <aside class="finam-v2-risk-memo__score">
-        <div class="finam-v2-risk-memo__score-value">${escapeHtml(riskDeclaration.summaryRiskLevel || 'medium')}</div>
-        <div class="finam-v2-risk-memo__score-label">остаточный риск после диверсификации и контроля</div>
-      </aside>
-    </div>
-    <div class="finam-v2-risk-memo__kpi-row">
-      <section class="finam-v2-risk-memo__kpi"><div class="finam-v2-risk-memo__kpi-value">${products.length}</div><div class="finam-v2-risk-memo__kpi-label">продуктов</div></section>
-      <section class="finam-v2-risk-memo__kpi"><div class="finam-v2-risk-memo__kpi-value">${(payload.companies || []).length}</div><div class="finam-v2-risk-memo__kpi-label">компании / платформы</div></section>
-      <section class="finam-v2-risk-memo__kpi"><div class="finam-v2-risk-memo__kpi-value">${(riskDeclaration.riskRegister || []).length}</div><div class="finam-v2-risk-memo__kpi-label">материальных риска</div></section>
-      <section class="finam-v2-risk-memo__kpi"><div class="finam-v2-risk-memo__kpi-value">90</div><div class="finam-v2-risk-memo__kpi-label">дней до первой сверки</div></section>
-    </div>
-    <table class="finam-v2-risk-memo__table">
-      <thead><tr><th>Ключевой риск</th><th>Остаточный риск</th><th>Экспозиция</th><th>Сообщение клиенту</th></tr></thead>
-      <tbody>${topRiskRows}</tbody>
-    </table>`
+      <div class="finam-v2-prod__label" style="margin-top:8px;">Меры снижения риска</div>
+      <ul class="finam-v2-prod__list">
+        <li>распределение капитала между различными финансовыми инструментами;</li>
+        <li>использование решений с потенциальной доходностью выше инфляции;</li>
+        <li>регулярный пересмотр финансового плана;</li>
+        <li>долгосрочный подход, поэтапное инвестирование и ребалансировка портфеля.</li>
+      </ul>
+    </section>`
         ),
         wrapPage(
             'Риски плана · 2/5',
             `
-    <p class="finam-v2-wow__eyebrow">Карта экспозиции</p>
-    <h1 class="finam-v2-wow__headline">Каждый риск привязан к продукту, провайдеру и цели</h1>
-    <table class="finam-v2-risk-memo__table">
-      <thead><tr><th>Продукт</th><th>Компания</th><th>Роль</th><th>Экспозиция</th><th>Доля</th></tr></thead>
-      <tbody>${productRows}</tbody>
-    </table>
-    ${renderRiskReturnMatrix()}`
+    <p class="finam-v2-prod__kicker">Инвестиционный контур</p>
+    <h1 class="finam-v2-prod__title">Рыночный риск и риск повышенной волатильности</h1>
+    <section class="finam-v2-prod__card" style="margin-bottom:10px;">
+      <div class="finam-v2-prod__label">2. Рыночный риск</div>
+      <p class="finam-v2-prod__text">Стоимость инвестиционных активов может как расти, так и снижаться под влиянием экономической ситуации, процентных ставок, действий Центрального Банка, геополитических факторов, корпоративных событий и изменений настроений участников рынка.</p>
+      <p class="finam-v2-prod__text" style="margin-top:7px;">Инвестиционные продукты, включая автоследование, доверительное управление и стратегии с акциями и производными инструментами, могут показывать временные или существенные просадки. Прошлая доходность не гарантирует результатов в будущем.</p>
+      <div class="finam-v2-prod__label" style="margin-top:8px;">Меры снижения риска</div>
+      <ul class="finam-v2-prod__list">
+        <li>диверсификация между различными инструментами;</li>
+        <li>ограничение доли высокорисковых активов;</li>
+        <li>долгосрочный горизонт инвестирования;</li>
+        <li>регулярный контроль структуры портфеля и использование риск-менеджмента.</li>
+      </ul>
+    </section>
+    <section class="finam-v2-prod__card">
+      <div class="finam-v2-prod__label">3. Риск повышенной волатильности и убытков по стратегиям автоследования</div>
+      <p class="finam-v2-prod__text">Стратегии автоследования могут использовать акции, фьючерсы, производные финансовые инструменты и активные торговые стратегии.</p>
+      <ul class="finam-v2-prod__list">
+        <li>высокая волатильность и резкие колебания стоимости;</li>
+        <li>возможность временных и существенных убытков;</li>
+        <li>повышенная чувствительность к рыночным движениям;</li>
+        <li>доходность стратегии может существенно отличаться от ожиданий клиента.</li>
+      </ul>
+      <div class="finam-v2-prod__label" style="margin-top:8px;">Меры снижения риска</div>
+      <ul class="finam-v2-prod__list">
+        <li>ограничение доли капитала в агрессивных стратегиях;</li>
+        <li>распределение активов между разными уровнями риска;</li>
+        <li>соблюдение инвестиционного горизонта;</li>
+        <li>регулярный мониторинг стратегии и использование приемлемого уровня риска.</li>
+      </ul>
+    </section>`
         ),
         wrapPage(
             'Риски плана · 3/5',
             `
-    <p class="finam-v2-wow__eyebrow">Рыночный контур</p>
-    <h1 class="finam-v2-wow__headline">Облигации и акции раскрываем как классы активов</h1>
-    <p class="finam-v2-wow__lead">Если в плане нет конкретных бумаг, раздел не показывает аналитику конкретных эмитентов и не притворяется, что она есть.</p>
-    <div class="finam-v2-risk-memo__two-col">${renderRiskCards(marketRisks)}</div>
-    <section class="finam-v2-risk-memo__note"><strong>Принцип:</strong> риск класса активов объясняется через горизонт, дюрацию, ликвидность, волатильность и поведение клиента.</section>`
+    <p class="finam-v2-prod__kicker">Контрагент и ликвидность</p>
+    <h1 class="finam-v2-prod__title">Кредитный, корпоративный, ликвидный и регуляторный контур</h1>
+    <section class="finam-v2-prod__card" style="padding:10px 11px;margin-bottom:8px;">
+      <div class="finam-v2-prod__label">4. Кредитный и корпоративный риск</div>
+      <p class="finam-v2-prod__text">Финансовые организации, эмитенты ценных бумаг и иные контрагенты могут столкнуться с ухудшением финансового положения, ограничением операций, дефолтом, изменением условий обслуживания и снижением надежности.</p>
+      <p class="finam-v2-prod__text" style="margin-top:6px;">Это может повлиять на стоимость активов и исполнение обязательств.</p>
+      <div class="finam-v2-prod__label" style="margin-top:6px;">Меры снижения риска</div>
+      <ul class="finam-v2-prod__list"><li>использование регулируемых финансовых организаций;</li><li>распределение капитала между несколькими инструментами;</li><li>регулярный пересмотр структуры активов и ограничение концентрации.</li></ul>
+    </section>
+    <section class="finam-v2-prod__card" style="padding:10px 11px;margin-bottom:8px;">
+      <div class="finam-v2-prod__label">5. Риск ликвидности</div>
+      <ul class="finam-v2-prod__list">
+        <li>отдельные инструменты могут иметь ограниченную ликвидность;</li>
+        <li>временно быть недоступны для продажи;</li>
+        <li>реализовываться только с дисконтом к рыночной стоимости.</li>
+      </ul>
+      <p class="finam-v2-prod__text" style="margin-top:6px;">Особенно данный риск возрастает в периоды нестабильности на финансовых рынках.</p>
+      <div class="finam-v2-prod__label" style="margin-top:6px;">Меры снижения риска</div>
+      <ul class="finam-v2-prod__list"><li>формирование резервного капитала;</li><li>распределение средств между инструментами с различной ликвидностью;</li><li>отказ от чрезмерной концентрации активов и планирование инвестиционного горизонта.</li></ul>
+    </section>
+    <section class="finam-v2-prod__card" style="padding:10px 11px;">
+      <div class="finam-v2-prod__label">6. Регуляторный и налоговый риск</div>
+      <p class="finam-v2-prod__text">Законодательство, налоговые правила и регулирование финансового рынка могут изменяться. Это способно повлиять на налогообложение, условия финансовых продуктов, порядок обслуживания и итоговую доходность инвестиций.</p>
+      <div class="finam-v2-prod__label" style="margin-top:6px;">Меры снижения риска</div>
+      <ul class="finam-v2-prod__list"><li>регулярный пересмотр финансового плана;</li><li>адаптация структуры активов к изменениям законодательства;</li><li>использование официально регулируемых финансовых инструментов и организаций.</li></ul>
+    </section>`
         ),
         wrapPage(
             'Риски плана · 4/5',
             `
-    <p class="finam-v2-wow__eyebrow">Продуктовый контур</p>
-    <h1 class="finam-v2-wow__headline">ПДС, ДУ и автоследование требуют разных контролей</h1>
-    <div class="finam-v2-risk-memo__two-col">${renderRiskCards(productRisks.concat(behavioralRisks))}</div>
-    <section class="finam-v2-risk-memo__note"><strong>Что сказать клиенту:</strong> продукт выбирается не потому, что он «лучший», а потому что его риск подходит цели, горизонту и денежному потоку.</section>`
+    <p class="finam-v2-prod__kicker">Страховая защита</p>
+    <h1 class="finam-v2-prod__title">7. Риски страховых продуктов</h1>
+    <section class="finam-v2-prod__card">
+      <p class="finam-v2-prod__text">Программы страхования жизни и страховой защиты имеют условия действия, ограничения, исключения, сроки ожидания и установленный перечень страховых случаев.</p>
+      <p class="finam-v2-prod__text" style="margin-top:6px;">Страховая выплата осуществляется исключительно в соответствии с условиями договора страхования.</p>
+      <div class="finam-v2-prod__grid-2" style="margin-top:8px;align-items:start;">
+        <div>
+          <div class="finam-v2-prod__label">Когда выплата может быть ограничена</div>
+          <ul class="finam-v2-prod__list">
+            <li>если событие не признается страховым случаем;</li>
+            <li>при предоставлении недостоверной информации;</li>
+            <li>при наличии заболеваний или травм, существовавших до заключения договора;</li>
+            <li>при умышленных действиях застрахованного лица;</li>
+            <li>в случаях алкогольного или наркотического опьянения;</li>
+            <li>при участии в противоправных действиях, военных действиях, массовых беспорядках или террористической деятельности;</li>
+            <li>в иных случаях, предусмотренных правилами страхования.</li>
+          </ul>
+        </div>
+        <div>
+          <div class="finam-v2-prod__label">Меры снижения риска</div>
+          <ul class="finam-v2-prod__list">
+            <li>внимательное ознакомление с условиями договора страхования;</li>
+            <li>корректное и полное раскрытие информации при оформлении полиса;</li>
+            <li>соблюдение условий страхования;</li>
+            <li>подбор страховой программы под цели клиента;</li>
+            <li>регулярный пересмотр страхового покрытия.</li>
+          </ul>
+          <section class="finam-v2-prod__card finam-v2-prod__card--soft" style="margin-top:8px;padding:10px 11px;">
+            <p class="finam-v2-prod__text"><strong>Дополнительно:</strong> досрочное прекращение договора также может привести к финансовым потерям.</p>
+          </section>
+        </div>
+      </div>
+    </section>`
         ),
         wrapPage(
             'Риски плана · 5/5',
             `
-    <p class="finam-v2-wow__eyebrow">Протокол контроля</p>
-    <h1 class="finam-v2-wow__headline">Риск контролируется календарём, а не обещаниями доходности</h1>
-    <section class="finam-v2-risk-memo__three-col">
-      <div class="finam-v2-risk-memo__card"><p class="finam-v2-risk-memo__card-title">Ежеквартально</p>${renderList(['Сверить целевые доли', 'Проверить пополнения', 'Обновить статус ДУ / автоследования'])}</div>
-      <div class="finam-v2-risk-memo__card"><p class="finam-v2-risk-memo__card-title">Раз в 6 месяцев</p>${renderList(['Пересчитать инфляцию', 'Проверить ПДС, ликвидность и лимиты', 'Сверить риск-профиль'])}</div>
-      <div class="finam-v2-risk-memo__card"><p class="finam-v2-risk-memo__card-title">По событию</p>${renderList(reviewTriggers.slice(0, 4))}</div>
+    <p class="finam-v2-prod__kicker">Финансовая устойчивость и ожидания</p>
+    <h1 class="finam-v2-prod__title">Организации, ожидания клиента и итоговый вывод</h1>
+    <section class="finam-v2-prod__card" style="padding:9px 10px;margin-bottom:8px;">
+      <div class="finam-v2-prod__label">8. Риск финансовой устойчивости финансовых организаций</div>
+      <p class="finam-v2-prod__text">Несмотря на государственное регулирование и контроль со стороны Банка России, финансовые организации могут столкнуться с ухудшением финансового положения, ограничением деятельности, отзывом лицензии, санацией или банкротством.</p>
+      <p class="finam-v2-prod__text" style="margin-top:6px;">Данный риск относится к НПФ, брокерским компаниям, страховым организациям, управляющим компаниям и иным финансовым посредникам.</p>
+      <div class="finam-v2-prod__grid-2" style="margin-top:7px;align-items:start;gap:8px;">
+        <div>
+          <div class="finam-v2-prod__label">Возможные последствия</div>
+          <ul class="finam-v2-prod__list">
+            <li>временные ограничения доступа к активам;</li>
+            <li>задержки операций и выплат;</li>
+            <li>необходимость перевода активов к другому участнику рынка;</li>
+            <li>финансовые потери по отдельным продуктам и услугам.</li>
+          </ul>
+        </div>
+        <div>
+          <div class="finam-v2-prod__label">Меры снижения риска</div>
+          <ul class="finam-v2-prod__list">
+            <li>использование регулируемых финансовых организаций;</li>
+            <li>диверсификация капитала между различными организациями и инструментами;</li>
+            <li>ограничение концентрации средств в одной компании;</li>
+            <li>регулярный пересмотр структуры финансового плана и используемых продуктов.</li>
+          </ul>
+        </div>
+      </div>
+      <section class="finam-v2-prod__card finam-v2-prod__card--soft" style="margin-top:7px;padding:9px 10px;">
+        <p class="finam-v2-prod__text"><strong>Важно:</strong> активы на брокерском счете учитываются отдельно от имущества брокера и регистрируются в депозитарной системе на имя клиента. Ценные бумаги не являются собственностью брокера и не включаются в конкурсную массу при его банкротстве. Средства ПДС, размещенные через НПФ, подлежат государственной системе гарантирования в пределах, установленных законодательством РФ (на текущий момент — до 2,8 млн рублей).</p>
+      </section>
     </section>
-    <p class="finam-v2-tail__disclaimer">${legalNotes}</p>
-    <p class="finam-v2-risk-memo__section-title">Преемственность с v1</p>
-    <table class="finam-v2-risk-memo__table">
-      <thead><tr><th>Риск v1</th><th>Где раскрыт в v2</th></tr></thead>
-      <tbody>
-        <tr><td>Инфляционный риск</td><td>триггер пересчёта целей и пополнений</td></tr>
-        <tr><td>Риск НПФ</td><td>ПДС НПФ Ренессанс и правила программы</td></tr>
-        <tr><td>ОФЗ / ставка</td><td>облигации: дюрация, ставка, ликвидность</td></tr>
-        <tr><td>Акции РФ</td><td>акции как класс активов без конкретных бумаг</td></tr>
-        <tr><td>Корпоративные облигации</td><td>кредитный риск в облигационном контуре</td></tr>
-      </tbody>
-    </table>
-    <section class="finam-v2-risk-memo__note"><strong>Финальное решение:</strong> клиент принимает его после раскрытия рисков, проверки документов и сверки продуктов с личным риск-профилем.</section>`
+    <div class="finam-v2-prod__grid-2" style="gap:7px;">
+      <section class="finam-v2-prod__card" style="padding:9px 10px;">
+        <div class="finam-v2-prod__label">9. Риск несоответствия ожиданий</div>
+        <p class="finam-v2-prod__text">Фактическая доходность инвестиций может отличаться от прогнозируемой или ожидаемой. Финансовый план строится на предположениях, сценариях и расчетах, которые не гарантируют конкретный результат.</p>
+        <div class="finam-v2-prod__label" style="margin-top:6px;">Меры снижения риска</div>
+        <ul class="finam-v2-prod__list"><li>формирование реалистичных ожиданий;</li><li>долгосрочный подход к инвестированию;</li><li>регулярная корректировка финансового плана;</li><li>контроль рисков и диверсификация.</li></ul>
+      </section>
+      <section class="finam-v2-prod__card finam-v2-prod__card--green" style="padding:9px 10px;">
+        <div class="finam-v2-prod__label">Важное заключение</div>
+        <p class="finam-v2-prod__text">Финансовый план направлен не на полное исключение рисков, а на их разумное управление.</p>
+        <p class="finam-v2-prod__text" style="margin-top:6px;">Основная задача стратегии — создать устойчивую систему управления капиталом, которая:</p>
+        <ul class="finam-v2-prod__list"><li>учитывает цели клиента;</li><li>помогает снижать влияние инфляции;</li><li>распределяет риски;</li><li>формирует долгосрочную финансовую устойчивость;</li><li>обеспечивает финансовую защиту семьи и капитала.</li></ul>
+      </section>
+    </div>
+    <p class="finam-v2-tail__disclaimer" style="margin-top:6px;font-size:7.8px;line-height:1.24;color:#475569;">${legalNotes}</p>`
         ),
     ].join('\n');
 }
@@ -261,13 +314,13 @@ function renderRoadmap(payload) {
         'Дорожная карта',
         `
     <p class="finam-v2-wow__eyebrow">Что делаем дальше</p>
-    <h1 class="finam-v2-wow__headline">Дорожная карта превращает расчёт в программу действий</h1>
-    <div class="finam-v2-wow__timeline">
+    <h1 class="finam-v2-wow__headline" style="font-size:26px;line-height:1.03;max-width:470px;margin-bottom:6px;">Дорожная карта превращает расчёт в программу действий</h1>
+    <div class="finam-v2-wow__timeline" style="gap:10px;margin-bottom:8px;">
       ${roadmap
           .map(
-              (step, index) => `<section class="finam-v2-wow__step">
+              (step, index) => `<section class="finam-v2-wow__step" style="padding:10px;">
         <span class="finam-v2-wow__step-num">${index + 1}</span>
-        <div class="finam-v2-wow__card-title">${escapeHtml(step.horizon)}</div>
+        <div class="finam-v2-wow__card-title" style="font-size:14px;line-height:1.1;margin-bottom:7px;">${escapeHtml(step.horizon)}</div>
         ${renderList(step.actions)}
       </section>`
           )
@@ -344,6 +397,7 @@ function buildFinamReportV2Html(payload = FINAM_REPORT_V2_SAMPLE_PAYLOAD, option
   <style>
 ${tokensCss}
 ${sharedCss}
+${DEMO_PROD_CSS}
 @page { size: 595px 842px; margin: 0; }
 body { flex-direction: column; align-items: center; gap: 32px; }
 article.finam-v2-page { break-after: page; page-break-after: always; }

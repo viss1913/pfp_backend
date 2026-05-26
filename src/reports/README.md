@@ -35,7 +35,7 @@
 | `finam_v2/page-inflation-v2.html` | 1 | Инфляция и ставки из macro history |
 | `finam_v2/page-roadmap-v2.html` | 1 | Дорожная карта 90 дней / 12 месяцев / 3 года |
 | `finam_v2/page-detailed-plan-v2.html` | 2 | Подробный план пополнений по всем не-LIFE целям |
-| `finam_v2/page-risk-declaration-v2.html` | 5 | Декларация о рисках: продуктовая экспозиция, компании, матрица `Риск / Доходность`, рыночные/продуктовые риски, протокол контроля |
+| `finam_v2/page-risk-declaration-v2.html` | 5 | Декларация о рисках: вводная часть, 9 тематических рисков, меры снижения и итоговое заключение |
 
 ---
 
@@ -44,7 +44,7 @@
 - **`summary/buildSummaryPdfLayoutModel.js`** — `buildSummaryPdfLayoutModel`: продолжение целей, распределение капитала, подсказки вёрстки. В ответе отчёта клиента: **`pdf_summary_layout`** (`reportService.getClientReportData`).
 - **`summary/previewMockPayload.json`** — мок отчёта для превью в ЛК: **`GET /api/pfp/pdf-settings/summary-preview-html`** и **`GET /api/pfp/pdf-settings/pages/:pageType/preview-html`**. Для превью страниц целей в `goals[]` должна быть цель на каждый из `FIN_RESERVE`, `LIFE`, `INVESTMENT`, `OTHER`.
 - **`summary/preview-default.html`** — зафиксированный снимок сводной с дефолтным брендингом. Пересборка: `node scripts/render_summary_preview_default.mjs`.
-- **`finam_v2/finamReportV2Contract.js`** — JSON-контракт `reportSchemaVersion: "finam-v2.0"` для отчёта v2 (`client`, `advisor`, `pages[]`/wow-блоки/сценарии/roadmap/декларация о рисках, `companies[]`, `products[]`, `riskDeclaration.riskRegister[]`).
+- **`finam_v2/finamReportV2Contract.js`** — JSON-контракт `reportSchemaVersion: "finam-v2.0"` для отчёта v2 (`client`, `advisor`, `pages[]`/wow-блоки/сценарии/roadmap/декларация о рисках с `riskDeclaration.sections[]`, `conclusion`, optional `legalNotes`).
 - **`finam_v2/buildFinamReportV2HtmlPackage.js`** — тонкий production-вход v2: строит модель из данных отчёта и передаёт её в template composer.
 - **`finam_v2/finamV2PageComposer.js`** — собирает секции по реальным целям клиента, режет многостраничные шаблоны на физические A4-листы, отдаёт `pageHtmlList`, `pages`, `toc`.
 - **`finam_v2/finamV2TemplateLoader.js`** — читает HTML-шаблоны, инлайнит `tokens.css`/локальные ассеты и готовит страницы под Puppeteer.

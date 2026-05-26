@@ -57,7 +57,17 @@ test('Finam v2 tail pages use report data instead of demo static values', async 
                 },
             },
         },
-        summary: { total_capital: 2500000 },
+        summary: {
+            total_capital: 2500000,
+            consolidated_portfolio: {
+                assets_allocation: [
+                    { assetClass: 'Акции', percent: 40, amount: 120000, product_type: 'STOCK' },
+                ],
+                cash_flow_allocation: [
+                    { assetClass: 'Акции', percent: 30, amount: 7500, product_type: 'STOCK' },
+                ],
+            },
+        },
         comon_showcase: {
             disclaimer_ru: 'Comon дисклеймер из отчёта.',
             items: [
@@ -142,6 +152,7 @@ test('Finam v2 tail pages use report data instead of demo static values', async 
     const comonHtml = pageHtml(FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW);
     const inflationHtml = pageHtml(FINAM_REPORT_V2_PAGE_TYPES.INFLATION);
     const detailedHtml = pageHtml(FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN);
+    const riskHtml = pageHtml(FINAM_REPORT_V2_PAGE_TYPES.RISK_DECLARATION);
 
     assert.match(taxHtml, /65(?:&nbsp;|\s)тыс\.(?:&nbsp;|\s)₽/);
     assert.doesNotMatch(taxHtml, /77 тыс ₽/);
@@ -159,6 +170,16 @@ test('Finam v2 tail pages use report data instead of demo static values', async 
     assert.match(detailedHtml, /25(?:&nbsp;|\s)000(?:&nbsp;|\s)₽/);
     assert.doesNotMatch(detailedHtml, /999(?:&nbsp;|\s)999/);
     assert.doesNotMatch(detailedHtml, /Следующий год/);
+
+    assert.match(riskHtml, /Информация для клиента по финансовому плану/);
+    assert.match(riskHtml, /1\.\s*Инфляционный риск/);
+    assert.match(riskHtml, /7\.\s*Риски страховых продуктов/);
+    assert.match(riskHtml, /8\.\s*Риск финансовой устойчивости финансовых организаций/);
+    assert.match(riskHtml, /Важное заключение/);
+    assert.match(riskHtml, /не являются индивидуальной инвестиционной рекомендацией/);
+    assert.doesNotMatch(riskHtml, /Карта экспозиции/);
+    assert.doesNotMatch(riskHtml, /Риск \/ доходность/);
+    assert.equal((riskHtml.match(/<article class="finam-v2-page"/g) || []).length, 5);
 
     const singleInflationHtml = await buildFinamReportV2PageHtml({
         report,
@@ -178,4 +199,11 @@ test('Finam v2 tail pages use report data instead of demo static values', async 
         pageType: 'detailed-plan',
     });
     assert.match(singleDetailedHtml, /300(?:&nbsp;|\s)000(?:&nbsp;|\s)₽/);
+
+    const singleRiskHtml = await buildFinamReportV2PageHtml({
+        report,
+        pageType: 'risk-declaration',
+    });
+    assert.match(singleRiskHtml, /Информация для клиента по финансовому плану/);
+    assert.doesNotMatch(singleRiskHtml, /Карта экспозиции/);
 });
