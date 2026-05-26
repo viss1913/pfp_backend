@@ -8,6 +8,7 @@ const {
     ensureClientReportPdfReady,
     getClientReportPdfCacheStatus,
 } = require('../services/reportPdfStorageService');
+const { uploadPublicFile } = require('../utils/r2Client');
 
 function buildAgentDisplayFullName(agent) {
     const parts = [agent.last_name, agent.first_name, agent.middle_name].filter(Boolean);
@@ -69,6 +70,11 @@ function wantsReportHtmlDocument(req) {
     const inline = String(req.query.inline || '').toLowerCase();
     const format = String(req.query.format || '').toLowerCase();
     return inline === '1' || inline === 'true' || format === 'html';
+}
+
+function wantsReportHtmlPages(req) {
+    const includePages = String(req.query.includePages || req.query.pages || '').toLowerCase();
+    return includePages === '1' || includePages === 'true';
 }
 
 function reportBrandingOpts(user, client) {
@@ -203,6 +209,26 @@ class ReportController {
             const portfolio = report?.overall_plan?.pdf_metrics?.portfolio || {};
             const goalsCount = Array.isArray(report.goals_detailed) ? report.goals_detailed.length : 0;
 
+            const safeFileName = String(filename).replace(/[^\w.\-]+/g, '_');
+            const r2Key = `report-emails/${projectId || 'p'}/${clientId}/${Date.now()}_${safeFileName}`;
+            const upload = await uploadPublicFile({
+                key: r2Key,
+                body: finalPdf,
+                contentType: 'application/pdf',
+            });
+            if (!upload?.ok || !upload?.url) {
+                res.status(503).json({
+                    error:
+                        upload?.reason === 'r2_not_configured'
+                            ? 'Не настроено хранилище R2 для отправки отчёта'
+                            : 'Не удалось загрузить PDF отчёта в хранилище',
+                });
+                return;
+            }
+            console.log(
+                `[ReportController] Report PDF uploaded to R2: ${upload.url} (${finalPdf.length} bytes)`
+            );
+
             const emailResult = await emailService.sendFinancialPlanReportPdfEmail({
                 to: recipient,
                 cc: ccAgent,
@@ -211,7 +237,9 @@ class ReportController {
                 agentFullName,
                 agentEmail,
                 agentPhone,
-                pdfBuffer: finalPdf,
+                pdfBuffer: null,
+                pdfDownloadUrl: upload.url,
+                attachmentViaUrl: true,
                 filename,
                 reportAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
                 portfolio,
@@ -316,13 +344,16 @@ class ReportController {
                 return;
             }
 
-            res.json({
+            const response = {
                 html: mergedHtml,
-                pages: pageHtmlList,
                 toc: Array.isArray(toc) ? toc : [],
                 report_schema_version: reportSchemaVersion || null,
                 generated_at: new Date().toISOString(),
-            });
+            };
+            if (wantsReportHtmlPages(req)) {
+                response.pages = pageHtmlList;
+            }
+            res.json(response);
         } catch (error) {
             if (error?.statusCode) {
                 res.status(error.statusCode).json({ error: error.message });

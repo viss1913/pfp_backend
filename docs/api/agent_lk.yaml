@@ -10,7 +10,7 @@ info:
 
     **Настройки PDF-отчёта** (обложка, сводная, `goal_card_assets` для превью карточек целей): отдельная спека **`openapi/PDFsettings.yaml`**, Swagger UI: `/api-docs-pdf-settings`, префикс путей `/api/pfp/pdf-settings`.
 
-    **Отправка готового PDF финплана клиенту на email** (Resend, от имени агента, вложение + краткое письмо): **`POST /pfp/reports/{clientId}/pdf/send-email`** — получатель только **email из карточки клиента**; см. путь ниже, полный контракт отчёта также в **`openapi/getReport.yaml`**.
+    **Отправка готового PDF финплана клиенту на email** (Resend, от имени агента, ссылка на PDF в R2 + краткое письмо): **`POST /pfp/reports/{clientId}/pdf/send-email`** — получатель только **email из карточки клиента**; см. путь ниже, полный контракт отчёта также в **`openapi/getReport.yaml`**.
 
     **Resolut (AV Inform) для ЛК:** отдельная спека **`docs/api/pfp_resolut.yaml`** (прокси `products/quote/client/portfolio/link`, `plan-quotes` / `plan-publish-preview` / `publish-from-plan`, `suggest-quote-line`, `publish-preview` / `publish` / `publications`).
 
@@ -376,7 +376,7 @@ paths:
         с `parent_agent_id` = текущий агент, генерирует одноразовый token и шлёт премиальное письмо со ссылкой активации
         (без кода на email). Субагент задаёт пароль через `POST /auth/activate-agent-invite`.
 
-        Env: `AGENT_INVITE_ACTIVATE_BASE_URL` (по умолчанию `https://pfp-front-ver3.vercel.app/invite/activate`),
+        Env: `AGENT_INVITE_ACTIVATE_BASE_URL` (по умолчанию `https://family-office.bank-future.com/invite/activate`; иначе хост из `AGENT_REGISTER_BASE_URL` + путь `/invite/activate`),
         `AGENT_INVITE_TOKEN_TTL_DAYS` (по умолчанию 7).
       requestBody:
         required: true
@@ -1365,7 +1365,7 @@ paths:
       summary: Отправить PDF финплана клиенту на email (от имени агента)
       description: |
         Генерирует PDF отчёта (как `GET /pfp/reports/{clientId}/pdf`), один раз поднимает данные отчёта с ИИ-резюме,
-        сжимает PDF и отправляет письмо через **Resend** с вложением. Обращение в письме — «Уважаемый/ая», имя и отчество;
+        сжимает PDF, загружает его в **R2** и отправляет письмо через **Resend** со ссылкой на скачивание. Обращение в письме — «Уважаемый/ая», имя и отчество;
         в теле — краткая сводка по портфелю и текст executive summary.
 
         **Доступ:** агент (владелец клиента) или администратор. Роль `client` — **403**.

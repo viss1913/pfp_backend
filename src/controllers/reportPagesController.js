@@ -126,13 +126,29 @@ async function loadFinamInflationMacroData() {
     from10y.setFullYear(from10y.getFullYear() - 10);
     const from10yIso = toIsoDateOnly(from10y);
 
+    const [
+        keyRateSeries,
+        cpiYoySeries,
+        ofz2Series,
+        ofz5Series,
+        ofz10Series,
+        corpIndexSeries,
+    ] = await Promise.all([
+        loadMacroHistorySafe('cbr_key_rate', from, to),
+        loadMacroHistorySafe('russia_cpi_inflation_yoy', from10yIso, to),
+        loadMacroHistorySafe('moex_ofz_gcurve_2y', from, to),
+        loadMacroHistorySafe('moex_ofz_gcurve_5y', from, to),
+        loadMacroHistorySafe('moex_ofz_gcurve_10y', from, to),
+        loadMacroHistorySafe('moex_rucbicp', from, to),
+    ]);
+
     return {
-        keyRateSeries: await loadMacroHistorySafe('cbr_key_rate', from, to),
-        cpiYoySeries: await loadMacroHistorySafe('russia_cpi_inflation_yoy', from10yIso, to),
-        ofz2Series: await loadMacroHistorySafe('moex_ofz_gcurve_2y', from, to),
-        ofz5Series: await loadMacroHistorySafe('moex_ofz_gcurve_5y', from, to),
-        ofz10Series: await loadMacroHistorySafe('moex_ofz_gcurve_10y', from, to),
-        corpIndexSeries: await loadMacroHistorySafe('moex_rucbicp', from, to),
+        keyRateSeries,
+        cpiYoySeries,
+        ofz2Series,
+        ofz5Series,
+        ofz10Series,
+        corpIndexSeries,
     };
 }
 

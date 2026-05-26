@@ -10,6 +10,10 @@ const {
     replaceSberBondsPage,
     applySberReportBranding,
 } = require('./finamV2SberBranding');
+const fileToDataUrlCache = new Map();
+const OPTIMIZED_ASSET_ALIASES = Object.freeze({
+    'assets/avatar-ai-finam-v2.png': 'assets/avatar-ai-finam-v2.svg',
+});
 
 function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -1269,11 +1273,19 @@ function otherSubtype(goal) {
 }
 
 function fileToDataUrl(relativePath) {
-    const abs = path.join(__dirname, relativePath);
-    if (!fs.existsSync(abs)) return relativePath;
+    const cleaned = String(relativePath || '').replace(/^\.?\//, '');
+    if (fileToDataUrlCache.has(cleaned)) return fileToDataUrlCache.get(cleaned);
+    const resolvedPath = OPTIMIZED_ASSET_ALIASES[cleaned] || cleaned;
+    const abs = path.join(__dirname, resolvedPath);
+    if (!fs.existsSync(abs)) {
+        fileToDataUrlCache.set(cleaned, relativePath);
+        return relativePath;
+    }
     const ext = path.extname(abs).toLowerCase();
     const mime = ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : ext === '.svg' ? 'image/svg+xml' : 'image/jpeg';
-    return `data:${mime};base64,${fs.readFileSync(abs).toString('base64')}`;
+    const dataUrl = `data:${mime};base64,${fs.readFileSync(abs).toString('base64')}`;
+    fileToDataUrlCache.set(cleaned, dataUrl);
+    return dataUrl;
 }
 
 function instrumentRows(goal, amountFallback) {
@@ -2428,19 +2440,50 @@ function buildUnifiedPortfolioRows(portfolio) {
     return rows;
 }
 
-function portfolioUnifiedTableHtml(portfolio) {
+function portfolioMoneyHtml(value, { perMonth = false } = {}) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '—';
+    const abs = Math.abs(n);
+    const formatted = abs >= 1000000
+        ? `${(n / 1000000).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} млн ₽`
+        : abs >= 1000
+            ? `${(n / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} тыс ₽`
+            : `${Math.round(n).toLocaleString('ru-RU')} ₽`;
+    return escapeHtml(perMonth ? `${formatted}/мес` : formatted).replace(/\s/g, '&nbsp;');
+}
+
+function portfolioAllocationCellHtml(helpers, { amount, percent, total, active, perMonth = false }) {
+    const pct = finite(percent, 0);
+    if (!active || pct <= 0) return '—';
+    const directAmount = finite(amount, 0);
+    const derivedAmount = finite(total, 0) > 0 ? (finite(total, 0) * pct) / 100 : 0;
+    const resolvedAmount = directAmount > 0 ? directAmount : derivedAmount;
+    const money = resolvedAmount > 0
+        ? portfolioMoneyHtml(resolvedAmount, { perMonth })
+        : '—';
+    return `<span class="finam-v2-portfolio__num-main">${money}</span> <span class="finam-v2-portfolio__pct">(${formatPercentHtml(pct)})</span>`;
+}
+
+function portfolioUnifiedTableHtml(portfolio, helpers) {
     const rows = buildUnifiedPortfolioRows(portfolio);
     const p = portfolio || {};
     const hasInitial = finite(p.initialTotal, 0) > 0;
     const hasMonthly = finite(p.monthlyTotal, 0) > 0;
 
     const body = rows.map((row) => {
-        const initCell = !hasInitial || row.initialPct == null || finite(row.initialPct, 0) <= 0
-            ? '—'
-            : formatPercentHtml(row.initialPct);
-        const monthCell = !hasMonthly || row.monthlyPct == null || finite(row.monthlyPct, 0) <= 0
-            ? '—'
-            : formatPercentHtml(row.monthlyPct);
+        const initCell = portfolioAllocationCellHtml(helpers, {
+            amount: row.initialVal,
+            percent: row.initialPct,
+            total: p.initialTotal,
+            active: hasInitial,
+        });
+        const monthCell = portfolioAllocationCellHtml(helpers, {
+            amount: row.monthlyVal,
+            percent: row.monthlyPct,
+            total: p.monthlyTotal,
+            active: hasMonthly,
+            perMonth: true,
+        });
         const hideYield = isLifeInsuranceInstrument(row.label, row.productType);
         const yieldCell = hideYield || maybeFinite(row.yieldPercent) == null ? '—' : formatPercentHtml(row.yieldPercent);
         return `<tr>
@@ -2450,6 +2493,26 @@ function portfolioUnifiedTableHtml(portfolio) {
               <td class="finam-v2-portfolio__num">${yieldCell}</td>
             </tr>`;
     }).join('\n');
+
+    const footer = rows.length ? `<tfoot>
+            <tr>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total">Итого</td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total">${portfolioAllocationCellHtml(helpers, {
+                  amount: p.initialTotal,
+                  percent: 100,
+                  total: p.initialTotal,
+                  active: hasInitial,
+              })}</td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total">${portfolioAllocationCellHtml(helpers, {
+                  amount: p.monthlyTotal,
+                  percent: 100,
+                  total: p.monthlyTotal,
+                  active: hasMonthly,
+                  perMonth: true,
+              })}</td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total">${maybeFinite(p.expectedReturn) == null ? '—' : formatPercentHtml(p.expectedReturn)}</td>
+            </tr>
+          </tfoot>` : '';
 
     return `<table class="finam-v2-portfolio__table finam-v2-portfolio__table--unified">
           <thead>
@@ -2463,6 +2526,7 @@ function portfolioUnifiedTableHtml(portfolio) {
           <tbody>
             ${body || '<tr><td colspan="4">Портфель будет показан после расчёта.</td></tr>'}
           </tbody>
+          ${footer}
         </table>`;
 }
 
@@ -2510,11 +2574,11 @@ function portfolioDonutPairHtml(portfolio) {
     </div>`;
 }
 
-function portfolioStructureBlockHtml(portfolio) {
+function portfolioStructureBlockHtml(portfolio, helpers) {
     return `<section class="finam-v2-portfolio__structure finam-v2-portfolio__structure--split">
       <div class="finam-v2-portfolio__table-card finam-v2-portfolio__table-card--unified">
         <p class="finam-v2-portfolio__section-kicker">Структура портфеля</p>
-        ${portfolioUnifiedTableHtml(portfolio)}
+        ${portfolioUnifiedTableHtml(portfolio, helpers)}
       </div>
       ${portfolioDonutPairHtml(portfolio)}
     </section>`;
@@ -2772,7 +2836,7 @@ function buildPortfolioSummaryArticleOne(model, helpers) {
 
     ${portfolioKpiHtml(model, helpers)}
 
-    ${portfolioStructureBlockHtml(p)}
+    ${portfolioStructureBlockHtml(p, helpers)}
 
     <section class="finam-v2-portfolio__why">
       <div class="finam-v2-portfolio__card">
@@ -3340,6 +3404,14 @@ function formatComonYieldLine(item) {
     return `${sign}${v.toFixed(1)}% / 12 мес`;
 }
 
+const COMON_CARD_DESC_MAX_LEN = 120;
+
+function truncateComonCardDesc(text) {
+    const s = String(text || '').trim().replace(/\s+/g, ' ');
+    if (s.length <= COMON_CARD_DESC_MAX_LEN) return s;
+    return `${s.slice(0, COMON_CARD_DESC_MAX_LEN - 1).trim()}…`;
+}
+
 function normalizeComonItems(model) {
     const showcase = model?.comonShowcase || {};
     const raw = Array.isArray(showcase.items)
@@ -3347,19 +3419,23 @@ function normalizeComonItems(model) {
         : Array.isArray(showcase.strategies)
             ? showcase.strategies
             : [];
-    return raw.slice(0, 6).map((item) => ({
-        title: item.name || item.title || 'Стратегия',
-        desc: String(item.description || '').trim()
-            || (item.author ? `Автор стратегии: ${item.author}` : 'Актуальная стратегия автоследования на платформе Comon.'),
-        url: resolveComonStrategyPageUrlFromItem(item),
-        minSum: maybeFinite(item.min_sum ?? item.minSum),
-        profit365: maybeFinite(item.profit_365_days_percent ?? item.profit365DaysPercent),
-        avgProfit: maybeFinite(item.annual_average_profit_percent ?? item.annualAverageProfitPercent),
-        followers: maybeFinite(item.follower_count ?? item.followers),
-        rating: maybeFinite(item.strategy_rating ?? item.rating),
-        riskLevel: item.risk_level ?? item.riskLevel,
-        tags: Array.isArray(item.tags) ? item.tags : [],
-    }));
+    return raw.slice(0, 6).map((item) => {
+        const rawDesc =
+            String(item.description || '').trim()
+            || (item.author ? `Автор стратегии: ${item.author}` : 'Актуальная стратегия автоследования на платформе Comon.');
+        return {
+            title: item.name || item.title || 'Стратегия',
+            desc: truncateComonCardDesc(rawDesc),
+            url: resolveComonStrategyPageUrlFromItem(item),
+            minSum: maybeFinite(item.min_sum ?? item.minSum),
+            profit365: maybeFinite(item.profit_365_days_percent ?? item.profit365DaysPercent),
+            avgProfit: maybeFinite(item.annual_average_profit_percent ?? item.annualAverageProfitPercent),
+            followers: maybeFinite(item.follower_count ?? item.followers),
+            rating: maybeFinite(item.strategy_rating ?? item.rating),
+            riskLevel: item.risk_level ?? item.riskLevel,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+        };
+    });
 }
 
 function comonCardHtml(item) {
@@ -3384,6 +3460,10 @@ function comonCardHtml(item) {
 
 function buildComonSinglePage(model) {
     const items = normalizeComonItems(model);
+    const gridClass =
+        items.length > 0 && items.length <= 4
+            ? 'finam-v2-tail__card-grid finam-v2-comon__card-grid finam-v2-comon__card-grid--2col'
+            : 'finam-v2-tail__card-grid finam-v2-comon__card-grid';
     const disclaimer = String(model?.comonShowcase?.disclaimer_ru || '').trim()
         || 'Историческая доходность стратегий Comon не гарантирует результат в будущем. Подключение стратегии требует отдельного клиентского решения и проверки документов.';
     const cards = items.length
@@ -3400,7 +3480,7 @@ function buildComonSinglePage(model) {
     </section>
     <section class="finam-v2-wow__insight finam-v2-comon__insight"><strong>Как читаем блок:</strong> сверяем риск-профиль, минимальный вход, комиссии и просадку — затем решение о подключении.</section>
     <p class="finam-v2-tail__section-title">Карточки для первичного отбора</p>
-    <section class="finam-v2-tail__card-grid finam-v2-comon__card-grid">${cards}</section>
+    <section class="${gridClass}">${cards}</section>
     <section class="finam-v2-comon__strip" aria-label="Этапы работы со стратегией">
       <div class="finam-v2-comon__strip-item"><strong>До подключения</strong><span>Риск, комиссии, минимальная сумма, ликвидность портфеля.</span></div>
       <div class="finam-v2-comon__strip-item"><strong>После подключения</strong><span>Контроль просадки, дата пересмотра, правило отключения.</span></div>

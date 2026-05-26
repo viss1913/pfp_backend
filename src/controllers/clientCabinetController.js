@@ -25,6 +25,11 @@ function wantsReportHtmlDocument(req) {
     return inline === '1' || inline === 'true' || format === 'html';
 }
 
+function wantsReportHtmlPages(req) {
+    const includePages = String(req.query.includePages || req.query.pages || '').toLowerCase();
+    return includePages === '1' || includePages === 'true';
+}
+
 /** Не даём телу запроса из ЛК клиента менять привязку к агенту/юзеру (иначе agent_id мог уехать в NULL). */
 function stripClientOwnershipFields(obj) {
     if (!obj || typeof obj !== 'object') return;
@@ -718,13 +723,16 @@ class ClientCabinetController {
                 return;
             }
 
-            res.json({
+            const response = {
                 html: mergedHtml,
-                pages: pageHtmlList,
                 toc: Array.isArray(toc) ? toc : [],
                 report_schema_version: reportSchemaVersion || null,
                 generated_at: new Date().toISOString(),
-            });
+            };
+            if (wantsReportHtmlPages(req)) {
+                response.pages = pageHtmlList;
+            }
+            res.json(response);
         } catch (err) {
             next(err);
         }

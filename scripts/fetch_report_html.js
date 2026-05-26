@@ -40,6 +40,7 @@ function buildUrl() {
     const params = new URLSearchParams();
     params.set('includeCover', includeCover);
     params.set('includeSummary', includeSummary);
+    params.set('includePages', '1');
     if (goalTypes.trim()) params.set('goalTypes', goalTypes.trim());
     return `${BASE}/api/pfp/reports/${clientId}/html?${params.toString()}`;
 }

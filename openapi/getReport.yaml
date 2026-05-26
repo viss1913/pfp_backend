@@ -160,7 +160,7 @@ paths:
       summary: Отправить PDF отчёта клиенту на email (от имени агента)
       description: |
         Генерирует тот же PDF, что `GET /pdf`, однократно загружает данные отчёта (включая ИИ-резюме),
-        сжимает PDF и отправляет письмо через Resend с вложением. Доступно ролям агента и администратора;
+        сжимает PDF, загружает его в R2 и отправляет письмо через Resend со ссылкой на скачивание. Доступно ролям агента и администратора;
         роль `client` получает 403.
 
         Получатель — только **email из карточки клиента** в БД (если пусто — 400).
@@ -285,6 +285,14 @@ paths:
             type: string
             enum:
               - html
+        - name: includePages
+          in: query
+          required: false
+          description: |
+            `1` или `true` — добавить в JSON массив `pages[]`. По умолчанию JSON-ответ возвращает только цельный `html`,
+            `toc`, `report_schema_version` и `generated_at`, чтобы не дублировать тяжёлый payload.
+          schema:
+            type: string
       security:
         - bearerAuth: []
       responses:
@@ -302,6 +310,7 @@ paths:
                     type: string
                   pages:
                     type: array
+                    description: Возвращается только при `includePages=1` или `includePages=true`.
                     items:
                       type: string
                   toc:
@@ -475,6 +484,14 @@ paths:
             type: string
             enum:
               - html
+        - name: includePages
+          in: query
+          required: false
+          description: |
+            `1` или `true` — добавить в JSON массив `pages[]`. По умолчанию JSON-ответ возвращает только цельный `html`,
+            `toc`, `report_schema_version` и `generated_at`.
+          schema:
+            type: string
       security:
         - bearerAuth: []
       responses:
@@ -493,7 +510,7 @@ paths:
                     description: Единый HTML со всеми страницами отчёта.
                   pages:
                     type: array
-                    description: Массив HTML-страниц (по одной строке на страницу).
+                    description: Массив HTML-страниц (по одной строке на страницу), только при `includePages=1`.
                     items:
                       type: string
                   toc:

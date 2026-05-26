@@ -16,7 +16,7 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 3. **Четыре типа страниц целей** — `buildGoalPagesHtml.js`: **`FIN_RESERVE`**, **`LIFE`**, **`INVESTMENT`**, **`OTHER`** (общий брендинг со сводной: фон/лого/цвета из тех же `summary_*`).
 4. **Finam Report v2** — `src/reports/finam_v2/`: по умолчанию для Finam-template проектов — явный project-scoped override **`system_settings.report_finam = 2`** (`1`/нет настройки = v1). Переключение: `PUT /api/pfp/settings/report_finam` `{ "value": 2 }` (agent/admin), при смене сбрасывается кеш `clients.report_pdf_*`. **Env сильнее БД** (Railway): `FINAM_REPORT_VERSION=1|2`, опционально `FINAM_REPORT_VERSION_PROJECT_IDS` (CSV; без списка при заданной версии — только проект `14`). Production-вход — `buildFinamReportV2HtmlPackage.js`: adapter из `reportService.getClientReportData()` + template composer (`finamV2PageManifest`, `finamV2TemplateLoader`, `finamV2TemplateAppliers`, `finamV2PageComposer`). Production v2 берёт визуал из `page-*-v2.html`, режет многостраничные шаблоны на физические A4-листы в `pageHtmlList`, строит логический `toc` с фактическими `page_start/page_count`, inline v2 assets, без моковых клиентских ФИО/email/ключевых сумм. Хвост v2 динамический: налоги/софинансирование из `overall_plan.tax_benefits`, Comon из `report.comon_showcase`, инфляция из `macroService.getHistory`, detailed plan из `goals_detailed[].details.monthly_schedule[]` без LIFE, дисклеймер рисков из `riskDeclaration.legalNotes` или fallback. `buildFinamReportV2Html.js` — экспериментальный билдер wow-страниц. Порядок v2: диагностика портфеля целей перед управленческим выводом, затем goal-страницы, потом итоговый портфель и продуктовые блоки.
 5. **Сборка полного PDF** — `reportPdfService` (Puppeteer): обложка (опц.) → сводная (опц.) → страницы целей (подмножество через query **`goalTypes`**). Эндпоинт **`GET /api/pfp/reports/:clientId/pdf`**.
-6. **Полный HTML отчёта для ЛК агента** — **`GET /api/pfp/reports/:clientId/html`** (`reportController.getClientReportHtml`): JSON с `html`, `pages[]`, `toc[]` без рендера PDF.
+6. **Полный HTML отчёта для ЛК агента** — **`GET /api/pfp/reports/:clientId/html`** (`reportController.getClientReportHtml`): JSON с `html`, `toc[]` и опциональным `pages[]` при `includePages=1`, без рендера PDF.
 7. **HTML одной страницы для клиента** — **`GET /api/pfp/reports/:clientId/pages/:pageType/html`** (`reportPagesController`).
 8. **ЛК клиента (B2C)** — **`GET /api/my/plan/report`**, **`GET /api/my/plan/report/pdf`**, **`GET /api/my/plan/comon-showcase`** (`clientCabinetController`).
 9. **Превью в ЛК (мок + настройки агента)** — **`GET /api/pfp/pdf-settings/summary-preview-html`**, **`GET /api/pfp/pdf-settings/pages/:pageType/preview-html`** (`pageType`: `SUMMARY` \| `FIN_RESERVE` \| `LIFE` \| `INVESTMENT` \| `OTHER`).
@@ -115,7 +115,7 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 | GET | `/api/pfp/reports/:clientId` | Структурированные данные отчёта (в т.ч. **`pdf_summary_layout`**) |
 | GET | `/api/pfp/reports/:clientId/pdf` | Готовый PDF: query **`includeCover`**, **`includeSummary`**, **`goalTypes`**; **`disposition=attachment`** — скачивание вместо inline |
 | GET | `/api/pfp/reports/:clientId/pdf-url` | Генерация + загрузка PDF в storage, кеш в `clients.report_pdf_*`; при смене `report_finam` кеш сбрасывается |
-| GET | `/api/pfp/reports/:clientId/html` | Полный HTML отчёта: по умолчанию JSON (`html`, `pages[]`, `toc[]`); **`?inline=1`** или **`?format=html`** → ответ **`text/html`** (вкладка/`iframe src`) |
+| GET | `/api/pfp/reports/:clientId/html` | Полный HTML отчёта: по умолчанию JSON (`html`, `toc[]`, `report_schema_version`), `pages[]` только при `?includePages=1`; **`?inline=1`** или **`?format=html`** → ответ **`text/html`** (вкладка/`iframe src`) |
 | GET | `/api/pfp/reports/:clientId/pages/:pageType/html` | HTML одной страницы для печати/PDF; **`pageType`** как в превью (`SUMMARY`, …) |
 
 ## HTTP API: отчёт в ЛК клиента (`/api/my`, JWT с `clientId`)
@@ -127,7 +127,7 @@ description: Бэкенд PDF-отчёта PFP — обложка, сводна�
 | GET | `/api/my/plan/report` | Тот же JSON, что **`/api/pfp/reports/:clientId`**, для **`req.user.clientId`** |
 | GET | `/api/my/plan/report/pdf` | PDF: те же query, что у агентского PDF; стиль из **`agent_report_pdf_settings`** закреплённого агента или дефолты |
 | GET | `/api/my/plan/report/pdf-url` | URL PDF в storage + кеш `clients.report_pdf_*`; при смене `report_finam` кеш сбрасывается |
-| GET | `/api/my/plan/report/html` | Как агентский HTML: JSON по умолчанию; **`?inline=1`** / **`?format=html`** → `text/html` |
+| GET | `/api/my/plan/report/html` | Как агентский HTML: JSON по умолчанию без `pages[]`, `pages[]` только при `?includePages=1`; **`?inline=1`** / **`?format=html`** → `text/html` |
 
 Ответы PdfSettings включают **`editor_schema`** (контракт для ЛК): у каждого **`templates[]`** — **`preview_page_type`** и **`preview_html`** (путь к GET превью HTML вкладки, кроме обложки). Плюс **`cover_layout`** (геометрия + resolved цвета/текст). **Публичный URL фона нигде не дублируется:** только корневое поле **`cover_background_url`** (или **`GET /api/pfp/pdf-settings/cover-image`**, если нужен signed). Внутри `cover_layout.background` — лишь `uses_custom_upload` и `fallback_repo_relative_path` к стоковому jpg в репо, когда свой фон не задан.
 

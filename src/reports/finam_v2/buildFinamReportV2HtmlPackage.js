@@ -13,8 +13,14 @@ const {
     buildExecutiveDecisionContent,
     enrichExecutiveNarrativeWithIfus,
 } = require('./executiveScenarioCatalog');
+const { shouldIncludeComonShowcaseInReport } = require('../../utils/comonShowcaseGate');
 
 const FINAM_V2_DIR = __dirname;
+const localCssCache = new Map();
+const localAssetDataUrlCache = new Map();
+const OPTIMIZED_ASSET_ALIASES = Object.freeze({
+    'assets/avatar-ai-finam-v2.png': 'assets/avatar-ai-finam-v2.svg',
+});
 
 const GOAL_TYPE_TO_PAGE_TYPE = Object.freeze({
     FIN_RESERVE: FINAM_REPORT_V2_PAGE_TYPES.GOAL_FIN_RESERVE,
@@ -66,7 +72,10 @@ const ASSET_BY_GOAL_TYPE = Object.freeze({
 });
 
 function readLocalCss(fileName) {
-    return fs.readFileSync(path.join(FINAM_V2_DIR, fileName), 'utf8');
+    if (localCssCache.has(fileName)) return localCssCache.get(fileName);
+    const css = fs.readFileSync(path.join(FINAM_V2_DIR, fileName), 'utf8');
+    localCssCache.set(fileName, css);
+    return css;
 }
 
 function mimeTypeForLocalFile(absPath) {
@@ -82,11 +91,23 @@ function mimeTypeForLocalFile(absPath) {
     return map[ext] || 'application/octet-stream';
 }
 
+function resolveOptimizedAssetPath(relativePath) {
+    const cleaned = String(relativePath || '').replace(/^\.?\//, '');
+    return OPTIMIZED_ASSET_ALIASES[cleaned] || cleaned;
+}
+
 function localAssetDataUrl(relativePath) {
-    const abs = path.join(FINAM_V2_DIR, relativePath);
-    if (!fs.existsSync(abs)) return null;
+    if (localAssetDataUrlCache.has(relativePath)) return localAssetDataUrlCache.get(relativePath);
+    const resolvedPath = resolveOptimizedAssetPath(relativePath);
+    const abs = path.join(FINAM_V2_DIR, resolvedPath);
+    if (!fs.existsSync(abs)) {
+        localAssetDataUrlCache.set(relativePath, null);
+        return null;
+    }
     const buf = fs.readFileSync(abs);
-    return `data:${mimeTypeForLocalFile(abs)};base64,${buf.toString('base64')}`;
+    const dataUrl = `data:${mimeTypeForLocalFile(abs)};base64,${buf.toString('base64')}`;
+    localAssetDataUrlCache.set(relativePath, dataUrl);
+    return dataUrl;
 }
 
 function escapeHtml(value) {
@@ -1337,7 +1358,9 @@ function buildPages(model, options = {}) {
 
     add(FINAM_REPORT_V2_PAGE_TYPES.PORTFOLIO_SUMMARY, renderPortfolioSummary(model));
     add(FINAM_REPORT_V2_PAGE_TYPES.TAX_PLANNING, renderTaxPlanning(model));
-    add(FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW, renderComon(model));
+    if (shouldIncludeComonShowcaseInReport(model.comonShowcase)) {
+        add(FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW, renderComon(model));
+    }
     add(FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES, renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.IDU_STRATEGIES));
     add(FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS, renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS));
     add(FINAM_REPORT_V2_PAGE_TYPES.INFLATION, renderGenericProductPage(FINAM_REPORT_V2_PAGE_TYPES.INFLATION));

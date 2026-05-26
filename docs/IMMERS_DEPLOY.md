@@ -1,7 +1,9 @@
 # Immers: деплой backend PFP (test)
 
 Публичный API: **https://pfp-api.bank-future.com/api**  
-VM: `195.209.218.118`, код: `/opt/pfp/app`, Docker `mysql` + `backend`.
+VM: `81.94.159.209`, код: `/opt/pfp/app`, Docker `mysql` + `backend`.
+
+Примечание на `2026-05`: живой IP сейчас резолвится через `pfp-api.bank-future.com` в `81.94.159.209`. Старый `195.209.218.118` больше не использовать как опорный адрес для SSH/диагностики.
 
 Подробный runbook агента: [`.cursor/agents/immers-deploy.md`](../.cursor/agents/immers-deploy.md).
 
@@ -18,14 +20,42 @@ VM: `195.209.218.118`, код: `/opt/pfp/app`, Docker `mysql` + `backend`.
 | `FINAM_REPORT_VERSION_PROJECT_IDS=2` | Проекты, где v2 доступен по настройке |
 | `MACRO_CRON_SECRET` | Cron `POST /api/pfp/macro/cron/inflation` |
 | `MACRO_STARTUP_SYNC=1` | Опционально: первое наполнение `macro_data` после деплоя |
+| `PFP_PDF_FINAM_AI=0` | PDF/отчёты без OpenRouter (шаблоны Finam, пустое executive summary) |
+| `REPORT_PDF_POST_LOAD_DELAY_MS=100` | Стартовый safe-tuning для Puppeteer на Immers; при smoke можно снижать до `50` или `0` |
+| `FINAM_REPORT_V2_RENDER_CONCURRENCY=1` | Не поднимать выше `1` на `2 vCPU / 4 GB`, пока нет замеров CPU/RAM |
+| `REPORT_PDF_GS_COMPRESS=1` | Включить post-compress через Ghostscript, если приоритет — маленький PDF |
+| `REPORT_PDF_GS_PDFSETTINGS=/screen` | Самый агрессивный профиль на Immers для small-size PDF; мягче вариант — `/ebook` |
+| `COMON_SYNC_PAGE_SIZE=100`, `COMON_SYNC_MAX_PAGES=3` | Daily sync recommended-каталога Comon в `comon_recommended_strategies` |
+| `AGENT_REGISTER_BASE_URL=https://family-office.bank-future.com/register/` | Ссылка субагента (invite-link, письмо) |
+| `AGENT_INVITE_ACTIVATE_BASE_URL=https://family-office.bank-future.com/invite/activate` | Magic-link после `POST .../family-office-invite` (без env после деплоя кода — тот же хост из `AGENT_REGISTER_BASE_URL`) |
 
 Полный список — `.env.example`. Секреты не коммитить.
 
 ## DNS и HTTPS
 
-1. A-запись `pfp-api.bank-future.com` → IP VM.
+1. A-запись `pfp-api.bank-future.com` → актуальный IP VM.
 2. nginx → `127.0.0.1:3000`, certbot Let's Encrypt.
 3. В compose для backend при проблемах Resend/ЦБ/MOEX: DNS `8.8.8.8`, `1.1.1.1`, `NODE_OPTIONS=--dns-result-order=ipv4first`, `dns_opt: ndots:0` (см. `tmp/docker-compose.immers.yml`).
+4. Для ускорения HTML на test включить `gzip` в nginx как минимум для `text/html`, `application/json`, `text/css`, `application/javascript`, `image/svg+xml` (см. `tmp/pfp-api-nginx.conf`).
+
+## Быстрые wins по latency
+
+1. Для HTML-предпросмотра использовать `GET /api/pfp/reports/:clientId/html?format=html` или `GET /api/my/plan/report/html?format=html`, если не нужен JSON.
+2. Если нужен JSON, `pages[]` запрашивать только при `includePages=1`; по умолчанию backend отдаёт только цельный `html`.
+3. Для тяжёлого PDF из UI предпочитать `GET /api/pfp/reports/:clientId/pdf-url` / `GET /api/my/plan/report/pdf-url`, а не синхронный `GET /pdf`.
+4. На Immers держать `PFP_PDF_FINAM_AI=0`.
+5. Не включать `REPORT_PDF_GS_COMPRESS` в request-path, если цель — скорость ответа; компрессию имеет смысл оставлять только для фоновой генерации через `pdf-url`.
+
+## Режим small-size PDF
+
+Если приоритет не latency, а вес файла, на Immers можно включить:
+
+```bash
+REPORT_PDF_GS_COMPRESS=1
+REPORT_PDF_GS_PDFSETTINGS=/screen
+```
+
+Практический ориентир по Finam v2 на test-контуре: PDF порядка `10 MB` сжимается примерно до `1.9-2.1 MB`, но добавляет около `4s` на post-compress.
 
 ## После первого старта (чеклист, 2026-05)
 
@@ -115,6 +145,30 @@ docker compose exec backend npm run migrate
 
 Скрипты `scripts/seed_default_portfolios_if_missing.js` и `scripts/run_macro_sync.js` — в образе после pull; для hotfix без rebuild — `docker compose cp` как выше.
 
+### 4. Comon recommended (витрина в Finam Report v2)
+
+После деплоя кода с `scripts/sync_comon_recommended_strategies.js` backend сам ходит именно в `GET /api/v2/strategies?tags=recommended` и пишет результат в нашу БД.
+
+```bash
+# смоук egress с VM (ожидаем 200 и JSON, не HTML Forbidden)
+curl -sS -o /dev/null -w "%{http_code}\n" "https://www.comon.ru/api/v1/maintenance-info"
+curl -sS "https://www.comon.ru/api/v2/strategies/?tags=recommended&page=1&pageSize=3" | head -c 400
+
+docker compose exec backend node scripts/sync_comon_recommended_strategies.js
+docker compose exec mysql mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e \
+  "SELECT COUNT(*) AS n FROM comon_recommended_strategies;" "$MYSQLDATABASE"
+```
+
+Cron (пример): `0 4 * * * cd /opt/pfp/app && docker compose exec -T backend node scripts/sync_comon_recommended_strategies.js >> /var/log/pfp-comon-sync.log 2>&1`
+
+Если `paging.totalPages` у Comon внезапно больше `COMON_SYNC_MAX_PAGES`, sync завершится ошибкой и не будет перетирать таблицу частичным каталогом.
+
+Лист Comon в PDF v2 появляется только если в `goals_summary` в своде есть **акции** (`product_type: STOCK`) и после фильтра витрины есть `comon_showcase.items[]`. Иначе в API может быть `skip_reason: no_stock_in_plan`.
+
+Comon showcase в коде разрешён только для Finam test/prod (`project_id 2,14`; override через `COMON_SHOWCASE_PROJECT_IDS`).
+
+При **403** с Comon — `COMON_PROXY_URL` (см. `.env.example`, агент `comon_finam`).
+
 ## Smoke
 
 ```bash
@@ -126,6 +180,15 @@ curl -sS -X POST https://pfp-api.bank-future.com/api/auth/login \
 
 Фронт: `VITE_API_BASE_URL=https://pfp-api.bank-future.com/api`, для admin tenant — `X-Project-Key` тестового проекта.
 
+Для HTML/PDF latency после выката:
+
+```bash
+free -h
+docker stats --no-stream app-backend-1 app-mysql-1
+time curl -sS -o /dev/null "https://pfp-api.bank-future.com/api/pfp/reports/<clientId>/html?format=html"
+time curl -sS -o /dev/null "https://pfp-api.bank-future.com/api/pfp/reports/<clientId>/pdf-url"
+```
+
 ## Известные проблемы
 
 | Симптом | Fix |
@@ -133,9 +196,16 @@ curl -sS -X POST https://pfp-api.bank-future.com/api/auth/login \
 | Пенсия не считается | 1) Нет default-портфеля PENSION → `seed_default_portfolios_if_missing.js`. 2) В `goals_summary` ошибка `Passive income yield line not found` → в `system_settings` нужен `passive_income_yield` с `max_term_months` **360** (не 60), миграция `20260522150000_extend_passive_income_yield_for_pension.js`. После фикса — **пересчёт** клиента. |
 | Старый отчёт | `report_finam=1` или проект не в `FINAM_REPORT_PROJECT_IDS` |
 | Макро 1970 | `macro_data` пуст → `run_macro_sync.js` |
-| NDA 502 Resend | `Unable to fetch… could not be resolved` — обновить compose (DNS + `NODE_OPTIONS=--dns-result-order=ipv4first`), задеплоить `emailService` с `sendViaResend` (5 retry). Smoke: `docker compose exec backend node scripts/smoke_resend.js you@mail.com` |
+| HTML/PDF медленные | 1) Проверить, что клиент уже со snapshot в `goals_summary`. 2) Снизить `REPORT_PDF_POST_LOAD_DELAY_MS` (`100 -> 50 -> 0`) со smoke. 3) Убедиться, что UI ходит в `?format=html` и `pdf-url`, а не в тяжёлый JSON/`/pdf`. |
+| NDA 502 Resend | 1) `docker-compose.yml`: DNS `8.8.8.8`, `NODE_OPTIONS=--dns-result-order=ipv4first`, `extra_hosts: api.resend.com:104.20.29.242`. 2) `.env.production`: `RESEND_FROM_EMAIL={agent}@bank-future.com` (не голый `noreply@`). 3) PDF > ~55 KB: письмо **со ссылкой на R2**, не вложением (`read ECONNRESET` на Immers). Опционально: `NDA_EMAIL_DELIVERY=link` или `attach`. После правок: `docker cp` свежих `ndaService.js` / `emailService.js` в контейнер + `docker compose restart backend` (или `git pull && docker compose build backend`). |
 | `birth_date` 19980 | `normalizeMysqlDate.js` на backend |
 | Полный seed | **Не запускать** на живой БД — удалит users |
+
+## Fallback для слабой VM
+
+- Если swap отсутствует, добавить `2-4 GB` swap перед дальнейшим тюнингом PDF.
+- Если длинный Finam v2 всё ещё упирается в CPU/RAM, поднять VM с `4 GB` до `8 GB`.
+- Если важен размер PDF, а не latency, выносить тяжёлую компрессию в фоновый сценарий `pdf-url`, а не в синхронный `/pdf`.
 
 ## Тестовый проект Finam на Immers
 

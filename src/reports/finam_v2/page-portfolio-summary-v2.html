@@ -176,9 +176,9 @@
     /* Слева столбик диаграмм, справа таблица (явные области). */
     .finam-v2-portfolio__structure--split {
       display: grid;
-      grid-template-columns: minmax(176px, 198px) minmax(0, 1fr);
+      grid-template-columns: minmax(132px, 148px) minmax(0, 1fr);
       grid-template-areas: "pf-charts pf-table";
-      gap: 10px;
+      gap: 8px;
       align-items: start;
       direction: ltr;
     }
@@ -196,7 +196,7 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      min-width: 176px;
+      min-width: 132px;
       width: 100%;
       align-self: start;
     }
@@ -206,7 +206,7 @@
     }
 
     .finam-v2-portfolio__donut-card--split {
-      padding: 8px 6px;
+      padding: 7px 5px;
       align-items: center;
       text-align: center;
     }
@@ -218,19 +218,19 @@
     }
 
     .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut {
-      width: 86px;
-      height: 86px;
+      width: 72px;
+      height: 72px;
       margin: 0 auto;
     }
 
     .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut-center {
-      inset: 15px;
-      font-size: 8.5px;
+      inset: 12px;
+      font-size: 7.8px;
     }
 
     .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut-center small {
-      margin-top: 2px;
-      font-size: 7.5px;
+      margin-top: 1px;
+      font-size: 7px;
     }
 
     .finam-v2-portfolio__donut--dynamic {
@@ -364,7 +364,7 @@
 
     .finam-v2-portfolio__table--unified th:nth-child(1),
     .finam-v2-portfolio__table--unified td:nth-child(1) {
-      width: 36%;
+      width: 34%;
       text-align: left;
     }
 
@@ -374,7 +374,7 @@
     .finam-v2-portfolio__table--unified td:nth-child(3),
     .finam-v2-portfolio__table--unified th:nth-child(4),
     .finam-v2-portfolio__table--unified td:nth-child(4) {
-      width: 21.333%;
+      width: 22%;
       text-align: right;
     }
 
@@ -398,7 +398,14 @@
       vertical-align: middle;
     }
 
-    .finam-v2-portfolio__table tr:last-child td {
+    .finam-v2-portfolio__table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .finam-v2-portfolio__table tfoot td {
+      font-weight: 700;
+      padding-top: 7px;
+      border-top: 1px solid #e2e8f0;
       border-bottom: 0;
     }
 
@@ -421,7 +428,21 @@
       font-weight: 700;
       color: var(--finam-v2-color-navy-deep);
       font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-portfolio__num-main,
+    .finam-v2-portfolio__pct {
       white-space: nowrap;
+    }
+
+    .finam-v2-portfolio__pct {
+      font-weight: 500;
+      color: #64748b;
+    }
+
+    .finam-v2-portfolio__num--total,
+    .finam-v2-portfolio__table tfoot .finam-v2-portfolio__pct {
+      color: var(--finam-v2-color-navy-deep);
     }
 
     .finam-v2-portfolio__why {
@@ -820,35 +841,43 @@
           <tbody>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#002a4a;"></span>Облигации</span></td>
-              <td class="finam-v2-portfolio__num">30%</td>
-              <td class="finam-v2-portfolio__num">24%</td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">12,0 млн ₽</span> <span class="finam-v2-portfolio__pct">(36%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">19,6 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(38,4%)</span></td>
               <td class="finam-v2-portfolio__num">8,5%</td>
             </tr>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#1e6bb8;"></span>Акции / фонды</span></td>
-              <td class="finam-v2-portfolio__num">26%</td>
-              <td class="finam-v2-portfolio__num">34%</td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">12,0 млн ₽</span> <span class="finam-v2-portfolio__pct">(36%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">19,6 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(38,4%)</span></td>
               <td class="finam-v2-portfolio__num">12,0%</td>
             </tr>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#7aa6d6;"></span>Ликвидность</span></td>
-              <td class="finam-v2-portfolio__num">18%</td>
-              <td class="finam-v2-portfolio__num">20%</td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">6,7 млн ₽</span> <span class="finam-v2-portfolio__pct">(20%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">5,2 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(10,1%)</span></td>
               <td class="finam-v2-portfolio__num">7,0%</td>
             </tr>
             <tr>
               <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#9fb7ca;"></span>Защита</span></td>
-              <td class="finam-v2-portfolio__num">12%</td>
-              <td class="finam-v2-portfolio__num">12%</td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">2,0 млн ₽</span> <span class="finam-v2-portfolio__pct">(6%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">3,1 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(6,1%)</span></td>
               <td class="finam-v2-portfolio__num">—</td>
             </tr>
             <tr>
-              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#cbd5e1;"></span>Альтернативы</span></td>
-              <td class="finam-v2-portfolio__num">14%</td>
-              <td class="finam-v2-portfolio__num">10%</td>
-              <td class="finam-v2-portfolio__num">9,5%</td>
+              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#cbd5e1;"></span>Подушка безопасности · Сбер Страхование Жизни</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">0,7 млн ₽</span> <span class="finam-v2-portfolio__pct">(2%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">3,6 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(7,1%)</span></td>
+              <td class="finam-v2-portfolio__num">—</td>
             </tr>
           </tbody>
+          <tfoot>
+            <tr>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total">Итого</td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total"><span class="finam-v2-portfolio__num-main">33,3 млн ₽</span> <span class="finam-v2-portfolio__pct">(100%)</span></td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total"><span class="finam-v2-portfolio__num-main">51 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(100%)</span></td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total">17,7%</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       <div class="finam-v2-portfolio__donut-stack" aria-label="Доли по таблице структуры">

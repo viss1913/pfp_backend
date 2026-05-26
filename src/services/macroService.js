@@ -8,6 +8,7 @@ const CBR_SOAP_URL = 'https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx';
 const CBR_INFLATION_YOY_QUERY_ID = '132934';
 const CBR_INFLATION_YOY_SLUG = 'russia_cpi_inflation_yoy';
 const CBR_INFLATION_YOY_HISTORY_YEARS = 12;
+const CBR_KEY_RATE_HISTORY_YEARS = 12;
 
 function lastDayOfMonthUtc(year, month1to12) {
     return new Date(Date.UTC(year, month1to12, 0, 12, 0, 0));
@@ -157,34 +158,46 @@ class MacroService {
     //  ЦБР: Ключевая ставка (SOAP KeyRateXML)
     // ────────────────────────────────────────────────────────────
 
-    async fetchCbrKeyRate() {
+    async fetchCbrKeyRate({ from = null, to = null } = {}) {
         try {
             console.log('📡 Fetching CBR Key Rate (SOAP)...');
-            const from = new Date();
-            from.setMonth(from.getMonth() - 3);
-            const to = new Date();
+            const fromDate = from instanceof Date ? from : new Date();
+            if (!(from instanceof Date)) {
+                fromDate.setFullYear(fromDate.getFullYear() - CBR_KEY_RATE_HISTORY_YEARS);
+            }
+            const toDate = to instanceof Date ? to : new Date();
 
             const rawXml = await this.soapRequest('KeyRateXML', `
-                <web:fromDate>${from.toISOString()}</web:fromDate>
-                <web:ToDate>${to.toISOString()}</web:ToDate>
+                <web:fromDate>${fromDate.toISOString()}</web:fromDate>
+                <web:ToDate>${toDate.toISOString()}</web:ToDate>
             `);
 
             const result = await parseStringPromise(rawXml, { explicitArray: false });
-            const body = result['soap:Envelope']['soap:Body'];
-            const krData = body.KeyRateXMLResponse.KeyRateXMLResult.KeyRate;
+            const body = result?.['soap:Envelope']?.['soap:Body'];
+            const krData = body?.KeyRateXMLResponse?.KeyRateXMLResult?.KeyRate;
+            if (!krData || !krData.KR) {
+                console.warn('[macro] CBR Key Rate: пустой ответ KeyRateXML');
+                return { saved: 0 };
+            }
 
             let rates = krData.KR;
             if (!Array.isArray(rates)) rates = [rates];
+            let saved = 0;
 
-            if (rates.length > 0) {
-                // Первый элемент — самая свежая ставка
-                const latest = rates[0];
-                const date = new Date(latest.DT);
-                const value = parseFloat(latest.Rate);
-                await this.saveIndicatorValue('cbr_key_rate', value, date, { rates: rates.slice(0, 5) });
+            for (const rate of rates) {
+                const date = new Date(rate?.DT);
+                const value = parseFloat(rate?.Rate);
+                if (Number.isNaN(date.getTime()) || !Number.isFinite(value)) {
+                    continue;
+                }
+                await this.saveIndicatorValue('cbr_key_rate', value, date, rate);
+                saved += 1;
             }
+            console.log(`✅ Saved ${saved} CBR key rate point(s)`);
+            return { saved };
         } catch (error) {
             logFetchError('fetchCbrKeyRate', error);
+            return { saved: 0 };
         }
     }
 

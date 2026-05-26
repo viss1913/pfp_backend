@@ -2,6 +2,13 @@ const fs = require('fs');
 const path = require('path');
 
 const FINAM_V2_DIR = __dirname;
+const localFileDataUrlCache = new Map();
+const optionalFileCache = new Map();
+const templateRawCache = new Map();
+const templateInlinedCache = new Map();
+const OPTIMIZED_ASSET_ALIASES = Object.freeze({
+    'assets/avatar-ai-finam-v2.png': 'assets/avatar-ai-finam-v2.svg',
+});
 
 const PRODUCTION_PAGE_STYLE = `<style data-finam-v2-production="1">
 @page { size: A4; margin: 0; }
@@ -65,18 +72,36 @@ function mimeTypeForLocalFile(absPath) {
     return map[ext] || 'application/octet-stream';
 }
 
+function resolveOptimizedAssetPath(relativePath) {
+    const cleaned = String(relativePath || '').split('?')[0].replace(/^\.?\//, '');
+    return OPTIMIZED_ASSET_ALIASES[cleaned] || cleaned;
+}
+
 function localFileDataUrl(relativePath) {
     const cleaned = String(relativePath || '').split('?')[0].replace(/^\.?\//, '');
-    const abs = path.join(FINAM_V2_DIR, cleaned);
-    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) return null;
+    if (localFileDataUrlCache.has(cleaned)) return localFileDataUrlCache.get(cleaned);
+    const resolvedPath = resolveOptimizedAssetPath(cleaned);
+    const abs = path.join(FINAM_V2_DIR, resolvedPath);
+    if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) {
+        localFileDataUrlCache.set(cleaned, null);
+        return null;
+    }
     const buf = fs.readFileSync(abs);
-    return `data:${mimeTypeForLocalFile(abs)};base64,${buf.toString('base64')}`;
+    const dataUrl = `data:${mimeTypeForLocalFile(abs)};base64,${buf.toString('base64')}`;
+    localFileDataUrlCache.set(cleaned, dataUrl);
+    return dataUrl;
 }
 
 function readOptionalFile(fileName) {
+    if (optionalFileCache.has(fileName)) return optionalFileCache.get(fileName);
     const abs = path.join(FINAM_V2_DIR, fileName);
-    if (!fs.existsSync(abs)) return '';
-    return fs.readFileSync(abs, 'utf8');
+    if (!fs.existsSync(abs)) {
+        optionalFileCache.set(fileName, '');
+        return '';
+    }
+    const content = fs.readFileSync(abs, 'utf8');
+    optionalFileCache.set(fileName, content);
+    return content;
 }
 
 function inlineCssLinks(html) {
@@ -174,16 +199,26 @@ function injectProductionStyle(html, style = PRODUCTION_PAGE_STYLE) {
     return s;
 }
 
+function readTemplateRaw(fileName) {
+    if (templateRawCache.has(fileName)) return templateRawCache.get(fileName);
+    const raw = fs.readFileSync(path.join(FINAM_V2_DIR, fileName), 'utf8');
+    templateRawCache.set(fileName, raw);
+    return raw;
+}
+
+function readTemplateInlined(fileName) {
+    if (templateInlinedCache.has(fileName)) return templateInlinedCache.get(fileName);
+    const inlined = inlineLocalAssets(inlineCssLinks(readTemplateRaw(fileName)));
+    templateInlinedCache.set(fileName, inlined);
+    return inlined;
+}
+
 function loadTemplateDocument(fileName) {
-    const abs = path.join(FINAM_V2_DIR, fileName);
-    const raw = fs.readFileSync(abs, 'utf8');
-    return injectProductionStyle(inlineLocalAssets(inlineCssLinks(raw)), PRODUCTION_DOCUMENT_STYLE);
+    return injectProductionStyle(readTemplateInlined(fileName), PRODUCTION_DOCUMENT_STYLE);
 }
 
 function loadTemplatePhysicalPages(fileName) {
-    const abs = path.join(FINAM_V2_DIR, fileName);
-    const raw = fs.readFileSync(abs, 'utf8');
-    const inlined = inlineLocalAssets(inlineCssLinks(raw));
+    const inlined = readTemplateInlined(fileName);
     const headInner = extractHeadInner(inlined);
     const title = extractTitle(inlined, fileName);
     const articles = extractFinamV2Articles(inlined);
