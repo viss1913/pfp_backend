@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { shouldIncludeSystemCatalog } = require('../utils/projectTenantCatalogScope');
 
 /**
  * Нормализация строки products.lines → объект yields[] (в т.ч. матрица ИСЖ: risk_name, age, payment_ratio).
@@ -50,6 +51,7 @@ function mapProductLineToYield(line) {
 
 class ProductRepository {
     async findAll({ projectId = null, includeDefaults = true, filters = {} }) {
+        const effectiveIncludeDefaults = shouldIncludeSystemCatalog(projectId, includeDefaults);
         const query = db('products')
             .select('products.*');
 
@@ -57,7 +59,7 @@ class ProductRepository {
         query.where((builder) => {
             if (projectId) {
                 builder.where('products.project_id', projectId);
-                if (includeDefaults) {
+                if (effectiveIncludeDefaults) {
                     builder.orWhereNull('products.project_id');
                 }
             }
@@ -102,11 +104,15 @@ class ProductRepository {
     }
 
     async findById(id, projectId = null) {
+        const effectiveIncludeDefaults = shouldIncludeSystemCatalog(projectId, true);
         let query = db('products').where({ id });
 
         if (projectId) {
             query.where((builder) => {
-                builder.where({ project_id: projectId }).orWhereNull('project_id');
+                builder.where({ project_id: projectId });
+                if (effectiveIncludeDefaults) {
+                    builder.orWhereNull('project_id');
+                }
             });
         }
 

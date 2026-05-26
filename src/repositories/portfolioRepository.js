@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { shouldIncludeSystemCatalog } = require('../utils/projectTenantCatalogScope');
 
 class PortfolioRepository {
     /**
@@ -104,12 +105,19 @@ class PortfolioRepository {
     }
 
     async findAll({ projectId = null, filters = {}, includeDefaults = true }) {
+        const includeSystemCatalog = shouldIncludeSystemCatalog(projectId, includeDefaults);
         const query = db('portfolios').select('*').where('is_active', true);
+
+        if (!includeDefaults) {
+            query.where((builder) => {
+                builder.where('is_default', false).orWhere('is_default', 0);
+            });
+        }
 
         query.where((builder) => {
             if (projectId) {
                 builder.where('project_id', projectId);
-                if (includeDefaults) {
+                if (includeSystemCatalog) {
                     builder.orWhereNull('project_id');
                 }
             }
@@ -123,10 +131,14 @@ class PortfolioRepository {
     }
 
     async findById(id, projectId = null) {
+        const effectiveIncludeDefaults = shouldIncludeSystemCatalog(projectId, true);
         let query = db('portfolios').where({ id });
         if (projectId) {
             query.where((builder) => {
-                builder.where({ project_id: projectId }).orWhereNull('project_id');
+                builder.where({ project_id: projectId });
+                if (effectiveIncludeDefaults) {
+                    builder.orWhereNull('project_id');
+                }
             });
         }
         const portfolio = await query.first();
@@ -309,11 +321,15 @@ class PortfolioRepository {
     }
 
     async _findCandidatesAttempt({ projectId = null, amount, term, useAmount, useTerm, label }) {
+        const effectiveIncludeDefaults = shouldIncludeSystemCatalog(projectId, true);
         const query = db('portfolios').where({ is_active: true });
 
         if (projectId) {
             query.where((builder) => {
-                builder.where({ project_id: projectId }).orWhereNull('project_id');
+                builder.where({ project_id: projectId });
+                if (effectiveIncludeDefaults) {
+                    builder.orWhereNull('project_id');
+                }
             });
         }
 

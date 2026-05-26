@@ -17,6 +17,9 @@ test('Finam LIFE default term is 5 years', () => {
 });
 
 test('Sber LIFE default term stays 15 years', () => {
+    assert.strictEqual(fixedLifeTermMonthsForProject(3), 180);
+    assert.strictEqual(fixedLifeTermYearsForProject(3), 15);
+    assert.strictEqual(fixedLifeTermMonthsForProject(28), 180);
     assert.strictEqual(fixedLifeTermMonthsForProject(29), 180);
     assert.strictEqual(fixedLifeTermYearsForProject(29), 15);
 });

@@ -1,9 +1,9 @@
 /**
  * Проекты с расчётом LIFE «Подушка безопасности · Сбер» (тариф 1,44%/год).
- * Immers test Finam = 2; prod Finam = 14; white-label 28 (PDF — СК Лучи), 29 (Сбер).
- * Оверрайд: SBER_LIFE_CALC_PROJECT_IDS=2,14,28,29
+ * Immers test Finam = 2; ATB white-label = 3/28 (PDF — СК Лучи), prod Finam = 14, Sber = 29.
+ * Оверрайд: SBER_LIFE_CALC_PROJECT_IDS=2,3,14,28,29
  */
-const DEFAULT_SBER_LIFE_CALC_PROJECT_IDS = [2, 14, 28, 29];
+const DEFAULT_SBER_LIFE_CALC_PROJECT_IDS = [2, 3, 14, 28, 29];
 
 function parseSberLifeCalcProjectIds() {
     const raw = process.env.SBER_LIFE_CALC_PROJECT_IDS;

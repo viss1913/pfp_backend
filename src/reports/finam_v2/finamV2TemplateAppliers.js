@@ -3,7 +3,12 @@ const path = require('path');
 const { buildRepleneshmentRows } = require('../finam/buildFinamReportHtml');
 const { calculateOwnFundsFromSchedule, sumReplenishmentsFromSchedule } = require('../shared/ownFundsFromSchedule');
 const { FINAM_REPORT_V2_PAGE_TYPES } = require('./finamReportV2Contract');
-const { isAtbBankProject, applyAtbLifeGoalDisplay, atbBrandingRiskDeclarationHtml } = require('./finamV2AtbBranding');
+const {
+    isAtbBankProject,
+    applyAtbLifeGoalDisplay,
+    atbBrandingRiskDeclarationHtml,
+    applyAtbReportBranding,
+} = require('./finamV2AtbBranding');
 const {
     isSberProject,
     replaceSberEquitiesPage,
@@ -3891,6 +3896,9 @@ function applyTemplateData(html, context = {}) {
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER) {
         out = replaceOtherGoalPage(out, context);
+    }
+    if (isAtbBankProject(context.model?.meta?.projectId)) {
+        out = applyAtbReportBranding(out, context.model?.meta?.projectId);
     }
     if (isSberProject(context.model?.meta?.projectId)) {
         out = applySberReportBranding(out);

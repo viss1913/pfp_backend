@@ -208,6 +208,7 @@ const emailService = require('../services/emailService');
 const commissionService = require('../services/commissionService');
 const { buildTrackedPartnerUrl } = require('../utils/trackedPartnerUrl');
 const { resolveLastRebalanceAt, hasPlan } = require('../utils/goalsSummaryMetrics');
+const { resolveLifeOfferEmailPayload } = require('../utils/atbBankBranding');
 
 function attachCrmClientDates(clientRow) {
     const createdAt = clientRow.created_at;
@@ -883,7 +884,10 @@ class ClientController {
                 return res.status(404).json({ error: 'Agent not found' });
             }
 
-            const offerUrl = validation.value.offer_url || 'https://sberbank-insurance.ru/podushka-bezopasnosti';
+            const lifeOfferPayload = resolveLifeOfferEmailPayload(projectId, {
+                offerUrl: validation.value.offer_url,
+                shortDescription: validation.value.short_description,
+            });
             const emailResult = await emailService.sendSberLifeOfferEmail({
                 to: recipient,
                 clientFullName: String(client.fio || '').trim() || 'клиент',
@@ -892,15 +896,15 @@ class ClientController {
                 agentEmail: (agent.email && String(agent.email).trim()) || '—',
                 agentPhone: (agent.phone && String(agent.phone).trim()) || '—',
                 reportAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
-                offerUrl,
-                shortDescription: validation.value.short_description,
+                offerUrl: lifeOfferPayload.offerUrl,
+                shortDescription: lifeOfferPayload.shortDescription,
             });
 
             return res.json({
                 ok: true,
                 message_id: emailResult?.id || null,
                 client_email: recipient,
-                offer_url: offerUrl,
+                offer_url: lifeOfferPayload.offerUrl,
             });
         } catch (err) {
             next(err);
