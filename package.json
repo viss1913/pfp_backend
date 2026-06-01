@@ -12,6 +12,7 @@
     "fix-migrations": "node scripts/fix_migrations.js",
     "test": "node --test test/resolutPortfolioQuoteYieldService.test.js test/resolutPortfolioPublishHelpers.test.js test/resolutPlanQuotesService.test.js test/riskProfileSlice.test.js test/mergeLiabilitiesAndGoalSort.test.js test/goalManualRisk.test.js test/riskReferenceGoal.test.js test/mortgageLeverageRisk.test.js test/ifusExecutiveModel.test.js test/executiveScenarioCatalog.test.js test/iszhSurvivalYield.test.js test/smartAllocationInheritance.test.js",
     "smoke:resolut-pfp": "node scripts/smoke_resolut_pfp_api.js",
+    "smoke:agent-client-patch": "node scripts/smoke_agent_client_patch.js",
     "test:monthly-schedule-pds": "node scripts/test_monthly_schedule_pds.js",
     "test:portfolio-fallback": "node scripts/test_portfolio_find_by_criteria_fallback.js",
     "r2:smoke": "node scripts/r2_smoke_test.js",
@@ -30,6 +31,7 @@
     "preview:summary": "node scripts/serve_summary_preview.mjs",
     "seed:pdf-summary-stock-assets-r2": "node scripts/seed_pdf_summary_stock_assets_r2.js",
     "import:comon-recommended": "node scripts/import_comon_recommended_strategies.js",
+    "sync:comon-recommended": "node scripts/sync_comon_recommended_strategies.js",
     "docs:atb-brief-html": "node scripts/md_to_print_html.mjs docs/atb/ATB_SECURITY_IT_BRIEF.md docs/atb/ATB_SECURITY_IT_BRIEF.consulting.html \"BankFuture PFP — сводка для ИБ и ИТ АТБ Банка\" --consulting && node scripts/md_to_print_html.mjs docs/atb/ATB_SECURITY_IT_BRIEF.md docs/atb/ATB_SECURITY_IT_BRIEF.print.html \"BankFuture PFP — сводка для ИБ и ИТ АТБ Банка\""
   },
   "keywords": [],

@@ -14,6 +14,9 @@ router.post('/nda/send', agentMiddleware, clientController.sendNdaStandalone.bin
 // GET /api/pfp/clients — список клиентов агента с планами из B2C/CRM
 router.get('/', agentMiddleware, clientController.listByAgent.bind(clientController));
 
+// PUT /api/pfp/clients/:clientId — редактирование карточки клиента (профиль, семья, активы, кредиты)
+router.put('/:id', agentMiddleware, clientController.updateAgentClient.bind(clientController));
+
 // GET /api/pfp/clients/:clientId/plans — список планов клиента
 router.get('/:id/plans', agentMiddleware, clientController.get.bind(clientController));
 

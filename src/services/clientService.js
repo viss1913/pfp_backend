@@ -109,6 +109,125 @@ function mapLiabilityToCredit(liability) {
     };
 }
 
+const CLIENT_PATCH_FORBIDDEN_KEYS = new Set([
+    'agent_id',
+    'user_id',
+    'project_id',
+    'goals_summary',
+    'id',
+    'assets',
+    'liabilities',
+    'assets_total',
+    'liabilities_total',
+    'net_worth',
+    'created_at',
+    'updated_at',
+]);
+
+function deepMergePlainObjects(base, patch) {
+    if (patch === undefined) return base;
+    if (patch === null) return null;
+    if (typeof patch !== 'object' || Array.isArray(patch)) return patch;
+    const baseObj = base && typeof base === 'object' && !Array.isArray(base) ? base : {};
+    const out = { ...baseObj };
+    for (const key of Object.keys(patch)) {
+        const patchVal = patch[key];
+        if (patchVal === undefined) continue;
+        if (Array.isArray(patchVal)) {
+            out[key] = patchVal;
+        } else if (patchVal && typeof patchVal === 'object') {
+            out[key] = deepMergePlainObjects(baseObj[key], patchVal);
+        } else {
+            out[key] = patchVal;
+        }
+    }
+    return out;
+}
+
+function stripClientPatchForbiddenFields(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    for (const key of CLIENT_PATCH_FORBIDDEN_KEYS) {
+        delete obj[key];
+    }
+}
+
+function prepareClientRowForDb(clientData, { ensureNameDefaults = false } = {}) {
+    const row = { ...clientData };
+
+    if (row.fio && (!row.first_name || !row.last_name)) {
+        const parts = row.fio.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            row.last_name = row.last_name || parts[0];
+            row.first_name = row.first_name || parts[1];
+            row.middle_name = row.middle_name || parts.slice(2).join(' ') || null;
+        } else if (parts.length === 1) {
+            row.first_name = row.first_name || parts[0];
+        }
+    }
+
+    if (row.sex && !row.gender) row.gender = row.sex;
+    if (row.uuid && !row.external_uuid) row.external_uuid = row.uuid;
+
+    delete row.fio;
+    delete row.sex;
+    delete row.uuid;
+    delete row.insured_person;
+
+    if (row.family_profile !== undefined) {
+        row.family_profile = serializeJsonField(normalizeJsonField(row.family_profile));
+    }
+    if (row.risk_profile_answers !== undefined) {
+        row.risk_profile_answers = serializeJsonField(normalizeJsonField(row.risk_profile_answers));
+    }
+    if (row.risk_profile_result !== undefined) {
+        row.risk_profile_result = serializeJsonField(normalizeJsonField(row.risk_profile_result));
+    }
+    if (row.tax_children !== undefined) {
+        row.tax_children = serializeJsonField(normalizeJsonField(row.tax_children));
+    }
+
+    if (ensureNameDefaults) {
+        row.first_name = row.first_name || ' ';
+        row.last_name = row.last_name || ' ';
+    }
+
+    return row;
+}
+
+function mergeClientPatchWithExisting(existingRow, patch) {
+    if (!patch || typeof patch !== 'object') return null;
+
+    const merged = { ...existingRow };
+    const patchCopy = { ...patch };
+    stripClientPatchForbiddenFields(patchCopy);
+
+    const nestedAssets = Array.isArray(patchCopy.assets) ? patchCopy.assets : null;
+    delete patchCopy.assets;
+    const nestedLiabilities = Array.isArray(patchCopy.liabilities) ? patchCopy.liabilities : null;
+    delete patchCopy.liabilities;
+
+    for (const key of Object.keys(patchCopy)) {
+        if (patchCopy[key] === undefined) continue;
+        if (key === 'family_profile') {
+            const existingFp = normalizeJsonField(merged.family_profile);
+            merged.family_profile = deepMergePlainObjects(existingFp, patchCopy.family_profile);
+        } else if (key === 'tax_children') {
+            merged.tax_children = patchCopy.tax_children;
+        } else if (key === 'risk_profile_answers' || key === 'risk_profile_result') {
+            const existingVal = normalizeJsonField(merged[key]);
+            const patchVal = patchCopy[key];
+            merged[key] =
+                patchVal && typeof patchVal === 'object' && !Array.isArray(patchVal)
+                    ? deepMergePlainObjects(existingVal, patchVal)
+                    : patchVal;
+        } else {
+            merged[key] = patchCopy[key];
+        }
+    }
+
+    return { mergedRow: merged, nestedAssets, nestedLiabilities };
+}
+
 function normalizeGoalRow(goal) {
     if (!goal || typeof goal !== 'object') return goal;
 
@@ -418,88 +537,105 @@ class ClientService {
         return { assetsTotal, liabilitiesTotal, netWorth };
     }
 
-    async updateFullClient(clientId, data) {
-        // Reuse createFullClient logic but forced for specific ID
-        // Simplified version: delete and recreate related entities, update profile
-        return await knex.transaction(async (trx) => {
-            const clientData = { ...data.client };
+    /**
+     * Частичное или полное обновление клиента и связанных сущностей.
+     * Top-level ключи (assets, goals, …) меняются только если присутствуют в data.
+     * @param {number|string} clientId
+     * @param {object} data
+     * @param {{ existingClient?: object|null, projectId?: number|null, ensureNameDefaults?: boolean }} [options]
+     */
+    async patchFullClient(clientId, data, options = {}) {
+        const numericId = Number(clientId);
+        if (!Number.isFinite(numericId) || numericId <= 0) {
+            throw new Error('Invalid clientId');
+        }
 
-            // Apply name parsing and mappings if present
-            if (clientData.fio && (!clientData.first_name || !clientData.last_name)) {
-                const parts = clientData.fio.trim().split(/\s+/);
-                if (parts.length >= 2) {
-                    clientData.last_name = clientData.last_name || parts[0];
-                    clientData.first_name = clientData.first_name || parts[1];
-                    clientData.middle_name = clientData.middle_name || parts.slice(2).join(' ') || null;
-                } else if (parts.length === 1) {
-                    clientData.first_name = clientData.first_name || parts[0];
+        let existingRow = options.existingClient;
+        if (!existingRow) {
+            existingRow = await clientRepository.findById(numericId, options.projectId ?? null);
+        }
+        if (!existingRow) {
+            const err = new Error('Client not found');
+            err.status = 404;
+            throw err;
+        }
+
+        const payload = data && typeof data === 'object' ? data : {};
+
+        return await knex.transaction(async (trx) => {
+            let assetsPayload = payload.assets;
+            let liabilitiesPayload = payload.liabilities;
+
+            if (payload.client && typeof payload.client === 'object') {
+                const mergeResult = mergeClientPatchWithExisting(existingRow, payload.client);
+                if (mergeResult) {
+                    const { mergedRow, nestedAssets, nestedLiabilities } = mergeResult;
+                    if (nestedAssets) assetsPayload = nestedAssets;
+                    if (nestedLiabilities) liabilitiesPayload = nestedLiabilities;
+
+                    const clientData = prepareClientRowForDb(mergedRow, {
+                        ensureNameDefaults: options.ensureNameDefaults === true,
+                    });
+                    stripClientPatchForbiddenFields(clientData);
+                    delete clientData.id;
+
+                    const updatePayload = {};
+                    for (const key of Object.keys(clientData)) {
+                        if (clientData[key] !== undefined) {
+                            updatePayload[key] = clientData[key];
+                        }
+                    }
+                    if (Object.keys(updatePayload).length > 0) {
+                        await clientRepository.update(numericId, updatePayload, null, trx);
+                    }
                 }
             }
 
-            if (clientData.sex && !clientData.gender) clientData.gender = clientData.sex;
-            if (clientData.uuid && !clientData.external_uuid) clientData.external_uuid = clientData.uuid;
-
-            delete clientData.fio;
-            delete clientData.sex;
-            delete clientData.uuid;
-            delete clientData.id;
-            clientData.family_profile = serializeJsonField(normalizeJsonField(clientData.family_profile));
-            clientData.risk_profile_answers = serializeJsonField(normalizeJsonField(clientData.risk_profile_answers));
-            clientData.risk_profile_result = serializeJsonField(normalizeJsonField(clientData.risk_profile_result));
-
-            // Как в createFullClient: в БД first_name/last_name NOT NULL — экстракция/LLM часто шлёт null
-            clientData.first_name = clientData.first_name || ' ';
-            clientData.last_name = clientData.last_name || ' ';
-
-            // 1. Update Profile
-            await clientRepository.update(clientId, clientData, null, trx);
-
-            // 2. Refresh Related Data (Clear and add new ones)
-            if (data.assets) {
-                await clientRepository.deleteAssets(clientId, trx);
-                if (data.assets.length > 0) {
-                    const assets = data.assets.map(a => ({ ...a, client_id: clientId }));
+            if (assetsPayload !== undefined) {
+                await clientRepository.deleteAssets(numericId, trx);
+                if (assetsPayload.length > 0) {
+                    const assets = assetsPayload.map((a) => ({ ...a, client_id: numericId }));
                     await clientRepository.addAssets(assets, trx);
                 }
             }
 
-            const hasLiabilitiesPayload = Object.prototype.hasOwnProperty.call(data, 'liabilities');
-            const hasCreditsPayload = Object.prototype.hasOwnProperty.call(data, 'credits');
-            if (hasLiabilitiesPayload || hasCreditsPayload) {
+            const hasLiabilitiesPayload = Object.prototype.hasOwnProperty.call(payload, 'liabilities');
+            const hasCreditsPayload = Object.prototype.hasOwnProperty.call(payload, 'credits');
+            if (hasLiabilitiesPayload || hasCreditsPayload || liabilitiesPayload !== undefined) {
                 const normalizedLiabilities = mergeLiabilitiesWithCredits({
-                    client: data.client,
-                    liabilities: data.liabilities,
-                    credits: data.credits
+                    client: payload.client,
+                    liabilities: liabilitiesPayload ?? payload.liabilities,
+                    credits: payload.credits,
                 });
-                await clientRepository.deleteLiabilities(clientId, trx);
+                await clientRepository.deleteLiabilities(numericId, trx);
                 if (normalizedLiabilities.length > 0) {
-                    const liabilities = normalizedLiabilities.map(l => ({ ...l, client_id: clientId }));
+                    const liabilities = normalizedLiabilities.map((l) => ({ ...l, client_id: numericId }));
                     await clientRepository.addLiabilities(liabilities, trx);
                 }
             }
 
-            if (data.expenses) {
-                await clientRepository.deleteExpenses(clientId, trx);
-                if (data.expenses.length > 0) {
-                    const expenses = data.expenses.map(e => ({ ...e, client_id: clientId }));
+            if (Object.prototype.hasOwnProperty.call(payload, 'expenses')) {
+                await clientRepository.deleteExpenses(numericId, trx);
+                if (payload.expenses.length > 0) {
+                    const expenses = payload.expenses.map((e) => ({ ...e, client_id: numericId }));
                     await clientRepository.addExpenses(expenses, trx);
                 }
             }
 
-            if (data.goals) {
-                await clientRepository.deleteGoals(clientId, trx);
-                if (data.goals.length > 0) {
+            if (Object.prototype.hasOwnProperty.call(payload, 'goals')) {
+                await clientRepository.deleteGoals(numericId, trx);
+                if (payload.goals.length > 0) {
                     const goalColumns = [
                         'goal_type_id', 'name', 'target_amount', 'desired_monthly_income',
                         'term_months', 'end_date', 'initial_capital', 'monthly_replenishment', 'inflation_rate', 'risk_profile',
-                        'risk_profile_extended'
+                        'risk_profile_extended',
                     ];
 
-                    const goals = data.goals.map(g => {
-                        const goalRecord = { client_id: clientId };
+                    const goals = payload.goals.map((g) => {
+                        const goalRecord = { client_id: numericId };
                         const params = {};
 
-                        Object.keys(g).forEach(key => {
+                        Object.keys(g).forEach((key) => {
                             if (goalColumns.includes(key)) {
                                 goalRecord[key] = g[key];
                             } else if (key !== 'client_id' && key !== 'id') {
@@ -517,10 +653,26 @@ class ClientService {
                 }
             }
 
-            // 3. Recalculate Aggregates
-            await this.updateFinancialAggregates(clientId, trx);
+            await this.updateFinancialAggregates(numericId, trx);
+            return numericId;
+        });
+    }
 
-            return clientId;
+    async updateFullClient(clientId, data, projectId = null) {
+        const numericId = Number(clientId);
+        const existingRow = await clientRepository.findById(numericId, projectId);
+        const hasClientPatch = data?.client && typeof data.client === 'object';
+        const ensureNameDefaults =
+            !existingRow ||
+            (hasClientPatch &&
+                (Object.prototype.hasOwnProperty.call(data.client, 'first_name') ||
+                    Object.prototype.hasOwnProperty.call(data.client, 'last_name') ||
+                    Object.prototype.hasOwnProperty.call(data.client, 'fio')));
+
+        return this.patchFullClient(numericId, data, {
+            existingClient: existingRow,
+            projectId,
+            ensureNameDefaults,
         });
     }
 

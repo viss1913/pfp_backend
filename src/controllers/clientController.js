@@ -162,6 +162,10 @@ const calculationRequestSchema = Joi.object({
     })).optional()
         .description('Алиас для liabilities: кредиты клиента (будут сохранены как liabilities)')
 });
+const clientPatchRequestSchema = calculationRequestSchema
+    .fork(['goals'], (schema) => schema.optional())
+    .or('client', 'assets', 'liabilities', 'credits', 'expenses', 'goals');
+
 const taxPlanningRequestSchema = Joi.object({
     client: Joi.object({
         avg_monthly_income: Joi.number().min(0).required(),
@@ -227,6 +231,7 @@ function attachCrmClientDates(clientRow) {
     };
 }
 const { parseProjectSettings } = require('../utils/projectSettings');
+const { assertAgentCanMutateClient } = require('../utils/agentClientAccess');
 const { ensureClientReportPdfReady } = require('../services/reportPdfStorageService');
 const pdfWarmupScheduleByClient = new Map();
 
@@ -516,39 +521,85 @@ class ClientController {
         }
     }
 
-    async update(req, res, next) {
+    /**
+     * PUT /api/pfp/clients/:id — редактирование карточки клиента в ЛК агента.
+     * PUT /api/client/:id — тот же handler (обратная совместимость).
+     */
+    async updateAgentClient(req, res, next) {
         try {
-            const { id } = req.params;
-            const agentId = req.user.agentId;
-            const projectId = req.projectId || req.user?.projectId;
-
-            const existing = await clientService.getFullClient(id, projectId);
-            if (!existing || (existing.agent_id && existing.agent_id != agentId)) {
-                return res.status(404).json({ error: 'Client not found or access denied' });
+            const clientId = Number(req.params.id);
+            if (!Number.isFinite(clientId) || clientId <= 0) {
+                return res.status(400).json({ error: 'Invalid client id' });
             }
 
-            await clientService.updateFullClient(id, req.body);
-            const updated = await clientService.getFullClient(id, projectId);
-            res.json(calculationService.simplify(updated));
+            const projectId = req.projectId || req.user?.projectId;
+            const existing = await clientService.getFullClient(clientId, projectId);
+            if (!existing) {
+                return res.status(404).json({ error: 'Client not found' });
+            }
+
+            await assertAgentCanMutateClient({ req, client: existing, projectId });
+
+            const validation = clientPatchRequestSchema.validate(req.body || {}, {
+                abortEarly: false,
+                stripUnknown: true,
+            });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map((d) => ({
+                        field: d.path.join('.'),
+                        message: d.message,
+                    })),
+                });
+            }
+
+            await clientService.patchFullClient(clientId, validation.value, {
+                existingClient: existing,
+                projectId,
+            });
+
+            const wantRecalculate =
+                req.query.recalculate === 'true' || req.query.recalculate === '1';
+            if (wantRecalculate) {
+                const calculationResponse = await this.runClientRecalculate(
+                    clientId,
+                    projectId,
+                    req,
+                    validation.value
+                );
+                return res.json(calculationService.simplify(calculationResponse));
+            }
+
+            const updated = await clientService.getFullClient(clientId, projectId);
+            return res.json(calculationService.simplify(updated));
         } catch (err) {
+            if (err.status) {
+                return res.status(err.status).json({ error: err.message });
+            }
             next(err);
         }
     }
 
-    async recalculate(req, res, next) {
-        try {
-            const { id } = req.params;
-            const agentId = req.user.agentId;
-            const projectId = req.projectId || req.user?.projectId;
+    async update(req, res, next) {
+        return this.updateAgentClient(req, res, next);
+    }
 
-            // 1. Fetch Existing Client Data
-            const existingClient = await clientService.getFullClient(id, projectId);
-            if (!existingClient) {
-                return res.status(404).json({ error: 'Client not found' });
-            }
-            if (existingClient.agent_id && existingClient.agent_id != agentId) {
-                return res.status(403).json({ error: 'Access denied' });
-            }
+    /**
+     * Пересчёт финплана клиента (ядро для POST …/recalculate и PUT …?recalculate=true).
+     * @returns {Promise<object>} calculationResponse
+     */
+    async runClientRecalculate(clientId, projectId, req, body = {}) {
+        const existingClient = await clientService.getFullClient(clientId, projectId);
+        if (!existingClient) {
+            const err = new Error('Client not found');
+            err.status = 404;
+            throw err;
+        }
+
+        await assertAgentCanMutateClient({ req, client: existingClient, projectId });
+
+        const reqBody = body && typeof body === 'object' ? body : {};
 
             // 2. Prepare goals map from DB
             const existingGoals = (existingClient.goals || []).map(g => {
@@ -589,14 +640,14 @@ class ClientController {
             let explicitManualRiskForTarget = false;
 
             // 3. Handle Updates (Bulk or Single)
-            if (!req.body.goals || req.body.goals.length === 0) {
+            if (!reqBody.goals || reqBody.goals.length === 0) {
                 // Check for single goal update format: { goal_id: "...", target_amount: 100, ... }
-                const singleGoalId = req.body.goal_id || req.body.id;
+                const singleGoalId = reqBody.goal_id || reqBody.id;
 
                 if (singleGoalId && goalsMap.has(String(singleGoalId))) {
                     console.log(`[ClientController] Using GoalRecalculator for single goal: ${singleGoalId}`);
                     const existing = goalsMap.get(String(singleGoalId));
-                    const preparedPatch = { ...req.body };
+                    const preparedPatch = { ...reqBody };
                     if (shouldForceReverseModeForPatch(existing, preparedPatch)) {
                         preparedPatch.monthly_replenishment = null;
                     }
@@ -612,7 +663,7 @@ class ClientController {
                 goalsToCalculate = Array.from(goalsMap.values());
             } else {
                 // Bulk updates in goals array
-                req.body.goals.forEach(patch => {
+                reqBody.goals.forEach(patch => {
                     const incomingId = patch.id || patch.goal_id;
                     let matchKey = incomingId ? String(incomingId) : null;
 
@@ -623,17 +674,17 @@ class ClientController {
                             preparedPatch.monthly_replenishment = null;
                         }
                         const updated = goalRecalculator.prepare(existing, preparedPatch);
-                        if (req.body.goals.length === 1) {
+                        if (reqBody.goals.length === 1) {
                             explicitManualRiskForTarget = patchHasExplicitManualGoalRisk(preparedPatch);
                         }
                         applyManualGoalRiskSanitize(updated, preparedPatch);
                         goalsMap.set(matchKey, updated);
-                        if (req.body.goals.length === 1) identifiedTargetId = matchKey;
+                        if (reqBody.goals.length === 1) identifiedTargetId = matchKey;
                     } else {
                         // For new goals in the array, use default preparation if possible
                         const key = matchKey || `temp_${Date.now()}_${Math.random()}`;
                         goalsMap.set(key, patch);
-                        if (req.body.goals.length === 1) identifiedTargetId = key;
+                        if (reqBody.goals.length === 1) identifiedTargetId = key;
                     }
                 });
                 goalsToCalculate = Array.from(goalsMap.values());
@@ -642,19 +693,21 @@ class ClientController {
             // 4. Merge Client Data
             const clientForCalc = {
                 ...existingClient,
-                ...req.body.client,
-                assets: req.body.client?.assets || existingClient.assets || [],
-                total_liquid_capital: req.body.client?.total_liquid_capital !== undefined
-                    ? req.body.client.total_liquid_capital
+                ...reqBody.client,
+                assets: reqBody.client?.assets || existingClient.assets || [],
+                total_liquid_capital: reqBody.client?.total_liquid_capital !== undefined
+                    ? reqBody.client.total_liquid_capital
                     : (existingClient.total_liquid_capital !== undefined ? Number(existingClient.total_liquid_capital) : (existingClient.assets_total || 0))
             };
 
             // 4.5 Inject Project ID (Strict enforcement)
             clientForCalc.project_id = projectId;
-            if (req.body.client) req.body.client.project_id = projectId;
+            if (reqBody.client) reqBody.client.project_id = projectId;
 
             if (!projectId) {
-                return res.status(400).json({ error: 'Project context missing during recalculation' });
+                const err = new Error('Project context missing during recalculation');
+                err.status = 400;
+                throw err;
             }
 
             // 5. Run Calculation
@@ -679,7 +732,7 @@ class ClientController {
             );
 
             // 6. Persistence
-            const clientId = existingClient.id;
+            const numericClientId = Number(existingClient.id);
             const calculation = calculationResponse.calculation || calculationResponse;
 
             if (identifiedTargetId && !identifiedTargetId.startsWith('temp_')) {
@@ -706,31 +759,47 @@ class ClientController {
                     }
                 }
 
-                await clientService.updateGoal(clientId, identifiedTargetId, updatedGoalData);
+                await clientService.updateGoal(numericClientId, identifiedTargetId, updatedGoalData);
                 console.log(`[ClientController] Persisted changes to goal ${identifiedTargetId}`);
-            } else if (!req.body.goals || req.body.goals.length > 0) {
+            } else if (!reqBody.goals || reqBody.goals.length > 0) {
                 // Bulk update / new goals
-                await clientService.updateFullClient(clientId, { client: clientForCalc, goals: goalsToCalculate });
+                await clientService.updateFullClient(numericClientId, { client: clientForCalc, goals: goalsToCalculate });
             }
 
             // 7. SYNC IDs (especially for new goals with temp IDs)
-            await syncCalculationGoalsWithDatabase(clientId, calculation);
+            await syncCalculationGoalsWithDatabase(numericClientId, calculation);
 
             // Save Snapshot
-            await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
+            await clientService.persistGoalsSummary(numericClientId, calculationResponse, projectId);
 
             // Recalculate changes goal numbers used by PDF pages.
             // Force background regeneration to avoid returning stale cached PDF URL/content.
             warmupClientPdfInBackground({
-                clientId,
+                clientId: numericClientId,
                 projectId,
                 agentId: req.user?.agentId || existingClient.agent_id || null,
                 forceRegenerate: true,
             });
 
-            res.json(calculationService.simplify(calculationResponse));
+            calculationResponse.client_id = numericClientId;
+            return calculationResponse;
+    }
 
+    async recalculate(req, res, next) {
+        try {
+            const clientId = Number(req.params.id);
+            const projectId = req.projectId || req.user?.projectId;
+            const calculationResponse = await this.runClientRecalculate(
+                clientId,
+                projectId,
+                req,
+                req.body || {}
+            );
+            res.json(calculationService.simplify(calculationResponse));
         } catch (err) {
+            if (err.status) {
+                return res.status(err.status).json({ error: err.message });
+            }
             next(err);
         }
     }
@@ -764,6 +833,7 @@ class ClientController {
      */
     async sendNdaStandalone(req, res, next) {
         try {
+            console.log('[clientController] POST /pfp/clients/nda/send');
             const validation = sendNdaSchema.validate(req.body || {}, { stripUnknown: true });
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
@@ -798,6 +868,7 @@ class ClientController {
      */
     async sendNda(req, res, next) {
         try {
+            console.log(`[clientController] POST /pfp/clients/${req.params.id}/nda/send`);
             const validation = sendNdaSchema.validate(req.body || {}, { stripUnknown: true });
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });

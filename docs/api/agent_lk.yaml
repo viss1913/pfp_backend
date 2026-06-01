@@ -1091,6 +1091,84 @@ paths:
         '400':
           description: Нет agent_id в токене
 
+  /pfp/clients/{clientId}:
+    put:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Редактирование карточки клиента (профиль, семья, активы, кредиты)
+      description: |
+        Частичное или полное обновление данных клиента в ЛК агента. **JWT обязателен** (роль agent/admin/super_admin).
+
+        **Merge:** top-level блоки (`client`, `assets`, `liabilities`, `credits`, `expenses`, `goals`) меняются **только если ключ передан** в теле.
+        Внутри `client` поля сливаются с существующей карточкой; `family_profile` — deep-merge по объектам, массивы внутри семьи заменяются целиком.
+
+        **Не трогается без явной передачи:** `goals` (таблица целей), `goals_summary` (снимок расчёта), `agent_id` / `project_id`.
+
+        **Доступ:** как у `GET /pfp/clients` — владелец карточки; при `settings.agents_see_all_clients` или `client_visibility: all` — любой агент проекта; admin — всегда.
+
+        **Недвижимость:** для расчёта и `net_worth` — `assets[]` с `type: REAL_ESTATE`; `client.family_profile.real_estate` — справочно (отчёт/семейная страница).
+
+        **Пересчёт плана:** по умолчанию **не** выполняется. Передайте `recalculate=true`, чтобы после сохранения пересчитать цели и обновить `goals_summary` (как `POST /client/{id}/recalculate`).
+
+        Алиас для интеграций: `PUT /api/client/{clientId}` (тот же контракт).
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: recalculate
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: |
+            Если `true` — после сохранения запустить пересчёт финплана по целям из БД (и опционально из тела).
+            Ответ — как у пересчёта (с `goals_summary`), иначе — карточка клиента (`AgentClientCardResponse`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentClientPatchRequest'
+            examples:
+              contacts_only:
+                summary: Только контакты
+                value:
+                  client:
+                    phone: "+79001234567"
+                    email: client@example.com
+              family_profile:
+                summary: Семейная справка
+                value:
+                  client:
+                    family_profile:
+                      marital_status: married
+                      children:
+                        - { first_name: "Анна", birth_date: "2017-05-10" }
+              credits:
+                summary: Кредиты (алиас liabilities)
+                value:
+                  credits:
+                    - { type: MORTGAGE, balance: 3500000, monthlyPayment: 85000, rate: 12.5, name: "Ипотека" }
+      responses:
+        '200':
+          description: Обновлённая карточка или результат пересчёта (при recalculate=true)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AgentClientCardResponse'
+                  - description: Упрощённый ответ пересчёта (как first-run)
+                    type: object
+                    additionalProperties: true
+        '400':
+          description: Ошибка валидации или нет ни одного блока в теле
+        '403':
+          description: Нет прав на редактирование этого клиента
+        '404':
+          description: Клиент не найден
+
   /pfp/clients/{clientId}/plans:
     get:
       tags: [ "Клиенты B2C в ЛК Агента" ]
@@ -3346,6 +3424,58 @@ components:
       allOf:
         - $ref: '#/components/schemas/AgentClientB2CRow'
       description: Полная карточка клиента (те же поля, что в списке, плюс goals, assets, liabilities, expenses и т.д.)
+
+    AgentClientPatchRequest:
+      type: object
+      description: |
+        Тело `PUT /pfp/clients/{clientId}`. Должен быть передан хотя бы один из блоков.
+        Структура полей `client` совместима с `POST /client/first-run` (см. `openapi/pfp-api.yaml`).
+      minProperties: 1
+      properties:
+        client:
+          type: object
+          description: |
+            Поля профиля (ФИО, контакты, доход, ИПК, family_profile, tax_children, risk_profile_* и т.д.).
+            Непереданные поля в `client` не затираются (в т.ч. first_name/last_name).
+          additionalProperties: true
+        assets:
+          type: array
+          description: При передаче — полная замена `client_assets` (пустой массив очищает активы).
+          items:
+            type: object
+            additionalProperties: true
+        liabilities:
+          type: array
+          description: Полная замена долгов (если не передан `credits`).
+          items:
+            type: object
+            additionalProperties: true
+        credits:
+          type: array
+          description: Алиас `liabilities` для фронта (type, balance, monthlyPayment, rate, name).
+          items:
+            type: object
+            properties:
+              type: { type: string }
+              balance: { type: number, minimum: 0 }
+              monthlyPayment: { type: number, minimum: 0 }
+              rate: { type: number, minimum: 0 }
+              name: { type: string }
+            required: [type, balance, monthlyPayment, rate]
+        expenses:
+          type: array
+          description: Полная замена расходов клиента.
+          items:
+            type: object
+            additionalProperties: true
+        goals:
+          type: array
+          description: |
+            При передаче — полная замена целей в БД. Без ключа цели и `goals_summary` не меняются.
+            Для пересчёта без замены целей используйте `?recalculate=true` без `goals` в теле.
+          items:
+            type: object
+            additionalProperties: true
 
     NdaSendRequestBody:
       type: object
