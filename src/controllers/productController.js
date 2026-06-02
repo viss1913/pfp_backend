@@ -1,7 +1,7 @@
 const productService = require('../services/productService');
 const productTypeService = require('../services/productTypeService');
 const Joi = require('joi');
-const { ALLOWED_RULE_TYPES } = require('../utils/validateCommissionSchema');
+const { ALLOWED_RULE_TYPES, getCommissionSchemaMeta } = require('../utils/validateCommissionSchema');
 
 const productLineSchema = Joi.object({
     min_term_months: Joi.number().integer().optional(),
@@ -72,6 +72,14 @@ const productSchema = Joi.object({
 }).unknown(true);
 
 class ProductController {
+    async getCommissionSchemaMeta(req, res, next) {
+        try {
+            res.json(getCommissionSchemaMeta());
+        } catch (err) {
+            next(err);
+        }
+    }
+
     async getAll(req, res, next) {
         try {
             const projectId = req.projectId || req.user?.projectId;

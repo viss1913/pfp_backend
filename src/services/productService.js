@@ -37,8 +37,12 @@ function normalizeCommissionSchema(data) {
     if (!Object.prototype.hasOwnProperty.call(data || {}, 'commission_schema')) return data;
     const check = validateCommissionSchema(data.commission_schema);
     if (!check.ok) {
-        const err = new Error(check.error);
-        err.status = 400;
+        const err = new Error(check.message || 'Invalid commission_schema');
+        err.status = 422;
+        err.error = check.error || 'VALIDATION_ERROR';
+        if (Array.isArray(check.details)) {
+            err.details = check.details;
+        }
         throw err;
     }
     return {

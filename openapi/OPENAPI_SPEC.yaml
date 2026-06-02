@@ -231,6 +231,56 @@ components:
               year_from: { type: integer, minimum: 1 }
               year_to: { type: integer, minimum: 1 }
               rate_percent: { type: number, minimum: 0 }
+    CommissionSchemaMeta:
+      type: object
+      properties:
+        version:
+          type: integer
+          example: 1
+        rule_types:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              label: { type: string }
+              description: { type: string }
+              required_fields:
+                type: array
+                items: { type: string }
+              optional_fields:
+                type: array
+                items: { type: string }
+              allowed_base:
+                type: array
+                items: { type: string }
+              allowed_frequency:
+                type: array
+                items: { type: string }
+              supports_years: { type: boolean }
+              supports_tiers: { type: boolean }
+        field_constraints:
+          type: object
+          additionalProperties: true
+    ValidationErrorDetail:
+      type: object
+      properties:
+        code: { type: string }
+        field_path: { type: string }
+        message: { type: string }
+    ValidationErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Invalid commission_schema
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationErrorDetail'
     ProductLine:
       type: object
       description: |
@@ -1686,6 +1736,12 @@ paths:
                 $ref: '#/components/schemas/Product'
         '400':
           description: Validation error (например, неверный product_type)
+        '422':
+          description: Validation error for commission_schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
           
   /pfp/products/{id}:
     get:
@@ -1726,6 +1782,12 @@ paths:
                 $ref: '#/components/schemas/Product'
         '400':
           description: Validation error (например, неверный product_type)
+        '422':
+          description: Validation error for commission_schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
         '404':
           description: Product not found
     delete:
@@ -1795,6 +1857,20 @@ paths:
           description: Validation error or code already exists
         '403':
           description: Forbidden (admin only)
+
+  /pfp/commission-schema/meta:
+    get:
+      summary: Метаданные commission_schema
+      description: |
+        Формализованный контракт для динамической формы правил комиссий на фронте:
+        rule_type, обязательные/опциональные поля и диапазоны.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommissionSchemaMeta'
 
   /pfp/product-types/{id}:
     get:

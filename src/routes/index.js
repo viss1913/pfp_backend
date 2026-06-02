@@ -2,6 +2,7 @@ const express = require('express');
 const authMiddleware = require('../middlewares/authMiddleware');
 const authRoutes = require('./authRoutes');
 const productRoutes = require('./productRoutes');
+const productController = require('../controllers/productController');
 const productTypeRoutes = require('./productTypeRoutes');
 const portfolioRoutes = require('./portfolioRoutes');
 const settingsRoutes = require('./settingsRoutes');
@@ -36,6 +37,7 @@ router.use('/pfp/clients', pfpMiddleware, agentClientRoutes);
 
 // Protected PFP routes (require authentication + project context)
 router.use('/pfp/products', pfpMiddleware, productRoutes);
+router.get('/pfp/commission-schema/meta', pfpMiddleware, productController.getCommissionSchemaMeta.bind(productController));
 router.use('/pfp/product-types', pfpMiddleware, productTypeRoutes);
 router.use('/pfp/portfolios', pfpMiddleware, portfolioRoutes);
 router.use('/pfp/settings', pfpMiddleware, settingsRoutes);

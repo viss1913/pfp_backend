@@ -37,6 +37,9 @@ module.exports = (err, req, res, next) => {
         error: errorType,
         message: message
     };
+    if (Array.isArray(err.details) && err.details.length > 0) {
+        response.details = err.details;
+    }
 
     res.status(status).json(response);
 };
