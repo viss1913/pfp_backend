@@ -12,12 +12,14 @@ agent@agent.ru
 
 - Целевой `projectId` задаётся **`RESOLUT_PROJECT_ID`** (прод: **23**, AV Информ).
 - НСЖ в расчёте цели **LIFE** для этого проекта идёт в Резолют **`quote`** с продуктом **`assetShort`** («Надежный актив»), см. [`src/services/resolutNsjQuoteService.js`](../../src/services/resolutNsjQuoteService.js) и ветку в [`src/algorithms/calculators/lifeUpfrontAmount.js`](../../src/algorithms/calculators/lifeUpfrontAmount.js). Код продукта переопределяется env **`RESOLUT_NSJ_PFP_CODE`** (по умолчанию `assetShort`).
-- **ИСЖ (ver3, 2026-05):** в каталоге Resolut `products` — **`capital`** («Капитал под управлением»). `quote` и **`portfolio`** — одни и те же `parameters` (`calcData.premium` + `insuredPerson.dob`). Сборка: [`resolutIszhQuoteParameters.js`](../../src/services/resolutIszhQuoteParameters.js) / [`resolutQuoteParameters.js`](../../src/services/resolutQuoteParameters.js); OpenAPI партнёра: [`api-resolute 003.yaml`](../../docs/partners/openapi/api-resolute%20003.yaml). В PFP у продукта: `product_type: ISZH`, `resolut_pfp_code: capital`. Мин. взнос на демо **1.5 млн** ₽. **`RESOLUT_ISZH_PFP_CODES`** (по умолчанию `capital`).
+- **ИСЖ (ver3, 2026-05):** в каталоге Resolut `products` — **`capital`** («Капитал под управлением»). `quote` и **`portfolio`** — одни и те же `parameters` (`calcData.premium` + `insuredPerson.dob`). Сборка: [`resolutIszhQuoteParameters.js`](../../src/services/resolutIszhQuoteParameters.js) / [`resolutQuoteParameters.js`](../../src/services/resolutQuoteParameters.js); OpenAPI партнёра: [`api-resolute 003.yaml`](../../docs/partners/resolut/openapi/api-resolute%20003.yaml). В PFP у продукта: `product_type: ISZH`, `resolut_pfp_code: capital`. Мин. взнос на демо **1.5 млн** ₽. **`RESOLUT_ISZH_PFP_CODES`** (по умолчанию `capital`).
+- **DEPOSIT / PDS (live demo, 2026-05):** в `products` появились **`depAlfa`** («Депозит Альфа 1») и **`pdsAlfa`** («ПДС Альфа»). Для `quote` upstream принимает `clientType` + `calcData.limit/capitalise/term`; в PFP `suggest-quote-line` умеет собирать этот payload для `product_type = DEPOSIT/PDS`, нормализуя `clientType` к объекту `{ code, name }`. `clientType`, `capitalise` и `term` считаем обязательными и валидируем fail-closed, без молчаливых дефолтов. По live `products` у партнёра приходят поля `selector/product/program/restrictions/pfpCode`; `api-resolute 004.yaml` на это сейчас полностью не совпадает. Для `DEPOSIT` срок в suggest flow трактуем в **месяцах**, для `PDS` — в **полных годах** (`floor(term_months / 12)`, минимум 1).
 - Остальные проекты по-прежнему используют legacy **`nsjApiService`** / `api-life`.
 
 ## Портфель (INVESTMENT / OTHER / FinReserve / Rent / PassiveIncome): доходность из `quote`
 
 - Только при **`project_id === RESOLUT_PROJECT_ID`** и если у строки **`products`** задано **`resolut_pfp_code`** (код из ответа Resolut `products`, например `assetShort`): при расчёте взвешенной доходности вызывается [`src/services/resolutPortfolioQuoteYieldService.js`](../../src/services/resolutPortfolioQuoteYieldService.js) → `resolutService.quote` → **имплицитная годовая %** из взноса (`premium`/`premiumFull`) и FV по риску **«Дожитие»** в `risks[]` (при **`resolut_quote_p_type = 0`** или дефолте **0**; иные `pType` — fallback на матрицу **`lines`**).
+- Для **`DEPOSIT/PDS`** автодоходность из Resolut **выключена** до отдельного подтверждения семантики `profity` / `profityAmount`; прямой `quote` и `suggest-quote-line` работают, но `resolutPortfolioQuoteYieldService` такие продукты пока не использует.
 - Другие проекты и продукты **без** `resolut_pfp_code` ведут себя как раньше (**только `lines`/`yields`**), HTTP к Резолюту не идёт.
 - Поля продукта: миграция **`resolut_pfp_code`**, **`resolut_quote_p_type`**; API создания/обновления продукта — [`productController`](../../src/controllers/productController.js). Общая логика ветвления: [`BaseCalculator.resolveInstrumentYieldsForWeightedPortfolio`](../../src/algorithms/calculators/BaseCalculator.js) и тот же хелпер в [`OtherGoalCalculator`](../../src/algorithms/calculators/OtherGoalCalculator.js).
 - Опционально env **`RESOLUT_PORTFOLIO_QUOTE_PTYPE`** — если у продукта не задан `resolut_quote_p_type`.
@@ -46,6 +48,7 @@ agent@agent.ru
 
 - Только контур AV Inform/Resolut и перечисленные точки (НСЖ LIFE, PDF-маршрутизация для 23, сессия Резолюта при логине).
 - Этап 1 API у партнёра: `authorize` (внутри PFP только при логине), `products`, `quote` (маршруты PFP: `POST /resolut/products`, `POST /resolut/quote`).
+- Для первой итерации DEPOSIT/PDS в PFP поддерживаем **ручной `quote`** и **`suggest-quote-line`**; `plan-quotes` / `publish-from-plan` такие продукты пока скипают как `deposit_like_manual_only`.
 - Этап 2 (оформление в Resolut): `portfolio`, `client`, `link` — прокси в PFP: `POST /resolut/portfolio`, `POST /resolut/client`, `GET /resolut/client?code=`, `GET /resolut/link`. У партнёра `client`/`link` также доступны через GET к базовому URL; **`link` живёт ~20 секунд** — запрашивать по клику, не заранее.
 - Проверка демо: `https://demo-life.avinfors.ru/login.php`, API base из **`RESOLUT_BASE_URL`**.
 
@@ -67,9 +70,10 @@ agent@agent.ru
 
 ## Документация в репозитории
 
-- [`docs/partners/RESOLUT_HYBRID_IMPLEMENTATION_NOTES.md`](../../docs/partners/RESOLUT_HYBRID_IMPLEMENTATION_NOTES.md)
-- OpenAPI партнёра ver3: [`docs/partners/openapi/api-resolute 003.yaml`](../../docs/partners/openapi/api-resolute%20003.yaml)
-- План: [`docs/plans/avinform-resolut-integration-plan.md`](../../docs/plans/avinform-resolut-integration-plan.md)
+- [`docs/partners/resolut/notes/RESOLUT_HYBRID_IMPLEMENTATION_NOTES.md`](../../docs/partners/resolut/notes/RESOLUT_HYBRID_IMPLEMENTATION_NOTES.md)
+- OpenAPI партнёра ver3: [`docs/partners/resolut/openapi/api-resolute 003.yaml`](../../docs/partners/resolut/openapi/api-resolute%20003.yaml)
+- OpenAPI партнёра ver4 / DEPOSIT-PDS draft: [`docs/partners/resolut/openapi/api-resolute 004.yaml`](../../docs/partners/resolut/openapi/api-resolute%20004.yaml)
+- План: [`docs/partners/resolut/plans/avinform-resolut-integration-plan.md`](../../docs/partners/resolut/plans/avinform-resolut-integration-plan.md)
 
 ## Формат результата отчёта
 

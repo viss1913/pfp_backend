@@ -194,7 +194,19 @@ async function buildFinamInflationPageHtml() {
     return await buildInflationPageFinamHtml(await loadFinamInflationMacroData());
 }
 
+const FINAM_INFLATION_MACRO_CACHE_TTL_MS = Math.min(
+    Math.max(Number(process.env.FINAM_INFLATION_MACRO_CACHE_TTL_MS) || 15 * 60 * 1000, 60_000),
+    24 * 60 * 60 * 1000
+);
+/** @type {{ expiresAt: number, data: object } | null} */
+let finamInflationMacroCache = null;
+
 async function loadFinamInflationMacroData() {
+    const now = Date.now();
+    if (finamInflationMacroCache && finamInflationMacroCache.expiresAt > now) {
+        return finamInflationMacroCache.data;
+    }
+
     const to = toIsoDateOnly(new Date());
     const fromYear = new Date();
     fromYear.setFullYear(fromYear.getFullYear() - 1);
@@ -221,7 +233,7 @@ async function loadFinamInflationMacroData() {
         loadMacroHistorySafe('moex_rucbicp', from, to),
     ]);
 
-    return {
+    const data = {
         keyRateSeries,
         cpiYoySeries,
         ofz2Series,
@@ -229,6 +241,8 @@ async function loadFinamInflationMacroData() {
         ofz10Series,
         corpIndexSeries,
     };
+    finamInflationMacroCache = { expiresAt: now + FINAM_INFLATION_MACRO_CACHE_TTL_MS, data };
+    return data;
 }
 
 function buildRostechPensionOnlyToc({ hasCover, goal }) {
@@ -317,7 +331,7 @@ class ReportPdfService {
                     isFinamV2Package
                         ? process.env.FINAM_REPORT_V2_RENDER_CONCURRENCY
                         : process.env.REPORT_PDF_RENDER_CONCURRENCY
-                ) || (isFinamV2Package ? 1 : 4),
+                ) || (isFinamV2Package ? 2 : 4),
                 1
             ),
             16

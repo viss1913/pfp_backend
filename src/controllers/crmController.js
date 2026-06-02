@@ -43,6 +43,22 @@ class CrmController {
         }
     }
 
+    async getCommissionForecast(req, res, next) {
+        try {
+            const agentId = req.user.agentId || req.user.id;
+            if (!agentId) {
+                return res.status(400).json({ error: 'Agent ID not found in token' });
+            }
+            const projectId = req.projectId || req.user?.projectId || null;
+            const dashboard = await crmDashboardService.getAgentCommissionForecast(agentId, projectId, {
+                clientId: req.query.client_id,
+            });
+            res.json(dashboard);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async updateClientStatus(req, res) {
         try {
             const { client_id, crm_status, notes } = req.body;

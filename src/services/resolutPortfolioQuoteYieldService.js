@@ -1,6 +1,7 @@
 'use strict';
 
 const resolutService = require('./resolutService');
+const { isResolutDepositLikeProduct } = require('./resolutDepositQuoteParameters');
 
 function resolveResolutProjectId() {
     const n = Number(process.env.RESOLUT_PROJECT_ID || 0);
@@ -71,6 +72,10 @@ async function getImpliedAnnualYieldPercentFromQuote({
     client
 }) {
     if (!isResolutPortfolioProduct(product, projectId)) return null;
+    if (isResolutDepositLikeProduct(product)) {
+        console.warn('[ResolutPortfolioQuoteYield] DEPOSIT/PDS quote yield is disabled until profity semantics are confirmed; product id=%s', product && product.id);
+        return null;
+    }
 
     const pType = pickPType(product);
     if (pType !== 0) {

@@ -122,10 +122,26 @@ async function renderHtmlToPdfBuffer(html, options = {}) {
         Math.max(Number(process.env.REPORT_PDF_NAV_TIMEOUT_MS) || 120000, 15000),
         300000
     );
+    const htmlStr = String(html || '');
+    const isFinamV2Page =
+        htmlStr.includes('data-finam-v2') || htmlStr.includes('finam-v2-report');
+    const defaultPostLoadDelayMs = isFinamV2Page ? 80 : 300;
     const postLoadDelayMs = Math.min(
-        Math.max(Number(process.env.REPORT_PDF_POST_LOAD_DELAY_MS) || 300, 0),
+        Math.max(
+            process.env.REPORT_PDF_POST_LOAD_DELAY_MS != null
+                ? Number(process.env.REPORT_PDF_POST_LOAD_DELAY_MS)
+                : defaultPostLoadDelayMs,
+            0
+        ),
         5000
     );
+    const waitUntilEnv = String(process.env.REPORT_PDF_WAIT_UNTIL || '').trim().toLowerCase();
+    const waitUntil =
+        waitUntilEnv === 'domcontentloaded' || waitUntilEnv === 'load' || waitUntilEnv === 'networkidle0'
+            ? waitUntilEnv
+            : isFinamV2Page
+              ? 'domcontentloaded'
+              : 'load';
     const pdfScale = Math.min(Math.max(Number(options?.pdfScale) || 1, 0.1), 2);
     const preferCssPageSize = options?.preferCssPageSize !== false;
 
@@ -135,7 +151,7 @@ async function renderHtmlToPdfBuffer(html, options = {}) {
         const { width: vw, height: vh } = resolvePdfViewportWidthHeight(html);
         await page.setViewport({ width: vw, height: vh, deviceScaleFactor: 1 });
         await page.setContent(html, {
-            waitUntil: 'load',
+            waitUntil,
             timeout: pdfNavTimeoutMs,
         });
         if (postLoadDelayMs > 0) {

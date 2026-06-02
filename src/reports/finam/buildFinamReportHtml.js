@@ -16,23 +16,16 @@ const {
     applyFinamPortfolioFinalPage,
     applyFinamTaxPlanningPage,
 } = require('./finamPdfPageAppliers');
+const { isReportPdfAiEnabled } = require('../../utils/reportPdfAiEnv');
+const { shouldIncludeComonShowcaseInReport } = require('../../utils/comonShowcaseGate');
 
 const FINAM_PROJECT_ID = 14;
 const TEMPLATE_DIR = __dirname;
 /** Корень репозитория (от `src/reports/finam`). */
 const FINAM_REPO_ROOT = path.join(__dirname, '..', '..', '..');
 
-/**
- * OpenRouter при сборке Finam PDF: стр. 3 «семья» (2 запроса), речь у каждой цели, итоговый портфель.
- * Выключить и оставить только шаблоны/fallback: PFP_PDF_FINAM_AI=0 | false | off | no | disabled
- */
-function isFinamReportPdfAiEnabled() {
-    const v = process.env.PFP_PDF_FINAM_AI;
-    if (v == null || String(v).trim() === '') return true;
-    const s = String(v).trim().toLowerCase();
-    if (['0', 'false', 'off', 'no', 'disabled'].includes(s)) return false;
-    return true;
-}
+/** @deprecated используй isReportPdfAiEnabled из reportPdfAiEnv */
+const isFinamReportPdfAiEnabled = isReportPdfAiEnabled;
 
 const FINAM_GOAL_CARD_PLACEHOLDER_MAP = {
     'goal-reserve.webp': 'reserve.webp',
@@ -2891,9 +2884,11 @@ async function buildFinamFullPageHtmlList({
     taxPlanning = applyFinamTaxPlanningPage(taxPlanning, report);
     pages.push(await withInline(taxPlanning));
 
-    let comonAutofollow = await readTemplate('comon-autofollow-finam.html');
-    comonAutofollow = applyFinamComonAutofollowPage(comonAutofollow, report);
-    pages.push(await withInline(comonAutofollow));
+    if (shouldIncludeComonShowcaseInReport(report?.comon_showcase)) {
+        let comonAutofollow = await readTemplate('comon-autofollow-finam.html');
+        comonAutofollow = applyFinamComonAutofollowPage(comonAutofollow, report);
+        pages.push(await withInline(comonAutofollow));
+    }
 
     let iduStrategies = await readTemplate('idu-strategies-finam.html');
     iduStrategies = applyFinamIduStrategiesPage(iduStrategies);

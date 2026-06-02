@@ -5,6 +5,7 @@ const productRepository = require('../repositories/productRepository');
 const resolutService = require('./resolutService');
 const { buildResolutQuoteParameters } = require('./resolutQuoteParameters');
 const { isResolutIszhProduct } = require('./resolutIszhQuoteParameters');
+const { isResolutDepositLikeProduct } = require('./resolutDepositQuoteParameters');
 const { parseGoalsSummary } = require('../utils/goalsSummaryMetrics');
 
 function maxTermMonthsFromGoals(goals) {
@@ -170,6 +171,17 @@ async function buildQuoteLinesForMergedRows({
         }
 
         try {
+            if (isResolutDepositLikeProduct(product)) {
+                skipped.push({
+                    line_id: lineId,
+                    product_id: row.product_id,
+                    code: product.resolut_pfp_code || null,
+                    reason: 'deposit_like_manual_only',
+                    message: 'DEPOSIT/PDS auto-build is disabled for plan-quotes in v1; use manual quote/suggest-quote-line until contract semantics are confirmed',
+                    product_name: product.name || null
+                });
+                continue;
+            }
             if (isResolutIszhProduct(product) && valuationType === 'byPremium' && pTypeOverride === 12) {
                 skipped.push({
                     line_id: lineId,
@@ -332,3 +344,4 @@ class ResolutPlanQuotesService {
 module.exports = new ResolutPlanQuotesService();
 module.exports.parseGoalsSummary = parseGoalsSummary;
 module.exports.applyResolutPlanTermFloor = applyResolutPlanTermFloor;
+module.exports.buildQuoteLinesForMergedRows = buildQuoteLinesForMergedRows;

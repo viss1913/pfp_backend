@@ -2,7 +2,7 @@
 
 Документ для внутреннего использования и для письма/встречи с Финамом (Comon). Согласован с текущей реализацией в репозитории: см. `[.cursor/agents/comon_finam.md](../../.cursor/agents/comon_finam.md)`, `[src/services/comonService.js](../../src/services/comonService.js)`, `[docs/COMON_STRATEGIES_LK.md](../COMON_STRATEGIES_LK.md)`.
 
-API Резолют (отдельный контур): [RESOLUT_API_REQUIREMENTS_PFP.md](./RESOLUT_API_REQUIREMENTS_PFP.md).
+API Резолют (отдельный контур): [`docs/partners/resolut/notes/RESOLUT_API_REQUIREMENTS_PFP.md`](./resolut/notes/RESOLUT_API_REQUIREMENTS_PFP.md).
 
 ---
 
@@ -91,7 +91,7 @@ Health/readiness, лимиты запросов (RPS), коды ошибок, **
 
 Резолют на демо закрывает **договорной контур** (в т.ч. НСЖ) и справочник связки продуктов Резолют↔ПФП. **Рыночная доходность** инвестиционных инструментов — отдельный контур: Финам/Comon, MOEX, паспорта продуктов. Для продуктов, которые одновременно в каталоге Резолют и в инвестиционном портфеле, позже нужно согласовать **источник правды по рыночным параметрам** (гибрид: паспорт + внешний фид).
 
-Кратко см. также блок в [RESOLUT_DEMO_ARCHITECTURE_RESPONSE.md](./RESOLUT_DEMO_ARCHITECTURE_RESPONSE.md).
+Кратко см. также блок в [`docs/partners/resolut/notes/RESOLUT_DEMO_ARCHITECTURE_RESPONSE.md`](./resolut/notes/RESOLUT_DEMO_ARCHITECTURE_RESPONSE.md).
 
 ---
 

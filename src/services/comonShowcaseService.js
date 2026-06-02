@@ -3,6 +3,7 @@ const path = require('path');
 const projectRepository = require('../repositories/projectRepository');
 const comonRecommendedStrategyRepository = require('../repositories/comonRecommendedStrategyRepository');
 const { getComonShowcaseConfigFromProject } = require('../utils/projectComonShowcaseSettings');
+const { planHasProductTypes } = require('../utils/comonShowcaseGate');
 
 const DISCLAIMER_RU =
     'Информация носит ознакомительный характер и не является индивидуальной инвестиционной рекомендацией. ' +
@@ -218,15 +219,35 @@ class ComonShowcaseService {
     /**
      * @param {object} client — строка клиента (getFullClient)
      * @param {number|null} projectId
-     * @param {object} [currentSituation] — current_situation из отчёта (net_worth)
+     * @param {object} [currentSituation] — current_situation из отчёта (net_worth, stock_capital_context)
+     * @param {object} [options]
+     * @param {object} [options.summary] — calc summary (consolidated_portfolio для гейта STOCK)
      * @returns {Promise<null|object>}
      */
-    async buildForClient(client, projectId, currentSituation = null) {
+    async buildForClient(client, projectId, currentSituation = null, options = {}) {
         if (!projectId || !client) return null;
 
         const project = await projectRepository.findById(projectId);
         const config = getComonShowcaseConfigFromProject(project);
         if (!config) return null;
+
+        const summary =
+            options.summary && typeof options.summary === 'object'
+                ? options.summary
+                : options.calcSummary && typeof options.calcSummary === 'object'
+                  ? options.calcSummary
+                  : null;
+
+        const gateTypes = config.gate_product_types;
+        if (gateTypes && gateTypes.length > 0 && !planHasProductTypes(summary, gateTypes)) {
+            return {
+                enabled: false,
+                skip_reason: 'no_stock_in_plan',
+                generated_at: new Date().toISOString(),
+                disclaimer_ru: DISCLAIMER_RU,
+                items: [],
+            };
+        }
 
         try {
             const rawRows = await loadAllListRows(config, projectId);

@@ -6,6 +6,8 @@
  * node scripts/test_resolut_quote.js --key=<bearer после authorize>
  * node scripts/test_resolut_quote.js --key=... --code=assetShort --variant=flat
  * node scripts/test_resolut_quote.js --key=... --code=capital --variant=iszh --premium=1500000
+ * node scripts/test_resolut_quote.js --key=... --code=depAlfa --variant=deposit --limit=2000000 --term=12
+ * node scripts/test_resolut_quote.js --key=... --code=pdsAlfa --variant=deposit --limit=2000000 --term=5 --capitalise=false
  * node scripts/test_resolut_quote.js --key=... --variant=openapi
  *
  * Свои цифры (flat/openapi):
@@ -26,6 +28,15 @@ function parseNumberArg(name, fallback) {
     if (raw == null || raw === '') return fallback;
     const n = Number(raw);
     return Number.isFinite(n) ? n : fallback;
+}
+
+function parseBooleanArg(name, fallback = false) {
+    const raw = getArg(name, null);
+    if (raw == null || raw === '') return fallback;
+    const value = String(raw).trim().toLowerCase();
+    if (['1', 'true', 'yes', 'y', 'on'].includes(value)) return true;
+    if (['0', 'false', 'no', 'n', 'off'].includes(value)) return false;
+    return fallback;
 }
 
 /** ДД.ММ.ГГГГ для «возраст на сегодня» (локальная дата). */
@@ -79,7 +90,7 @@ function buildParameters(variant) {
             calcData
         };
     }
-    // как в docs/partners/report-first-integration.md (плоский вид)
+    // как в docs/partners/resolut/notes/RESOLUT_REPORT_FIRST_INTEGRATION.md (плоский вид)
     return {
         currency: 'RUR',
         pType: pTypeFlat,
@@ -101,6 +112,7 @@ async function main() {
     const code = getArg('code', 'assetShort');
     const variant = (getArg('variant', 'flat') || 'flat').toLowerCase();
     const isIszhVariant = variant === 'iszh' || code === 'capital';
+    const isDepositVariant = variant === 'deposit' || code === 'depAlfa' || code === 'pdsAlfa';
 
     if (!baseUrl) {
         throw new Error('Missing base URL. Set --base-url or RESOLUT_BASE_URL');
@@ -145,6 +157,15 @@ async function main() {
                 sex: sex === 'female' || sex === 'f' ? 'female' : 'male'
             }
         };
+    } else if (isDepositVariant) {
+        parameters = {
+            clientType: getArg('client-type', 'common'),
+            calcData: {
+                limit: parseNumberArg('limit', 2000000),
+                capitalise: parseBooleanArg('capitalise', false),
+                term: parseNumberArg('term', code === 'pdsAlfa' ? 5 : 12)
+            }
+        };
     } else {
         parameters = buildParameters(variant === 'openapi' ? 'openapi' : 'flat');
     }
@@ -163,6 +184,8 @@ async function main() {
         `Parameters variant: ${
             isIszhVariant
                 ? 'iszh (calcData.premium + insuredPerson, OpenAPI ver3)'
+                : isDepositVariant
+                  ? 'deposit (clientType + calcData.limit/capitalise/term)'
                 : variant === 'openapi'
                   ? 'openapi (nested currency/pType)'
                   : 'flat (как в отчёте интеграции)'

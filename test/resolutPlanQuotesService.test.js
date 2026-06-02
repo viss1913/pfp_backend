@@ -3,7 +3,12 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { parseGoalsSummary, applyResolutPlanTermFloor } = require('../src/services/resolutPlanQuotesService');
+const {
+    parseGoalsSummary,
+    applyResolutPlanTermFloor,
+    buildQuoteLinesForMergedRows
+} = require('../src/services/resolutPlanQuotesService');
+const productRepository = require('../src/repositories/productRepository');
 
 test('parseGoalsSummary: flat snapshot', () => {
     const p = parseGoalsSummary(JSON.stringify({
@@ -54,5 +59,35 @@ test('applyResolutPlanTermFloor: RESOLUT_PLAN_MIN_TERM_MONTHS=0 disables clamp',
     } finally {
         if (prev === undefined) delete process.env.RESOLUT_PLAN_MIN_TERM_MONTHS;
         else process.env.RESOLUT_PLAN_MIN_TERM_MONTHS = prev;
+    }
+});
+
+test('buildQuoteLinesForMergedRows: DEPOSIT/PDS are skipped as manual-only', async () => {
+    const prevProjectId = process.env.RESOLUT_PROJECT_ID;
+    const prevFindById = productRepository.findById;
+    process.env.RESOLUT_PROJECT_ID = '23';
+    productRepository.findById = async () => ({
+        id: 17,
+        name: 'Депозит Альфа 1',
+        product_type: 'DEPOSIT',
+        resolut_pfp_code: 'depAlfa'
+    });
+    try {
+        const built = await buildQuoteLinesForMergedRows({
+            projectId: 23,
+            client: { birth_date: '1990-01-01', gender: 'male' },
+            mergedRows: [{ product_id: 17, resolut_pfp_code: 'depAlfa', amount: 2000000, names: ['Депозит Альфа 1'] }],
+            termMonths: 12,
+            valuationType: 'byLimit',
+            pTypeOverride: null,
+            lineIdPrefix: 'plan_asset'
+        });
+        assert.deepStrictEqual(built.quotes, []);
+        assert.strictEqual(built.skipped.length, 1);
+        assert.strictEqual(built.skipped[0].reason, 'deposit_like_manual_only');
+    } finally {
+        if (prevProjectId === undefined) delete process.env.RESOLUT_PROJECT_ID;
+        else process.env.RESOLUT_PROJECT_ID = prevProjectId;
+        productRepository.findById = prevFindById;
     }
 });

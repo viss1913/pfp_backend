@@ -2,8 +2,8 @@ const portfolioRepository = require('../repositories/portfolioRepository');
 
 class PortfolioService {
     async getAllPortfolios(projectId, query) {
-        // Basic filter mapping
-        const { includeDefaults = 'true', amount_from, amount_to, term_months } = query;
+        // Basic filter mapping — системные (is_default) в списке ЛК не показываем; расчёт берёт их через findByCriteria
+        const { includeDefaults = 'false', amount_from, amount_to, term_months } = query;
         return portfolioRepository.findAll({
             projectId,
             includeDefaults: includeDefaults === 'true',

@@ -1,6 +1,7 @@
 const productService = require('../services/productService');
 const productTypeService = require('../services/productTypeService');
 const Joi = require('joi');
+const { ALLOWED_RULE_TYPES } = require('../utils/validateCommissionSchema');
 
 const productLineSchema = Joi.object({
     min_term_months: Joi.number().integer().optional(),
@@ -42,7 +43,32 @@ const productSchema = Joi.object({
     resolut_pfp_code: Joi.string().max(64).allow(null, '').optional()
         .description('Код продукта PFP Resolut (products), только для проекта RESOLUT_PROJECT_ID'),
     resolut_quote_p_type: Joi.number().integer().valid(0, 1, 2, 4, 12).allow(null).optional()
-        .description('Периодичность взноса для quote; null — из env RESOLUT_PORTFOLIO_QUOTE_PTYPE или 0')
+        .description('Периодичность взноса для quote; null — из env RESOLUT_PORTFOLIO_QUOTE_PTYPE или 0'),
+    commission_schema: Joi.object({
+        version: Joi.number().integer().min(1).optional(),
+        rules: Joi.array().items(
+            Joi.object({
+                rule_type: Joi.string().valid(...ALLOWED_RULE_TYPES).required(),
+                name: Joi.string().allow('', null).optional(),
+                base: Joi.string().valid('INITIAL', 'FLOW', 'INITIAL_PLUS_FLOW', 'AUM_AVG').optional(),
+                frequency: Joi.string().valid('ONE_TIME', 'MONTHLY', 'YEARLY').optional(),
+                rate_percent: Joi.number().min(0).allow(null).optional(),
+                fixed_amount_rub: Joi.number().min(0).allow(null).optional(),
+                years: Joi.object({
+                    start: Joi.number().integer().min(1).required(),
+                    end: Joi.number().integer().min(1).required(),
+                }).optional(),
+                tiers: Joi.array().items(
+                    Joi.object({
+                        year_from: Joi.number().integer().min(1).required(),
+                        year_to: Joi.number().integer().min(1).required(),
+                        rate_percent: Joi.number().min(0).required(),
+                    })
+                ).optional(),
+                meta: Joi.object().unknown(true).optional(),
+            })
+        ).required(),
+    }).allow(null).optional()
 }).unknown(true);
 
 class ProductController {

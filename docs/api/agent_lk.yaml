@@ -422,7 +422,10 @@ paths:
       tags: [ "Продукты Агента" ]
       summary: Создать новый продукт в своем проекте
       description: |
-        Тело — схема `ProductCreate` в `openapi/OPENAPI_SPEC.yaml`. Для проекта AV/Резолют опционально передайте `resolut_pfp_code` и `resolut_quote_p_type` (см. описание полей в схеме); затем этот продукт можно добавить в портфель как обычный инструмент (`product_id` + доля).
+        Тело — схема `ProductCreate` в `openapi/OPENAPI_SPEC.yaml`.
+        Для проекта AV/Резолют опционально передайте `resolut_pfp_code` и `resolut_quote_p_type`.
+        Для CRM-прогноза комиссий можно задать `commission_schema` на уровне продукта.
+        Затем этот продукт можно добавить в портфель как обычный инструмент (`product_id` + доля).
       requestBody:
         required: true
         content:
@@ -447,7 +450,8 @@ paths:
       summary: Редактировать свой продукт
       description: |
         Ошибка 403, если попытка изменить системный дефолтный продукт.
-        Поля `resolut_pfp_code` / `resolut_quote_p_type` — см. `ProductCreate` в `openapi/OPENAPI_SPEC.yaml`.
+        Поля `resolut_pfp_code` / `resolut_quote_p_type` / `commission_schema` —
+        см. `ProductCreate` в `openapi/OPENAPI_SPEC.yaml`.
       parameters:
         - name: id
           in: path
@@ -1923,6 +1927,8 @@ paths:
         **Тренды:** `trends_pct` в v1 всегда `null` (нет истории снимков).
 
         Query `include_clients=1` — компактный список `{ id, created_at, last_rebalance_at, has_plan }`.
+        В ответе также отдаются агрегаты прогноза комиссий:
+        `commission_year_1_rub`, `commission_total_rub`, `commission_by_product[]`.
       parameters:
         - name: include_clients
           in: query
@@ -1935,6 +1941,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CrmAgentDashboardResponse'
+
+  /pfp/crm/commission-forecast:
+    get:
+      tags: [ "AI CRM (ЛК Агента)" ]
+      summary: Детальный прогноз комиссий CRM
+      description: |
+        Возвращает прогноз комиссий (не факт начисления) по текущему scope клиентов:
+        - сумма за 1-й год;
+        - сумма за весь горизонт;
+        - детальная серия по годам для построения графика.
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          schema: { type: integer, format: int64 }
+          description: Опционально — прогноз только по одному клиенту
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CrmCommissionForecastResponse'
 
   /pfp/crm/status:
     post:
@@ -3234,6 +3263,17 @@ components:
         insurance_premiums_rub:
           type: number
           description: Сумма годовых премий НСЖ (LIFE) по клиентам с планом
+        commission_year_1_rub:
+          type: number
+          description: Прогноз комиссии за 1-й год по текущему scope CRM-клиентов
+        commission_total_rub:
+          type: number
+          description: Прогноз комиссии за весь горизонт расчёта по текущему scope CRM-клиентов
+        commission_by_product:
+          type: array
+          description: Прогноз комиссий в разрезе продуктов
+          items:
+            $ref: '#/components/schemas/CrmCommissionByProductRow'
         trends_pct:
           type: object
           nullable: true
@@ -3251,6 +3291,42 @@ components:
         name: { type: string }
         product_type: { type: string, nullable: true }
         amount_rub: { type: number }
+
+    CrmCommissionByProductRow:
+      type: object
+      properties:
+        product_id: { type: integer, nullable: true }
+        name: { type: string }
+        product_type: { type: string, nullable: true }
+        commission_year_1_rub: { type: number }
+        commission_total_rub: { type: number }
+
+    CrmCommissionYearSeriesRow:
+      type: object
+      properties:
+        year: { type: integer, minimum: 1 }
+        commission_rub: { type: number }
+
+    CrmCommissionForecastResponse:
+      type: object
+      properties:
+        commission_year_1_rub:
+          type: number
+          description: Прогноз комиссии за 1-й год
+        commission_total_rub:
+          type: number
+          description: Прогноз комиссии за весь горизонт расчёта
+        commission_by_product:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmCommissionByProductRow'
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmCommissionYearSeriesRow'
+        as_of:
+          type: string
+          format: date-time
 
     CrmDashboardClientRow:
       type: object

@@ -1,0 +1,651 @@
+openapi: 3.0.1
+info:
+  title: API Сервис Resolute для ПФП
+  description: Сервис обеспечивает возможность системе ПФП-фронт получить котировки по доступным авторизованному Агенту инвест. продуктам и опубликовать сформированный портфель продуктов в Резолюте.
+  version: 1.0.0
+  contact:
+    name: Демо-стенд
+    url: https://demo.avinfors.ru/pfp/api/pfp/
+servers:
+  - url: https://demo.avinfors.ru/pfp/api/pfp/
+    description: Демо-стенд
+
+paths:
+  /:
+    get:
+      summary: GET-операции
+      description: Поддерживаются операции products, client (получение по code), link.
+      parameters:
+        - name: operation
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [products, client, link]
+          description: Код операции
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: ИД клиента (только для GET operation=client)
+        - name: Authorization
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: '^Bearer .+$'
+          description: Токен авторизации
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+        '400':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Основной метод (все операции)
+      description: Все операции доступны через POST. Код операции передается в теле запроса.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequest'
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+        '400':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Токен из операции authorize. Передавать: Authorization: Bearer [token]'
+
+  schemas:
+    # --- Базовые схемы запросов/ответов ---
+    GenericRequest:
+      type: object
+      required:
+        - operation
+      properties:
+        operation:
+          type: string
+          enum:
+            - authorize
+            - products
+            - quote
+            - portfolio
+            - client
+            - link
+          description: Код операции
+        data:
+          type: object
+          description: Параметры операции (зависят от operation)
+          additionalProperties: true
+
+    GenericResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: true — успех, false — ошибка
+        data:
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+          description: Данные ответа (формат зависит от операции)
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: false
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    # --- Операция: Authorize ---
+    AuthorizeRequestData:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          type: string
+        password:
+          type: string
+        type:
+          type: string
+          default: "ПользовательРезолют"
+
+    AuthorizeResponseData:
+      type: object
+      properties:
+        key:
+          type: string
+      example:
+        key: "f1acfe67-5f88-47db-af0b-bd5fed8d00a1"
+
+    # --- Операция: Products ---
+    ProductsResponseData:
+      type: array
+      items:
+        type: object
+        properties:
+          pfpCode:
+            type: string
+            description: Код продукта в системе ПФП
+          name:
+            type: string
+            description: Название продукта
+          productType:
+            type: string
+            enum: [life, deposit]
+            description: Тип продукта (life — страхование, deposit — депозит/ПДС)
+          productGroup:
+            type: string
+            description: Группа продуктов
+          description:
+            type: string
+            description: Краткое описание продукта
+          parameters:
+            type: object
+            description: Схема параметров для котировки (JSD-схема)
+            additionalProperties: true
+      example:
+        - pfpCode: "NSZH_01"
+          name: "Накопительное страхование жизни"
+          productType: "life"
+          productGroup: "НСЖ"
+          description: "Накопительное страхование жизни с гарантированной доходностью"
+        - pfpCode: "ISZH_01"
+          name: "Инвестиционное страхование жизни"
+          productType: "life"
+          productGroup: "ИСЖ"
+          description: "Инвестиционное страхование жизни с потенциалом доходности"
+        - pfpCode: "DEP_01"
+          name: "Депозиты / Программа долгосрочных сбережений"
+          productType: "deposit"
+          productGroup: "ПДС"
+          description: "Депозитная программа с капитализацией процентов"
+
+    # --- Операция: Quote (общая структура) ---
+    QuoteRequestData:
+      type: object
+      required:
+        - code
+        - parameters
+      properties:
+        code:
+          type: string
+          description: Код продукта ПФП (из products)
+        parameters:
+          oneOf:
+            - $ref: '#/components/schemas/QuoteParametersNSG'
+            - $ref: '#/components/schemas/QuoteParametersISG'
+            - $ref: '#/components/schemas/QuoteParametersDeposit'
+          description: Параметры зависят от типа продукта
+
+    # --- Параметры для НСЖ (Накопительное страхование жизни) ---
+    QuoteParametersNSG:
+      type: object
+      required:
+        - currency
+        - term
+        - pType
+        - calcData
+        - insuredPerson
+      properties:
+        currency:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [RUR, USD, EUR]
+            name:
+              type: string
+          default:
+            code: RUR
+            name: "Рубль РФ"
+        term:
+          type: integer
+          minimum: 1
+          maximum: 20
+          description: Срок страхования, лет
+        pType:
+          type: object
+          properties:
+            code:
+              type: integer
+              enum: [0, 1, 2, 4, 12]
+            name:
+              type: string
+        calcData:
+          type: object
+          required:
+            - valuationType
+          properties:
+            valuationType:
+              type: string
+              enum: [byPremium, byLimit]
+              default: byLimit
+            premium:
+              type: number
+              description: Страховой взнос
+            limit:
+              type: number
+              description: Страховая сумма
+        insuredPerson:
+          type: object
+          required:
+            - dob
+            - sex
+          properties:
+            dob:
+              type: string
+              format: date
+              description: дд.мм.гггг
+            sex:
+              type: string
+              enum: [male, female]
+
+    # --- Параметры для ИСЖ (Инвестиционное страхование жизни) ---
+    QuoteParametersISG:
+      type: object
+      required:
+        - calcData
+        - insuredPerson
+      properties:
+        calcData:
+          type: object
+          properties:
+            premium:
+              type: number
+              description: Страховой взнос
+        insuredPerson:
+          type: object
+          required:
+            - dob
+          properties:
+            dob:
+              type: string
+              format: date
+              description: дд.мм.гггг
+
+    # --- Параметры для Депозитов / ПДС ---
+    QuoteParametersDeposit:
+      type: object
+      required:
+        - calcData
+        - clientType
+      properties:
+        calcData:
+          type: object
+          required:
+            - limit
+            - term
+          properties:
+            limit:
+              type: number
+              description: Сумма депозита
+            capitalise:
+              type: boolean
+              default: false
+              description: Капитализация процентов
+            term:
+              type: integer
+              minimum: 1
+              description: Срок (единицы измерения определяются настройками программы)
+        clientType:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [common, private]
+            name:
+              type: string
+          default:
+            code: common
+            name: "Общий"
+          description: Тип клиента
+
+    # --- Ответ на котировку для страховых продуктов (НСЖ, ИСЖ) ---
+    QuoteResponseDataLife:
+      type: object
+      description: Реальный ответ сервера для НСЖ и ИСЖ
+      properties:
+        premium:
+          type: number
+          description: Страховая премия (взнос)
+          example: 1000000
+        limit:
+          type: number
+          description: Страховая сумма
+          example: 4491544.19
+        premiumFull:
+          type: number
+          description: Страховая премия полная (сумма взносов)
+          example: 1000000
+        garantProfit:
+          type: number
+          description: Гарантированная доходность
+          example: 69.831
+        comission:
+          type: object
+          description: Комиссионное вознаграждение (КВ)
+          properties:
+            percent:
+              type: number
+              description: Процент комиссии
+              example: 5
+            amount:
+              type: number
+              description: Сумма комиссии
+              example: 50000
+        risks:
+          type: array
+          description: Массив рисков
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                description: Код риска в системе Резолют
+                example: "testdozhitie"
+              name:
+                type: string
+                description: Наименование риска
+                example: "Дожитие"
+              premium:
+                type: number
+                description: Премия по риску
+                example: 983156.71
+              limit:
+                type: number
+                description: Страховая сумма по риску
+                example: 4491544.190161719
+      example:
+        premium: 1000000
+        limit: 4491544.19
+        premiumFull: 1000000
+        garantProfit: 69.831
+        comission:
+          percent: 5
+          amount: 50000
+        risks:
+          - code: "testdozhitie"
+            name: "Дожитие"
+            premium: 983156.71
+            limit: 4491544.190161719
+          - code: "deathAnyCase"
+            name: "Смерть по любой причине"
+            premium: 16843.29
+            limit: 4491544.190161719
+
+    # --- Ответ на котировку для депозитов / ПДС ---
+    QuoteResponseDataDeposit:
+      type: object
+      description: Реальный ответ сервера для депозитов / ПДС
+      properties:
+        premium:
+          type: number
+          description: Сумма вклада
+          example: 2000000
+        limit:
+          type: number
+          description: Полная сумма с учетом дохода на конец действия договора
+          example: 2195800
+        profity:
+          type: number
+          description: Доходность, %
+          example: 9.79
+        profityAmount:
+          type: number
+          description: Доход к концу действия договора
+          example: 195800
+        garantProfit:
+          type: number
+          description: Гарантированная доходность, %
+          example: 0
+      example:
+        premium: 2000000
+        limit: 2195800
+        profity: 9.79
+        profityAmount: 195800
+        garantProfit: 0
+
+    # --- Операция: Portfolio ---
+    PortfolioRequestData:
+      type: object
+      required:
+        - quotes
+        - client
+      properties:
+        quotes:
+          type: array
+          items:
+            type: object
+            required:
+              - code
+              - parameters
+            properties:
+              code:
+                type: string
+                description: Код продукта ПФП
+              parameters:
+                type: object
+                additionalProperties: true
+                description: Параметры зависят от продукта
+        client:
+          $ref: '#/components/schemas/ClientData'
+
+    PortfolioResponseData:
+      type: object
+      properties:
+        portfolioNumber:
+          type: string
+        portfolioDate:
+          type: string
+          format: date
+        clientCode:
+          type: string
+        contracts:
+          type: array
+          items:
+            type: object
+            properties:
+              contractNumber:
+                type: string
+              productCode:
+                type: string
+              productName:
+                type: string
+
+    # --- Операция: Client ---
+    ClientRequestData:
+      type: object
+      description: "Режимы: только code = получение; code + поля = изменение; без code = создание"
+      properties:
+        code:
+          type: string
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        middleName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        dob:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum: [male, female]
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+      required:
+        - lastName
+        - firstName
+        - dob
+        - sex
+        - phone
+        - email
+
+    ClientResponseData:
+      type: object
+      properties:
+        code:
+          type: string
+        lastName:
+          type: string
+        firstName:
+          type: string
+        middleName:
+          type: string
+        dob:
+          type: string
+        sex:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        action:
+          type: string
+          enum: [created, updated, fetched]
+
+    # --- Операция: Link ---
+    LinkResponseData:
+      type: string
+      description: Одноразовая ссылка (живет 20 секунд)
+      example: "https://demo.avinfors.ru/pfp/?pfp=abc123"
+
+    # --- Вспомогательная схема клиента ---
+    ClientData:
+      type: object
+      properties:
+        code:
+          type: string
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        middleName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        dob:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum: [male, female]
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+      required:
+        - lastName
+        - firstName
+        - dob
+        - sex
+        - phone
+        - email
+
+    # --- Ошибки операций ---
+    QuoteErrors:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [programNotFound, invalidByJSD, emptyProduct, emptyDistrib, keyError, salesError, emptySales, insConditionsError, insConditionsNull, calcError]
+            message:
+              type: string
+
+    PortfolioErrors:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [emptyQuotes, portfolioCodeError, quoteSaveError, quoteClientError, prtfClientError]
+            message:
+              type: string
+
+    ClientErrors:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [personVTypeError, clientNotFound]
+            message:
+              type: string
+
+    LinkErrors:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [keyError, baseLinkError]
+            message:
+              type: string
+
+security:
+  - BearerAuth: []

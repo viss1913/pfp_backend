@@ -117,6 +117,29 @@ npm run migrate
 ### Порт не работает
 Railway автоматически устанавливает `PORT`. Код использует `process.env.PORT || 3000`.
 
+## 📈 Макро / инфляция без shell (Run Command)
+
+На Railway не обязательно заходить в консоль: **cron уже крутится внутри процесса** (`macroScheduler.js`, четверг 10:30 — ИПЦ г/г + Росстат).
+
+Если данные устарели сразу после публикации ЦБ/Росстата:
+
+1. **Variables** сервиса бэкенда → добавьте `MACRO_CRON_SECRET` (длинная случайная строка).
+2. Задеплойте последний коммит (есть `POST /api/pfp/macro/cron/inflation` и авто-sync при старте, если ряд старше ~8 дней).
+3. Один раз дерните из браузера, Postman или с ПК:
+
+```bash
+curl.exe -X POST "https://pfpbackend-production.up.railway.app/api/pfp/macro/cron/inflation" ^
+  -H "x-macro-cron-secret: ВАШ_MACRO_CRON_SECRET"
+```
+
+Опционально с месячным Росстатом: `?monthly=1`.
+
+Проверка после sync (нужен обычный JWT агента): `GET /api/pfp/macro/latest` → поле `inflation_yoy`.
+
+**Railway Cron Job** (если включён в тарифе): расписание `30 10 * * 4`, метод POST, URL как выше, заголовок `x-macro-cron-secret`.
+
+Логи: Dashboard → Deployments → View Logs — строки `[macroStartup]` или `Cron inflation sync`.
+
 ## 📝 Полезные команды в Railway CLI
 
 ```bash

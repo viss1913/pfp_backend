@@ -82,3 +82,22 @@ test('getImpliedAnnualYieldPercentFromQuote returns null without resolut_pfp_cod
         else process.env.RESOLUT_PROJECT_ID = prev;
     }
 });
+
+test('getImpliedAnnualYieldPercentFromQuote returns null for DEPOSIT/PDS until profity semantics are confirmed', async () => {
+    const prev = process.env.RESOLUT_PROJECT_ID;
+    process.env.RESOLUT_PROJECT_ID = '23';
+    try {
+        const r = await getImpliedAnnualYieldPercentFromQuote({
+            product: { id: 7, resolut_pfp_code: 'depAlfa', product_type: 'DEPOSIT' },
+            termMonths: 12,
+            allocatedAmount: 2_000_000,
+            projectId: 23,
+            userId: null,
+            client: {}
+        });
+        assert.strictEqual(r, null);
+    } finally {
+        if (prev === undefined) delete process.env.RESOLUT_PROJECT_ID;
+        else process.env.RESOLUT_PROJECT_ID = prev;
+    }
+});

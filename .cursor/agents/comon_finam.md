@@ -20,9 +20,11 @@ description: Интеграция Comon/Финам — витрина страт
 | Нормализация `__NEXT_DATA__` → поля стратегии | [`src/utils/comonStrategyNextData.js`](src/utils/comonStrategyNextData.js) — `normalizeStrategyDetailsFromNextData` |
 | Ошибки Comon → 502 для API | [`src/utils/comonUpstreamResponse.js`](src/utils/comonUpstreamResponse.js) |
 | Витрина в отчёте (фильтры, кэш, дисклеймер) | [`src/services/comonShowcaseService.js`](src/services/comonShowcaseService.js) |
+| Cron-синк recommended с API | [`scripts/sync_comon_recommended_strategies.js`](scripts/sync_comon_recommended_strategies.js) — `npm run sync:comon-recommended`, env `COMON_STRATEGIES_LIST_PATH=?tags=recommended` |
 | Ручная база рекомендованных стратегий (JSON fallback) | [`data/comonRecommendedStrategies.json`](data/comonRecommendedStrategies.json) |
 | Рекомендованные стратегии в БД (полный JSON в `payload`) | таблица `comon_recommended_strategies`, [`comonRecommendedStrategyRepository.js`](src/repositories/comonRecommendedStrategyRepository.js), импорт: `npm run import:comon-recommended`. В витрине [`comonShowcaseService`](src/services/comonShowcaseService.js): `items[].url` из payload (`url` / `pageUrl` / `link`, относительные пути дополняются базой) или канонически `{COMON_BASE_URL}/strategies/{id}`, чтобы ссылка всегда вела на эту стратегию. |
 | Настройки витрины из проекта | [`src/utils/projectComonShowcaseSettings.js`](src/utils/projectComonShowcaseSettings.js) |
+| Гейт STOCK / PDF без пустого листа | [`src/utils/comonShowcaseGate.js`](src/utils/comonShowcaseGate.js), [`finamV2PageComposer.js`](src/reports/finam_v2/finamV2PageComposer.js) |
 | Включение в JSON отчёта | [`src/services/reportService.js`](src/services/reportService.js) — поле `comon_showcase`, `pdf_summary_layout` с тем же снимком |
 | PDF сводная | [`src/services/reportPdfService.js`](src/services/reportPdfService.js) прокидывает `comon_showcase` в payload; [`src/reports/summary/buildSummaryOverviewHtml.js`](src/reports/summary/buildSummaryOverviewHtml.js) — `buildComonShowcaseSectionHtml` |
 | Карточки стратегий агента/клиента (ручные ссылки на Comon) | `src/services/agentComonStrategyService.js`, `clientComonStrategyService.js`, контроллеры/роуты `agentComonStrategy*`, `clientComonStrategy*` |
@@ -106,7 +108,7 @@ description: Интеграция Comon/Финам — витрина страт
 
 ## Бэклог типичных доработок
 
-1. Включить/уточнить **гейт** `comonShowcaseService`: показывать витрину только при наличии `BOND` или `STOCK` в своде или в целях (после согласования в `recomend_finam_comon.md`).
+1. ~~Гейт STOCK в `comonShowcaseService`~~ — сделано: `gate_product_types` (дефолт `STOCK`), `skip_reason: no_stock_in_plan`, PDF v2/v1 без пустого листа.
 2. Подстроить **сортировку/фильтры** витрины под маркетинг Финам (whitelist id, другие теги).
 3. При смене URL API Comon — обновить дефолт `COMON_STRATEGIES_LIST_PATH` и доки.
 4. OpenAPI: [`docs/api/b2c_lk.yaml`](docs/api/b2c_lk.yaml), [`openapi/getReport.yaml`](openapi/getReport.yaml) — поле `comon_showcase` при расширении контракта.

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ответы технологическому стеку — Сбер Страхование жизни</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
+  <style>
+
+    /* Поля для экрана; для печати см. @media print ниже (@page :first без полей под обложку) */
+    @page {
+      size: A4;
+      margin: 14mm 18mm 18mm 18mm;
+    }
+    * { box-sizing: border-box; }
+    html { font-size: 10.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body {
+      font-family: "DM Sans", "Segoe UI", system-ui, sans-serif;
+      font-feature-settings: "kern" 1, "liga" 1;
+      line-height: 1.5;
+      color: #1c2836;
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 0 0 20mm;
+      background: #fff;
+    }
+    .cover-consulting {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 22mm 20mm 18mm;
+      margin: 0 0 8mm;
+      page-break-after: always;
+      background: linear-gradient(145deg, #061229 0%, #0c2744 42%, #0a1f35 100%);
+      color: #f0f4f8;
+      position: relative;
+      overflow: hidden;
+    }
+    .cover-consulting::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: linear-gradient(180deg, #d4b483 0%, #a67c3d 50%, #8b6914 100%);
+    }
+    .cover-consulting::after {
+      content: "";
+      position: absolute;
+      right: -20%;
+      top: 10%;
+      width: 55%;
+      height: 70%;
+      background: radial-gradient(ellipse at center, rgba(212,180,131,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cover-consulting .brand-line {
+      font-size: 0.68rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: rgba(240,244,248,0.55);
+      margin-bottom: 6mm;
+      position: relative;
+      z-index: 1;
+    }
+    .cover-consulting h1 {
+      font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+      font-size: 1.85rem;
+      font-weight: 600;
+      line-height: 1.2;
+      margin: 0 0 5mm;
+      padding: 0;
+      border: none;
+      color: #fff;
+      letter-spacing: -0.02em;
+      max-width: 28rem;
+      position: relative;
+      z-index: 1;
+    }
+    .cover-consulting .deck-tag {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #d4b483;
+      border: 1px solid rgba(212,180,131,0.45);
+      padding: 0.35em 0.85em;
+      margin-bottom: 8mm;
+      position: relative;
+      z-index: 1;
+    }
+    .cover-consulting .lead {
+      font-size: 0.98rem;
+      line-height: 1.55;
+      color: rgba(230,237,245,0.88);
+      max-width: 36rem;
+      margin: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .cover-consulting .cover-consulting__main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      min-height: 0;
+    }
+    .cover-consulting footer {
+      font-size: 0.72rem;
+      color: rgba(200,210,222,0.65);
+      border-top: 1px solid rgba(255,255,255,0.12);
+      padding-top: 5mm;
+      margin-top: 0;
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+    article {
+      padding: 0 2mm;
+    }
+    article h2 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #0c2744;
+      margin: 2.2em 0 0.85em;
+      padding-bottom: 0.45em;
+      border-bottom: 2px solid #d4b483;
+      page-break-after: avoid;
+    }
+    article h3 {
+      font-size: 1.02rem;
+      font-weight: 600;
+      color: #123652;
+      margin: 1.35em 0 0.5em;
+      page-break-after: avoid;
+    }
+    article h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1a4971;
+      margin: 1.1em 0 0.4em;
+      page-break-after: avoid;
+    }
+    article p { margin: 0.5em 0; color: #2c3540; }
+    blockquote.partner-question {
+      margin: 1.1em 0 0.65em;
+      padding: 0.85em 1em 0.85em 1.1em;
+      border-left: 4px solid #c5a572;
+      background: linear-gradient(90deg, #f7f4ee 0%, #fafbfc 100%);
+      color: #0c2744;
+      font-family: "Source Serif 4", Georgia, serif;
+      font-size: 1.02em;
+      line-height: 1.45;
+      page-break-inside: avoid;
+      box-shadow: 0 1px 2px rgba(6, 18, 41, 0.05);
+    }
+    blockquote.partner-question strong { font-weight: 600; }
+    article p strong:first-child {
+      display: block;
+      margin-top: 0.15em;
+      margin-bottom: 0.35em;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #5a6d82;
+    }
+    article ul {
+      margin: 0.4em 0 1em;
+      padding-left: 1.15em;
+    }
+    article li { margin: 0.35em 0; }
+    article li::marker { color: #8b6914; }
+    .exec-summary {
+      margin: 1.5em 0 2em;
+      page-break-inside: avoid;
+    }
+    .exec-summary .exec-summary__body {
+      background: linear-gradient(180deg, #f7f8fa 0%, #f0f2f5 100%);
+      border-left: 4px solid #c5a572;
+      padding: 1em 1.15em 1.05em 1.25em;
+      margin-top: 0.65em;
+      box-shadow: 0 1px 3px rgba(6,18,41,0.06);
+    }
+    .exec-summary h2 {
+      margin-top: 0;
+      border-bottom: none;
+      padding-bottom: 0;
+      color: #0c2744;
+      text-transform: none;
+      letter-spacing: 0.02em;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .exec-summary .exec-summary__body ul { margin-bottom: 0; }
+    code {
+      font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+      font-size: 0.85em;
+      background: #eef1f5;
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      color: #1a3a52;
+    }
+    a { color: #0b5cab; text-decoration: none; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.85em 0 1.25em;
+      font-size: 0.9em;
+      page-break-inside: avoid;
+      box-shadow: 0 1px 4px rgba(6,18,41,0.07);
+    }
+    th {
+      background: #0c2744;
+      color: #fff;
+      font-weight: 600;
+      text-align: left;
+      padding: 0.55em 0.65em;
+      font-size: 0.82rem;
+      letter-spacing: 0.02em;
+    }
+    td {
+      border: 1px solid #dce3ea;
+      padding: 0.5em 0.65em;
+      vertical-align: top;
+      background: #fff;
+    }
+    tbody tr:nth-child(even) td { background: #fafbfc; }
+    hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, #d4b483, transparent);
+      margin: 2em 0;
+      opacity: 0.7;
+    }
+    .print-hint {
+      display: none;
+    }
+    @media screen {
+      .print-hint {
+        display: block;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #0c2744;
+        color: #e8eef5;
+        padding: 10px 16px;
+        font-size: 12px;
+        text-align: center;
+        z-index: 100;
+      }
+      .print-hint kbd { background: #1a3a52; padding: 2px 6px; border-radius: 4px; }
+      body { padding-bottom: 44px; }
+    }
+    .mermaid-wrap {
+      margin: 1rem 0 1.25rem;
+      padding: 14px 16px;
+      background: #f8fafc;
+      border: 1px solid #dce3ea;
+      border-radius: 4px;
+      page-break-inside: avoid;
+      overflow-x: auto;
+    }
+    .mermaid-wrap pre.mermaid {
+      margin: 0;
+      font-size: 10px;
+      line-height: 1.35;
+      white-space: pre-wrap;
+      background: transparent;
+      color: #1c2836;
+    }
+    .mermaid-cap {
+      font-size: 0.72rem;
+      color: #6b7c8f;
+      margin-top: 8px;
+      font-style: italic;
+    }
+    @media print {
+      @page {
+        size: A4;
+        margin: 14mm 18mm 18mm 18mm;
+      }
+      @page :first {
+        margin: 0;
+      }
+      body { padding: 0; }
+      .print-hint { display: none !important; }
+      a { color: #1c2836; }
+      /* Первая страница PDF: обложка на весь лист A4 (убирает «пустой низ») */
+      .cover-consulting {
+        min-height: 297mm;
+        height: 297mm;
+        margin: 0;
+        padding: 26mm 22mm 22mm 28mm;
+        box-sizing: border-box;
+        page-break-after: always;
+        break-after: page;
+      }
+      .mermaid-cap { display: none; }
+    }
+
+  </style>
+</head>
+<body>
+<div class="cover-consulting">
+    <div class="cover-consulting__main">
+      <div class="brand-line">BankFuture PFP</div>
+      <span class="deck-tag">Ответы на вопросы технологического стека</span>
+      <h1>Ответы технологическому стеку — Сбер Страхование жизни</h1>
+      <p class="lead">Ответы по архитектуре и функционалу платформы для коллег Сбер Страхование жизни.</p>
+    </div>
+    <footer>
+      BankFuture PFP · Конфиденциально · Сбер Страхование жизни · 16 мая 2026 г.
+    </footer>
+  </div>
+  <article>
+<p>Платформа <strong>BankFuture PFP</strong> — финансовое планирование для агентов и клиентов. В партнёрском контуре с <strong>Сбер Страхование жизни</strong> продукт «Подушка безопасности» показывается в расчётах и отчётах; оформление — по реферальной ссылке на стороне Сбера. <strong>Развёртывание PFP в инфраструктуре Сбера не предполагается.</strong></p>
+<hr />
+<blockquote class="partner-question">«На каком языке программирования реализована система? Используется ли единый стек или микросервисная архитектура? Какова архитектура приложения: монолит, микросервисы? Как организовано взаимодействие между компонентами?»</blockquote>
+<p><strong>Ответ.</strong> Backend — <strong>JavaScript (Node.js 20 LTS)</strong>, фреймворк <strong>Express</strong>, доступ к данным — <strong>Knex</strong>. <strong>Единый стек</strong>, архитектура — <strong>модульный монолит</strong> (одно приложение, логика разделена по сервисам в коде; не микросервисы). Личные кабинеты (SPA) общаются с backend по <strong>HTTPS REST</strong> (<code>/api/...</code>). Внутри backend — синхронные вызовы сервисов и HTTP к внешним API; фоновые задачи — <strong>node-cron</strong>, генерация PDF — <strong>Puppeteer</strong>.</p>
+<hr />
+<blockquote class="partner-question">«Какие базы данных используются для хранения пользовательских данных, истории действий, инвестиционных предложений и метаданных?»</blockquote>
+<p><strong>Ответ.</strong> Основное хранилище — <strong>MySQL</strong> (<code>mysql2</code>): пользователи, клиенты, цели, портфели, продукты, настройки программ (tenant), CRM. История действий — записи в БД по клиенту/целям/отчётам и <strong>журналы приложения</strong> (Winston). Файлы (PDF, обложки) — <strong>S3-совместимое</strong> объектное хранилище. История ИИ-чатов (если модуль включён) — отдельные таблицы в той же MySQL.</p>
+<hr />
+<blockquote class="partner-question">«Как реализована интеграция с внешними и внутренними сервисами (например, CRM, внешние API)? Используются ли очереди сообщений, брокеры событий?»</blockquote>
+<p><strong>Ответ.</strong> Интеграции — <strong>REST-адаптеры</strong> на стороне PFP (в т.ч. CRM, внешние портфельные и продуктовые API — по подключённым партнёрам). <strong>Сбер Страхование жизни:</strong> расчёт и показ продукта в PFP, переход клиента на оформление по <strong>ссылке на ресурс Сбера</strong>; API обмена с учётными системами Сбера <strong>в текущем контуре нет</strong>. <strong>Очереди сообщений и брокеры событий (RabbitMQ, Kafka и т.п.) не используются</strong> — асинхронность через cron и фоновые задачи в процессе приложения.</p>
+<hr />
+<blockquote class="partner-question">«Какие меры реализованы для обеспечения безопасности персональных и финансовых данных пользователей (шифрование, аудит, разграничение прав доступа)?»</blockquote>
+<p><strong>Ответ.</strong> Аутентификация — <strong>JWT</strong>, пароли — <strong>bcrypt</strong>; API — <strong>helmet</strong>, <strong>cors</strong>, валидация входных данных. <strong>Разграничение доступа</strong> — по ролям и изоляции по проекту (tenant). Передача данных — <strong>TLS</strong>. Секреты — в переменных окружения / secret manager, не в коде. <strong>Аудит</strong> — централизованное журналирование без секретов и избыточных ПДн в логах. Шифрование на уровне дисков/СУБД — средствами инфраструктуры хостинга.</p>
+<hr />
+<blockquote class="partner-question">«Как реализована версионирование API и миграций данных при изменениях в бизнес-логике или структуре БД?»</blockquote>
+<p><strong>Ответ.</strong> <strong>API</strong> — спецификация <strong>OpenAPI</strong>, эволюция с сохранением обратной совместимости, где возможно. <strong>БД</strong> — версионируемые <strong>миграции Knex</strong>, применяются при деплое (<code>knex migrate:latest</code>). Изменения бизнес-логики расчётов — через релиз backend и при необходимости миграции данных.</p>
+<hr />
+<blockquote class="partner-question">«Есть ли ограничения по используемым библиотекам, фреймворкам или сторонним компонентам (например, корпоративные стандарты, лицензии)?»</blockquote>
+<p><strong>Ответ.</strong> Зависимости — экосистема <strong>npm</strong>, преимущественно лицензии <strong>MIT/ISC</strong>. Ключевые компоненты: Express, Knex, mysql2, axios, jsonwebtoken, bcryptjs, puppeteer (PDF), AWS SDK (S3). Отдельного корпоративного whitelist со стороны PFP для партнёра не предъявляется; при размещении в контуре заказчика ограничения согласуются отдельно.</p>
+<hr />
+<blockquote class="partner-question">«Как обеспечивается соответствие требованиям регуляторов (например, хранение данных на территории РФ, аудит действий пользователей)?»</blockquote>
+<p><strong>Ответ.</strong> Размещение платформы и БД — <strong>на территории РФ</strong> (инфраструктура оператора PFP). <strong>Аудит действий</strong> — журналы приложения по регламенту оператора. Данные клиента в сценарии со Сбером обрабатываются в контуре PFP для консультации; передача в Сбер — при <strong>действии пользователя</strong> (переход по ссылке и оформление на стороне Сбера), если не согласован иной обмен.</p>
+<hr />
+<blockquote class="partner-question">«Какие именно AI/ML модели используются внутри продукта?»</blockquote>
+<p><strong>Ответ.</strong> Используются <strong>LLM</strong> (большие языковые модели), не классический ML и не дообучение на данных клиентов. Базовая модель — <strong>Gemma</strong> (<code>google/gemma-3-27b-it</code>). <strong>DEV:</strong> inference через <strong>OpenRouter</strong>. <strong>PROD:</strong> inference на <strong>арендованном GPU (<a href="https://immers.cloud">immers.cloud</a>)</strong>, OpenAI-compatible API. Расчёт страховой цели «Подушка безопасности» — <strong>не LLM</strong>, а детерминированный калькулятор (тариф 1,44% годовых).</p>
+<hr />
+<blockquote class="partner-question">«AI функционал построен исключительно на внешних API или у вас есть собственный inference/backend слой?»</blockquote>
+<p><strong>Ответ.</strong> Есть <strong>собственный backend-слой</strong> (промпты, маршрутизация диалога, история, streaming, fallback): <code>aiService</code>, <code>aiB2cService</code>, <code>constructorAiService</code>. <strong>Вычисление модели (inference)</strong> — на <strong>prod</strong> на GPU в аренде (immers.cloud), на <strong>dev</strong> — через OpenRouter; единый контракт <code>chat/completions</code>. Собственного ЦОД с GPU нет.</p>
+<hr />
+<blockquote class="partner-question">«Какие пользовательские действия или результаты на платформе формируются именно ИИ в реальном времени, а какие обычной back-end логикой?»</blockquote>
+<p><strong>Ответ.</strong></p>
+<ul>
+<li><strong>Backend (без ИИ):</strong> все финансовые расчёты и цели (включая страхование жизни), риск-профиль (скоринг анкеты), портфели, PDF/HTML-отчёты, отправка письма со ссылкой на оффер Сбера, CRM.</li>
+<li><strong>ИИ:</strong> чат-ассистент B2C, диалоги конструктора, опциональные текстовые блоки в отчётах (если включены).</li>
+</ul>
+<hr />
+<blockquote class="partner-question">«Система принимает адаптивные решения на основе ИИ модели, или все сценарии детерминированы заранее прописанными условиями?»</blockquote>
+<p><strong>Ответ.</strong> Суммы, тарифы, продуктовые рекомендации и расчёты — <strong>детерминированы</strong> правилами и формулами. ИИ используется для <strong>текста и диалога</strong>, не для принятия финансовых решений и не для изменения тарифа или условий договора.</p>
+<hr />
+<blockquote class="partner-question">«Улучшается ли качество ИИ-выдачи по мере накопления пользовательских данных и поведения пользователей?»</blockquote>
+<p><strong>Ответ.</strong> <strong>Сейчас — нет</strong> автоматического дообучения (fine-tuning) модели на поведении пользователей. Качество ответов повышается за счёт <strong>двухэтапной оркестрации контекста</strong>: на первом шаге отдельный LLM-вызов (<strong>контекст-архитектор</strong>) отбирает и сжимает релевантные фрагменты знаний и данных клиента; на втором — основной LLM <strong>генерирует ответ</strong> уже по подготовленному контексту (в чате B2C и в конструкторе — схема «маршрутизатор → генератор»). <strong>В планах развития</strong> — использование накопленной истории и поведения для персонализации при том же принципе: финансовые расчёты остаются детерминированными, адаптация касается диалогового слоя.</p>
+<hr />
+<blockquote class="partner-question">«Сохраняются ли действия пользователя, оценки, клики, история запросов для последующей оптимизации ИИ-результатов?»</blockquote>
+<p><strong>Ответ.</strong> История <strong>чатов</strong> сохраняется для продолжения диалога, <strong>не</strong> для дообучения модели. Отдельной системы «клики/оценки → улучшение модели» <strong>нет</strong>.</p>
+<hr />
+<blockquote class="partner-question">«Есть ли у ИИ память/контекст между сессиями, или каждый запрос обрабатывается как независимый одноразовый промпт?»</blockquote>
+<p><strong>Ответ.</strong> В <strong>чат-сценариях</strong> — контекст и история из БД между обращениями. В <strong>разовых</strong> задачах (например, абзац в отчёте) — как правило один запрос с переданным контекстом, без долгой памяти между отчётами.</p>
+<hr />
+<blockquote class="partner-question">«Может ли система объяснить на основании каких факторов ИИ принял ту или иную реккомендацию?»</blockquote>
+<p><strong>Ответ.</strong> <strong>Расчёты</strong> объяснимы правилами методики (формулы, анкета). <strong>Тексты LLM</strong> — без гарантированного формального explainability; для значимых цифр в отчёте опора на <strong>детерминированный расчёт</strong>, не на вывод модели.</p>
+<hr />
+<blockquote class="partner-question">«Реализована ли многошаговая ИИ-оркестрация или это одиночный запрос-response к LLM API?»</blockquote>
+<p><strong>Ответ.</strong> <strong>Оба варианта:</strong> простые задачи — один запрос к API; чат B2C и конструктор — <strong>многошаговая</strong> схема (стадия диалога → ответ). Отправка оффера Сбера клиенту — <strong>обычный backend</strong>, без LLM.</p>
+<hr />
+<blockquote class="partner-question">«Если полностью убрать ИИ компоненты, какой процент функциональности продукта сохранится?»</blockquote>
+<p><strong>Ответ.</strong> Ориентировочно <strong>85–95%</strong>: расчёты, отчёты, страховая цель с продуктом Сбера, реферальное письмо, CRM и остальное ядро PFP. ИИ — <strong>опциональный</strong> модуль.</p>
+<hr />
+<blockquote class="partner-question">«Какие пользовательские функции вообще не смогут работать без ИИ слоя, если есть?»</blockquote>
+<p><strong>Ответ.</strong> Без ИИ <strong>не работают:</strong> B2C чат-ассистент, LLM-диалог конструктора, опциональные AI-тексты в отчётах, AI-пояснения риск-профиля (скоринг анкеты при этом работает), боты при привязке к LLM. <strong>Работают без ИИ:</strong> весь сценарий с продуктом «Подушка безопасности» (расчёт, отчёт, ссылка, email агенту → клиенту).</p>
+  </article>
+
+</body>
+</html>

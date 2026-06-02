@@ -1,0 +1,436 @@
+openapi: 3.0.1
+info:
+  title: API Сервис Resolute для ПФП
+  description: Сервис обеспечивает возможность системе ПФП-фронт получить котировки по доступным авторизованному Агенту инвест. продуктам и опубликовать сформированный портфель продуктов в Резолюте.
+  version: 1.0.0
+  contact:
+    name: Демо-стенд
+    url: https://demo.avinfors.ru/pfp/api/pfp/
+servers:
+  - url: https://demo.avinfors.ru/pfp/api/pfp/
+    description: Демо-стенд
+
+paths:
+  /:
+    get:
+      summary: GET-операции
+      description: Поддерживаются операции products, client (получение по code), link.
+      parameters:
+        - name: operation
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [products, client, link]
+          description: Код операции
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+          description: ИД клиента (только для GET operation=client)
+        - name: Authorization
+          in: header
+          required: false
+          schema:
+            type: string
+            pattern: '^Bearer .+$'
+          description: Токен авторизации
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+        '400':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Основной метод (все операции)
+      description: Все операции доступны через POST. Код операции передается в теле запроса.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRequest'
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
+        '400':
+          description: Ошибка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: 'Токен из операции authorize. Передавать: Authorization: Bearer [token]'
+
+  schemas:
+    # --- Базовые схемы запросов/ответов ---
+    GenericRequest:
+      type: object
+      required:
+        - operation
+      properties:
+        operation:
+          type: string
+          enum:
+            - authorize
+            - products
+            - quote
+            - portfolio
+            - client
+            - link
+          description: Код операции
+        data:
+          type: object
+          description: Параметры операции (зависят от operation)
+          additionalProperties: true
+
+    GenericResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: true — успех, false — ошибка
+        data:
+          oneOf:
+            - type: object
+            - type: array
+            - type: string
+          description: Данные ответа (формат зависит от операции)
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: false
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+
+    # --- Операция: Authorize ---
+    AuthorizeRequestData:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          type: string
+        password:
+          type: string
+        type:
+          type: string
+          default: "ПользовательРезолют"
+
+    AuthorizeResponseData:
+      type: object
+      properties:
+        key:
+          type: string
+      example:
+        key: "f1acfe67-5f88-47db-af0b-bd5fed8d00a1"
+
+    # --- Операция: Products ---
+    ProductsResponseData:
+      type: array
+      items:
+        type: object
+        properties:
+          pfpCode:
+            type: string
+          name:
+            type: string
+      example:
+        - pfpCode: "NSZH_01"
+          name: "Накопительное страхование жизни"
+
+    # --- Операция: Quote (НСЖ) ---
+    QuoteRequestData:
+      type: object
+      required:
+        - code
+        - parameters
+      properties:
+        code:
+          type: string
+        parameters:
+          $ref: '#/components/schemas/QuoteParametersNSG'
+
+    QuoteParametersNSG:
+      type: object
+      required:
+        - currency
+        - term
+        - pType
+        - calcData
+        - insuredPerson
+      properties:
+        currency:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [RUR, USD, EUR]
+            name:
+              type: string
+          default:
+            code: RUR
+            name: "Рубль РФ"
+        term:
+          type: integer
+          minimum: 1
+          maximum: 20
+        pType:
+          type: object
+          properties:
+            code:
+              type: integer
+              enum: [0, 1, 2, 4, 12]
+            name:
+              type: string
+        calcData:
+          type: object
+          required:
+            - valuationType
+          properties:
+            valuationType:
+              type: string
+              enum: [byPremium, byLimit]
+              default: byLimit
+            premium:
+              type: number
+            limit:
+              type: number
+        insuredPerson:
+          type: object
+          required:
+            - dob
+            - sex
+          properties:
+            dob:
+              type: string
+              format: date
+            sex:
+              type: string
+              enum: [male, female]
+
+    QuoteResponseData:
+      type: object
+      properties:
+        premium:
+          type: number
+        limit:
+          type: number
+
+    # --- Операция: Portfolio ---
+    PortfolioRequestData:
+      type: object
+      required:
+        - quotes
+        - client
+      properties:
+        quotes:
+          type: array
+          items:
+            type: object
+            required:
+              - code
+              - parameters
+            properties:
+              code:
+                type: string
+              parameters:
+                type: object
+                additionalProperties: true
+        client:
+          $ref: '#/components/schemas/ClientData'
+
+    PortfolioResponseData:
+      type: object
+      properties:
+        portfolioNumber:
+          type: string
+        clientCode:
+          type: string
+        contracts:
+          type: array
+          items:
+            type: object
+            properties:
+              contractNumber:
+                type: string
+              productCode:
+                type: string
+
+    # --- Операция: Client ---
+    ClientRequestData:
+      type: object
+      description: "Режимы: только code = получение; code + поля = изменение; без code = создание"
+      properties:
+        code:
+          type: string
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        middleName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        dob:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum: [male, female]
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+      required:
+        - lastName
+        - firstName
+        - dob
+        - sex
+        - phone
+        - email
+
+    ClientResponseData:
+      type: object
+      properties:
+        code:
+          type: string
+        lastName:
+          type: string
+        firstName:
+          type: string
+        middleName:
+          type: string
+        dob:
+          type: string
+        sex:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        action:
+          type: string
+          enum: [created, updated, fetched]
+
+    # --- Операция: Link ---
+    LinkResponseData:
+      type: string
+      description: Одноразовая ссылка (живет 20 секунд)
+      example: "https://demo.avinfors.ru/pfp/?pfp=abc123"
+
+    # --- Вспомогательная схема клиента ---
+    ClientData:
+      type: object
+      properties:
+        code:
+          type: string
+        lastName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        firstName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        middleName:
+          type: string
+          minLength: 2
+          maxLength: 40
+        dob:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum: [male, female]
+        phone:
+          type: string
+        email:
+          type: string
+          format: email
+      required:
+        - lastName
+        - firstName
+        - dob
+        - sex
+        - phone
+        - email
+
+    # --- Ошибки операций ---
+    PortfolioErrors:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [emptyQuotes, portfolioCodeError, quoteSaveError, quoteClientError, prtfClientError]
+            message:
+              type: string
+
+    ClientErrors:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [personVTypeError, clientNotFound]
+            message:
+              type: string
+
+    LinkErrors:
+      type: object
+      properties:
+        err:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [keyError, baseLinkError]
+            message:
+              type: string
+
+security:
+  - BearerAuth: []

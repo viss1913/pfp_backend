@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Office B2B2C + Клерк — предложение для Сбера</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sber-family-office-proposal.consulting.css" />
+</head>
+<body>
+  <div class="cover-consulting cover-consulting--sber">
+    <div class="cover-consulting__main">
+      <div class="brand-line">BankFuture PFP × Клерк.ру × Сбер</div>
+      <span class="deck-tag">Вариант 2 · B2B2C</span>
+      <h1>Family Office для бухгалтеров: канал Клерк.ру</h1>
+      <p class="lead">Совместное предложение: бухгалтеры открывают свой family office под клиентов и получают комиссионный доход от продаж продуктов <strong>экосистемы Сбер</strong> через согласованную реферальную атрибуцию.</p>
+    </div>
+    <footer>BankFuture PFP · Co-brand Клерк — на согласовании · 20 мая 2026 г.</footer>
+  </div>
+
+  <article>
+    <div class="exec-summary">
+      <h2>Кратко</h2>
+      <div class="exec-summary__body">
+        <ul>
+          <li><strong>Канал:</strong> портал <strong>Клерк.ру</strong> (аудитория бухгалтеров) + агентский контур PFP.</li>
+          <li><strong>Модель:</strong> бухгалтер = агент FO; клиенты бухгалтера → отчёт → CTA на продукты Сбера с <code>partner_agent_id</code>.</li>
+          <li><strong>Для Сбера:</strong> тысячи доверенных консультантов без найма штатом; единый отчёт и дисклеймеры.</li>
+          <li><strong>Co-brand:</strong> BankFuture × Клерк <span class="badge badge--partner">согласование</span></li>
+          <li><strong>SberID:</strong> ускоряет onboarding клиента бухгалтера <span class="badge badge--phase2">фаза 2</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Ценность для Сбера</h2>
+    <ul>
+      <li>Дистрибуция через профессиональное сообщество бухгалтеров с репутацией и базой МСП/ИП.</li>
+      <li>Один отчёт Finam v2 под Сбер — без самодельных Excel и рисков формулировок.</li>
+      <li>Измеримые переходы: единый <code>partner_agent_id</code> бухгалтера на все продукты (НПФ, СК, УК, брокер).</li>
+      <li>Масштаб без прямого найма: Клерк привлекает агентов, BankFuture — платформа, Сбер — продукты.</li>
+    </ul>
+
+    <h2>Что уже готово у BankFuture</h2>
+    <ul>
+      <li>Агентский ЛК, регистрация агентов, CRM, субагентская сеть (при необходимости).</li>
+      <li>Тенант SBER (29), отчёт v2, витрина, трекинг ссылок в PDF.</li>
+      <li>Поле <code>partner_agent_id</code> — один ID бухгалтера на все четыре продукта Сбера.</li>
+      <li>Инфраструктура комиссий / partner_agent_id (см. agent network) — для учёта канала после согласования с Сбером.</li>
+    </ul>
+
+    <h2>Сценарий B2B2C (бухгалтер)</h2>
+    <ol class="flow-steps">
+      <li>Бухгалтер регистрируется в FO (через Клерк.ру — лендинг/приглашение, co-brand TBD).</li>
+      <li>Заполняет <code>partner_agent_id</code> (ID, выданный Сбером или каналом — согласовать).</li>
+      <li>Заводит карточки клиентов, цели, риск-профиль.</li>
+      <li>Генерирует PDF/HTML-отчёт; все CTA содержат атрибуцию бухгалтера.</li>
+      <li>Клиент переходит на оформление продукта Сбера; комиссия — по правилам тройного договора BankFuture / Клерк / Сбер.</li>
+    </ol>
+    <div class="diagram-box">Клерк.ру → [Бухгалтер-агент] → PFP (клиенты) → Отчёт → CTA + agent_id
+       → Продукты Сбера</div>
+
+    <h2>Техническое описание</h2>
+    <p>Та же платформа PFP, что в B2C: Node.js, MySQL, PDF v2. Размещение — <strong>изолированный Yandex Cloud</strong> или <strong>on-prem Сбера</strong>. Для канала Клерк — отдельный landing URL и UTM <code>utm_source=clerk</code> (пример, финализировать в settings).</p>
+
+    <h2>Интеграции</h2>
+    <h3>MVP <span class="badge badge--mvp">сейчас</span></h3>
+    <p>Реферальные ссылки в отчёте и письмах; без API продаж Сбера. Whitelist: npfsberbanka.ru, sberbank-insurance.ru, first-am.ru, sberbank.ru.</p>
+    <h3>Клерк <span class="badge badge--partner">партнёр</span></h3>
+    <ul>
+      <li>Маркетинговое размещение и онбординг бухгалтеров — зона ответственности Клерк (согласовать с Сбером упоминание бренда Сбера).</li>
+      <li>Технически: deep link в FO, возможна SSO — отдельное ТЗ с Клерком.</li>
+    </ul>
+    <h3>SberID <span class="badge badge--phase2">фаза 2</span></h3>
+    <p>Клиент бухгалтера входит через Сбер ID → доходы/расходы без ручного опроса → быстрее до отчёта и CTA. Не блокирует запуск MVP.</p>
+
+    <h2>ИИ / GigaChat</h2>
+    <p>Подсказки бухгалтеру при заполнении анкеты клиента; черновики писем клиенту. Отключение по политике Сбера. Расчёты — без LLM.</p>
+
+    <h2>ИБ</h2>
+    <p>Агент видит только своих клиентов (tenant isolation). ПДн клиентов — оператор по договору (BankFuture / совместно). Клерк не получает полный доступ к ПДн без отдельного согласия.</p>
+
+    <h2>Roadmap</h2>
+    <table>
+      <thead><tr><th>Фаза</th><th>Содержание</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>Ядро PFP + тенант 29</td></tr>
+        <tr><td>1</td><td>Юридика Сбер + co-brand Клерк + комиссионная модель</td></tr>
+        <tr><td>2</td><td>Пилот N бухгалтеров через Клерк</td></tr>
+        <tr><td>3</td><td>Рефералки и agent_id от Сбера</td></tr>
+        <tr><td>4a</td><td>SberID для клиентов бухгалтеров</td></tr>
+        <tr><td>5</td><td>Масштабирование на базу Клерк</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Что нужно от Сбера</h2>
+    <table>
+      <thead><tr><th>Артефакт</th><th>Зачем</th></tr></thead>
+      <tbody>
+        <tr><td>Согласование упоминания «Сбер» в материалах Клерк</td><td>Ко-маркетинг</td></tr>
+        <tr><td>Схема ID агента для бухгалтеров</td><td>Один partner_agent_id на все продукты</td></tr>
+        <tr><td>Комиссионные правила (или делегирование каналу)</td><td>Мотивация бухгалтеров</td></tr>
+        <tr><td>Дисклеймеры для агентского сценария</td><td>Отчёт PDF</td></tr>
+        <tr><td>ИБ-пилот</td><td>Допуск агентского ЛК</td></tr>
+        <tr><td>SberID (фаза 2)</td><td>Автоданные клиента</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Что нужно от Клерк.ру</h2>
+    <table>
+      <thead><tr><th>Артефакт</th><th>Зачем</th></tr></thead>
+      <tbody>
+        <tr><td>Письменное co-brand и оферта для бухгалтеров</td><td>Запуск канала</td></tr>
+        <tr><td>Лендинг / рассылка в аудиторию</td><td>Пилот N агентов</td></tr>
+        <tr><td>Контакт интеграции (deep link / SSO)</td><td>UX онбординга</td></tr>
+      </tbody>
+    </table>
+  </article>
+
+  <div class="screen-bar">
+    <a href="SBER_FAMILY_OFFICE_CHANNELS_INDEX.consulting.html">Все каналы</a> ·
+    <a href="SBER_FAMILY_OFFICE_B2C_PROPOSAL.consulting.html">← B2C</a> ·
+    <a href="SBER_FAMILY_OFFICE_B2B2C_PRAVKARD_PROPOSAL.consulting.html">Правкард →</a>
+  </div>
+</body>
+</html>

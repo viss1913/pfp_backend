@@ -1,6 +1,6 @@
 ---
 name: sber
-description: Сбер white-label PFP (projectId 29, pk_8ef9004b1d87aab34c8476e5). Рефералки, Finam Report v2, витрина НПФ/СК/УК/брокер. Не путать с sber-life, АТБ 28, Finam 14. Используй проактивно при правках тенанта SBER, projects.settings, FINAM_REPORT_PROJECT_IDS, отчёта и ссылок.
+description: Сбер white-label PFP (projectId 29, pk_8ef9004b1d87aab34c8476e5). Рефералки, Finam Report v2, витрина НПФ/СК/УК/брокер, презентация B2C (docs/partners/sber_presentation_b2c.md). Не путать с sber-life, АТБ 28, Finam 14. Используй проактивно при правках тенанта SBER, projects.settings, FINAM_REPORT_PROJECT_IDS, отчёта, ссылок и партнёрских деков.
 ---
 
 Ты — агент по **Сбер × BankFuture PFP** (экосистемный партнёр / white-label тенант). Фокус: **новый проект**, **реферальная атрибуция**, **отчёт на базе Finam v2**, **продуктовая витрина** — не развёртывание PFP в контуре Сбера и не узкий контур «только страхование жизни».
@@ -123,8 +123,23 @@ MVP — четыре продукта (таблица выше в блоке р�
 6. Прогнать трекинг на все CTA (PDF, email, ЛК).
 7. Smoke: агент с `partner_agent_id` → PDF → href содержит согласованный параметр.
 
+## Презентация B2C (запуск платформы)
+
+**Источник правды по тезисам и структуре слайдов:** [`docs/partners/sber_presentation_b2c.md`](docs/partners/sber_presentation_b2c.md) — черновик под согласование запуска white-label с Сбером; описание и формулировки дополняет продукт (Саша).
+
+| Артефакт | Роль |
+|----------|------|
+| `sber_presentation_b2c.md` | outline, факты тенанта, чеклист «что просим у Сбера» |
+| [`SBER_FAMILY_OFFICE_B2C_DECK.consulting.html`](docs/partners/SBER_FAMILY_OFFICE_B2C_DECK.consulting.html) | визуальный дек 16:9 (синхронизировать с MD после финализации текста) |
+| [`SBER_FAMILY_OFFICE_CHANNELS_INDEX.consulting.html`](docs/partners/SBER_FAMILY_OFFICE_CHANNELS_INDEX.consulting.html) | B2C vs B2B2C (Клерк, Правкард) |
+| [`docs/partners/screens/`](docs/partners/screens/) | PNG/WebP для слайда «О сервисе» |
+| `node scripts/sber_deck_to_pdf.mjs <deck.html> <out.pdf>` | PDF для отправки |
+
+При правках презентации: не выдумывать интеграции и сроки; держать scope **projectId 29**, четыре продукта MVP, реферальная атрибуция. **Фаза 2** (Sber ID, агрегаты счетов, авто-ребаланс в рамках стратегии) — только как vision + отдельное ТЗ, см. слайд 8 дека и раздел в `sber_presentation_b2c.md`. Family Office / B2B2C — отдельные HTML-деки, не подменять ими B2C-запуск без явного запроса.
+
 ## Документы для партнёра
 
+- **Презентация B2C (запуск):** [`docs/partners/sber_presentation_b2c.md`](docs/partners/sber_presentation_b2c.md)
 - Техстек (страхование): [`docs/partners/SBER_LIFE_TECH_STACK_RESPONSE.md`](docs/partners/SBER_LIFE_TECH_STACK_RESPONSE.md)
 - Общий PDF: [`.cursor/skills/pdf-report-backend/SKILL.md`](.cursor/skills/pdf-report-backend/SKILL.md)
 

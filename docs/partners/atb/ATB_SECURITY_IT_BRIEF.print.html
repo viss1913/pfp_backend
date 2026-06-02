@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BankFuture PFP — сводка для ИБ и ИТ АТБ Банка</title>
+  
+  <style>
+
+    @page { size: A4; margin: 18mm 16mm 22mm 16mm; }
+    * { box-sizing: border-box; }
+    html { font-size: 11pt; }
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      line-height: 1.45;
+      color: #1a1a1a;
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 12mm 0 16mm;
+    }
+    h1 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.35em;
+      color: #0d2137;
+      border-bottom: 3px solid #c9a227;
+      padding-bottom: 0.35em;
+    }
+    h2 {
+      font-size: 1.15rem;
+      margin: 1.35em 0 0.5em;
+      color: #123652;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 1.05rem; margin: 1em 0 0.4em; color: #1e4976; page-break-after: avoid; }
+    h4 { font-size: 1rem; margin: 0.85em 0 0.35em; page-break-after: avoid; }
+    p { margin: 0.45em 0; }
+    ul { margin: 0.35em 0 0.65em 1.15em; padding: 0; }
+    li { margin: 0.25em 0; }
+    code {
+      font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+      font-size: 0.88em;
+      background: #f4f6f8;
+      padding: 0.12em 0.35em;
+      border-radius: 4px;
+    }
+    a { color: #0b5cab; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.65em 0 1em;
+      font-size: 0.92em;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid #cfd6de;
+      padding: 0.4em 0.55em;
+      vertical-align: top;
+    }
+    th { background: #eef3f8; font-weight: 600; text-align: left; color: #0d2137; }
+    tr:nth-child(even) td { background: #fafbfc; }
+    hr {
+      border: none;
+      border-top: 1px solid #dde4eb;
+      margin: 1.25em 0;
+    }
+    .cover {
+      text-align: center;
+      padding: 8mm 6mm 14mm;
+      margin-bottom: 10mm;
+      page-break-after: always;
+      border: 1px solid #e2e8ef;
+      border-radius: 6px;
+      background: linear-gradient(165deg, #f8fafc 0%, #fff 45%, #f5f7fa 100%);
+    }
+    .cover .kicker { font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; color: #6b7c8f; margin-bottom: 0.75rem; }
+    .cover h1 { border: none; font-size: 1.5rem; padding: 0; margin: 0 0 0.5rem; }
+    .cover .sub { font-size: 0.95rem; color: #4a5d73; max-width: 36rem; margin: 0 auto 1rem; }
+    .cover .meta { font-size: 0.82rem; color: #7a8a9a; }
+    @media print {
+      body { padding: 0; }
+      a { color: #000; }
+    }
+
+  </style>
+</head>
+<body>
+<div class="cover">
+    <div class="kicker">Внутренний материал · ИБ / ИТ</div>
+    <h1>BankFuture PFP — сводка для ИБ и ИТ АТБ Банка</h1>
+    <p class="sub">Версия для печати и экспорта в PDF (Chrome / Edge: Печать → Сохранить как PDF)</p>
+    <p class="meta">Сгенерировано из Markdown · 13 мая 2026 г.</p>
+  </div>
+  <article>
+<h2>1) Зачем этот документ</h2>
+<p>Документ фиксирует текущую архитектуру PFP backend, ожидаемое размещение <strong>backend и личных кабинетов (ЛК)</strong> в <strong>контуре АТБ Банка</strong>, а также перечень инфраструктурных/безопасностных требований для запуска в test/prod.</p>
+<p>Цель: чтобы команды ИБ и ИТ АТБ Банка заранее понимали масштаб работ, риски и блокеры до этапа go-live.</p>
+<h2>2) Что предлагаем со стороны бизнеса и следующие шаги</h2>
+<p>Этот блок — для <strong>первого контакта с бизнес-кураторами и ИТ-лидером банка</strong>: что именно мы как BankFuture PFP готовы привезти и как разумно выстроить взаимодействие до «тяжёлого» технического чтения ниже.</p>
+<h3>2.1 Что можем предложить как ценность для АТБ Банка</h3>
+<ul>
+<li><strong>Готовая платформа PFP</strong> в контуре банка: цели, портфели, отчёты PDF, онбординг и анкеты, сегментация масс/премиум через проекты и роли — без необходимости с нуля собирать расчётные ядра и ЛК.</li>
+<li><strong>Гибкая кастомизация</strong> под линии банка: бренд отчётов, сценарии клиентского пути, набор продуктов и модульность интеграций (ядро, СК, УК) — см. §4.5.</li>
+<li><strong>Прозрачная дорожная карта ИБ/ИТ</strong>: сначала выравниваем ограничения контура и доступы, затем пилот, затем промышленное развёртывание; ИИ и внешние SaaS явно выносим в опции после вашего решения.</li>
+<li><strong>Сопровождение внедрения</strong>: совместная проработка контрактов интеграций, участие в НФТ-тестах, методическая поддержка расчётов и отчётности для пользователей банка.</li>
+</ul>
+<p>Коммерческие условия (лицензия, сопровождение, объём пилота) обсуждаются <strong>отдельно</strong> и не являются предметом этого технического документа.</p>
+<h3>2.2 Рекомендуемая последовательность шагов (ориентир)</h3>
+<table><thead>
+<tr><th>Этап</th><th>Содержание</th><th>Зачем банку</th></tr>
+</thead><tbody>
+<tr><td><strong>1. Знакомство и рамки</strong></td><td>Короткий бриф с архитекторами и ИБ: контур, классификация данных, whitelist исходящего доступа</td><td>Быстро понять совместимость и красные линии</td></tr>
+<tr><td><strong>2. Углублённый разбор</strong></td><td>Детальное прохождение разделов этого документа + при необходимости отдельная сессия по интеграциям СК/УК/ядро</td><td>Зафиксировать объём работ и зависимости</td></tr>
+<tr><td><strong>3. Дизайн решения</strong></td><td>Целевая схема размещения (§4), выбор MySQL/PostgreSQL, замены R2/Resend, режим ИИ</td><td>Единая картина для закупки и календаря</td></tr>
+<tr><td><strong>4. Пилот в test</strong></td><td>Ограниченный контур пользователей/агентов, проверка отчётов и интеграций на стендах банка</td><td>Снижение риска до промышленного запуска</td></tr>
+<tr><td><strong>5. Запуск prod и развитие</strong></td><td>Go-live по согласованному SLA, мониторинг, доработки по обратной связи</td><td>Вывод в эксплуатацию и масштабирование</td></tr>
+</tbody></table>
+<h3>2.3 Что желательно получить от банка на старте (минимум)</h3>
+<ul>
+<li>Назначенные <strong>владельцы</strong> со стороны бизнеса и ИТ (единое окно для решений).</li>
+<li>Понимание <strong>приоритетной линии продукта</strong> (например розница vs private первым этапом).</li>
+<li>Готовность выделить <strong>тестовые стенды</strong> смежных систем или контракты на доступ для интеграций.</li>
+</ul>
+<p>После этого блока ниже идёт <strong>краткая техническая сводка</strong> и полное описание архитектуры и требований.</p>
+<h2>3) Executive summary (коротко)</h2>
+<ul>
+<li><strong>Размещение:</strong> и <strong>backend</strong>, и <strong>клиентские приложения (ЛК клиента / агента, админка и т.д.)</strong> в целевом сценарии для АТБ Банка рассматриваются как системы <strong>внутри контура банка</strong> (единый периметр доверия; внешний интернет для пользователя — через каналы банка, не «облачный SaaS ЛК» по умолчанию).</li>
+<li>Проект — <strong>Node.js backend</strong>: расчёты финансовых целей, портфели, отчёты PDF/HTML, макроданные, опционально чат и ИИ.</li>
+<li><strong>ИИ — опция в контуре банка</strong>: может быть развёрнут <strong>внутри периметра</strong> (on-prem / корпоративный inference API) или подключён по отдельному решению ИБ; до включения действует режим <strong>без ИИ</strong> с предсказуемыми fallback в API.</li>
+<li><strong>Внешние SaaS из текущего прод-контура не являются обязательными для АТБ Банка</strong>: типичные для облачного развёртывания <strong>Cloudflare R2</strong> (объектное хранилище S3-совместимое, обложки PDF и файлы) и <strong>Resend</strong> (транзакционная почта) в контуре банка <strong>не требуются как есть</strong> — предполагается <strong>замена на корпоративное объектное хранилище</strong> и <strong>корпоративную почту / SMTP / внутренний шлюз уведомлений</strong> либо отключение соответствующих функций до совместного проектирования с ИТ/ИБ.</li>
+<li><strong>БД:</strong> в коде сейчас <strong>MySQL</strong> (<code>mysql2</code>, миграции Knex под MySQL). Для контура банка можно <strong>оставить MySQL</strong> как есть с размещением инстанса в контуре АТБ Банка <strong>или опционально</strong> выполнить переход на <strong>PostgreSQL</strong> (подключение <code>pg</code>, правки диалекта SQL в миграциях/запросах, регрессия) — решение принимается совместно с ИТ/архитектурой банка, это <strong>не обязательное</strong> требование документа.</li>
+<li>Для prod критичны: отказоустойчивость, аудит, контролируемые внешние доступы, DR; без профиля нагрузки (RPS, конкурентность, SLA) финальный sizing условен.</li>
+</ul>
+<h2>4) Архитектура, API, бизнес-логика и интеграции (целевой контур)</h2>
+<p>Ниже — логическая картина для согласования с архитекторами и владельцами смежных систем АТБ Банка. Детализация интерфейсов — предмет отдельных спецификаций и НФТ.</p>
+<h3>4.1 Логическая архитектура (high-level)</h3>
+<figure class="mermaid-wrap"><pre class="mermaid">flowchart TB
+  subgraph perimeter["Контур АТБ Банка"]
+    subgraph users["Клиентские приложения"]
+      LK["ЛК клиента / агента / админка SPA"]
+    end
+
+    subgraph pfp["PFP Backend"]
+      API["REST API `/api`"]
+      MW["Аутентификация JWT · изоляция по проекту / tenant"]
+      SVC["Сервисы: расчёты целей · портфели · отчёты PDF · CRM · макро"]
+    end
+
+    subgraph data["Данные и файлы"]
+      DB[("РСУБД: MySQL как в коде либо PostgreSQL опционально")]
+      OBJ["Объектное хранилище банка S3-совместимое"]
+    end
+
+    subgraph aiopt["ИИ — опционально"]
+      LLM["LLM в контуре банка или согласованный endpoint"]
+    end
+  end
+
+  subgraph bank["Интеграционный контур банка"]
+    BUS["Шина / ESB / API-gateway"]
+    CORE["Ядро · брокер · депозитарий"]
+    SK["СК — страховые данные договоры"]
+    UK["УК — продукты УК паи отчётность"]
+  end
+
+  subgraph market["Рыночные и справочные данные outgoing whitelist"]
+    MACRO["ЦБ РФ · MOEX ISS и др."]
+  end
+
+  LK --&gt; API
+  API --&gt; MW --&gt; SVC
+  SVC --&gt; DB
+  SVC --&gt; OBJ
+  SVC -.-&gt;|optional| LLM
+  SVC &lt;--&gt; BUS
+  BUS &lt;--&gt; CORE
+  BUS &lt;--&gt; SK
+  BUS &lt;--&gt; UK
+  SVC --&gt; MACRO</pre><figcaption class="mermaid-cap">Схема: откройте в браузере до печати в PDF — диаграмма дорисуется автоматически.</figcaption></figure>
+<p><strong>Как читать:</strong> <strong>ЛК и backend</strong> показаны внутри <strong>периметра АТБ Банка</strong>; браузер пользователя ходит в ЛК и дальше в <strong>PFP API</strong> (обычно тот же контур или сегмент DMZ по правилам банка). Персистентность — <strong>реляционная БД</strong>: в репозитории сейчас <strong>MySQL</strong>; переход на <strong>PostgreSQL</strong> возможен <strong>опционально</strong> по решению банка. Файлы отчётов — в <strong>объектном хранилище банка</strong>. <strong>ИИ</strong> — только при разрешении ИБ. <strong>СК / УК / ядро</strong> — смежные системы; протоколы согласуются с ИТ АТБ Банка.</p>
+<h3>4.2 Бизнес-логика платформы (уровень продукта)</h3>
+<p>Кратко, что делает backend с точки зрения бизнеса:</p>
+<ul>
+<li><strong>Клиент и анкета</strong>: профиль, доходы/расходы, обязательства, горизонты и ограничения.</li>
+<li><strong>Цели</strong>: пенсия, инвестиции, накопления, иные типы целей из методики PFP — расчёт необходимых сумм, траекторий, сценариев.</li>
+<li><strong>Риск-профиль</strong> и согласование с инвестиционной линией (где применимо).</li>
+<li><strong>Портфели</strong>: связка с внешними позициями и классами активов; при наличии интеграций — опора на <strong>актуальные данные</strong> из контура банка / УК / СК.</li>
+<li><strong>Отчётность</strong>: генерация PDF/HTML отчётов (в т.ч. для партнёрских проектов), настройки обложек и шаблонов.</li>
+<li><strong>Макроэкономика</strong>: использование обновляемых показателей (ЦБ, MOEX и др.) для расчётов и отчётов — по согласованному whitelist исходящего доступа.</li>
+<li><strong>ИИ (если включён)</strong>: чат-ассистенты, пояснения текстов — поверх базовой логики, без обязательности для «классических» расчётов.</li>
+</ul>
+<h3>4.3 REST API и документация</h3>
+<ul>
+<li><strong>Базовый префикс:</strong> все основые маршруты приложения монтируются под <strong><code>/api</code></strong> (например <code>https://&lt;host&gt;/api/...</code>).</li>
+<li><strong>Интерактивная спецификация (Swagger UI):</strong></li>
+<li>основной контракт PFP — <strong><code>/api-docs</code></strong> (OpenAPI <code>openapi/pfp-api.yaml</code>);</li>
+<li>контуры B2C — <strong><code>/api-docs-b2c</code></strong>;</li>
+<li>настройки PDF — <strong><code>/api-docs-pdf-settings</code></strong>.</li>
+<li><strong>Характерные группы маршрутов</strong> (не исчерпывающий список): аутентификация <strong><code>/api/auth</code></strong>, клиенты и кабинеты <strong><code>/api/client</code></strong>, <strong><code>/api/pfp/clients</code></strong>, <strong><code>/api/my</code></strong>, продукты и типы <strong><code>/api/pfp/products</code></strong>, <strong><code>/api/pfp/product-types</code></strong>, портфели <strong><code>/api/pfp/portfolios</code></strong>, настройки <strong><code>/api/pfp/settings</code></strong>, агенты <strong><code>/api/pfp/agents</code></strong>, отчёты и PDF <strong><code>/api/pfp/reports</code></strong>, <strong><code>/api/pfp/pdf-settings</code></strong>, макроданные <strong><code>/api/pfp/macro</code></strong>, CRM <strong><code>/api/pfp/crm</code></strong>, интеграция с внешними портфельными системами (пример — Resolut) <strong><code>/api/pfp/resolut</code></strong>, стратегии Comon/Финам <strong><code>/api/pfp/comon</code></strong>, конструктор <strong><code>/api/pfp/constructor</code></strong>, ИИ <strong><code>/api/pfp/ai</code></strong>, <strong><code>/api/pfp/ai-b2c</code></strong>, админские и служебные префиксы <strong><code>/api/admin/...</code></strong>.</li>
+</ul>
+<p>Точный перечень методов, ролей и кодов ответов — в OpenAPI; для контура банка дополнительно согласовываются <strong>лимиты</strong>, <strong>IP allowlist</strong>, <strong>mTLS</strong> на шлюзе и политика публикации Swagger (часто только во внутреннем контуре).</p>
+<h3>4.4 Интеграции: СК, УК, банковские системы (портфель, котировки, актуальность)</h3>
+<p>Цель интеграций — дать клиенту и советнику <strong>согласованную картину</strong>: позиции, оценки, продукты страхования/УК, справочники инструментов — с учётом регламентов банка.</p>
+<table><thead>
+<tr><th>Направление</th><th>Примеры данных</th><th>Зачем PFP</th></tr>
+</thead><tbody>
+<tr><td><strong>Банковский контур</strong></td><td>счета, остатки, заблокированные активы, продукты розницы</td><td>связка целей с реальными позициями</td></tr>
+<tr><td><strong>Брокер / ядро рынка</strong></td><td>котировки, сделки, начисления</td><td>актуализация стоимости портфеля</td></tr>
+<tr><td><strong>УК</strong></td><td>паи, доли, отчётность фондов</td><td>цели и доли в коллективных инвестициях</td></tr>
+<tr><td><strong>СК</strong></td><td>договоры, премии, риски по объектам</td><td>страховые цели и защита имущества</td></tr>
+</tbody></table>
+<p>Технически это реализуется через <strong>адаптеры</strong> на стороне PFP и <strong>контракты</strong> на стороне банка (шина, API ядра, файловые шлюзы). Требуется от АТБ Банка: <strong>владельцы систем</strong>, <strong>тестовые стенды</strong>, <strong>НФТ</strong> (_latency_, доступность), правила <strong>не выходить за периметр</strong> с ПДн.</p>
+<h3>4.5 Возможности кастомизации BankFuture PFP (продуктовый контур)</h3>
+<p>Ниже — что можно гибко настраивать под <strong>разные программы, сегменты клиентов и каналы</strong> без форка ядра платформы (детали — в OpenAPI и админских/агентских ЛК).</p>
+<table><thead>
+<tr><th>Область</th><th>Что кастомизируется</th><th>Комментарий для банка</th></tr>
+</thead><tbody>
+<tr><td><strong>PDF-отчёты</strong></td><td>Макеты HTML, <strong>темы оформления</strong>, обложки, цвета и блоки сводной части; загрузка графики бренда агента/программы; превью перед генерацией</td><td>API <code>/api/pfp/pdf-settings</code>, отдельная спека PDF; под разные партнёрские линии можно держать <strong>разные визуальные профили</strong></td></tr>
+<tr><td><strong>CJM и онбординг клиента</strong></td><td>Первичный расчёт (<strong>first-run</strong>), поэтапное наполнение анкеты, <strong>версии анкеты риск-профиля</strong>, привязка ответов к целям</td><td>Сценарий «клиентский путь» задаётся набором экранов ЛК + правилами расчёта; тяжёлые изменения методики — отдельная продуктовая задача</td></tr>
+<tr><td><strong>Продукты и цели</strong></td><td>Справочник <strong>типов продуктов</strong> и целей, доступные пользователю сценарии расчёта</td><td>Разные программы банка могут показывать разный набор целей и продуктов</td></tr>
+<tr><td><strong>Масс-сегмент vs премиум</strong></td><td>Разделение по <strong>проекту (tenant)</strong> и <strong>ролям</strong> (клиент, агент, администратор и др.): разный состав модулей, отчётов, интеграций и правил видимости портфеля</td><td>Один backend — несколько <strong>изолированных программ</strong> (например розница vs private); политика доступа и ACL — на стороне конфигурации и ИБ</td></tr>
+<tr><td><strong>Портфели и инструменты</strong></td><td>Классы активов, связки с внешними источниками позиций, ограничения по инструментам под сегмент</td><td>Согласуется с интеграциями §4.4</td></tr>
+<tr><td><strong>Расширения по программе</strong></td><td>CRM-контуры, <strong>конструктор / сценарии ботов</strong> (если включены по политике), витрины стратегий (например Comon), <strong>налоговое планирование</strong>, отдельные модули (напр. страхование имущества)</td><td>Включаются точечно; часть завязана на внешние API и ИИ — только после согласования ИБ</td></tr>
+</tbody></table>
+<p>Итого для презентаций: BankFuture PFP допускает <strong>несколько параллельных «линий»</strong> (масс / премиум / партнёрская программа) за счёт <strong>проекта + ролей + PDF-брендинга + набора продуктов и интеграций</strong>, без обязательного второго контура приложения — если ИТ банка так проектирует изоляцию данных и доступов.</p>
+<hr />
+<h2>5) Текущее состояние (as-is)</h2>
+<h3>5.1 Runtime и стек</h3>
+<ul>
+<li>Node.js: <code>&gt;=18</code> по <code>engines</code>, в Docker используется <code>node:20-bookworm-slim</code>.</li>
+<li>npm: <code>&gt;=9</code>.</li>
+<li>Framework: <code>express</code>.</li>
+<li>ORM/query builder: <code>knex</code>.</li>
+<li>DB driver: <code>mysql2</code> (текущий контур).</li>
+<li>PDF (текущий боевой pipeline отчётов/NDA): <code>puppeteer</code> + системный <code>chromium</code>.</li>
+<li><code>pdfkit</code>: присутствует в проекте для отдельного/legacy-контура, не является обязательным ядром текущей HTML-&gt;PDF генерации.</li>
+<li>Макроданные: <code>axios</code>, <code>xml2js</code>, <code>xlsx</code>.</li>
+<li>Безопасность API: <code>helmet</code>, <code>cors</code>, <code>jsonwebtoken</code>, <code>bcryptjs</code>.</li>
+<li>Логирование: <code>winston</code>.</li>
+</ul>
+<h3>5.2 Системные зависимости контейнера</h3>
+<p>Сейчас в <code>Dockerfile</code> используются:</p>
+<ul>
+<li><code>chromium</code></li>
+<li><code>ca-certificates</code></li>
+<li><code>fonts-liberation</code></li>
+<li><code>ghostscript</code></li>
+</ul>
+<p>Это обязательно для стабильной PDF-генерации и корректной отрисовки шрифтов.</p>
+<h3>5.3 Внешние данные по макроэкономике (актуальный контур)</h3>
+<p>Используются только:</p>
+<p>1. ЦБ РФ:</p>
+<ul>
+<li>ключевая ставка;</li>
+<li>годовая инфляция;</li>
+<li>USD/RUB, EUR/RUB;</li>
+<li>цена золота;</li>
+<li>максимальная ставка по вкладам.</li>
+</ul>
+<p>2. MOEX ISS:</p>
+<ul>
+<li>индекс IMOEX;</li>
+<li>доходности ОФЗ G-кривой 2/5/10 лет;</li>
+<li>индекс корп. облигаций RUCBICP.</li>
+</ul>
+<p>Ссылки на источники:</p>
+<ul>
+<li>https://www.cbr.ru/DailyInfoWebServ/DailyInfo.asmx</li>
+<li>https://www.cbr.ru/scripts/xml_metall.asp</li>
+<li>https://www.cbr.ru/statistics/avgprocstav/</li>
+<li>https://iss.moex.com/iss/engines/stock/markets/index/securities/IMOEX.json</li>
+<li>https://iss.moex.com/iss/engines/stock/zcyc.json</li>
+<li>https://iss.moex.com/iss/engines/stock/markets/index/securities/RUCBICP.json</li>
+</ul>
+<h2>6) Целевое состояние для АТБ Банка (to-be)</h2>
+<h3>6.1 Политика ИИ: базово «без ИИ», включение — опция в контуре</h3>
+<p>По умолчанию для первичного согласования AI/LLM <strong>выключены</strong>. Одновременно фиксируется, что <strong>ИИ может быть частью решения в контуре АТБ Банка</strong> после отдельного решения ИБ и архитектуры:</p>
+<ul>
+<li><strong>Предпочтительный для банка сценарий</strong> — размещение модели <strong>внутри периметра</strong> (on-prem GPU-кластер или корпоративный inference-сервис с OpenAI-compatible API), без обязательного исходящего трафика на публичные LLM.</li>
+<li><strong>Альтернатива</strong> — согласованный внешний провайдер через корпоративный egress/proxy и whitelist (как в разделе про опциональный AI).</li>
+<li>В любом режиме до включения ИИ: <strong>нет</strong> ключей провайдеров в окружении, <strong>fallback</strong> API без падения backend.</li>
+</ul>
+<h3>6.2 База данных: MySQL (как в коде); PostgreSQL — опционально</h3>
+<p><strong>Фактическое состояние репозитория:</strong> СУБД <strong>MySQL</strong> (<code>mysql2</code>), миграции и запросы под этот диалект.</p>
+<p><strong>Опция для контура АТБ Банка:</strong> если ИТ банка стандартизует <strong>PostgreSQL</strong>, возможен <strong>перенос</strong> — отдельный инженерный поток:</p>
+<ul>
+<li>драйвер <code>pg</code>, <code>knex client=pg</code>;</li>
+<li>адаптация SQL-диалекта в миграциях и запросах;</li>
+<li>проверка индексов, дат/таймзон, JSON-операций;</li>
+<li>регрессия критичных бизнес-сценариев.</li>
+</ul>
+<p>Если банк <strong>готов принять MySQL</strong> в своём контуре (отказоустойчивый кластер, backup, политика ИБ), <strong>переписывание под PostgreSQL не является обязательным</strong> для запуска — это предмет отдельного решения и оценки трудозатрат.</p>
+<h2>7) Минимально необходимые компоненты для деплоя</h2>
+<h3>7.1 Обязательные runtime компоненты</h3>
+<ul>
+<li>Linux x86_64</li>
+<li>Node.js 20.x LTS</li>
+<li>npm 9+</li>
+</ul>
+<h3>7.2 Обязательные npm пакеты (go-live critical)</h3>
+<ul>
+<li><code>express</code>, <code>dotenv</code>, <code>axios</code>, <code>joi</code>, <code>helmet</code>, <code>cors</code></li>
+<li><code>knex</code> + драйвер выбранной СУБД: <strong><code>mysql2</code></strong> если остаёмся на MySQL как в коде; <strong><code>pg</code></strong> если выполняется миграция на PostgreSQL</li>
+<li><code>jsonwebtoken</code>, <code>bcryptjs</code></li>
+<li><code>winston</code>, <code>swagger-ui-express</code></li>
+<li><code>puppeteer</code> (обязательно для текущего HTML-&gt;PDF pipeline)</li>
+<li><code>pdfkit</code> (опционально; не критичен для текущего report/NDA pipeline)</li>
+</ul>
+<h3>7.3 Обязательные системные пакеты ОС</h3>
+<ul>
+<li><code>chromium</code></li>
+<li><code>ca-certificates</code></li>
+<li><code>fonts-liberation</code></li>
+<li><code>ghostscript</code></li>
+</ul>
+<h3>7.4 Опциональные компоненты (по включенным фичам)</h3>
+<p>В DEV/SaaS-контуре часто используются:</p>
+<ul>
+<li><code>resend</code> — транзакционная почта через провайдера Resend.</li>
+</ul>
+<p>В контуре <strong>АТБ Банка Resend не обязателен</strong>: почта переводится на <strong>корпоративный SMTP/API</strong> или внутренний шлюз уведомлений; пакет <code>resend</code> может не использоваться.</p>
+<ul>
+<li><code>@aws-sdk/client-s3</code>, <code>@aws-sdk/s3-request-presigner</code>, <code>sharp</code> — доступ к <strong>S3-совместимому</strong> объектному хранилищу.</li>
+</ul>
+<p>В DEV часто настроен <strong>Cloudflare R2</strong>; для банка целевым является <strong>корпоративное S3-совместимое хранилище</strong> (не привязка к Cloudflare как к обязательному вендору). Конфигурация через те же переменные endpoint/bucket/credentials в согласованном secret manager.</p>
+<ul>
+<li><code>node-cron</code> (планировщик)</li>
+<li><code>node-telegram-bot-api</code> (Telegram — опционально, часто off в банковском контуре)</li>
+<li><code>docx</code>, <code>mammoth</code>, <code>xlsx</code>, <code>pdf-parse</code> (парсинг документов)</li>
+</ul>
+<h2>8) Требования к серверам (baseline до точного sizing)</h2>
+<h3>8.1 TEST</h3>
+<ul>
+<li>1 instance backend</li>
+<li>2 vCPU</li>
+<li>4 GB RAM</li>
+<li>30+ GB SSD</li>
+<li>отдельный инстанс <strong>РСУБД</strong> (MySQL или PostgreSQL — по выбору банка)</li>
+</ul>
+<h3>8.2 PROD</h3>
+<ul>
+<li>минимум 2 instance backend (HA)</li>
+<li>каждый по 4 vCPU / 8 GB RAM</li>
+<li>80+ GB SSD на instance</li>
+<li>отдельный <strong>РСУБД</strong>-кластер или HA-профиль (MySQL или PostgreSQL — по выбору банка)</li>
+<li>централизованные логи/метрики/алерты</li>
+</ul>
+<p>Важно: это стартовый baseline. Финальные ресурсы считаются после профиля нагрузки от АТБ Банка.</p>
+<h3>8.3 Рекомендованный sizing для скорости и запаса</h3>
+<p>Чтобы не ехать "впритык" и держать стабильную скорость API/PDF:</p>
+<p>TEST (рекомендовано):</p>
+<ul>
+<li>2 instance backend (а не 1), каждый 2 vCPU / 4 GB RAM</li>
+<li>РСУБД: 2 vCPU / 4-8 GB RAM, SSD 50+ GB</li>
+<li>отдельный worker-процесс под тяжёлые PDF задачи (по возможности)</li>
+</ul>
+<p>PROD (рекомендовано):</p>
+<ul>
+<li>3 instance backend, каждый 4 vCPU / 8-16 GB RAM</li>
+<li>РСУБД primary + replica (HA), минимум 4 vCPU / 16 GB RAM на primary</li>
+<li>SSD от 150 GB, IOPS не ниже среднего enterprise-класса</li>
+<li>отдельный контур фоновых задач (cron/PDF), чтобы не душить API</li>
+</ul>
+<p>Порог для апгрейда:</p>
+<ul>
+<li>CPU backend &gt; 70% более 15 минут;</li>
+<li>RAM backend &gt; 75% устойчиво;</li>
+<li>p95 latency выходит за SLA;</li>
+<li>рост очереди PDF/фоновых задач.</li>
+</ul>
+<h2>9) Что улучшит скорость и стабильность</h2>
+<p>1. Ввести разделение ролей процессов:</p>
+<ul>
+<li>API-процессы отдельно;</li>
+<li>фоновые задачи (<code>node-cron</code>, PDF-генерация) отдельно.</li>
+</ul>
+<p>2. Поставить connection pooling:</p>
+<ul>
+<li>для <strong>PostgreSQL</strong> (если выбрана): pgbouncer (transaction pooling); для <strong>MySQL</strong> — аналог по политике банка (proxy/router);</li>
+<li>ограничения и таймауты соединений на уровне приложения.</li>
+</ul>
+<p>3. Кеширование тяжелых/редко меняющихся данных:</p>
+<ul>
+<li>макро-показатели и справочники — через Redis/внутренний кэш;</li>
+<li>TTL и forced refresh по расписанию.</li>
+</ul>
+<p>4. Защитить API от пиков:</p>
+<ul>
+<li>rate limit на публичные и интеграционные эндпоинты;</li>
+<li>circuit breaker/retry policy для внешних источников.</li>
+</ul>
+<p>5. Оптимизировать PDF-контур:</p>
+<ul>
+<li>ограничить конкурентность PDF-генерации;</li>
+<li>таймауты и очередь задач;</li>
+<li>прогрев Chromium или выделенный worker.</li>
+</ul>
+<p>6. Наблюдаемость:</p>
+<ul>
+<li>метрики p50/p95/p99, error-rate, saturation;</li>
+<li>алерты по latency, 5xx, очередям и отказам внешних интеграций.</li>
+</ul>
+<p>7. Нагрузочное тестирование до go-live:</p>
+<ul>
+<li>сценарии: обычный трафик, пиковый, деградация внешних источников;</li>
+<li>фиксация capacity ceiling и плана горизонтального масштабирования.</li>
+</ul>
+<h2>10) Опциональный AI-контур (только по согласованию ИБ АТБ Банка)</h2>
+<p>По умолчанию AI выключен. Для АТБ Банка приоритетным считается сценарий <strong>LLM внутри контура</strong> (см. также §6.1); этот раздел дополняет требованиями к внешнему провайдеру, если он всё же допускается политикой.</p>
+<h3>10.1 Для чего используется AI в проекте</h3>
+<ul>
+<li>генерация и помощь в чат-сценариях;</li>
+<li>ассистентные подсказки в клиентских/агентских сценариях;</li>
+<li>генерация текстовых объяснений (включая отдельные explain-блоки).</li>
+</ul>
+<h3>10.2 Модели и провайдеры (as-is)</h3>
+<ul>
+<li>OpenRouter (основной провайдер в текущем контуре);</li>
+<li>пример рабочей модели из env/docs: <code>google/gemma-3-27b-it</code>;</li>
+<li>возможны overrides для отдельных задач через env.</li>
+</ul>
+<p>Точный список моделей в проде должен фиксироваться отдельным whitelist-документом ИБ.</p>
+<h3>10.3 Что нужно для включения AI в периметре АТБ Банка</h3>
+<p>0. <strong>Размещение модели (предпочтительно):</strong></p>
+<ul>
+<li>inference внутри периметра (GPU/MLOps по согласованию с ИТ), без обязательного публичного egress;</li>
+<li>для Gemma-подобных открытых моделей — см. также детальный документ по опциональному AI-периметру (<code>docs/atb/ATB_AI_PERIMETER_OPTIONAL.md</code>).</li>
+</ul>
+<p>1. Сетевой доступ (если используется внешний провайдер):</p>
+<ul>
+<li>controlled outbound до AI-провайдера через согласованный proxy/egress.</li>
+</ul>
+<p>2. Секреты:</p>
+<ul>
+<li>хранение API-ключей в корпоративном secret manager;</li>
+<li>регулярная ротация и аудит использования.</li>
+</ul>
+<p>3. Data governance:</p>
+<ul>
+<li>запрет отправки чувствительных данных без маскирования;</li>
+<li>политика redaction/anonymization перед вызовом модели;</li>
+<li>логирование факта вызова без утечки содержимого ПДн.</li>
+</ul>
+<p>4. Эксплуатация:</p>
+<ul>
+<li>fallback при недоступности AI (функции не валят весь backend);</li>
+<li>лимиты стоимости/квот, мониторинг токенов/ошибок;</li>
+<li>отдельные SLO для AI-эндпоинтов.</li>
+</ul>
+<p>5. Комплаенс:</p>
+<ul>
+<li>отдельное письменное согласование ИБ АТБ Банка на внешнюю LLM-интеграцию;</li>
+<li>перечень разрешенных моделей и сред (test/prod) поименно.</li>
+</ul>
+<h2>11) Сетевые и безопасностные требования</h2>
+<h3>11.1 Исходящие доступы (outbound)</h3>
+<p>Нужен whitelist:</p>
+<ul>
+<li><code>www.cbr.ru</code> (макроданные ЦБ)</li>
+<li><code>iss.moex.com</code> (макроданные MOEX)</li>
+</ul>
+<p>При запрете outbound к этим доменам:</p>
+<ul>
+<li>макро-показатели перестанут обновляться;</li>
+<li>часть расчетов будет выполняться на старых значениях;</li>
+<li>потребуется режим деградации с явной маркировкой "данные не обновлены".</li>
+</ul>
+<h3>11.2 TLS/сертификаты и секреты</h3>
+<ul>
+<li>TLS 1.2+ для всех внешних и внутренних каналов.</li>
+<li>Секреты только через секрет-хранилище АТБ Банка.</li>
+<li>Ротация ключей и аудит доступа к секретам.</li>
+</ul>
+<h3>11.3 Аудит и логи</h3>
+<ul>
+<li>Централизованный сбор логов приложения.</li>
+<li>Трассировка ошибок интеграций (без утечки секретов/ПДн).</li>
+<li>Хранение логов по внутреннему регламенту АТБ Банка.</li>
+</ul>
+<h2>12) Масштаб проблем (риски и блокеры)</h2>
+<h3>Критичные риски</h3>
+<p>1. <strong>Миграция БД MySQL → PostgreSQL (если банк её инициирует)</strong> Отдельный объём работ и риск срыва сроков без выделенного этапа миграции и регрессии. Если остаёмся на MySQL в контуре банка — этот риск не актуален.</p>
+<p>2. <strong>Отключение AI без валидации fallback-сценариев</strong> Риск скрытых отказов в маршрутах, где ранее ожидался LLM-ответ.</p>
+<p>3. <strong>Неопределенная нагрузка</strong> Без RPS/конкурентности нельзя корректно утвердить server sizing и SLA.</p>
+<p>4. <strong>Ограничения внешнего доступа</strong> Без согласованного whitelist отвалится обновление макроданных.</p>
+<p>5. <strong>Интеграции СК / УК / ядро</strong> Задержки контрактов API, отсутствие тестовых стендов или нестабильный контур шины — риск для актуальности портфеля и сроков.</p>
+<h3>Что блокирует go-live</h3>
+<ul>
+<li>неутвержденный профиль нагрузки;</li>
+<li>при выборе PostgreSQL — незавершённая миграция с MySQL и регрессия;</li>
+<li>невалидированный режим "без ИИ";</li>
+<li>неутвержденные правила outbound-доступа;</li>
+<li>отсутствие финального DR-плана (RPO/RTO + backup/restore test).</li>
+</ul>
+<h2>13) Что нужно от АТБ Банка (обязательный вход)</h2>
+<p>1. Нагрузка:</p>
+<ul>
+<li>средний/пиковый RPS;</li>
+<li>p95/p99 latency target;</li>
+<li>ожидаемая конкурентность пользователей/агентов.</li>
+</ul>
+<p>2. Инфраструктура:</p>
+<ul>
+<li>формат размещения (VM/Kubernetes);</li>
+<li>требования к ОС/базовым образам;</li>
+<li>политика patching/update window.</li>
+</ul>
+<p>3. ИБ:</p>
+<ul>
+<li>обязательные стандарты (внутренние/регуляторные);</li>
+<li>требования к журналированию и хранению событий;</li>
+<li>требования к защите ПДн.</li>
+</ul>
+<p>4. Сеть:</p>
+<ul>
+<li>правила egress/proxy;</li>
+<li>DNS/TLS ограничения;</li>
+<li>дополнительные требования к сегментации.</li>
+</ul>
+<p>5. Эксплуатация:</p>
+<ul>
+<li>DR цели (RPO/RTO);</li>
+<li>процесс инцидентов и on-call;</li>
+<li>регламент резервного копирования и периодичность тестов восстановления.</li>
+</ul>
+<h2>14) Предлагаемый план адаптации</h2>
+<p>1. Согласовать с АТБ Банком ограничения и входные параметры (нагрузка, ИБ, сеть). 2. Зафиксировать целевую архитектуру prod/test, <strong>замены R2/Resend</strong> на корпоративные сервисы и модель эксплуатации. 3. Описать и согласовать <strong>контракты интеграции</strong> с шиной/ядром/СК/УК (черновик контрактов + НФТ). 4. При решении банка о PostgreSQL — выполнить миграцию БД с MySQL в отдельной ветке с регрессом; иначе развернуть <strong>MySQL</strong> в контуре АТБ Банка по стандартам ИТ. 5. Включить и проверить режим <strong>без ИИ</strong> на всех релевантных маршрутах; при необходимости — отдельный трек <strong>ИИ в контуре</strong>. 6. Настроить инфраструктуру, логи, мониторинг, backup/restore. 7. Провести нагрузочное и интеграционное тестирование (включая моки/стенды банковских систем). 8. Провести security review и только после этого выходить на go-live.</p>
+<h2>15) Матрица мощностей и эксплуатации (для согласования бюджета)</h2>
+<h3>15.1 TEST: варианты контура</h3>
+<table><thead>
+<tr><th>Профиль</th><th>Backend</th><th>РСУБД (MySQL или PostgreSQL)</th><th>Storage</th><th>Комментарий</th></tr>
+</thead><tbody>
+<tr><td>Минимум</td><td>1 instance, 2 vCPU, 4 GB RAM</td><td>1 node, 2 vCPU, 4 GB RAM</td><td>30-50 GB SSD</td><td>Только для функциональных тестов, без запаса по пикам</td></tr>
+<tr><td>Рекомендовано</td><td>2 instance, 2 vCPU, 4 GB RAM каждый</td><td>1 node, 2-4 vCPU, 8 GB RAM</td><td>50-100 GB SSD</td><td>Оптимально для интеграционных/нагрузочных прогонов</td></tr>
+<tr><td>Enterprise</td><td>2 instance, 4 vCPU, 8 GB RAM каждый</td><td>primary + replica, 4 vCPU, 8-16 GB RAM</td><td>100+ GB SSD</td><td>Если test максимально приближен к prod</td></tr>
+</tbody></table>
+<h3>15.2 PROD: варианты контура</h3>
+<table><thead>
+<tr><th>Профиль</th><th>Backend</th><th>РСУБД (MySQL или PostgreSQL)</th><th>Storage</th><th>Комментарий</th></tr>
+</thead><tbody>
+<tr><td>Минимум</td><td>2 instance, 4 vCPU, 8 GB RAM каждый</td><td>1 primary, 4 vCPU, 16 GB RAM</td><td>150 GB SSD</td><td>Базовый go-live, ограниченный запас роста</td></tr>
+<tr><td>Рекомендовано</td><td>3 instance, 4 vCPU, 8-16 GB RAM каждый</td><td>primary + replica, 4-8 vCPU, 16-32 GB RAM</td><td>200-300 GB SSD</td><td>Баланс цена/надежность/скорость</td></tr>
+<tr><td>Enterprise</td><td>4+ instance, 8 vCPU, 16 GB RAM каждый</td><td>HA cluster + replica, 8+ vCPU, 32+ GB RAM</td><td>500+ GB SSD</td><td>Для высоких SLA и агрессивного роста нагрузки</td></tr>
+</tbody></table>
+<h3>15.3 Обязательная эксплуатация по уровням</h3>
+<table><thead>
+<tr><th>Категория</th><th>Минимум</th><th>Рекомендовано</th><th>Enterprise</th></tr>
+</thead><tbody>
+<tr><td>Мониторинг</td><td>Базовые метрики CPU/RAM/5xx</td><td>p95/p99 latency, очереди, DB-metrics</td><td>Полный APM + SLO-дашборды + capacity trend</td></tr>
+<tr><td>Логи</td><td>Централизованный сбор</td><td>Структурированные логи + корреляция запросов</td><td>SIEM-интеграция + расширенный аудит</td></tr>
+<tr><td>Backup/DR</td><td>Daily backup</td><td>PITR + проверка restore ежемесячно</td><td>PITR + DR-репетиции по регламенту</td></tr>
+<tr><td>Масштабирование</td><td>Ручное</td><td>Полуавтоматическое по триггерам</td><td>Автоматическое + predictive scaling</td></tr>
+<tr><td>Безопасность</td><td>TLS + secrets manager</td><td>Ротация секретов + hardening baseline</td><td>Расширенный hardening + регулярный security assessment</td></tr>
+</tbody></table>
+<h3>15.4 Триггеры пересмотра мощностей</h3>
+<p>Переходить на следующий профиль, если выполняется хотя бы один пункт:</p>
+<ul>
+<li>p95 latency стабильно выше целевого SLA;</li>
+<li>CPU backend &gt; 70% более 15 минут в пиковые окна;</li>
+<li>RAM backend &gt; 75% в течение рабочего периода;</li>
+<li>время генерации PDF растет и формирует очередь;</li>
+<li>рост RPS/конкурентности &gt; 30% от последнего планового уровня.</li>
+</ul>
+  </article>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'neutral',
+      securityLevel: 'loose',
+      themeVariables: {}
+    });
+  </script>
+</body>
+</html>

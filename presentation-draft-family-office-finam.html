@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Office для агентов Финама</title>
+  <style>
+    @page { size: A4 landscape; margin: 0; }
+
+    :root {
+      --bg: #e7edf3;
+      --panel: #ffffff;
+      --soft: #f4f7fb;
+      --soft-2: #eef5f2;
+      --line: #d6e0ea;
+      --text: #1f2d3d;
+      --muted: #627487;
+      --green: #0ea36b;
+      --green-soft: #e7f6ef;
+      --blue-soft: #edf4fb;
+      --dark: #0f2236;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    body { padding: 6mm; }
+
+    .deck {
+      display: grid;
+      gap: 6mm;
+      justify-content: center;
+    }
+
+    .slide {
+      width: 297mm;
+      height: 210mm;
+      background: var(--panel);
+      border-radius: 4mm;
+      box-shadow: 0 5mm 12mm rgba(15, 34, 54, 0.1);
+      padding: 6mm 7mm 5mm;
+      display: flex;
+      flex-direction: column;
+      gap: 3mm;
+      page-break-after: always;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide:last-child { page-break-after: auto; }
+
+    .image-slide {
+      padding: 3mm;
+      gap: 0;
+      background: #fff;
+    }
+
+    .image-frame {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3mm;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .image-frame img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .cover {
+      background:
+        radial-gradient(circle at 86% 15%, rgba(14, 163, 107, 0.12), transparent 24%),
+        linear-gradient(160deg, #f8fbfe 0%, #f1f5fa 55%, #edf3f8 100%);
+      color: var(--text);
+    }
+
+    .cover .title,
+    .cover .subtitle,
+    .cover .big-note,
+    .cover .footer-line {
+      color: var(--text);
+    }
+
+    .cover .eyebrow {
+      color: var(--green);
+      border-color: #cae1d5;
+      background: var(--green-soft);
+    }
+
+    .cover-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 7mm;
+      align-items: center;
+      flex: 1;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 1.8mm 3.2mm;
+      border-radius: 999px;
+      border: 1px solid #cae1d5;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 8.5pt;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .brand-line {
+      font-size: 8pt;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #7c8ea1;
+      margin-bottom: 3mm;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 21pt;
+      line-height: 1.02;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #132131;
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 11.5pt;
+      line-height: 1.34;
+      color: var(--muted);
+      max-width: 215mm;
+    }
+
+    .big-note {
+      font-size: 13pt;
+      line-height: 1.34;
+      color: var(--text);
+      margin: 0;
+    }
+
+    .footer-line {
+      margin-top: auto;
+      font-size: 8pt;
+      color: #7d8ea1;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+      align-items: start;
+    }
+
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3.5mm;
+      align-items: stretch;
+    }
+
+    .grid-2x2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 3.5mm;
+    }
+
+    .card,
+    .soft-card,
+    .metric-card,
+    .step-card,
+    .placeholder-card {
+      border-radius: 4mm;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 3.5mm;
+    }
+
+    .soft-card {
+      background: var(--soft);
+    }
+
+    .metric-card {
+      background: var(--green-soft);
+      border-color: #cce7db;
+    }
+
+    .card h3,
+    .soft-card h3,
+    .metric-card h3,
+    .step-card h3,
+    .placeholder-card h3 {
+      margin: 0 0 1.5mm;
+      font-size: 10.5pt;
+      color: #132131;
+    }
+
+    .card p,
+    .soft-card p,
+    .metric-card p,
+    .step-card p,
+    .placeholder-card p {
+      margin: 0;
+      font-size: 9.2pt;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+
+    .bullet-list {
+      margin: 0;
+      padding-left: 5mm;
+      display: grid;
+      gap: 1.4mm;
+      font-size: 10pt;
+      line-height: 1.28;
+    }
+
+    .bullet-list li::marker { color: var(--green); }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2mm;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 1.8mm 3mm;
+      border-radius: 999px;
+      background: var(--blue-soft);
+      border: 1px solid #d7e4f0;
+      color: #28435f;
+      font-size: 9pt;
+      font-weight: 700;
+    }
+
+    .number-circle {
+      width: 8mm;
+      height: 8mm;
+      border-radius: 50%;
+      background: var(--green);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8pt;
+      font-weight: 700;
+      margin-bottom: 2mm;
+    }
+
+    .placeholder-card {
+      min-height: 34mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border: 2px dashed #bfcfdd;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(240, 246, 252, 0.9)),
+        repeating-linear-gradient(
+          -45deg,
+          rgba(191, 207, 221, 0.15),
+          rgba(191, 207, 221, 0.15) 8px,
+          rgba(255, 255, 255, 0.15) 8px,
+          rgba(255, 255, 255, 0.15) 16px
+        );
+    }
+
+    .placeholder-card h3 {
+      font-size: 11.5pt;
+      margin-bottom: 1.5mm;
+    }
+
+    .placeholder-card p {
+      max-width: 90%;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 3mm;
+      align-items: stretch;
+      flex: 1;
+    }
+
+    .comparison-arrow {
+      align-self: center;
+      width: 10mm;
+      height: 10mm;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #13ab70, #0e8e5d);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14pt;
+      font-weight: 700;
+    }
+
+    .funnel {
+      display: grid;
+      gap: 1.8mm;
+    }
+
+    .funnel-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2mm 3mm;
+      border-radius: 3mm;
+      background: linear-gradient(90deg, #f2faf6, #edf4fb);
+      border: 1px solid #d5e7df;
+      font-size: 9pt;
+      font-weight: 700;
+      color: #28435f;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3.5mm;
+    }
+
+    .partner-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3.5mm;
+      align-items: stretch;
+    }
+
+    .partner-card {
+      display: flex;
+      flex-direction: column;
+      gap: 2.2mm;
+      min-height: 48mm;
+      border-radius: 4mm;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+      box-shadow: 0 2mm 5mm rgba(15, 34, 54, 0.05);
+      padding: 3.5mm;
+    }
+
+    .partner-logo-box {
+      height: 16mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3mm;
+      border: 1px solid #dfe8ef;
+      background: #fff;
+      padding: 2mm;
+      overflow: hidden;
+    }
+
+    .partner-logo-box.dark {
+      background: #2d2d2d;
+      border-color: #2d2d2d;
+    }
+
+    .partner-logo {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .partner-logo.finam-logo {
+      max-height: 11.5mm;
+    }
+
+    .partner-logo.rensave-logo {
+      max-height: 10.5mm;
+    }
+
+    .partner-logo.sber-logo {
+      max-height: 9.8mm;
+    }
+
+    .partner-card h3 {
+      margin: 0;
+      font-size: 10.4pt;
+      color: #132131;
+    }
+
+    .partner-card p {
+      margin: 0;
+      font-size: 8.8pt;
+      line-height: 1.3;
+      color: var(--muted);
+    }
+
+    .partner-summary {
+      margin-top: 3.5mm;
+      border-radius: 4mm;
+      border: 1px solid #d7e4ec;
+      background: linear-gradient(135deg, #eef8f1 0%, #f2f7fd 100%);
+      padding: 3.5mm;
+      display: flex;
+      flex-direction: column;
+      gap: 2.2mm;
+    }
+
+    .partner-summary h3 {
+      margin: 0;
+      font-size: 10.4pt;
+      color: #132131;
+    }
+
+    .partner-summary p {
+      margin: 0;
+      font-size: 9.4pt;
+      line-height: 1.34;
+      color: #28435f;
+    }
+
+    .goal-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3mm;
+      align-items: stretch;
+    }
+
+    .goal-card {
+      border-radius: 4mm;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+      box-shadow: 0 2mm 5mm rgba(15, 34, 54, 0.06);
+      padding: 2.5mm;
+      display: grid;
+      gap: 1.8mm;
+    }
+
+    .goal-card img {
+      display: block;
+      width: 100%;
+      height: 34mm;
+      object-fit: cover;
+      object-position: top center;
+      border-radius: 3mm;
+      border: 1px solid #e1e9f0;
+      background: #fff;
+    }
+
+    .goal-card-title {
+      margin: 0;
+      font-size: 9pt;
+      font-weight: 700;
+      color: #17324e;
+      text-align: center;
+    }
+
+    .goal-card-subtitle {
+      margin: 0;
+      font-size: 8.5pt;
+      line-height: 1.28;
+      color: var(--muted);
+    }
+
+    .step-card {
+      background: var(--soft);
+    }
+
+    .quote-box {
+      padding: 3.5mm;
+      border-radius: 4mm;
+      background: var(--dark);
+      color: #eff5fb;
+      font-size: 9.4pt;
+      line-height: 1.3;
+    }
+
+    .quote-box strong {
+      display: block;
+      margin-bottom: 1.4mm;
+      color: #8fd9b8;
+      font-size: 8pt;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .kpi-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2mm;
+    }
+
+    .kpi {
+      padding: 2mm 3mm;
+      border-radius: 3mm;
+      background: var(--green-soft);
+      border: 1px solid #cce7db;
+      color: #0f6d47;
+      font-size: 8.8pt;
+      font-weight: 700;
+    }
+
+    .slide-number {
+      position: absolute;
+      right: 5mm;
+      bottom: 4mm;
+      font-size: 8pt;
+      color: #7d8ea1;
+    }
+
+    .cover .slide-number { color: #7d8ea1; }
+
+    @media screen and (max-width: 1400px) {
+      body { padding: 4mm; }
+      .slide {
+        width: auto;
+        height: auto;
+      }
+      .cover-grid,
+      .two-col,
+      .three-col,
+      .comparison,
+      .steps,
+      .grid-2x2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        background: #fff;
+      }
+      .deck {
+        gap: 0;
+      }
+      .slide {
+        width: 297mm;
+        height: 210mm;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-1-full.png" alt="Первый слайд целиком одной картинкой" />
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Почему BankFuture</div>
+      <h2 class="title">Платформа, а не просто идея</h2>
+      <p class="subtitle">У нас уже есть рабочий контур: финплан, кабинет, PDF-отчет и продуктовая монетизация в одной системе.</p>
+      <div class="two-col">
+        <div class="content">
+          <div class="pill-row" style="margin-bottom: 3mm;">
+            <span class="pill">Уралсиб</span>
+            <span class="pill">Газпромбанк</span>
+            <span class="pill">Банк ВТБ</span>
+            <span class="pill">Альфа-Банк</span>
+          </div>
+          <div class="grid-2x2">
+            <div class="card">
+              <h3>White-label модель</h3>
+              <p>Платформа адаптируется под бренд партнера и выглядит как собственный цифровой сервис.</p>
+            </div>
+            <div class="card">
+              <h3>Финплан как ядро</h3>
+              <p>Клиент идет не в лоб на продукт, а через цели, сценарии и следующую рекомендацию.</p>
+            </div>
+            <div class="card">
+              <h3>Отчет и кабинет</h3>
+              <p>Есть клиентский интерфейс и понятный материал, который можно показать и отправить.</p>
+            </div>
+            <div class="card">
+              <h3>Монетизация</h3>
+              <p>Один вход в клиента раскрывается в несколько последующих продуктовых сценариев.</p>
+            </div>
+          </div>
+        </div>
+        <div class="placeholder-card" style="min-height: 104mm;">
+          <h3>Место под пример интерфейса</h3>
+          <p>Позже сюда можно вставить summary-экран или любой продуктовый референс.</p>
+        </div>
+      </div>
+      <div class="slide-number">02 / 11</div>
+    </section>
+
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-3-user.png" alt="Слайд о маршруте клиента к финансовым целям" />
+      </div>
+    </section>
+
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-4-user.png" alt="Слайд о том, что получает агент Финама" />
+      </div>
+    </section>
+
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-5-user.png" alt="Слайд об архитектуре Family Office" />
+      </div>
+    </section>
+
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-6-user.png" alt="Слайд об AI CRM и воронке клиента" />
+      </div>
+    </section>
+
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-7-user-final.png" alt="Слайд с карточками основных целей клиента" />
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">Упаковка</div>
+      <h2 class="title">Сайт и личный кабинет клиента выглядят как готовый premium-сервис</h2>
+      <div class="two-col" style="flex: 1; align-items: stretch;">
+        <div style="display: flex; flex-direction: column; gap: 2mm;">
+          <div class="eyebrow" style="font-size: 8pt;">Сайт</div>
+          <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; border-radius: 4mm; overflow: hidden; background: #fff; border: 1px solid var(--line);">
+            <img src="tmp/finam-slide-8-site.png" alt="Сайт Family Office" style="display: block; width: 100%; height: 100%; object-fit: contain;" />
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2mm;">
+          <div class="eyebrow" style="font-size: 8pt;">ЛК клиента</div>
+          <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; border-radius: 4mm; overflow: hidden; background: #fff; border: 1px solid var(--line);">
+            <img src="tmp/finam-slide-8-client-lk.png" alt="Личный кабинет клиента" style="display: block; width: 100%; height: 100%; object-fit: contain;" />
+          </div>
+        </div>
+      </div>
+      <div class="slide-number">08 / 11</div>
+    </section>
+
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-9-user.png" alt="Слайд о монетизации и продуктовых сценариях" />
+      </div>
+    </section>
+
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-10-full.png" alt="Десятый слайд целиком одной картинкой" />
+      </div>
+    </section>
+
+    <section class="slide image-slide">
+      <div class="image-frame">
+        <img src="tmp/finam-slide-11-full.png" alt="Одиннадцатый слайд целиком одной картинкой" />
+      </div>
+    </section>
+  </main>
+</body>
+</html>

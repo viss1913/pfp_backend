@@ -49,6 +49,17 @@ function mapProductLineToYield(line) {
     return row;
 }
 
+function parseJsonValue(value, fallback = null) {
+    if (value == null || value === '') return fallback;
+    if (typeof value === 'object') return value;
+    if (typeof value !== 'string') return fallback;
+    try {
+        return JSON.parse(value);
+    } catch (_) {
+        return fallback;
+    }
+}
+
 class ProductRepository {
     async findAll({ projectId = null, includeDefaults = true, filters = {} }) {
         const effectiveIncludeDefaults = shouldIncludeSystemCatalog(projectId, includeDefaults);
@@ -96,8 +107,10 @@ class ProductRepository {
                     yields = [];
                 }
             }
+            const commissionSchema = parseJsonValue(row.commission_schema, null);
             return {
                 ...row,
+                commission_schema: commissionSchema,
                 yields: yields
             };
         });
@@ -136,6 +149,7 @@ class ProductRepository {
                 yields = [];
             }
         }
+        product.commission_schema = parseJsonValue(product.commission_schema, null);
         product.yields = yields;
         return product;
     }
@@ -174,6 +188,18 @@ class ProductRepository {
                 } else if (typeof productData.lines === 'object') {
                     // Single object, wrap in array
                     productData.lines = JSON.stringify([productData.lines]);
+                }
+            }
+
+            if (Object.prototype.hasOwnProperty.call(productData, 'commission_schema')) {
+                if (productData.commission_schema == null || productData.commission_schema === '') {
+                    productData.commission_schema = null;
+                } else if (typeof productData.commission_schema === 'string') {
+                    JSON.parse(productData.commission_schema);
+                } else if (typeof productData.commission_schema === 'object') {
+                    productData.commission_schema = JSON.stringify(productData.commission_schema);
+                } else {
+                    throw new Error('Invalid JSON format for commission_schema field');
                 }
             }
 
@@ -220,6 +246,18 @@ class ProductRepository {
                 } else if (typeof productData.lines === 'object') {
                     // Single object, wrap in array
                     productData.lines = JSON.stringify([productData.lines]);
+                }
+            }
+
+            if (Object.prototype.hasOwnProperty.call(productData, 'commission_schema')) {
+                if (productData.commission_schema == null || productData.commission_schema === '') {
+                    productData.commission_schema = null;
+                } else if (typeof productData.commission_schema === 'string') {
+                    JSON.parse(productData.commission_schema);
+                } else if (typeof productData.commission_schema === 'object') {
+                    productData.commission_schema = JSON.stringify(productData.commission_schema);
+                } else {
+                    throw new Error('Invalid JSON format for commission_schema field');
                 }
             }
 

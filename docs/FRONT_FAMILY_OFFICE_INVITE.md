@@ -35,7 +35,7 @@ Content-Type: application/json
 
 ## Субагент: активация
 
-1. Письмо → `https://pfp-front-ver3.vercel.app/invite/activate?token=…`
+1. Письмо → `https://family-office.bank-future.com/invite/activate/?token=…` (**слэш в конце пути обязателен** — иначе 302 съедает `?token=`)
 2. Страница activation:
    - `GET /api/auth/agent-invite/preview?token=…` — показать email/имя, проверить `valid`
    - Форма: пароль (+ повтор)
@@ -59,6 +59,6 @@ Content-Type: application/json
 ## Env бэкенда
 
 ```env
-AGENT_INVITE_ACTIVATE_BASE_URL=https://pfp-front-ver3.vercel.app/invite/activate
+AGENT_INVITE_ACTIVATE_BASE_URL=https://family-office.bank-future.com/invite/activate/
 AGENT_INVITE_TOKEN_TTL_DAYS=7
 ```

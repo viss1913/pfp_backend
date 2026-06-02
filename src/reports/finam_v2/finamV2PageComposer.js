@@ -10,6 +10,7 @@ const {
     splitFinamV2DocumentIntoPhysicalPages,
 } = require('./finamV2TemplateLoader');
 const { applyTemplateData } = require('./finamV2TemplateAppliers');
+const { shouldIncludeComonShowcaseInReport } = require('../../utils/comonShowcaseGate');
 
 function defaultGoalPageType(goal) {
     const type = String(goal?.goal_type || '').toUpperCase();
@@ -72,6 +73,12 @@ function buildFinamV2TemplatePackage({
     const goalPageType = helpers.goalPageType || defaultGoalPageType;
 
     function addSection(pageType, goal = null) {
+        if (
+            pageType === FINAM_REPORT_V2_PAGE_TYPES.COMON_AUTOFOLLOW &&
+            !shouldIncludeComonShowcaseInReport(model?.comonShowcase)
+        ) {
+            return;
+        }
         const spec = FINAM_V2_TEMPLATE_MANIFEST[pageType];
         if (!spec) return;
         const physicalPages = loadAppliedPhysicalPages({ pageType, model, goal, helpers });

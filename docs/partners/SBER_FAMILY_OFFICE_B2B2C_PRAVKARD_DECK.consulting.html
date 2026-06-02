@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Office B2B2C · Правкард — презентация 16:9</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sber-family-office-deck.css" />
+</head>
+<body>
+
+  <!-- 1. Обложка -->
+  <section class="deck-slide deck-slide--cover" id="s1">
+    <span class="slide-num">1 / 8</span>
+    <div>
+      <div class="slide-brand">BankFuture PFP × Правкард Забота × Сбер</div>
+      <span class="slide-tag">Вариант 3 · B2B2C</span>
+      <h1 class="slide-title slide-title--green">Family Office<br />в ЛК «Забота»</h1>
+      <p class="slide-lead">Встраивание в Правкард Забота: сотрудники компаний-клиентов получают финплан и CTA на продукты Сбера · интеграция TBD</p>
+    </div>
+    <footer class="slide-footer">
+      <span>projectId 29 · Finam Report v2</span>
+      <span>Конфиденциально</span>
+    </footer>
+  </section>
+
+  <!-- 2. О сервисе -->
+  <section class="deck-slide" id="s2">
+    <span class="slide-num">2 / 8</span>
+    <h2 class="slide-h2">О нашем сервисе</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(9px,1.15vw,12px);color:var(--text-muted);margin-bottom:10px;">
+        <strong>BankFuture PFP</strong> встраивается в <strong>ЛК Правкард Забота</strong>: сотрудник работодателя проходит финплан без выхода из привычного HR-контура (iframe / SSO / deep link — на согласовании).
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-card__shot" data-shot="crm">
+            <!-- Вставьте скрин: <img src="screens/crm.png" alt="CRM" /> -->
+            <span>Скрин CRM<br /><em>перетащите PNG/WebP в папку screens/</em></span>
+          </div>
+          <div class="feature-card__label">CRM и клиенты</div>
+          <div class="feature-card__desc">Карточка клиента, цели, история, статусы, приглашения</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card__shot" data-shot="planner">
+            <span>Скрин финплана<br /><em>конструктор целей</em></span>
+          </div>
+          <div class="feature-card__label">Финансовое планирование</div>
+          <div class="feature-card__desc">Расчёт целей, риск-профиль, smart allocation, сценарии</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card__shot" data-shot="report">
+            <span>Скрин отчёта PDF<br /><em>витрина Сбер</em></span>
+          </div>
+          <div class="feature-card__label">Отчёты</div>
+          <div class="feature-card__desc">PDF/HTML Finam v2, дисклеймеры, CTA с атрибуцией</div>
+        </div>
+      </div>
+      <ul class="bullet-compact" style="margin-top:8px;">
+        <li>Детерминированные расчёты — не «угадайка» LLM</li>
+        <li>Опционально: ИИ-ассистент и GigaChat для пояснений</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3. Типы целей -->
+  <section class="deck-slide" id="s3">
+    <span class="slide-num">3 / 8</span>
+    <h2 class="slide-h2">Типы целей и продукты Сбера</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:8px;">Соответствие целей PFP и рекомендуемых продуктов экосистемы (черновик — уточняется с Сбером).</p>
+      <div class="goals-grid">
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/gospensiya.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Достойная пенсия</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> ПДС / НПФ, инвестиции (УК «Первая», брокер Сбер)</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/sohranit__i_preumnozhit.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Наследство</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> ИСЖ, НСЖ (Сбер Страхование жизни)</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/lifeinsurance.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Защита жизни</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> СЖ, НСЖ («Подушка безопасности» и др.)</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/reserve.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Финансовый резерв</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> накопительный счёт, ликвидные инструменты Сбера</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/drugoe.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Другие цели</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> депозит, ИСЖ, инвестиции</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Архитектура -->
+  <section class="deck-slide" id="s4">
+    <span class="slide-num">4 / 8</span>
+    <h2 class="slide-h2">Архитектура и периметр</h2>
+    <div class="slide-body arch-split">
+      <div class="arch-box">
+        <h4>Логика контуров</h4>
+        <div class="arch-diagram">[Работодатели] → сотрудники
+              │
+              ▼
+      ┌───────────────┐
+      │ ЛК «Забота»   │
+      │ embed / SSO   │
+      └───────┬───────┘
+              ▼
+      ┌───────────────┐
+      │  PFP FO       │
+      │  Отчёт PDF    │
+      └───────┬───────┘
+              │
+    ┌─────────┼─────────┐
+    ▼         ▼         ▼
+Рефералки  SberID*  GigaChat*
+    │
+    ▼
+  Сбер
+* SSO Забота ≠ SberID</div>
+      </div>
+      <div class="arch-box">
+        <h4>Размещение</h4>
+        <p style="margin-bottom:8px;"><span class="arch-pill">Yandex Cloud</span> изолированный VPC, отдельный tenant</p>
+        <p style="margin-bottom:8px;"><span class="arch-pill">On-premise</span> контейнеры в периметре Сбера</p>
+        <h4 style="margin-top:12px;">ИИ · GigaChat</h4>
+        <ul class="bullet-compact">
+          <li>Подсказки и черновики текстов — <strong>не</strong> замена регуляторной ответственности</li>
+          <li>Ключи и inference в согласованном контуре (РФ)</li>
+          <li>Отключение по флагу; суммы в отчёте — из калькуляторов</li>
+        </ul>
+        <h4 style="margin-top:10px;">Модульный монолит</h4>
+        <p style="font-size:clamp(8px,1vw,10px);color:var(--text-muted);">Node.js 20 · Express · Knex · Puppeteer PDF</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Техстек и безопасность -->
+  <section class="deck-slide" id="s5">
+    <span class="slide-num">5 / 8</span>
+    <h2 class="slide-h2">Технический стек и безопасность данных</h2>
+    <div class="slide-body two-col">
+      <div>
+        <h4 style="font-size:clamp(10px,1.2vw,12px);color:var(--sber-green-dark);margin-bottom:6px;">Стек</h4>
+        <ul class="bullet-compact">
+          <li>Backend: JavaScript (Node.js 20 LTS), Express</li>
+          <li>БД: MySQL (Knex migrations)</li>
+          <li>Отчёты: HTML-шаблоны + Puppeteer → PDF</li>
+          <li>Файлы: S3-совместимое хранилище</li>
+          <li>API: HTTPS REST, OpenAPI</li>
+          <li>Фон: node-cron; без Kafka на MVP</li>
+        </ul>
+      </div>
+      <div>
+        <h4 style="font-size:clamp(10px,1.2vw,12px);color:var(--sber-green-dark);margin-bottom:6px;">Безопасность</h4>
+        <ul class="bullet-compact">
+          <li>JWT, bcrypt, helmet, CORS, валидация</li>
+          <li>Изоляция по tenant (projectId 29)</li>
+          <li>TLS; секреты в env / Lockbox</li>
+          <li>Журналы без избыточных ПДн</li>
+          <li>Данные пилота — РФ</li>
+          <li>Шифрование дисков — средствами хостинга</li>
+        </ul>
+      </div>
+    </div>
+    <table class="slide-table" style="margin-top:10px;">
+      <thead><tr><th>Компонент</th><th>Назначение</th><th>Статус</th></tr></thead>
+      <tbody>
+        <tr><td>Расчётный движок</td><td>Цели, портфель, пенсия, страхование</td><td><span class="badge badge--ok">готово</span></td></tr>
+        <tr><td>Отчёт v2 под Сбер</td><td>PDF/HTML, витрины</td><td><span class="badge badge--ok">MVP</span></td></tr>
+        <tr><td>LLM / GigaChat</td><td>Диалог, пояснения</td><td><span class="badge badge--soon">опционально</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 6. Интеграции -->
+  <section class="deck-slide" id="s6">
+    <span class="slide-num">6 / 8</span>
+    <h2 class="slide-h2">Интеграции</h2>
+    <div class="slide-body two-col">
+      <div class="arch-box">
+        <h4>MVP — реферальные переходы <span class="badge badge--ok">сейчас</span></h4>
+        <ul class="bullet-compact">
+          <li>НПФ → npfsberbanka.ru</li>
+          <li>СК жизнь → sberbank-insurance.ru</li>
+          <li>УК «Первая» → first-am.ru</li>
+          <li>Брокер → sberbank.ru/investments</li>
+        </ul>
+        <p style="margin-top:8px;font-size:clamp(8px,1vw,10px);"><code>partner_agent_id</code> + UTM · API продаж Сбера — <strong>нет</strong> без отдельного ТЗ</p>
+      </div>
+      <div class="arch-box">
+        <h4>Встраивание в ЛК <span class="badge badge--soon">ТЗ Правкард</span></h4>
+        <p style="font-size:clamp(8px,1vw,10px);margin-bottom:6px;">Deep link · iframe · SSO · поддомен — выбор на пилоте</p>
+        <h4>Sber ID + финданные <span class="badge badge--soon">фаза 2 · рекомендуем</span></h4>
+        <ol class="bullet-compact" style="list-style:decimal;padding-left:1.2em;">
+          <li>«Войти через Сбер ID» (OIDC)</li>
+          <li>Согласие на scope (доходы, расходы…)</li>
+          <li>Предзаполнение → проверка клиентом</li>
+          <li>Fallback на ручной ввод</li>
+        </ol>
+        <p style="margin-top:8px;font-size:clamp(8px,1vw,10px);color:var(--text-muted);">Нужны: client_id, sandbox, API агрегатов, тексты согласия от Сбера</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Roadmap -->
+  <section class="deck-slide" id="s7">
+    <span class="slide-num">7 / 8</span>
+    <h2 class="slide-h2">Roadmap запуска</h2>
+    <div class="slide-body">
+      <table class="slide-table">
+        <thead><tr><th>Фаза</th><th>Содержание</th><th>Владелец</th><th>Срок</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>Ядро FO + демо B2C как референс</td><td>BankFuture</td><td><span class="badge badge--ok">готово</span></td></tr>
+          <tr><td>2b</td><td>ТЗ iframe/SSO в ЛК Забота</td><td>Правкард + мы</td><td>TBD</td></tr>
+          <tr><td>1</td><td>Brand pack, дисклеймеры, юридика</td><td>Сбер</td><td>TBD</td></tr>
+          <tr><td>2</td><td>agent_id_param, whitelist URL</td><td>Совместно</td><td>TBD</td></tr>
+          <tr><td>3</td><td>ИБ, pentest</td><td>Сбер ведёт</td><td>~8–12 нед. после ИБ*</td></tr>
+          <tr><td>4a</td><td>SberID + финданные</td><td>Сбер digital</td><td>фаза 2</td></tr>
+          <tr><td>5</td><td>Пилот 1–2 работодателя Правкард</td><td>Совместно</td><td>TBD</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:clamp(7px,0.9vw,9px);color:var(--text-muted);margin-top:6px;">* оценочно</p>
+    </div>
+  </section>
+
+  <!-- 8. Что нужно от Сбера -->
+  <section class="deck-slide" id="s8">
+    <span class="slide-num">8 / 8</span>
+    <h2 class="slide-h2">Что нужно от Сбера и Правкард</h2>
+    <div class="slide-body">
+      <table class="slide-table">
+        <thead><tr><th>Артефакт</th><th>Зачем</th></tr></thead>
+        <tbody>
+          <tr><td>Сбер: B2B2C через HR-платформу</td><td>Комплаенс, бренд</td></tr>
+          <tr><td>Сбер: agent_id канала / работодателя</td><td>Атрибуция</td></tr>
+          <tr><td>Правкард: владелец IT, модель embed</td><td>Интеграция ЛК</td></tr>
+          <tr><td>Правкард: 1–2 пилотных работодателя</td><td>N сотрудников</td></tr>
+          <tr><td>Правкард: ПДн, co-brand</td><td>Запуск</td></tr>
+          <tr><td>SberID (фаза 2)</td><td>Финданные сотрудника</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px;font-size:clamp(9px,1.1vw,12px);">
+        <a href="SBER_FAMILY_OFFICE_B2C_DECK.consulting.html">B2C</a> ·
+        <a href="SBER_FAMILY_OFFICE_B2B2C_CLERK_DECK.consulting.html">← Клерк</a>
+      </p>
+    </div>
+  </section>
+
+  <nav class="deck-nav">
+    <span>Правкард 16:9</span>
+    <a href="SBER_FAMILY_OFFICE_CHANNELS_INDEX.consulting.html">Все каналы</a>
+    <a href="#s1">1</a>…<a href="#s8">8</a>
+    <a href="SBER_FAMILY_OFFICE_B2C_DECK.consulting.html">B2C</a>
+    <a href="SBER_FAMILY_OFFICE_B2B2C_CLERK_DECK.consulting.html">Клерк</a>
+    · Ctrl+P — PDF
+  </nav>
+</body>
+</html>

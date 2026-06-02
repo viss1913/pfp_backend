@@ -37,9 +37,14 @@ function isPdfGsCompressionEnabled() {
  * @param {Buffer} pdfBuffer
  * @returns {Promise<Buffer|null>} null если выключено, ошибка, или выход пустой
  */
-async function compressPdfBufferWithGhostscript(pdfBuffer) {
-    if (!isPdfGsCompressionEnabled()) return null;
+async function compressPdfBufferWithGhostscript(pdfBuffer, { force = false, pdfSettings } = {}) {
+    if (!force && !isPdfGsCompressionEnabled()) return null;
     if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) return null;
+
+    const settingsProfile =
+        pdfSettings && String(pdfSettings).trim().startsWith('/')
+            ? String(pdfSettings).trim()
+            : pdfSettingsProfile();
 
     const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'pfp-pdf-gs-'));
     const inPath = path.join(tmpDir, 'in.pdf');
@@ -51,7 +56,7 @@ async function compressPdfBufferWithGhostscript(pdfBuffer) {
         const args = [
             '-sDEVICE=pdfwrite',
             '-dCompatibilityLevel=1.4',
-            `-dPDFSETTINGS=${pdfSettingsProfile()}`,
+            `-dPDFSETTINGS=${settingsProfile}`,
             '-dDetectDuplicateImages=true',
             '-dCompressFonts=true',
             '-dSubsetFonts=true',

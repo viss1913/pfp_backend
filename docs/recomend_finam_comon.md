@@ -24,9 +24,13 @@
 
 ---
 
-## 2. Условие показа витрины: только при наличии BOND или STOCK
+## 2. Условие показа витрины: только при наличии STOCK (реализовано)
 
-**Продуктовое правило:** подставляем / показываем блок Comon **только если** в учитываемом наборе инструментов есть хотя бы один инструмент класса **облигации (BOND)** или **акции (STOCK)**.
+**Продуктовое правило (Finam):** блок Comon в отчёте и PDF v2 — **только если** в сводном портфеле есть **`product_type: STOCK`** в `summary.consolidated_portfolio.assets_allocation` и/или `cash_flow_allocation`. Облигации одни (**BOND**) витрину **не включают**.
+
+Код: `src/utils/comonShowcaseGate.js`, `comonShowcaseService.buildForClient` → при отсутствии STOCK: `{ enabled: false, skip_reason: 'no_stock_in_plan', items: [] }`. Лист `page-comon-autofollow-v2` в PDF не вставляется без непустого `items`.
+
+Настройка проекта: `projects.settings.comon_showcase.gate_product_types` (по умолчанию `["STOCK"]`).
 
 **Данные в API (реализовано):** в элементах `initial_instruments` / `monthly_instruments` и в `summary.consolidated_portfolio.{assets_allocation,cash_flow_allocation}` добавлено поле **`product_type`** — строка в верхнем регистре из колонки `products.product_type` (например `BOND`, `STOCK`, `PDS`, `NSZH`). Для синтетических строк без продукта может быть `null`.
 
@@ -43,8 +47,8 @@
 
 1. **Режим `plan`** (по умолчанию):  
    - Сканируем **`consolidated_portfolio.assets_allocation`**.  
-   - Если есть хотя бы один инструмент с классом BOND или STOCK (после внедрения кодов) → витрина **разрешена**.  
-   - Иначе → **не показываем** витрину (или отдаём `comon_showcase: null` / `{ enabled: false, skip_reason: 'no_bond_stock_in_plan' }` — как договоримся в API).
+   - Если есть хотя бы один инструмент с классом **STOCK** → витрина **разрешена**.  
+   - Иначе → **не показываем** витрину (или отдаём `comon_showcase: null` / `{ enabled: false, skip_reason: 'no_stock_in_plan' }`).
 
 2. **Режим `goals`:**  
    - Идём по целям из `goals_detailed` (или эквивалент в снимке).  
@@ -54,6 +58,19 @@
 3. **Строгий вариант:** требовать и свод, и цель — обычно избыточно; достаточно одного источника истины, чтобы не было противоречий.
 
 **Несогласованность свод vs цель:** если свод есть, а по целям временно нет классов — до внедрения кодов лучше опираться на один выбранный режим и не смешивать.
+
+---
+
+## 3.1. Каталог recommended с Comon (cron на immers)
+
+- API: `GET https://www.comon.ru/api/v2/strategies/?tags=recommended` (пагинация `page`, `pageSize`).
+- Синк в БД: `npm run sync:comon-recommended` → [`scripts/sync_comon_recommended_strategies.js`](../scripts/sync_comon_recommended_strategies.js), таблица `comon_recommended_strategies`.
+- Sync идёт **явно** в `/api/v2/strategies` с query `tags=recommended`; daily cron не зависит от `COMON_STRATEGIES_LIST_PATH`.
+- Если Comon вернул больше страниц, чем разрешено `COMON_SYNC_MAX_PAGES`, sync завершится ошибкой и не заменит каталог частичным ответом.
+- Ручной импорт из JSON по-прежнему: `npm run import:comon-recommended`.
+- Рекомендуемый cron на VM: `0 4 * * * docker compose exec -T backend node scripts/sync_comon_recommended_strategies.js`.
+
+Витрина в отчёте читает **БД** (кэш процесса), не live API на каждый PDF.
 
 ---
 

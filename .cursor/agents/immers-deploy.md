@@ -12,7 +12,7 @@ description: Деплой backend PFP на immers.cloud (VPS, Docker, MySQL, ngi
 | Параметр | Значение |
 |----------|----------|
 | VM | `bankfuturebackend`, Ubuntu 22.04, конфиг **CPU NVME `nvme.2.4.40`** (2 vCPU, 4 GB RAM, 40 GB) |
-| Публичный IP | `195.209.218.118` |
+| Публичный IP | `81.94.159.209` |
 | SSH user | `ubuntu` (ключ `pfp-laptop` / локально `~/.ssh/immers_pfp`) |
 | Код на сервере | `/opt/pfp/app` (git clone `viss1913/pfp_backend`) |
 | Docker | `docker compose`: сервисы `mysql` + `backend` (порт **3000**) |
@@ -39,7 +39,7 @@ description: Деплой backend PFP на immers.cloud (VPS, Docker, MySQL, ngi
 ## DNS + HTTPS (обязательно для Vercel)
 
 1. **A-запись:** `pfp-api` → IP VM (в зоне `bank-future.com`). TTL 300–3600.
-2. Проверка: `dig +short pfp-api.bank-future.com A` → IP VM.
+2. Проверка: `dig +short pfp-api.bank-future.com A` → актуальный IP VM (`81.94.159.209` на `2026-05`).
 3. На VM: nginx + `certbot --nginx -d pfp-api.bank-future.com`
 4. В `.env.production` на сервере:
    ```env

@@ -188,6 +188,18 @@ class ReportController {
             const ts = new Date().toISOString().slice(0, 10);
             const filename = `Finplan-otchyot-${clientId}-${ts}.pdf`;
 
+            // По умолчанию — вложение (как раньше). Ссылка только при delivery=link или fallback после сбоя Resend.
+            const deliveryMode = String(
+                body.delivery !== undefined
+                    ? body.delivery
+                    : req.query.delivery !== undefined
+                      ? req.query.delivery
+                      : process.env.REPORT_EMAIL_DELIVERY || 'attach'
+            )
+                .trim()
+                .toLowerCase();
+            const forceLinkOnly = ['link', 'r2'].includes(deliveryMode);
+
             const agentFullName = buildAgentDisplayFullName(agent);
             const agentEmail = (agent.email && String(agent.email).trim()) || '—';
             const agentPhone = (agent.phone && String(agent.phone).trim()) || '—';
@@ -210,26 +222,46 @@ class ReportController {
             const goalsCount = Array.isArray(report.goals_detailed) ? report.goals_detailed.length : 0;
 
             const safeFileName = String(filename).replace(/[^\w.\-]+/g, '_');
-            const r2Key = `report-emails/${projectId || 'p'}/${clientId}/${Date.now()}_${safeFileName}`;
-            const upload = await uploadPublicFile({
-                key: r2Key,
-                body: finalPdf,
-                contentType: 'application/pdf',
-            });
-            if (!upload?.ok || !upload?.url) {
-                res.status(503).json({
-                    error:
-                        upload?.reason === 'r2_not_configured'
-                            ? 'Не настроено хранилище R2 для отправки отчёта'
-                            : 'Не удалось загрузить PDF отчёта в хранилище',
-                });
-                return;
-            }
-            console.log(
-                `[ReportController] Report PDF uploaded to R2: ${upload.url} (${finalPdf.length} bytes)`
-            );
 
-            const emailResult = await emailService.sendFinancialPlanReportPdfEmail({
+            const uploadReportPdfLink = async () => {
+                const r2Key = `report-emails/${projectId || 'p'}/${clientId}/${Date.now()}_${safeFileName}`;
+                const upload = await uploadPublicFile({
+                    key: r2Key,
+                    body: finalPdf,
+                    contentType: 'application/pdf',
+                });
+                if (!upload?.ok || !upload?.url) {
+                    throw {
+                        status: 503,
+                        message:
+                            upload?.reason === 'r2_not_configured'
+                                ? 'Не настроено хранилище R2 для отправки отчёта'
+                                : 'Не удалось загрузить PDF отчёта в хранилище',
+                    };
+                }
+                console.log(
+                    `[ReportController] Report PDF uploaded to R2: ${upload.url} (${finalPdf.length} bytes)`
+                );
+                return upload.url;
+            };
+
+            const isReportEmailSendFailure = (err) => {
+                if (!err) return false;
+                if (err.status === 502 || err.status === 503) return true;
+                const msg = String(err.message || '').toLowerCase();
+                return (
+                    msg.includes('econnreset') ||
+                    msg.includes('socket hang up') ||
+                    msg.includes('etimedout') ||
+                    msg.includes('could not be resolved') ||
+                    msg.includes('unable to fetch') ||
+                    msg.includes('received null') ||
+                    msg.includes('сервис почты') ||
+                    msg.includes('не удалось отправить')
+                );
+            };
+
+            const emailBase = {
                 to: recipient,
                 cc: ccAgent,
                 clientFullName,
@@ -237,15 +269,79 @@ class ReportController {
                 agentFullName,
                 agentEmail,
                 agentPhone,
-                pdfBuffer: null,
-                pdfDownloadUrl: upload.url,
-                attachmentViaUrl: true,
                 filename,
                 reportAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
                 portfolio,
                 goalsCount,
                 executiveSummaryText,
-            });
+            };
+
+            // На VPS base64 ~2MB+ в JSON к Resend → ECONNRESET/timeout. Крупные PDF: R2 + path-attachment (файл во вложении, лёгкий POST).
+            const inlineAttachMaxBytes = Math.min(
+                Math.max(Number(process.env.REPORT_EMAIL_ATTACH_INLINE_MAX_BYTES) || 900_000, 100_000),
+                5_000_000
+            );
+
+            const sendReportLinkOnly = async (pdfDownloadUrl) =>
+                emailService.sendFinancialPlanReportPdfEmail({
+                    ...emailBase,
+                    pdfBuffer: null,
+                    pdfDownloadUrl,
+                    linkOnly: true,
+                    attachmentViaUrl: false,
+                });
+
+            const sendReportAttachViaUrl = async (pdfDownloadUrl) =>
+                emailService.sendFinancialPlanReportPdfEmail({
+                    ...emailBase,
+                    pdfBuffer: null,
+                    pdfDownloadUrl,
+                    linkOnly: false,
+                    attachmentViaUrl: true,
+                });
+
+            const sendReportInlineAttach = async () =>
+                emailService.sendFinancialPlanReportPdfEmail({
+                    ...emailBase,
+                    pdfBuffer: finalPdf,
+                    pdfDownloadUrl: null,
+                    linkOnly: false,
+                    attachmentViaUrl: false,
+                });
+
+            let emailResult;
+            if (forceLinkOnly) {
+                const pdfDownloadUrl = await uploadReportPdfLink();
+                emailResult = await sendReportLinkOnly(pdfDownloadUrl);
+            } else {
+                const pdfDownloadUrl = await uploadReportPdfLink();
+                try {
+                    if (finalPdf.length > inlineAttachMaxBytes) {
+                        console.log(
+                            `[ReportController] Report PDF ${finalPdf.length} bytes > inline max ${inlineAttachMaxBytes}, attach via R2 path`
+                        );
+                        emailResult = await sendReportAttachViaUrl(pdfDownloadUrl);
+                    } else {
+                        try {
+                            emailResult = await sendReportInlineAttach();
+                        } catch (inlineErr) {
+                            if (!isReportEmailSendFailure(inlineErr)) throw inlineErr;
+                            console.warn(
+                                '[ReportController] Report inline attach failed, retry via R2 path:',
+                                inlineErr.message || inlineErr
+                            );
+                            emailResult = await sendReportAttachViaUrl(pdfDownloadUrl);
+                        }
+                    }
+                } catch (attachErr) {
+                    if (!isReportEmailSendFailure(attachErr)) throw attachErr;
+                    console.warn(
+                        '[ReportController] Report email attach failed, fallback to R2 link:',
+                        attachErr.message || attachErr
+                    );
+                    emailResult = await sendReportLinkOnly(pdfDownloadUrl);
+                }
+            }
 
             res.json({
                 ok: true,
@@ -328,12 +424,15 @@ class ReportController {
             const includeSummary = req.query.includeSummary !== '0' && req.query.includeSummary !== 'false';
             const goalTypes = req.query.goalTypes || null;
 
+            const needMergedHtml =
+                wantsReportHtmlDocument(req) || !wantsReportHtmlPages(req);
             const { mergedHtml, pageHtmlList, toc, reportSchemaVersion } = await reportPdfService.generateClientReportHtmlPackage({
                 clientId,
                 projectId,
                 includeCover,
                 includeSummary,
                 goalTypes,
+                buildMergedHtml: needMergedHtml,
                 ...reportBrandingOpts(req.user, client),
             });
 

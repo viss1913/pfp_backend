@@ -1,7 +1,9 @@
 const clientService = require('./clientService');
 const aiService = require('./aiService');
 const calculationService = require('./calculationService');
+const { isReportPdfAiEnabled } = require('../utils/reportPdfAiEnv');
 const { comonShowcaseService } = require('./comonShowcaseService');
+const { shouldIncludeComonShowcaseInReport } = require('../utils/comonShowcaseGate');
 const { buildSummaryPdfLayoutModel } = require('../reports/summary/buildSummaryPdfLayoutModel');
 
 class ReportService {
@@ -87,6 +89,13 @@ class ReportService {
                 ? consolidated.cash_flow_allocation.map(mapAllocation)
                 : [],
         };
+    }
+
+    _shouldExposeComonShowcaseInApi(comonShowcase) {
+        if (!comonShowcase || typeof comonShowcase !== 'object') return false;
+        if (comonShowcase.skip_reason) return true;
+        if (comonShowcase.error) return true;
+        return shouldIncludeComonShowcaseInReport(comonShowcase);
     }
 
     _sumByProductType(items, productType) {
@@ -316,11 +325,14 @@ class ReportService {
 
         let comon_showcase = null;
         if (projectId) {
-            comon_showcase = await comonShowcaseService.buildForClient(client, projectId, currentStats);
+            comon_showcase = await comonShowcaseService.buildForClient(client, projectId, currentStats, {
+                summary,
+            });
         }
 
-        const pdfSummaryPayloadWithShowcase =
-            comon_showcase != null ? { ...pdfSummaryPayload, comon_showcase } : pdfSummaryPayload;
+        const pdfSummaryPayloadWithShowcase = this._shouldExposeComonShowcaseInApi(comon_showcase)
+            ? { ...pdfSummaryPayload, comon_showcase }
+            : pdfSummaryPayload;
 
         const incomeNum = client.avg_monthly_income != null ? Number(client.avg_monthly_income) : NaN;
         const incomeDisplay = Number.isFinite(incomeNum) && incomeNum > 0
@@ -350,7 +362,7 @@ class ReportService {
             ai_executive_summary: aiSummary,
             /** Сводный PDF: целиком блок для фронта (продолжение целей + пироги), без фиксированной A4-обрезки */
             pdf_summary_layout: buildSummaryPdfLayoutModel(pdfSummaryPayloadWithShowcase),
-            ...(comon_showcase != null ? { comon_showcase } : {}),
+            ...(this._shouldExposeComonShowcaseInApi(comon_showcase) ? { comon_showcase } : {}),
         };
     }
 
@@ -478,7 +490,30 @@ class ReportService {
         );
     }
 
+    _collectInsuranceRisksFromGoals(goals) {
+        const lifeGoals = goals.filter((g) => g.goal_type === 'LIFE' || g.goal_id === 5);
+        const collectedRisks = [];
+        lifeGoals.forEach((g) => {
+            if (g.details && g.details.risks && Array.isArray(g.details.risks)) {
+                collectedRisks.push({
+                    program_name: g.details.program_name || g.goal_name,
+                    risks: g.details.risks,
+                });
+            }
+        });
+        return collectedRisks;
+    }
+
     async _generateExecutiveSummary(client, plan, goals) {
+        const collectedRisks = this._collectInsuranceRisksFromGoals(goals);
+
+        if (!isReportPdfAiEnabled()) {
+            return {
+                summary_text: '',
+                insurance_protection: collectedRisks,
+            };
+        }
+
         const invested = plan.chart_waterfall.invested_by_client;
         const support = plan.chart_waterfall.state_support_nominal;
         const total = plan.chart_waterfall.total_projected;
@@ -490,7 +525,6 @@ class ReportService {
         // Helper to extract insurance info
         const lifeGoals = goals.filter(g => g.goal_type === 'LIFE' || g.goal_id === 5);
         let insuranceText = "";
-        let collectedRisks = []; // Array to store all risks for JSON output
 
         if (lifeGoals.length > 0) {
             insuranceText = "\n        СТРАХОВАЯ ЗАЩИТА (ВАЖНО упомянуть, если есть):";
@@ -499,11 +533,6 @@ class ReportService {
                     insuranceText += `\n        - Программа "${g.details.program_name || g.goal_name}":`;
                     g.details.risks.forEach(r => {
                         insuranceText += `\n          * ${r.risk_name}: ${parseInt(r.limit_amount).toLocaleString('ru-RU')} ₽`;
-                    });
-                    // Collect for JSON response
-                    collectedRisks.push({
-                        program_name: g.details.program_name || g.goal_name,
-                        risks: g.details.risks
                     });
                 }
             });
@@ -545,7 +574,7 @@ class ReportService {
 
         return {
             summary_text: aiGeneratedSummary,
-            insurance_protection: collectedRisks // New field for Frontend
+            insurance_protection: collectedRisks,
         };
     }
 }

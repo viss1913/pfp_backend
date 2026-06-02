@@ -706,6 +706,8 @@ class ClientCabinetController {
                     ? Number(client.agent_id)
                     : null;
 
+            const needMergedHtml =
+                wantsReportHtmlDocument(req) || !wantsReportHtmlPages(req);
             const { mergedHtml, pageHtmlList, toc, reportSchemaVersion } = await reportPdfService.generateClientReportHtmlPackage({
                 clientId: Number(clientId),
                 agentId: null,
@@ -714,6 +716,7 @@ class ClientCabinetController {
                 includeCover,
                 includeSummary,
                 goalTypes,
+                buildMergedHtml: needMergedHtml,
             });
 
             if (wantsReportHtmlDocument(req)) {

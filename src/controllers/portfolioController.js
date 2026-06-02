@@ -79,7 +79,13 @@ class PortfolioController {
     async getAll(req, res, next) {
         try {
             const projectId = req.projectId || req.user?.projectId;
-            const result = await portfolioService.getAllPortfolios(projectId, req.query);
+            const role = String(req.user?.role || '').toLowerCase();
+            const isAdmin = ['admin', 'super_admin'].includes(role);
+            const query = { ...req.query };
+            if (!isAdmin) {
+                query.includeDefaults = 'false';
+            }
+            const result = await portfolioService.getAllPortfolios(projectId, query);
             res.json(result);
         } catch (err) {
             next(err);

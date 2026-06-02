@@ -6,6 +6,7 @@ const productRepository = require('../repositories/productRepository');
 const { formatDobDdMmYyyy, normalizeSex } = require('./resolutNsjQuoteService');
 const { isResolutPortfolioProduct, pickPType } = require('./resolutPortfolioQuoteYieldService');
 const { isResolutIszhProduct } = require('./resolutIszhQuoteParameters');
+const { isResolutDepositLikeProduct } = require('./resolutDepositQuoteParameters');
 
 /** Имена периодичности взноса — как в openapi/OPENAPI_SPEC.yaml (resolut_quote_p_type). */
 const PTYPE_OPENAPI_NAMES = {
@@ -120,6 +121,8 @@ class ResolutQuoteLineSuggestService {
         amount,
         valuationType = 'byLimit',
         pTypeOverride = null,
+        clientType = undefined,
+        capitalise = undefined,
         userId = null
     }) {
         resolutService.assertProjectAllowed(projectId);
@@ -143,6 +146,21 @@ class ResolutQuoteLineSuggestService {
 
         const { buildResolutQuoteParameters } = require('./resolutQuoteParameters');
         const isIszh = isResolutIszhProduct(product);
+        const isDepositLike = isResolutDepositLikeProduct(product);
+        if (isDepositLike && valuationType !== 'byLimit') {
+            throw {
+                status: 400,
+                error: 'DEPOSIT_VALUATION_TYPE_UNSUPPORTED',
+                message: 'DEPOSIT/PDS suggest-quote-line supports only valuation_type=byLimit'
+            };
+        }
+        if (isDepositLike && pTypeOverride != null) {
+            throw {
+                status: 400,
+                error: 'DEPOSIT_P_TYPE_UNSUPPORTED',
+                message: 'DEPOSIT/PDS suggest-quote-line does not use p_type'
+            };
+        }
         const line = buildResolutQuoteParameters({
             projectId,
             product,
@@ -150,7 +168,9 @@ class ResolutQuoteLineSuggestService {
             termMonths,
             amount,
             valuationType,
-            pTypeOverride
+            pTypeOverride,
+            clientType,
+            capitalise
         });
 
         return {
@@ -165,6 +185,11 @@ class ResolutQuoteLineSuggestService {
                         schema: 'iszh_like',
                         note: 'ИСЖ (OpenAPI ver3): calcData.premium + insuredPerson.dob/sex. Same parameters for POST /api/pfp/resolut/quote and portfolio quotes[]. Demo capital: min premium 1_500_000 RUR.'
                     }
+                    : isDepositLike
+                      ? {
+                            schema: 'deposit_like',
+                            note: 'DEPOSIT/PDS: clientType + calcData.limit/capitalise/term. PFP normalizes clientType ("common"/"private" or object) to upstream shape. term uses product units: DEPOSIT -> months, PDS -> years.'
+                        }
                     : {
                         schema: 'nszh_like',
                         parameters_shape: nszhParametersShape(),

@@ -59,7 +59,7 @@ paths:
               properties:
                 code:
                   type: string
-                  description: pfpCode из Resolut products (НСЖ assetShort, ИСЖ capital)
+                  description: pfpCode из Resolut products (например assetShort, capital, depAlfa, pdsAlfa)
                   example: assetShort
                 parameters:
                   type: object
@@ -82,6 +82,13 @@ paths:
                     parameters:
                       calcData: { premium: 1500000 }
                       insuredPerson: { dob: "15.05.1990", sex: male }
+                deposit:
+                  summary: Депозит / ПДС
+                  value:
+                    code: depAlfa
+                    parameters:
+                      clientType: { code: common, name: "Общий" }
+                      calcData: { limit: 2000000, capitalise: false, term: 12 }
       responses:
         '200':
           description: Нормализованный ответ прокси
@@ -204,6 +211,8 @@ paths:
         Собирает `code` (из `products.resolut_pfp_code`) и `parameters`:
         - **НСЖ** (`nszh_like`): currency, pType, term, calcData byLimit/byPremium, insuredPerson;
         - **ИСЖ** (`iszh_like`, OpenAPI ver3): `calcData.premium` + `insuredPerson` (код демо: `capital`).
+        - **DEPOSIT/PDS** (`deposit_like`): `clientType` + `calcData.limit/capitalise/term` (демо: `depAlfa`, `pdsAlfa`).
+          Для `DEPOSIT/PDS` используйте только `valuation_type=byLimit`; `p_type` не поддерживается.
         Те же `parameters` для `quote` и `portfolio`. Только проект `RESOLUT_PROJECT_ID`.
       requestBody:
         required: true
@@ -240,6 +249,7 @@ paths:
         при пустом своде — инструменты из целей. Схема параметров nszh_like (`byLimit` для lump). Потоки из
         `cash_flow_allocation` по умолчанию в `skipped` (`monthly_flow_skipped`); включите `include_monthly_flow: true`
         для отдельных строк `byPremium` / pType 12 (экспериментально).
+        В первой итерации `DEPOSIT/PDS` в автосборку не включаются и уходят в `skipped` с `deposit_like_manual_only`.
       requestBody:
         required: true
         content:
@@ -450,13 +460,26 @@ components:
           type: string
           enum: [ byLimit, byPremium ]
           default: byLimit
+          description: Для DEPOSIT/PDS поддерживается только byLimit
         amount:
           type: number
-          description: Страховая сумма (byLimit) или премия (byPremium)
+          description: Для НСЖ/ИСЖ — страховая сумма (byLimit) или премия (byPremium); для DEPOSIT/PDS — сумма вклада/взноса
         p_type:
           type: integer
           enum: [ 0, 1, 2, 4, 12 ]
-          description: Иначе — из products.resolut_quote_p_type или дефолт 0
+          description: Только для NSZH-like. Для DEPOSIT/PDS не используется
+        client_type:
+          oneOf:
+            - type: string
+              enum: [ common, private ]
+            - type: object
+              properties:
+                code: { type: string, enum: [ common, private ] }
+                name: { type: string }
+          description: Только для DEPOSIT/PDS, обязательно. PFP принимает строку или объект и нормализует к upstream-форме
+        capitalise:
+          type: boolean
+          description: Только для DEPOSIT/PDS, обязательно. Капитализация процентов
 
     SuggestQuoteLineResponse:
       type: object
@@ -556,7 +579,9 @@ components:
         line_id: { type: string, nullable: true }
         product_id: { type: integer, nullable: true }
         code: { type: string, nullable: true }
-        reason: { type: string }
+        reason:
+          type: string
+          description: Например monthly_flow_skipped, deposit_like_manual_only, product_not_found
         product_name: { type: string, nullable: true }
         expected_code: { type: string, nullable: true }
 

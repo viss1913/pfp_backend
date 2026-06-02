@@ -1,5 +1,6 @@
 const productRepository = require('../repositories/productRepository');
 const { validateIszhProductLines } = require('../utils/validateIszhProductLines');
+const { validateCommissionSchema } = require('../utils/validateCommissionSchema');
 
 function parseLinesFromPayload(data) {
     if (!data || data.lines == null) return null;
@@ -32,6 +33,20 @@ function assertIszhLinesIfNeeded(data) {
     }
 }
 
+function normalizeCommissionSchema(data) {
+    if (!Object.prototype.hasOwnProperty.call(data || {}, 'commission_schema')) return data;
+    const check = validateCommissionSchema(data.commission_schema);
+    if (!check.ok) {
+        const err = new Error(check.error);
+        err.status = 400;
+        throw err;
+    }
+    return {
+        ...data,
+        commission_schema: check.normalized,
+    };
+}
+
 class ProductService {
     async getAllProducts(projectId, query) {
         const { includeDefaults = 'true', product_type, is_active } = query;
@@ -53,8 +68,9 @@ class ProductService {
     }
 
     async createProduct(agentId, projectId, data) {
-        assertIszhLinesIfNeeded(data);
-        const { yields, ...productFields } = data;
+        const normalizedInput = normalizeCommissionSchema(data);
+        assertIszhLinesIfNeeded(normalizedInput);
+        const { yields, ...productFields } = normalizedInput;
         // Ensure agent_id and project_id are set
         productFields.agent_id = agentId;
         productFields.project_id = projectId;
@@ -78,7 +94,8 @@ class ProductService {
             throw { status: 403, message: 'Access denied to this product' };
         }
 
-        const { yields, ...productFields } = data;
+        const normalizedInput = normalizeCommissionSchema(data);
+        const { yields, ...productFields } = normalizedInput;
         const effectiveType = String(productFields.product_type || product.product_type || '').toUpperCase().trim();
         if (effectiveType === 'ISZH') {
             assertIszhLinesIfNeeded({ ...product, ...productFields, lines: productFields.lines !== undefined ? productFields.lines : product.lines });

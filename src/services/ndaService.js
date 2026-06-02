@@ -4,6 +4,8 @@ const agentService = require('./agentService');
 const { buildNdaHtml } = require('../reports/nda/buildNdaHtml');
 const { renderHtmlToPdfBuffer } = require('../utils/renderHtmlToPdfBuffer');
 const emailService = require('./emailService');
+const pdfCompressionService = require('./pdfCompressionService');
+const { uploadPublicFile } = require('../utils/r2Client');
 
 const AGREEMENT_TZ = process.env.REPORT_PDF_TZ || 'Europe/Moscow';
 const AGREEMENT_CITY = process.env.NDA_AGREEMENT_CITY || 'Москва';
@@ -125,7 +127,58 @@ class NdaService {
             signatureDataUri,
         });
 
-        const pdfBuffer = await renderHtmlToPdfBuffer(html);
+        let pdfBuffer = await renderHtmlToPdfBuffer(html);
+
+        try {
+            const compressed = await pdfCompressionService.compressPdfBufferWithGhostscript(pdfBuffer, {
+                force: true,
+            });
+            if (compressed && compressed.length > 0 && compressed.length < pdfBuffer.length) {
+                pdfBuffer = compressed;
+            }
+            const attachTargetBytes = Math.max(
+                Number(process.env.NDA_EMAIL_ATTACH_TARGET_BYTES) || 48000,
+                20000
+            );
+            if (pdfBuffer.length > attachTargetBytes) {
+                const smaller = await pdfCompressionService.compressPdfBufferWithGhostscript(pdfBuffer, {
+                    force: true,
+                    pdfSettings: '/screen',
+                });
+                if (smaller && smaller.length > 0 && smaller.length < pdfBuffer.length) {
+                    console.log(
+                        `[ndaService] NDA PDF /screen compress: ${pdfBuffer.length} -> ${smaller.length} bytes`
+                    );
+                    pdfBuffer = smaller;
+                }
+            }
+        } catch (e) {
+            console.warn('[ndaService] NDA PDF compress skipped:', e?.message || e);
+        }
+
+        const deliveryMode = String(process.env.NDA_EMAIL_DELIVERY || 'attach').trim().toLowerCase();
+        const forceLinkOnly = deliveryMode === 'link' || deliveryMode === 'r2';
+
+        const uploadNdaPdfLink = async () => {
+            const safeKeyName = String(filename || 'NDA.pdf').replace(/[^\w.\-]+/g, '_');
+            const key = `nda-emails/${projectId || 'p'}/${agentUserId}/${Date.now()}_${safeKeyName}`;
+            const up = await uploadPublicFile({
+                key,
+                body: pdfBuffer,
+                contentType: 'application/pdf',
+            });
+            if (!up?.ok || !up?.url) {
+                throw {
+                    status: 503,
+                    message:
+                        up?.reason === 'r2_not_configured'
+                            ? 'Не настроено хранилище R2 для отправки NDA по ссылке'
+                            : 'Не удалось загрузить PDF NDA в хранилище',
+                };
+            }
+            console.log(`[ndaService] NDA PDF uploaded to R2: ${up.url} (${pdfBuffer.length} bytes)`);
+            return up.url;
+        };
 
         const ccAgent =
             agentEmail &&
@@ -134,7 +187,7 @@ class NdaService {
                 ? agentEmail
                 : undefined;
 
-        const emailResult = await emailService.sendNdaPdfEmail({
+        const emailBase = {
             to: recipientEmail,
             cc: ccAgent,
             clientFullName: clientFullNameDisplay,
@@ -142,10 +195,84 @@ class NdaService {
             agentFullName,
             agentEmail,
             agentPhone,
-            pdfBuffer,
             filename,
             ndaAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
-        });
+        };
+
+        const isAttachSendFailure = (err) => {
+            if (!err) return false;
+            if (err.status === 502 || err.status === 503) return true;
+            const msg = String(err.message || '').toLowerCase();
+            return (
+                msg.includes('econnreset') ||
+                msg.includes('socket hang up') ||
+                msg.includes('etimedout') ||
+                msg.includes('could not be resolved') ||
+                msg.includes('unable to fetch') ||
+                msg.includes('сервис почты')
+            );
+        };
+
+        console.log(
+            `[ndaService] Sending NDA to ${recipientEmail}, pdf=${pdfBuffer.length} bytes, delivery=${deliveryMode}`
+        );
+
+        const sendNdaLinkOnly = async (pdfDownloadUrl) =>
+            emailService.sendNdaPdfEmail({
+                ...emailBase,
+                pdfBuffer: null,
+                pdfDownloadUrl,
+                linkOnly: true,
+                attachmentViaUrl: false,
+            });
+
+        const sendNdaAttachViaUrl = async (pdfDownloadUrl) =>
+            emailService.sendNdaPdfEmail({
+                ...emailBase,
+                pdfBuffer: null,
+                pdfDownloadUrl,
+                linkOnly: false,
+                attachmentViaUrl: true,
+            });
+
+        const inlineAttachMaxBytes = Math.min(
+            Math.max(Number(process.env.NDA_EMAIL_ATTACH_INLINE_MAX_BYTES) || 120_000, 20_000),
+            500_000
+        );
+
+        let emailResult;
+        const pdfDownloadUrl = await uploadNdaPdfLink();
+
+        if (forceLinkOnly) {
+            emailResult = await sendNdaLinkOnly(pdfDownloadUrl);
+        } else {
+            try {
+                if (pdfBuffer.length > inlineAttachMaxBytes) {
+                    emailResult = await sendNdaAttachViaUrl(pdfDownloadUrl);
+                } else {
+                    try {
+                        emailResult = await emailService.sendNdaPdfEmail({
+                            ...emailBase,
+                            pdfBuffer,
+                            pdfDownloadUrl: null,
+                            linkOnly: false,
+                            attachmentViaUrl: false,
+                        });
+                    } catch (inlineErr) {
+                        if (!isAttachSendFailure(inlineErr)) throw inlineErr;
+                        console.warn(
+                            '[ndaService] NDA inline attach failed, retry via R2 path:',
+                            inlineErr.message || inlineErr
+                        );
+                        emailResult = await sendNdaAttachViaUrl(pdfDownloadUrl);
+                    }
+                }
+            } catch (attachErr) {
+                if (!isAttachSendFailure(attachErr)) throw attachErr;
+                console.warn('[ndaService] NDA email attach failed, fallback to R2 link:', attachErr.message || attachErr);
+                emailResult = await sendNdaLinkOnly(pdfDownloadUrl);
+            }
+        }
 
         return {
             ok: true,

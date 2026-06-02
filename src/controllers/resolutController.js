@@ -89,7 +89,15 @@ const suggestQuoteLineSchema = Joi.object({
     term_months: Joi.number().integer().min(1).default(120),
     valuation_type: Joi.string().valid('byLimit', 'byPremium').default('byLimit'),
     amount: Joi.number().positive().required(),
-    p_type: Joi.number().integer().valid(0, 1, 2, 4, 12).optional()
+    p_type: Joi.number().integer().valid(0, 1, 2, 4, 12).optional(),
+    client_type: Joi.alternatives().try(
+        Joi.string().valid('common', 'private'),
+        Joi.object({
+            code: Joi.string().valid('common', 'private').required(),
+            name: Joi.string().optional()
+        })
+    ).optional(),
+    capitalise: Joi.boolean().optional()
 });
 
 const resolutClientPatchSchema = Joi.object({
@@ -356,6 +364,8 @@ class ResolutController {
                 amount: v.amount,
                 valuationType: v.valuation_type,
                 pTypeOverride: v.p_type != null ? v.p_type : null,
+                clientType: v.client_type,
+                capitalise: v.capitalise,
                 userId: req.user?.id
             });
             return res.json(result);

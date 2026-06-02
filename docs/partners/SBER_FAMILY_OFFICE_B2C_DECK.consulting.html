@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Office B2C — презентация 16:9</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sber-family-office-deck.css" />
+</head>
+<body>
+
+  <!-- 1. Обложка -->
+  <section class="deck-slide deck-slide--cover" id="s1">
+    <span class="slide-num">1 / 11</span>
+    <div>
+      <div class="slide-brand">BankFuture PFP · white-label SBER</div>
+      <span class="slide-tag">Вариант 1 · B2C</span>
+      <h1 class="slide-title slide-title--green">Family Office<br />для экосистемы Сбер</h1>
+      <p class="slide-lead">Клиентская версия: финансовый план, отчёт и витрина продуктов группы Сбер. Материал для согласования с Сбером · май 2026</p>
+    </div>
+    <footer class="slide-footer">
+      <span>projectId 29 · Finam Report v2</span>
+      <span>Конфиденциально</span>
+    </footer>
+  </section>
+
+  <!-- 2. О сервисе -->
+  <section class="deck-slide" id="s2">
+    <span class="slide-num">2 / 11</span>
+    <h2 class="slide-h2">О нашем сервисе</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(9px,1.15vw,12px);color:var(--text-muted);margin-bottom:10px;">
+        <strong>BankFuture PFP</strong> — платформа финансового планирования: агент или клиент собирает цели, система считает портфель, формирует PDF/HTML-отчёт с переходами на продукты партнёра.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-card__shot feature-card__shot--contain" data-shot="crm">
+            <img src="screens/crm.png" alt="CRM — список клиентов" />
+          </div>
+          <div class="feature-card__label">CRM и клиенты</div>
+          <div class="feature-card__desc">Карточка клиента, цели, история, статусы, приглашения</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card__shot feature-card__shot--contain" data-shot="planner">
+            <img src="screens/planner.png" alt="Конструктор целей" />
+          </div>
+          <div class="feature-card__label">Конструктор целей</div>
+          <div class="feature-card__desc">Расчёт целей, риск-профиль, smart allocation, сценарии</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card__shot" data-shot="report">
+            <img src="screens/report.png" alt="PDF-отчёт Family Office" />
+          </div>
+          <div class="feature-card__label">Отчёты</div>
+          <div class="feature-card__desc">PDF/HTML Finam v2, дисклеймеры, CTA с атрибуцией</div>
+        </div>
+      </div>
+      <ul class="bullet-compact" style="margin-top:8px;">
+        <li>Детерминированные расчёты — не «угадайка» LLM</li>
+        <li>Опционально: ИИ-ассистент и GigaChat для пояснений</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3. CJM клиента -->
+  <section class="deck-slide" id="s3">
+    <span class="slide-num">3 / 11</span>
+    <h2 class="slide-h2">Customer Journey Map — путь клиента B2C</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:8px;">
+        Самодостаточный сценарий: от первого касания до перехода на продукты экосистемы Сбер. Каждый шаг — отдельный экран в ЛК.
+      </p>
+      <div class="cjm-lane">
+        <div class="cjm-step">
+          <div class="cjm-step__num">1</div>
+          <div class="cjm-step__title">Вход на сайт</div>
+          <div class="cjm-step__desc">Landing Family Office на домене Сбера или white-label. CTA «Собрать финансовый план».</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">2</div>
+          <div class="cjm-step__title">Регистрация</div>
+          <div class="cjm-step__desc">Email + пароль, подтверждение кода. Альт: invite от менеджера. Фаза 2 — вход через Sber ID.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">3</div>
+          <div class="cjm-step__title">Анкета</div>
+          <div class="cjm-step__desc">Профиль, доходы и расходы, семья, обязательства. Риск-профиль — отдельная анкета с backend.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">4</div>
+          <div class="cjm-step__title">Финплан (PFP)</div>
+          <div class="cjm-step__desc">Выбор целей, расчёт портфеля, сценарии, smart allocation. Детерминированный движок — не LLM.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">5</div>
+          <div class="cjm-step__title">Отчёт</div>
+          <div class="cjm-step__desc">PDF/HTML Finam v2 под бренд Сбера: стратегия, цели, рекомендации, дисклеймеры.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">6</div>
+          <div class="cjm-step__title">Продукты Сбера</div>
+          <div class="cjm-step__desc">CTA из отчёта и ЛК → НПФ, страхование, УК «Первая», брокер. Оформление на стороне Сбера.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+      </div>
+      <table class="slide-table cjm-table">
+        <thead><tr><th>Этап</th><th>Действие клиента</th><th>Ценность для Сбера</th></tr></thead>
+        <tbody>
+          <tr><td>1–2</td><td>Заходит и создаёт аккаунт за минуты</td><td>Низкий барьер входа, измеримая регистрация</td></tr>
+          <tr><td>3–4</td><td>Заполняет анкету и получает персональный план</td><td>Глубина данных и контекст для cross-sell</td></tr>
+          <tr><td>5–6</td><td>Читает отчёт и переходит к оформлению</td><td>Конверсия в продукты экосистемы + атрибуция RM</td></tr>
+        </tbody>
+      </table>
+      <p class="cjm-footnote" style="margin-top:8px;">
+        <strong>Альтернатива:</strong> менеджер приглашает клиента (шаг 2) и ведёт анкету на встрече — клиент дочитывает дома. Sber ID на шагах 2–3 сокращает ввод — <span class="badge badge--soon">фаза 2</span>.
+      </p>
+    </div>
+  </section>
+
+  <!-- 4. Типы целей -->
+  <section class="deck-slide" id="s4">
+    <span class="slide-num">4 / 11</span>
+    <h2 class="slide-h2">Типы целей и продукты Сбера</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:8px;">Соответствие целей PFP и рекомендуемых продуктов экосистемы (черновик — уточняется с Сбером).</p>
+      <div class="goals-grid">
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/passivnyy_dohod_v_buduschem.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__names">
+              <div class="goal-tile__name">Пассивный доход</div>
+              <div class="goal-tile__name">Достойная пенсия</div>
+            </div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> ПДС / НПФ, инвестиции (УК «Первая», брокер Сбер), дивидендные стратегии</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/sohranit__i_preumnozhit.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Наследство</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> ИСЖ, НСЖ (Сбер Страхование жизни)</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/lifeinsurance.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Защита жизни</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> СЖ, НСЖ («Подушка безопасности» и др.)</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/reserve.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Финансовый резерв</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> накопительный счёт, ликвидные инструменты Сбера</div>
+          </div>
+        </div>
+        <div class="goal-tile goal-tile--more">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/drugoe.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Цели на будущее</div>
+            <ul class="goal-tile__list">
+              <li>Загородный дом</li>
+              <li>Квартира</li>
+              <li>Первый взнос на ипотеку</li>
+              <li>Рента</li>
+              <li>Путешествие</li>
+              <li>Автомобиль</li>
+              <li>Переезд</li>
+              <li>Целевой капитал</li>
+              <li>Свой бизнес</li>
+              <li>Образование ребёнка</li>
+              <li>Другое</li>
+            </ul>
+            <div class="goal-tile__products"><strong>Продукты:</strong> депозит, ипотека, ИСЖ, инвестиции</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Клиент + менеджер банка -->
+  <section class="deck-slide" id="s5">
+    <span class="slide-num">5 / 11</span>
+    <h2 class="slide-h2">Две сущности: клиент и менеджер банка</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:10px;">
+        В архитектуре PFP заложены <strong>разные роли</strong>: клиент работает в своём ЛК, менеджер — в CRM (роль <code>agent</code>). Один финансовый план, два представления.
+      </p>
+      <div class="entity-scheme">
+        <div class="entity-card entity-card--client">
+          <div class="entity-card__head">
+            <span class="entity-card__role">role: client</span>
+            <h4 class="entity-card__title">Клиент</h4>
+            <p class="entity-card__sub">Личный кабинет B2C</p>
+          </div>
+          <ul class="entity-card__list">
+            <li>Регистрация и анкета</li>
+            <li>Выбор целей и финплан</li>
+            <li><strong>Видит результат</strong> — план и PDF/HTML-отчёт</li>
+            <li>Переходы на продукты Сбера (CTA)</li>
+          </ul>
+          <div class="entity-card__foot">Self-service · в любое время</div>
+        </div>
+
+        <div class="entity-bridge">
+          <div class="entity-bridge__core">
+            <span class="entity-bridge__label">PFP</span>
+            <span class="entity-bridge__item">Цели</span>
+            <span class="entity-bridge__item">Расчёт</span>
+            <span class="entity-bridge__item">Отчёт</span>
+          </div>
+          <div class="entity-bridge__arrows" aria-hidden="true">
+            <span class="entity-bridge__arrow entity-bridge__arrow--left">◀▶</span>
+          </div>
+          <p class="entity-bridge__hint">Общие данные · один план на клиента</p>
+        </div>
+
+        <div class="entity-card entity-card--agent">
+          <div class="entity-card__head">
+            <span class="entity-card__role">role: agent</span>
+            <h4 class="entity-card__title">Менеджер банка</h4>
+            <p class="entity-card__sub">CRM · Private / Premier</p>
+          </div>
+          <ul class="entity-card__list">
+            <li>Приглашает клиента в FO</li>
+            <li><strong>Подключается при необходимости</strong></li>
+            <li>Видит финплан, помогает, корректирует</li>
+            <li>Отчёт с атрибуцией <code>partner_agent_id</code></li>
+          </ul>
+          <div class="entity-card__foot">Human touch · по запросу или на встрече</div>
+        </div>
+      </div>
+
+      <div class="entity-flow">
+        <div class="entity-flow__step">
+          <span class="entity-flow__num">1</span>
+          <span>Клиент проходит путь сам или с менеджером</span>
+        </div>
+        <div class="entity-flow__arrow">→</div>
+        <div class="entity-flow__step">
+          <span class="entity-flow__num">2</span>
+          <span>Менеджер видит ту же карточку и план</span>
+        </div>
+        <div class="entity-flow__arrow">→</div>
+        <div class="entity-flow__step">
+          <span class="entity-flow__num">3</span>
+          <span>Клиент в ЛК видит итог — отчёт и рекомендации</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Архитектура -->
+  <section class="deck-slide" id="s6">
+    <span class="slide-num">6 / 11</span>
+    <h2 class="slide-h2">Архитектура, размещение и состав платформы</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(7px,0.95vw,10px);color:var(--text-muted);margin-bottom:8px;">
+        Модульный монолит: один backend PFP API + ЛК клиента/менеджера. Два согласованных варианта размещения — пилот в облаке или полностью в периметре Сбера.
+      </p>
+      <div class="deploy-grid">
+        <div class="deploy-card deploy-card--cloud">
+          <div class="deploy-card__head">
+            <span class="deploy-card__tag">Вариант A</span>
+            <h4>Облако BankFuture</h4>
+            <p>Изолированный VPC · быстрый пилот</p>
+          </div>
+          <ul class="bullet-compact">
+            <li><strong>Yandex Cloud</strong> — отдельный tenant SBER (projectId 29)</li>
+            <li>Backend: Docker <code>node:20-bookworm-slim</code> + Chromium</li>
+            <li>MySQL managed · S3-совместимое хранилище (R2 / Object Storage)</li>
+            <li>FO Web UI — white-label, домен по согласованию</li>
+            <li>Данные пилота — РФ; egress по whitelist</li>
+          </ul>
+        </div>
+        <div class="deploy-card deploy-card--bank">
+          <div class="deploy-card__head">
+            <span class="deploy-card__tag">Вариант B</span>
+            <h4>Периметр Сбера</h4>
+            <p>On-prem / private cloud · промышленный контур</p>
+          </div>
+          <ul class="bullet-compact">
+            <li>Контейнеры <strong>Docker / Kubernetes</strong> в ДЦ банка</li>
+            <li>Backend + ЛК — в едином периметре доверия</li>
+            <li>MySQL или PostgreSQL — managed в контуре Сбера*</li>
+            <li>Объектное хранилище банка вместо внешнего R2</li>
+            <li>Корп. SMTP / шлюз уведомлений · GigaChat on-prem</li>
+          </ul>
+          <p style="font-size:clamp(6px,0.75vw,8px);color:var(--text-muted);margin-top:4px;">* PostgreSQL — опциональная миграция с MySQL, отдельная оценка ИТ</p>
+        </div>
+      </div>
+      <table class="slide-table stack-table" style="margin-top:8px;">
+        <thead>
+          <tr><th>Слой</th><th>Компонент</th><th>Версия / as-is</th><th>Назначение</th></tr>
+        </thead>
+        <tbody>
+          <tr><td rowspan="2">Runtime</td><td>Node.js</td><td>20 LTS (≥18)</td><td>Backend API, расчёты, cron</td></tr>
+          <tr><td>ОС / Docker</td><td>Linux x86_64, Debian bookworm-slim</td><td>Prod-образ из репозитория</td></tr>
+          <tr><td rowspan="4">npm · core</td><td>express, joi, helmet, cors, dotenv</td><td>5.x / 18.x / 8.x</td><td>REST API, валидация, security headers</td></tr>
+          <tr><td>knex + mysql2</td><td>3.x</td><td>БД, миграции, tenant isolation</td></tr>
+          <tr><td>jsonwebtoken, bcryptjs</td><td>9.x / 3.x</td><td>JWT, хеши паролей</td></tr>
+          <tr><td>axios, winston, swagger-ui-express</td><td>1.x / 3.x</td><td>HTTP-клиент, логи, OpenAPI</td></tr>
+          <tr><td>PDF</td><td>puppeteer + pdfkit + pdf-lib</td><td>24.x</td><td>HTML → PDF/HTML отчёты Finam v2</td></tr>
+          <tr><td>OS · PDF</td><td>chromium, ghostscript, fonts-liberation</td><td>system</td><td>Headless Chrome, сжатие PDF</td></tr>
+          <tr><td>Файлы</td><td>@aws-sdk/client-s3, sharp</td><td>3.x</td><td>Обложки, PDF в S3-совместимом storage</td></tr>
+          <tr><td>Опционально</td><td>resend · node-cron · AI/LLM</td><td>по фичам</td><td>Почта, планировщик, GigaChat — отключаемо флагом</td></tr>
+        </tbody>
+      </table>
+      <table class="slide-table stack-table" style="margin-top:6px;">
+        <thead><tr><th>Модуль</th><th>Назначение</th><th>Статус</th></tr></thead>
+        <tbody>
+          <tr><td>Расчётный движок</td><td>Цели, портфель, пенсия, страхование</td><td><span class="badge badge--ok">готово</span></td></tr>
+          <tr><td>Отчёт v2 под Сбер</td><td>PDF/HTML, витрины, CTA</td><td><span class="badge badge--ok">MVP</span></td></tr>
+          <tr><td>ИБ-контур</td><td>JWT, bcrypt, helmet, tenant 29, TLS, env-секреты</td><td><span class="badge badge--ok">as-is</span></td></tr>
+          <tr><td>LLM / GigaChat</td><td>Диалог, пояснения</td><td><span class="badge badge--soon">опционально</span></td></tr>
+        </tbody>
+      </table>
+      <p class="cjm-footnote" style="margin-top:6px;padding:6px 10px;font-size:clamp(6px,0.78vw,9px);">
+        <strong>Для ИБ/ИТ Сбера:</strong> исходящий доступ (whitelist) — домены продуктов Сбера, при включении макро: cbr.ru, iss.moex.com. ИИ не обязателен для go-live. Детальный brief — по запросу (паттерн ATB/PSB security adaptation).
+      </p>
+    </div>
+  </section>
+
+  <!-- 7. Интеграции -->
+  <section class="deck-slide" id="s7">
+    <span class="slide-num">7 / 11</span>
+    <h2 class="slide-h2">Интеграции</h2>
+    <div class="slide-body two-col">
+      <div class="arch-box">
+        <h4>MVP — реферальные переходы <span class="badge badge--ok">сейчас</span></h4>
+        <ul class="bullet-compact">
+          <li>НПФ → npfsberbanka.ru</li>
+          <li>СК жизнь → sberbank-insurance.ru</li>
+          <li>УК «Первая» → first-am.ru</li>
+          <li>Брокер → sberbank.ru/investments</li>
+        </ul>
+        <p style="margin-top:8px;font-size:clamp(8px,1vw,10px);"><code>partner_agent_id</code> + UTM · API продаж Сбера — <strong>нет</strong> без отдельного ТЗ</p>
+      </div>
+      <div class="arch-box">
+        <h4>Sber ID + финданные <span class="badge badge--soon">фаза 2 · рекомендуем</span></h4>
+        <ol class="bullet-compact" style="list-style:decimal;padding-left:1.2em;">
+          <li>«Войти через Сбер ID» (OIDC)</li>
+          <li>Согласие на scope (доходы, расходы…)</li>
+          <li>Предзаполнение → проверка клиентом</li>
+          <li>Fallback на ручной ввод</li>
+        </ol>
+        <p style="margin-top:8px;font-size:clamp(8px,1vw,10px);color:var(--text-muted);">Дальше — <strong>фаза 2</strong>: агрегаты счетов и ребалансировка · см. слайд 8</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Фаза 2 — полная интеграция -->
+  <section class="deck-slide" id="s8">
+    <span class="slide-num">8 / 11</span>
+    <h2 class="slide-h2">Фаза 2 · Полная интеграция с экосистемой Сбер</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:10px;">
+        После успешного пилота MVP — подключение к <strong>финансовым данным клиента</strong> и сопровождение портфеля в рамках согласованных стратегий. Не входит в текущий релиз · отдельное ТЗ с Сбером.
+      </p>
+      <div class="phase2-flow">
+        <div class="phase2-flow__step">
+          <span class="phase2-flow__num">1</span>
+          <strong>Sber ID + согласие</strong>
+          <span>Клиент даёт доступ к агрегатам счетов</span>
+        </div>
+        <div class="phase2-flow__arrow">→</div>
+        <div class="phase2-flow__step">
+          <span class="phase2-flow__num">2</span>
+          <strong>Картина счетов</strong>
+          <span>Остатки: брокер, депозиты, карты, НПФ…</span>
+        </div>
+        <div class="phase2-flow__arrow">→</div>
+        <div class="phase2-flow__step">
+          <span class="phase2-flow__num">3</span>
+          <strong>План vs факт</strong>
+          <span>Целевой портфель PFP vs реальные позиции</span>
+        </div>
+        <div class="phase2-flow__arrow">→</div>
+        <div class="phase2-flow__step">
+          <span class="phase2-flow__num">4</span>
+          <strong>Ребаланс</strong>
+          <span>В рамках заданной стратегии и лимитов</span>
+        </div>
+      </div>
+      <div class="phase2-grid">
+        <div class="phase2-card">
+          <h4>Агрегаты по счетам <span class="badge badge--soon">фаза 2</span></h4>
+          <ul class="bullet-compact">
+            <li>Единая картина капитала клиента в ЛК и CRM менеджера</li>
+            <li>Меньше ручного ввода — актуальные остатки из контура Сбера</li>
+            <li>Триггеры для RM: отклонение от плана, срок ребаланса (как в CRM)</li>
+          </ul>
+        </div>
+        <div class="phase2-card">
+          <h4>Авто-ребалансировка <span class="badge badge--soon">фаза 2 · vision</span></h4>
+          <ul class="bullet-compact">
+            <li>Стратегия задаётся в PFP: целевые доли, риск-профиль, горизонт</li>
+            <li>Система сравнивает <strong>план</strong> и <strong>факт</strong>, предлагает шаги</li>
+            <li>Авто-исполнение — только в согласованных рамках и с consent клиента</li>
+            <li>Исполнение сделок — через API брокера / каналы Сбера, не «в обход»</li>
+          </ul>
+        </div>
+        <div class="phase2-card">
+          <h4>Что нужно от Сбера</h4>
+          <ul class="bullet-compact">
+            <li>API агрегатов: scopes, sandbox, тексты согласия</li>
+            <li>Модель поручений / рекомендаций (ИИР vs робо-advisory — юридика)</li>
+            <li>SSO менеджера, связка с CRM Private / Premier</li>
+          </ul>
+        </div>
+      </div>
+      <p class="cjm-footnote" style="margin-top:8px;">
+        <strong>Важно:</strong> на пилоте MVP — расчёт, отчёт и реферальные CTA. Ребалансировка в отчёте уже описывается как рекомендация; <strong>автоматическое исполнение</strong> — продукт фазы 2 после согласования модели с регуляторными требованиями.
+      </p>
+    </div>
+  </section>
+
+  <!-- 9. Roadmap -->
+  <section class="deck-slide" id="s9">
+    <span class="slide-num">9 / 11</span>
+    <h2 class="slide-h2">Roadmap запуска</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:12px;">
+        Платформа для пилота <strong>уже есть</strong>. Ниже — логика шагов; календарь согласуем с Сбером (brand, ИБ, допуск — на стороне банка).
+      </p>
+
+      <div class="roadmap-track">
+        <div class="roadmap-node roadmap-node--done">
+          <div class="roadmap-node__badge"><span class="badge badge--ok">готово</span></div>
+          <div class="roadmap-node__num">0</div>
+          <div class="roadmap-node__title">Демо B2C</div>
+          <div class="roadmap-node__desc">Тенант 29 · отчёт v2 · FO</div>
+          <div class="roadmap-node__owner">BankFuture</div>
+        </div>
+        <div class="roadmap-connector" aria-hidden="true"></div>
+        <div class="roadmap-node roadmap-node--sber">
+          <div class="roadmap-node__badge"><span class="badge badge--soon">Сбер</span></div>
+          <div class="roadmap-node__num">1</div>
+          <div class="roadmap-node__title">Brand &amp; legal</div>
+          <div class="roadmap-node__desc">Логотипы · дисклеймеры · юридика</div>
+          <div class="roadmap-node__owner">Сбер</div>
+        </div>
+        <div class="roadmap-connector" aria-hidden="true"></div>
+        <div class="roadmap-node roadmap-node--joint">
+          <div class="roadmap-node__badge"><span class="badge badge--ok">совместно</span></div>
+          <div class="roadmap-node__num">2</div>
+          <div class="roadmap-node__title">Атрибуция</div>
+          <div class="roadmap-node__desc">agent_id_param · whitelist URL</div>
+          <div class="roadmap-node__owner">BankFuture + Сбер</div>
+        </div>
+        <div class="roadmap-connector" aria-hidden="true"></div>
+        <div class="roadmap-node roadmap-node--sber">
+          <div class="roadmap-node__badge"><span class="badge badge--soon">Сбер · ИБ</span></div>
+          <div class="roadmap-node__num">3</div>
+          <div class="roadmap-node__title">Допуск</div>
+          <div class="roadmap-node__desc">ИБ-анкета · pentest · периметр</div>
+          <div class="roadmap-node__owner">Ведёт банк</div>
+        </div>
+        <div class="roadmap-connector" aria-hidden="true"></div>
+        <div class="roadmap-node roadmap-node--pilot">
+          <div class="roadmap-node__badge"><span class="badge badge--ok">цель</span></div>
+          <div class="roadmap-node__num">4</div>
+          <div class="roadmap-node__title">Пилот B2C</div>
+          <div class="roadmap-node__desc">Облако или периметр · метрики CTA</div>
+          <div class="roadmap-node__owner">Совместно</div>
+        </div>
+      </div>
+
+      <div class="roadmap-phase2">
+        <div class="roadmap-phase2__label">Фаза 2 · после пилота</div>
+        <div class="roadmap-phase2__lane">
+          <div class="roadmap-phase2__item">
+            <strong>Sber ID</strong>
+            <span>вход · финданные</span>
+          </div>
+          <div class="roadmap-phase2__dot">·</div>
+          <div class="roadmap-phase2__item">
+            <strong>Агрегаты</strong>
+            <span>счета · план vs факт</span>
+          </div>
+          <div class="roadmap-phase2__dot">·</div>
+          <div class="roadmap-phase2__item">
+            <strong>Ребаланс</strong>
+            <span>в рамках стратегии</span>
+          </div>
+        </div>
+        <p class="roadmap-phase2__hint">Отдельное ТЗ · см. слайд 8</p>
+      </div>
+
+      <div class="roadmap-legend">
+        <div class="roadmap-legend__item"><span class="roadmap-legend__swatch roadmap-legend__swatch--done"></span> Готово у BankFuture</div>
+        <div class="roadmap-legend__item"><span class="roadmap-legend__swatch roadmap-legend__swatch--sber"></span> Зависит от Сбера</div>
+        <div class="roadmap-legend__item"><span class="roadmap-legend__swatch roadmap-legend__swatch--joint"></span> Совместная настройка</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10. Что нужно от Сбера -->
+  <section class="deck-slide" id="s10">
+    <span class="slide-num">10 / 11</span>
+    <h2 class="slide-h2">Запуск пилота — что нужно от Сбера</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:10px;">
+        Для старта <strong>не нужна</strong> большая IT-программа и полная интеграция. Платформа готова — от Сбера минимальный пакет решений и допуск.
+      </p>
+
+      <div class="pilot-split">
+        <div class="pilot-panel pilot-panel--need">
+          <div class="pilot-panel__head">
+            <span class="pilot-panel__tag pilot-panel__tag--ok">для пилота · минимум</span>
+            <h4>5 решений — и можно стартовать</h4>
+          </div>
+          <ul class="pilot-checklist">
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>Один координатор</strong>
+                <span>Digital / Private / Premier — единое окно</span>
+              </div>
+            </li>
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>Brand pack</strong>
+                <span>Логотипы, цвета, юридические дисклеймеры</span>
+              </div>
+            </li>
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>Один параметр атрибуции</strong>
+                <span><code>agent_id_param</code> + whitelist доменов продуктов</span>
+              </div>
+            </li>
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>Допуск ИБ</strong>
+                <span>Анкета, pentest — ведёт банк; облако или периметр</span>
+              </div>
+            </li>
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>Пилот N менеджеров</strong>
+                <span>Ограниченный сегмент, без масштаба на всю сеть</span>
+              </div>
+            </li>
+          </ul>
+          <div class="pilot-panel__foot">
+            <span class="pilot-stat"><strong>0</strong> доработок ядра для демо</span>
+            <span class="pilot-stat"><strong>1</strong> tenant · projectId 29</span>
+            <span class="pilot-stat"><strong>N</strong> RM на пилот</span>
+          </div>
+        </div>
+
+        <div class="pilot-panel pilot-panel--later">
+          <div class="pilot-panel__head">
+            <span class="pilot-panel__tag pilot-panel__tag--later">не на пилоте</span>
+            <h4>Можно отложить на фазу 2</h4>
+          </div>
+          <ul class="pilot-skip">
+            <li><span>×</span> Sber ID и API финданных</li>
+            <li><span>×</span> Агрегаты счетов · план vs факт</li>
+            <li><span>×</span> Авто-ребалансировка</li>
+            <li><span>×</span> API учёта сделок в системах Сбера</li>
+            <li><span>×</span> Обязательный on-prem (можно облако)</li>
+            <li><span>×</span> GigaChat / ИИ в контуре</li>
+            <li><span>×</span> Большая выделенная IT-команда</li>
+          </ul>
+          <p class="pilot-panel__note">BankFuture ведёт платформу · Сбер — brand, допуск, продукты</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11. CTA -->
+  <section class="deck-slide deck-slide--cta" id="s11">
+    <span class="slide-num">11 / 11</span>
+    <div class="cta-body">
+      <div class="cta-main">
+        <span class="slide-tag">Следующий шаг</span>
+        <h2 class="cta-title">Готовы запустить пилот<br />за <em>1 месяц</em> на вашем сайте</h2>
+        <p class="cta-lead">
+          White-label Family Office под бренд Сбера: финплан, отчёт, витрина продуктов экосистемы.
+          Платформа уже работает — можно посмотреть и пройти сценарий клиента прямо сейчас.
+        </p>
+        <div class="cta-demo">
+          <span class="cta-demo__label">Живое демо</span>
+          <a class="cta-demo__url" href="https://family-office.bank-future.com/" target="_blank" rel="noopener">family-office.bank-future.com</a>
+          <span class="cta-demo__hint">Готовый Family Office · тест без регистрации у Сбера</span>
+        </div>
+        <div class="cta-steps">
+          <span>1. Демо</span>
+          <span class="cta-steps__arrow">→</span>
+          <span>2. Минимальный пакет</span>
+          <span class="cta-steps__arrow">→</span>
+          <span>3. Пилот</span>
+        </div>
+      </div>
+      <div class="cta-contact">
+        <div class="cta-contact__card">
+          <span class="cta-contact__label">Контакт</span>
+          <div class="cta-contact__name">Виссаров Александр</div>
+          <div class="cta-contact__role">Основатель · BankFuture PFP</div>
+          <a class="cta-contact__link" href="tel:+79773575301">+7 977 357-53-01</a>
+          <a class="cta-contact__link" href="mailto:vissarovav@bank-future.com">vissarovav@bank-future.com</a>
+        </div>
+      </div>
+      <footer class="slide-footer cta-footer">
+        <span>BankFuture PFP · white-label SBER · projectId 29</span>
+        <span>Конфиденциально · май 2026</span>
+      </footer>
+    </div>
+  </section>
+
+  <nav class="deck-nav">
+    <span>B2C · премиум · 16:9</span>
+    <a href="#s1">1</a><a href="#s2">2</a><a href="#s3">3</a><a href="#s4">4</a>
+    <a href="#s5">5</a><a href="#s6">6</a><a href="#s7">7</a><a href="#s8">8</a><a href="#s9">9</a><a href="#s10">10</a><a href="#s11">11</a>
+    · Ctrl+P — PDF
+  </nav>
+</body>
+</html>

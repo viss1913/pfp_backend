@@ -6,6 +6,8 @@ npm-debug.log
 .gemini
 docs
 scripts
+!scripts/
+!scripts/sync_comon_recommended_strategies.js
 tmp
 max-sdk-temp
 AV Inform

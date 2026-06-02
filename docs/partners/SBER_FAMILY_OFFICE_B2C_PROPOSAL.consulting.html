@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Office B2C — предложение для Сбера</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sber-family-office-proposal.consulting.css" />
+</head>
+<body>
+  <div class="cover-consulting cover-consulting--sber">
+    <div class="cover-consulting__main">
+      <div class="brand-line">BankFuture PFP · white-label SBER</div>
+      <span class="deck-tag">Вариант 1 · B2C</span>
+      <h1>Family Office: клиентская версия для экосистемы Сбер</h1>
+      <p class="lead">Готовое демо: финансовый план, PDF/HTML-отчёт и витрина продуктов <strong>только группы Сбер</strong>. Оформление — на стороне Сбера по согласованным реферальным ссылкам с атрибуцией.</p>
+    </div>
+    <footer>BankFuture PFP · Конфиденциально · для согласования Сбером · 20 мая 2026 г. · projectId 29</footer>
+  </div>
+
+  <article>
+    <div class="exec-summary">
+      <h2>Кратко</h2>
+      <div class="exec-summary__body">
+        <ul>
+          <li><strong>Что предлагаем:</strong> white-label Family Office (расчёты целей, отчёт Finam v2 под бренд Сбера, CTA на НПФ / страхование / УК / брокер).</li>
+          <li><strong>Что готово:</strong> демо B2C, тенант SBER (29), отчёт v2, витрины, трекинг ссылок после согласования <code>agent_id_param</code> <span class="badge badge--ready">готово</span></li>
+          <li><strong>Что нужно от Сбера:</strong> brand pack, дисклеймеры, параметр атрибуции, whitelist доменов, ИБ-пилот.</li>
+          <li><strong>Усиление (рекомендуем):</strong> вход через SberID и автозаполнение доходов/расходов <span class="badge badge--phase2">фаза 2</span></li>
+          <li><strong>Пилот:</strong> сроки TBD после встречи; ориентир 8–12 недель после согласования ИБ <em>(оценочно)</em>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Ценность для Сбера</h2>
+    <ul>
+      <li>Единая точка финпланирования с переходами в продукты экосистемы без разрозненных калькуляторов.</li>
+      <li>Контролируемые дисклеймеры и визуал отчёта — согласуются один раз на пилоте.</li>
+      <li>Измеримость: UTM и согласованный параметр агента/канала на все CTA в PDF и ЛК.</li>
+      <li>Развёртывание: изолированное облако (Yandex) или on-premise в контуре Сбера.</li>
+    </ul>
+
+    <h2>Демо-витрина (только Сбер)</h2>
+    <p>Макет карточек в демо; финальные логотипы — после brand pack от Сбера.</p>
+    <div class="product-row">
+      <div class="product-card"><div class="logo">СБЕР</div><strong>Сбер</strong><span>Премиальное обслуживание и сервисы для семьи</span></div>
+      <div class="product-card"><div class="logo">НПФ</div><strong>Сбер НПФ</strong><span>Негосударственное пенсионное обеспечение</span></div>
+      <div class="product-card"><div class="logo">СК</div><strong>Сбер Страхование жизни</strong><span>Защита семьи и накопительные программы</span></div>
+      <div class="product-card"><div class="logo">УК</div><strong>Первая</strong><span>Профессиональное управление активами</span></div>
+      <div class="product-card"><div class="logo">БР</div><strong>Сбер Инвестиции</strong><span>Брокерский доступ и рынки капитала</span></div>
+    </div>
+
+    <h2>Что уже готово у BankFuture</h2>
+    <ul>
+      <li>Тенант <strong>SBER</strong>, <code>projectId = 29</code>, отчёт <code>report_finam = 2</code> (Finam Report v2).</li>
+      <li>Хвост отчёта без блоков Finam (Comon, ДУ Finam, «Финам Бонус»); витрины Сбер в PDF.</li>
+      <li>Расчёты целей (пенсия, инвестиции, страхование жизни, прочее) — детерминированный backend.</li>
+      <li>Механизм реферальных ссылок: <code>partner_agent_id</code>, <code>partner_link_tracking</code>, whitelist доменов.</li>
+      <li>B2C-демо с ручным вводом профиля клиента.</li>
+    </ul>
+
+    <h2>Сценарий B2C</h2>
+    <ol class="flow-steps">
+      <li>Клиент открывает Family Office (web / встраивание в digital Сбера — по договорённости).</li>
+      <li>Регистрация или вход <span class="badge badge--mvp">MVP</span>; опционально «Войти через Сбер ID» <span class="badge badge--phase2">фаза 2</span>.</li>
+      <li>Ввод или автоподстановка доходов, расходов, целей семьи.</li>
+      <li>Расчёт портфеля и генерация PDF/HTML-отчёта с витриной продуктов Сбера.</li>
+      <li>CTA «Подробнее» → реферальный переход на npfsberbanka.ru, sberbank-insurance.ru, first-am.ru, sberbank.ru с атрибуцией.</li>
+    </ol>
+
+    <h2>Техническое описание</h2>
+    <h3>Архитектура PFP</h3>
+    <p>Backend Node.js (Express), MySQL, генерация PDF (Puppeteer), объектное хранилище для отчётов. Модульный монолит; API <code>/api/pfp/...</code>. Личные кабинеты — HTTPS REST.</p>
+    <h3>Размещение</h3>
+    <table>
+      <thead><tr><th>Модель</th><th>Суть</th></tr></thead>
+      <tbody>
+        <tr><td><strong>A. Облако (пилот)</strong></td><td>Изолированный контур на <strong>Yandex Cloud</strong>: отдельный VPC/каталог, tenant без соседних проектов, Lockbox для секретов, бэкапы, журналы доступа.</td></tr>
+        <tr><td><strong>B. On-premise</strong></td><td>Контейнеры PFP в контуре Сбера, их WAF/SIEM, обновления по SLA, runbook от BankFuture.</td></tr>
+      </tbody>
+    </table>
+    <div class="diagram-box">[Клиент] → [FO Web] → [PFP API + MySQL] → [PDF/HTML отчёт]
+                              ↓
+                    [Реферальные URL Сбер]</div>
+
+    <h2>Интеграции</h2>
+    <h3>MVP — реферальные переходы <span class="badge badge--mvp">сейчас</span></h3>
+    <p>Без API учётных систем Сбера: расчёт и отчёт в PFP, оформление на стороне Сбера. Нужно согласовать имя query-параметра (<code>agent_id_param</code>) и whitelist доменов.</p>
+    <table>
+      <thead><tr><th>Продукт</th><th>Базовый URL (MVP)</th><th>Цель в PFP</th></tr></thead>
+      <tbody>
+        <tr><td>НПФ</td><td>npfsberbanka.ru</td><td>Пенсия</td></tr>
+        <tr><td>СК жизнь</td><td>sberbank-insurance.ru (Подушка)</td><td>Страхование жизни</td></tr>
+        <tr><td>УК «Первая»</td><td>first-am.ru</td><td>Инвестиции</td></tr>
+        <tr><td>Брокер</td><td>sberbank.ru/…/investments</td><td>Инвестиции</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Фаза 2 — SberID и финансовый профиль <span class="badge badge--phase2">рекомендуем</span></h3>
+    <p><strong>Не реализовано в текущем демо.</strong> Целевая «идеальная система»:</p>
+    <ol class="flow-steps">
+      <li>Кнопка «Войти через Сбер ID» (OAuth 2.0 / OpenID Connect).</li>
+      <li>Экран согласия на scope (доходы, категории расходов, при необходимости остатки / ИПК — только по согласованию со Сбером).</li>
+      <li>Адаптер данных → предзаполнение калькуляторов → клиент проверяет и правит.</li>
+      <li>Fallback на ручной ввод, если отказ или недоступность API.</li>
+    </ol>
+    <div class="diagram-box">Клиент → FO → SberID (OIDC) → токены → Consent → API агрегатов Сбера
+       → PFP (доходы/расходы) → отчёт → CTA</div>
+    <p>Postback/API продаж — отдельное ТЗ, не путать с SberID.</p>
+
+    <h2>ИИ / GigaChat <span class="badge badge--phase2">опционально</span></h2>
+    <ul>
+      <li>Подсказки агенту и клиенту, черновики пояснений; <strong>не</strong> замена инвестиционной рекомендации.</li>
+      <li>Рекомендуем GigaChat в изолированном контуре с ключами заказчика; отключение по флагу.</li>
+      <li>Все суммы в отчёте — из детерминированных расчётов, не из LLM.</li>
+    </ul>
+
+    <h2>ИБ и данные</h2>
+    <ul>
+      <li>Хранение данных пилота — РФ; TLS, JWT, разграничение по tenant.</li>
+      <li>Минимизация ПДн; согласие на обработку; при SberID — отдельный поток согласия и аудит доступа.</li>
+    </ul>
+
+    <h2>Roadmap</h2>
+    <table>
+      <thead><tr><th>Фаза</th><th>Содержание</th><th>Владелец</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>Демо B2C, отчёт v2, трекинг</td><td>BankFuture <span class="badge badge--ready">готово</span></td></tr>
+        <tr><td>1</td><td>Brand pack, дисклеймеры, юридика</td><td>Сбер</td></tr>
+        <tr><td>2</td><td><code>agent_id_param</code>, URL, whitelist</td><td>Совместно</td></tr>
+        <tr><td>3</td><td>ИБ, pentest по регламенту Сбера</td><td>Сбер ведёт</td></tr>
+        <tr><td>4a</td><td>SberID + API финданных, sandbox</td><td>Сбер digital + BankFuture</td></tr>
+        <tr><td>5</td><td>Пилот B2C, метрики переходов</td><td>Совместно</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Что нужно от Сбера</h2>
+    <table>
+      <thead><tr><th>Артефакт</th><th>Зачем</th><th>Срок</th></tr></thead>
+      <tbody>
+        <tr><td>Координатор продукта / digital</td><td>Единая точка решений</td><td>TBD</td></tr>
+        <tr><td>Brand pack, запреты формулировок</td><td>Отчёт и FO UI</td><td>TBD</td></tr>
+        <tr><td>Юридические шаблоны дисклеймеров</td><td>PDF, ЛК, CTA</td><td>TBD</td></tr>
+        <tr><td><code>agent_id_param</code>, whitelist доменов</td><td>Атрибуция CTA</td><td>TBD</td></tr>
+        <tr><td>ИБ-анкета, требования к логам</td><td>Допуск пилота</td><td>TBD</td></tr>
+        <tr><td>SberID: client_id, OIDC, scopes, sandbox</td><td>Автозаполнение финплана</td><td>Фаза 4a</td></tr>
+        <tr><td>Решение on-prem vs Yandex isolated</td><td>Архитектура пилота</td><td>TBD</td></tr>
+      </tbody>
+    </table>
+
+    <hr />
+    <p><small>Внутренние референсы: <code>docs/partners/SBER_REPORT_V2_MVP.md</code>, тенант projectId 29. Публичный ключ API — по запросу после NDA.</small></p>
+  </article>
+
+  <div class="screen-bar">
+    <a href="SBER_FAMILY_OFFICE_CHANNELS_INDEX.consulting.html">Все каналы</a> ·
+    <a href="SBER_FAMILY_OFFICE_B2B2C_CLERK_PROPOSAL.consulting.html">Клерк →</a> ·
+    <a href="SBER_FAMILY_OFFICE_B2B2C_PRAVKARD_PROPOSAL.consulting.html">Правкард →</a>
+    · Печать: <kbd>Ctrl+P</kbd>
+  </div>
+</body>
+</html>

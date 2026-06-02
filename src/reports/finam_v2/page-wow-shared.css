@@ -912,6 +912,10 @@ body {
   margin-bottom: 9px;
 }
 
+.finam-v2-comon__card-grid--2col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .finam-v2-comon__product-card {
   min-height: 100px;
   padding: 8px 9px;
@@ -929,6 +933,10 @@ body {
 .finam-v2-comon__product-card .finam-v2-tail__product-text {
   font-size: 8.1px;
   line-height: 1.26;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .finam-v2-comon__link {

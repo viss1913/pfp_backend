@@ -6,6 +6,13 @@ const {
     buildIszhLikeParameters,
     normalizeIszhQuoteParameters
 } = require('./resolutIszhQuoteParameters');
+const {
+    isResolutDepositLikeProduct,
+    isResolutDepositLikePfpCode,
+    looksLikeResolutDepositParameters,
+    buildDepositLikeParameters,
+    normalizeDepositQuoteParameters
+} = require('./resolutDepositQuoteParameters');
 
 /**
  * Единая сборка { code, parameters } для quote и portfolio (НСЖ или ИСЖ).
@@ -14,6 +21,9 @@ function buildResolutQuoteParameters(opts) {
     const product = opts && opts.product;
     if (isResolutIszhProduct(product)) {
         return buildIszhLikeParameters(opts);
+    }
+    if (isResolutDepositLikeProduct(product)) {
+        return buildDepositLikeParameters(opts);
     }
     const { buildNszhLikeParameters } = require('./resolutQuoteLineSuggestService');
     return buildNszhLikeParameters(opts);
@@ -32,8 +42,22 @@ function mapResolutClientToClientRow(resolutClient) {
 
 function normalizeResolutQuoteLine({ projectId, product = null, clientRow = {}, code, parameters, amountHint = null }) {
     const pfpCode = String(code || (product && product.resolut_pfp_code) || '').trim();
-    if (!isResolutIszhProduct(product) && !isResolutIszhPfpCode(pfpCode)) {
+    const isDepositLike =
+        isResolutDepositLikeProduct(product)
+        || isResolutDepositLikePfpCode(pfpCode)
+        || looksLikeResolutDepositParameters(parameters);
+    if (!isResolutIszhProduct(product) && !isResolutIszhPfpCode(pfpCode) && !isDepositLike) {
         return { code: pfpCode || code, parameters };
+    }
+    if (isDepositLike) {
+        return {
+            code: pfpCode || code,
+            parameters: normalizeDepositQuoteParameters({
+                product,
+                parameters,
+                amountHint
+            })
+        };
     }
     const normalizedParameters = normalizeIszhQuoteParameters({
         projectId,

@@ -27,12 +27,16 @@ services:
     env_file:
       - .env.production
     environment:
+      # Docker DNS иногда не резолвит api.resend.com (NDA 502); IPv6 AAAA без маршрута — prefer IPv4
       NODE_OPTIONS: --dns-result-order=ipv4first
     dns:
       - 8.8.8.8
       - 1.1.1.1
     dns_opt:
       - ndots:0
+    # Жёсткий IPv4, если резолвер отдаёт только AAAA / fetch «could not be resolved»
+    extra_hosts:
+      - "api.resend.com:104.20.29.242"
 
 volumes:
   mysql_data:

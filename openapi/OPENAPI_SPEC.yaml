@@ -79,6 +79,12 @@ components:
           description: |
             Периодичность взноса для котировки Резолюта: 0 — единовременно, 1 — ежегодно, 2 — раз в полгода, 4 — ежеквартально, 12 — ежемесячно.
             Имплицитная годовая доходность из ответа `quote` в расчётах портфеля сейчас поддерживается для `0`; иначе используется матрица `lines`/`yields`, если заполнена.
+        commission_schema:
+          allOf:
+            - $ref: '#/components/schemas/CommissionSchema'
+          nullable: true
+          description: |
+            Правила прогноза комиссий для CRM на уровне конкретного продукта.
     ProductYield:
       type: object
       description: |
@@ -162,6 +168,69 @@ components:
           enum: [0, 1, 2, 4, 12]
           description: |
             Периодичность для `quote`; для расчёта доходности из котировки в портфеле — задайте `0` или оставьте пустым (дефолт 0 / env `RESOLUT_PORTFOLIO_QUOTE_PTYPE`).
+        commission_schema:
+          allOf:
+            - $ref: '#/components/schemas/CommissionSchema'
+          nullable: true
+          description: |
+            Правила прогноза комиссий в CRM для этого продукта.
+            Если не задано, прогноз по продукту считается равным 0.
+    CommissionSchema:
+      type: object
+      required: [rules]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+          default: 1
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommissionRule'
+    CommissionRule:
+      type: object
+      required: [rule_type]
+      properties:
+        rule_type:
+          type: string
+          enum:
+            - ONE_TIME_FIXED
+            - ONE_TIME_PERCENT_OF_PREMIUM
+            - FIRST_YEAR_PERCENT_OF_PREMIUMS
+            - ANNUAL_PERCENT_OF_PREMIUM
+            - AUM_MANAGEMENT_FEE
+            - TIERED_BY_YEAR
+        name:
+          type: string
+          nullable: true
+        base:
+          type: string
+          enum: [INITIAL, FLOW, INITIAL_PLUS_FLOW, AUM_AVG]
+        frequency:
+          type: string
+          enum: [ONE_TIME, MONTHLY, YEARLY]
+        rate_percent:
+          type: number
+          minimum: 0
+          nullable: true
+        fixed_amount_rub:
+          type: number
+          minimum: 0
+          nullable: true
+        years:
+          type: object
+          properties:
+            start: { type: integer, minimum: 1 }
+            end: { type: integer, minimum: 1 }
+        tiers:
+          type: array
+          items:
+            type: object
+            required: [year_from, year_to, rate_percent]
+            properties:
+              year_from: { type: integer, minimum: 1 }
+              year_to: { type: integer, minimum: 1 }
+              rate_percent: { type: number, minimum: 0 }
     ProductLine:
       type: object
       description: |

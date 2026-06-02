@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Office B2B2C · Клерк — презентация 16:9</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sber-family-office-deck.css" />
+</head>
+<body>
+
+  <!-- 1. Обложка -->
+  <section class="deck-slide deck-slide--cover" id="s1">
+    <span class="slide-num">1 / 9</span>
+    <div>
+      <div class="cover-logos" aria-label="Участники совместного проекта">
+        <div class="cover-logos__item"><span class="cover-logos__bf">BankFuture PFP</span></div>
+        <span class="cover-logos__sep" aria-hidden="true"></span>
+        <div class="cover-logos__item"><img src="assets/logos/klerk.svg" alt="Клерк.ру" /></div>
+        <span class="cover-logos__sep" aria-hidden="true"></span>
+        <div class="cover-logos__item"><img src="assets/logos/sber.svg" alt="Сбер" /></div>
+      </div>
+      <div class="slide-brand">Совместный проект</div>
+      <span class="slide-tag">Вариант 2 · B2B2C · агентский канал</span>
+      <h1 class="slide-title slide-title--green">Family Office<br />для бухгалтеров</h1>
+      <p class="slide-lead">Совместный проект BankFuture × Клерк.ру × Сбер: бухгалтер открывает FO под клиентов, отчёт с атрибуцией и переходы на продукты экосистемы · май 2026</p>
+      <div class="demo-stand">
+        <span class="demo-stand__label">Демо-стенд агента</span>
+        <a href="https://family-office.bank-future.com/sber/">family-office.bank-future.com/sber/</a>
+      </div>
+    </div>
+    <footer class="slide-footer">
+      <span>projectId 29 · Finam Report v2</span>
+      <span>Конфиденциально</span>
+    </footer>
+  </section>
+
+  <!-- 2. Три стороны модели -->
+  <section class="deck-slide" id="s2">
+    <span class="slide-num">2 / 9</span>
+    <h2 class="slide-h2">Три стороны модели</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:10px;">
+        Один отчёт — одна атрибуция — три роли в договоре. Параллельный пилот к B2C-премиуму, не замена white-label FO на сайте Сбера.
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1;min-height:0;">
+        <div class="arch-box" style="border-color:rgba(33,160,56,0.35);background:linear-gradient(180deg,#fff 0%,var(--sber-green-soft) 100%);">
+          <img class="tripartite-logo" src="assets/logos/sber.svg" alt="Сбер" />
+          <h4 style="color:var(--sber-green-dark);">Сбер</h4>
+          <p style="font-size:clamp(8px,1vw,10px);color:var(--text-muted);margin-bottom:8px;">Поставщик продуктов</p>
+          <ul class="bullet-compact">
+            <li>НПФ, СК, УК «Первая», брокер</li>
+            <li>Brand pack и юридические дисклеймеры</li>
+            <li><code>agent_id_param</code> + whitelist URL</li>
+            <li>Комиссионная модель для агентов</li>
+            <li>Координатор канала</li>
+          </ul>
+        </div>
+        <div class="arch-box" style="border-color:rgba(0,102,204,0.35);background:linear-gradient(180deg,#fff 0%,#eef4fb 100%);">
+          <img class="tripartite-logo" src="assets/logos/klerk.svg" alt="Клерк.ру" />
+          <h4 style="color:#0066cc;">Клерк.ру</h4>
+          <p style="font-size:clamp(8px,1vw,10px);color:var(--text-muted);margin-bottom:8px;">Поставщик агентов</p>
+          <ul class="bullet-compact">
+            <li>Аудитория бухгалтеров и финдиректоров</li>
+            <li>Онбординг агентов в канал FO</li>
+            <li>Co-brand, оферта, лендинг / рассылка</li>
+            <li>Co-marketing пилота</li>
+            <li>Обратная связь от профсообщества</li>
+          </ul>
+        </div>
+        <div class="arch-box">
+          <h4 style="color:var(--sber-green-dark);">BankFuture</h4>
+          <p style="font-size:clamp(8px,1vw,10px);color:var(--text-muted);margin-bottom:8px;">Платформа + процессинг</p>
+          <ul class="bullet-compact">
+            <li>CRM, расчётный движок, отчёт v2</li>
+            <li>Tenant 29 · white-label SBER</li>
+            <li><code>partner_agent_id</code> в каждом отчёте</li>
+            <li>Поддержка агентов и доработки пилота</li>
+            <li>Техническая готовность — <strong>сейчас</strong></li>
+          </ul>
+        </div>
+      </div>
+      <p class="cjm-footnote" style="margin-top:8px;">
+        MVP: реферальные CTA на продукты Сбера · без API продаж и без SSO Клерка на старте. Архитектура и интеграции — в B2C-пакете.
+      </p>
+    </div>
+  </section>
+
+  <!-- 3. О Клерк.ру -->
+  <section class="deck-slide" id="s3">
+    <span class="slide-num">3 / 9</span>
+    <h2 class="slide-h2">О Клерк.ру — участник совместного проекта</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(9px,1.15vw,12px);color:var(--text-muted);margin-bottom:12px;">
+        <strong>Клерк.ру</strong> — крупнейший в Рунете портал для бухгалтеров, предпринимателей и финансовых специалистов. Партнёр совместного проекта по выводу Family Office на аудиторию профессиональных консультантов.
+      </p>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card__value">7+ млн</div>
+          <div class="stat-card__label">уникальных посетителей в месяц</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__value">№ 1</div>
+          <div class="stat-card__label">в категории «Бухгалтерия» (Медиалогия)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__value">130+ тыс.</div>
+          <div class="stat-card__label">подписчиков в соцсетях и мессенджерах</div>
+        </div>
+      </div>
+      <h3 style="font-size:clamp(10px,1.2vw,13px);color:var(--sber-green-dark);margin:8px 0 6px;">Состав аудитории (оценка Клерк)</h3>
+      <div class="audience-bars">
+        <div class="audience-bar"><span>Бухгалтеры</span><div class="audience-bar__track"><div class="audience-bar__fill" style="width:61%"></div></div><span>61%</span></div>
+        <div class="audience-bar"><span>Юристы и аудиторы</span><div class="audience-bar__track"><div class="audience-bar__fill" style="width:16%"></div></div><span>16%</span></div>
+        <div class="audience-bar"><span>Финдиректора</span><div class="audience-bar__track"><div class="audience-bar__fill" style="width:9%"></div></div><span>9%</span></div>
+        <div class="audience-bar"><span>Собственники бизнеса</span><div class="audience-bar__track"><div class="audience-bar__fill" style="width:9%"></div></div><span>9%</span></div>
+      </div>
+      <p style="font-size:clamp(7px,0.85vw,9px);color:var(--text-muted);margin-top:8px;">Источник: публичные материалы klerk.ru · цифры уточняются на встрече с Клерком</p>
+    </div>
+  </section>
+
+  <!-- 4. О сервисе -->
+  <section class="deck-slide" id="s4">
+    <span class="slide-num">4 / 9</span>
+    <h2 class="slide-h2">О нашем сервисе</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(9px,1.15vw,12px);color:var(--text-muted);margin-bottom:10px;">
+        <strong>BankFuture PFP</strong> — платформа для <strong>агентов-бухгалтеров</strong>: CRM, цели клиентов, отчёт с атрибуцией <code>partner_agent_id</code>, совместный канал с <strong>Клерк.ру</strong>.
+      </p>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-card__shot feature-card__shot--contain" data-shot="crm">
+            <img src="screens/crm.png" alt="CRM — список клиентов" />
+          </div>
+          <div class="feature-card__label">CRM и клиенты</div>
+          <div class="feature-card__desc">Агент ведёт карточки клиентов, цели, статусы, приглашения</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card__shot feature-card__shot--contain" data-shot="planner">
+            <img src="screens/planner.png" alt="Конструктор целей" />
+          </div>
+          <div class="feature-card__label">Конструктор целей</div>
+          <div class="feature-card__desc">Расчёт целей, риск-профиль, smart allocation, сценарии</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card__shot" data-shot="report">
+            <img src="screens/report.png" alt="PDF-отчёт Family Office" />
+          </div>
+          <div class="feature-card__label">Отчёты</div>
+          <div class="feature-card__desc">PDF/HTML Finam v2, дисклеймеры, CTA с атрибуцией агента</div>
+        </div>
+      </div>
+      <ul class="bullet-compact" style="margin-top:8px;">
+        <li>Детерминированные расчёты — не «угадайка» LLM</li>
+        <li>Опционально: ИИ-ассистент и GigaChat для пояснений</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5. CJM агентского канала -->
+  <section class="deck-slide" id="s5">
+    <span class="slide-num">5 / 9</span>
+    <h2 class="slide-h2">Customer Journey Map — агентский канал B2B2C</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:8px;">
+        Бухгалтер — доверенный советник собственника бизнеса. Клерк приводит агента, агент ведёт клиента через FO до перехода на продукты Сбера.
+      </p>
+      <div class="cjm-lane">
+        <div class="cjm-step">
+          <div class="cjm-step__num">1</div>
+          <div class="cjm-step__title">Клерк → агент</div>
+          <div class="cjm-step__desc">Онбординг бухгалтера: лендинг, рассылка, регистрация в ЛК агента с <code>partner_agent_id</code>.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">2</div>
+          <div class="cjm-step__title">Клиент в CRM</div>
+          <div class="cjm-step__desc">Агент создаёт карточку клиента (ИП / SMB), приглашает или заполняет анкету на встрече.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">3</div>
+          <div class="cjm-step__title">Конструктор целей</div>
+          <div class="cjm-step__desc">Финплан: цели, портфель, сценарии. Детерминированный движок — не LLM.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">4</div>
+          <div class="cjm-step__title">Отчёт PDF</div>
+          <div class="cjm-step__desc">Finam v2 под бренд Сбера: стратегия, рекомендации, CTA на продукты экосистемы.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">5</div>
+          <div class="cjm-step__title">Переход клиента</div>
+          <div class="cjm-step__desc">Клиент переходит по рефералке из отчёта → оформление на стороне Сбера.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+        <div class="cjm-step">
+          <div class="cjm-step__num">6</div>
+          <div class="cjm-step__title">Атрибуция</div>
+          <div class="cjm-step__desc"><code>partner_agent_id</code> + UTM в каждом CTA. Конверсия в заявку — по данным Сбера.</div>
+          <div class="cjm-step__tag"><span class="badge badge--ok">MVP</span></div>
+        </div>
+      </div>
+      <table class="slide-table cjm-table">
+        <thead><tr><th>Этап</th><th>Ценность для Сбера</th><th>Ценность для агента</th></tr></thead>
+        <tbody>
+          <tr><td>1–2</td><td>Масштаб без найма RM под каждого клиента</td><td>Новый сервис для своей базы клиентов</td></tr>
+          <tr><td>3–4</td><td>Контекст для cross-sell продуктов группы</td><td>Профессиональный отчёт «под ключ»</td></tr>
+          <tr><td>5–6</td><td>Измеримые переходы и атрибуция канала</td><td>Комиссия от продаж (модель от Сбера)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6. Типы целей -->
+  <section class="deck-slide" id="s6">
+    <span class="slide-num">6 / 9</span>
+    <h2 class="slide-h2">Типы целей и продукты Сбера</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:8px;">Соответствие целей PFP и рекомендуемых продуктов экосистемы (черновик — уточняется с Сбером).</p>
+      <div class="goals-grid">
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/passivnyy_dohod_v_buduschem.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__names">
+              <div class="goal-tile__name">Пассивный доход</div>
+              <div class="goal-tile__name">Достойная пенсия</div>
+            </div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> ПДС / НПФ, инвестиции (УК «Первая», брокер Сбер), дивидендные стратегии</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/sohranit__i_preumnozhit.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Наследство</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> ИСЖ, НСЖ (Сбер Страхование жизни)</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/lifeinsurance.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Защита жизни</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> СЖ, НСЖ («Подушка безопасности» и др.)</div>
+          </div>
+        </div>
+        <div class="goal-tile">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/reserve.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Финансовый резерв</div>
+            <div class="goal-tile__products"><strong>Продукты:</strong> накопительный счёт, ликвидные инструменты Сбера</div>
+          </div>
+        </div>
+        <div class="goal-tile goal-tile--more">
+          <div class="goal-tile__img"><img src="../../assets/reports/goal-cards/drugoe.webp" alt="" /></div>
+          <div class="goal-tile__body">
+            <div class="goal-tile__name">Цели на будущее</div>
+            <ul class="goal-tile__list">
+              <li>Загородный дом</li>
+              <li>Квартира</li>
+              <li>Первый взнос на ипотеку</li>
+              <li>Рента</li>
+              <li>Путешествие</li>
+              <li>Автомобиль</li>
+              <li>Переезд</li>
+              <li>Целевой капитал</li>
+              <li>Свой бизнес</li>
+              <li>Образование ребёнка</li>
+              <li>Другое</li>
+            </ul>
+            <div class="goal-tile__products"><strong>Продукты:</strong> депозит, ипотека, ИСЖ, инвестиции</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Пилот с Клерк.ру -->
+  <section class="deck-slide" id="s7">
+    <span class="slide-num">7 / 9</span>
+    <h2 class="slide-h2">Пилот с Клерк.ру</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:10px;">
+        Платформа готова. Цель пилота — проверить канал «бухгалтер → клиент → продукт Сбера» на ограниченной выборке агентов.
+      </p>
+      <div class="pilot-split">
+        <div class="pilot-panel pilot-panel--need">
+          <div class="pilot-panel__head">
+            <span class="pilot-panel__tag pilot-panel__tag--ok">цель пилота</span>
+            <h4>N агентов × M клиентов</h4>
+          </div>
+          <ul class="pilot-checklist">
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>50–200 бухгалтеров</strong>
+                <span>Онбординг через Клерк, каждый с <code>partner_agent_id</code></span>
+              </div>
+            </li>
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>3–10 клиентов на агента</strong>
+                <span>ИП / SMB — через CRM и конструктор целей</span>
+              </div>
+            </li>
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>Отчёты PDF + CTA</strong>
+                <span>Фиксация переходов на домены продуктов Сбера</span>
+              </div>
+            </li>
+            <li>
+              <span class="pilot-checklist__icon">✓</span>
+              <div>
+                <strong>Обратная связь</strong>
+                <span>UX, дисклеймеры, мотивация агентов</span>
+              </div>
+            </li>
+          </ul>
+          <div class="pilot-panel__foot">
+            <span class="pilot-stat"><strong>0</strong> доработок ядра</span>
+            <span class="pilot-stat"><strong>1</strong> tenant · 29</span>
+            <span class="pilot-stat"><strong>готово</strong> сейчас</span>
+          </div>
+        </div>
+        <div class="pilot-panel pilot-panel--later">
+          <div class="pilot-panel__head">
+            <span class="pilot-panel__tag pilot-panel__tag--later">что нужно от сторон</span>
+            <h4>Минимум для старта</h4>
+          </div>
+          <ul class="pilot-skip" style="list-style:none;padding:0;">
+            <li style="margin-bottom:8px;"><strong style="color:var(--sber-green-dark);">Сбер:</strong> координатор, brand pack, <code>agent_id</code>, комиссия агентам, допуск ИБ</li>
+            <li style="margin-bottom:8px;"><strong style="color:#0066cc;">Клерк:</strong> co-brand, оферта, лендинг / рассылка, онбординг N агентов</li>
+            <li><strong>BankFuture:</strong> платформа, поддержка, настройка тенанта, метрики пилота</li>
+          </ul>
+          <table class="slide-table" style="margin-top:10px;font-size:clamp(7px,0.9vw,9px);">
+            <thead><tr><th>KPI</th><th>Ориентир</th></tr></thead>
+            <tbody>
+              <tr><td>Регистрации агентов</td><td>по плану Клерк</td></tr>
+              <tr><td>Активные агенты (≥1 отчёт)</td><td>≥30% от регистраций</td></tr>
+              <tr><td>Отчётов PDF</td><td>≥1 на активного агента</td></tr>
+              <tr><td>Клики CTA на Сбер</td><td>фиксируем в UTM</td></tr>
+              <tr><td>Конверсия в заявку</td><td>по данным Сбера*</td></tr>
+            </tbody>
+          </table>
+          <p class="pilot-panel__note" style="margin-top:6px;">* postback / отчётность партнёра — фаза 2, не MVP</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Два канала — одна платформа -->
+  <section class="deck-slide" id="s8">
+    <span class="slide-num">8 / 9</span>
+    <h2 class="slide-h2">Два канала — одна платформа</h2>
+    <div class="slide-body">
+      <p style="font-size:clamp(8px,1vw,11px);color:var(--text-muted);margin-bottom:10px;">
+        Отправляем Сберу два пакета: B2C (премиум) и B2B2C (масштаб через Клерк). Техническая база общая — дублировать архитектуру не нужно.
+      </p>
+      <div class="deploy-grid">
+        <div class="deploy-card deploy-card--cloud">
+          <div class="deploy-card__head">
+            <span class="deploy-card__tag">Вариант 1 · B2C</span>
+            <h4>Премиум на сайте Сбера</h4>
+            <p>Клиент + менеджер банка (Private / Premier)</p>
+          </div>
+          <ul class="bullet-compact">
+            <li>Self-service или с RM на встрече</li>
+            <li>White-label FO на домене Сбера</li>
+            <li>Атрибуция менеджера банка</li>
+            <li>Демо: <strong>family-office.bank-future.com</strong></li>
+          </ul>
+          <p style="font-size:clamp(7px,0.9vw,9px);color:var(--text-muted);margin-top:6px;">Подробности — в B2C-презентации (11 слайдов)</p>
+        </div>
+        <div class="deploy-card deploy-card--bank">
+          <div class="deploy-card__head">
+            <span class="deploy-card__tag">Вариант 2 · B2B2C</span>
+            <h4>Масштаб через Клерк.ру</h4>
+            <p>Клиент бухгалтера + агент Клерка</p>
+          </div>
+          <ul class="bullet-compact">
+            <li>Бухгалтер ведёт клиентов ИП / SMB</li>
+            <li>Co-brand Клерк × Сбер × BankFuture</li>
+            <li>Атрибуция <code>partner_agent_id</code> агента</li>
+            <li>Демо: <strong>family-office.bank-future.com/sber/</strong></li>
+          </ul>
+          <p style="font-size:clamp(7px,0.9vw,9px);color:var(--text-muted);margin-top:6px;">Эта презентация — 9 слайдов, фокус на канале</p>
+        </div>
+      </div>
+      <table class="slide-table" style="margin-top:10px;">
+        <thead><tr><th>Общее для обоих каналов</th><th>Статус</th></tr></thead>
+        <tbody>
+          <tr><td>Tenant SBER · projectId 29 · Finam Report v2</td><td><span class="badge badge--ok">готово</span></td></tr>
+          <tr><td>Расчётный движок, CRM, PDF/HTML отчёт</td><td><span class="badge badge--ok">MVP</span></td></tr>
+          <tr><td>Реферальные CTA на продукты экосистемы</td><td><span class="badge badge--ok">MVP</span></td></tr>
+          <tr><td>Архитектура, стек, интеграции, roadmap, фаза 2</td><td>см. B2C-пакет</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 9. CTA -->
+  <section class="deck-slide deck-slide--cta" id="s9">
+    <span class="slide-num">9 / 9</span>
+    <div class="cta-body">
+      <div class="cta-main">
+        <span class="slide-tag">Следующий шаг</span>
+        <h2 class="cta-title">Готовы запустить пилот<br />агентского канала с <em>Клерк.ру</em></h2>
+        <p class="cta-lead">
+          Трёхсторонняя модель: Сбер — продукты, Клерк — агенты, BankFuture — платформа.
+          Техническая база готова — можно посмотреть сценарий бухгалтера прямо сейчас.
+        </p>
+        <div class="cta-demo">
+          <span class="cta-demo__label">Живое демо агента</span>
+          <a class="cta-demo__url" href="https://family-office.bank-future.com/sber/" target="_blank" rel="noopener">family-office.bank-future.com/sber/</a>
+          <span class="cta-demo__hint">Family Office · tenant SBER · тест без регистрации у Сбера</span>
+        </div>
+        <div class="cta-steps">
+          <span>1. Демо</span>
+          <span class="cta-steps__arrow">→</span>
+          <span>2. Brand + agent_id</span>
+          <span class="cta-steps__arrow">→</span>
+          <span>3. Пилот N агентов</span>
+        </div>
+      </div>
+      <div class="cta-contact">
+        <div class="cta-contact__card">
+          <span class="cta-contact__label">Контакт</span>
+          <div class="cta-contact__name">Виссаров Александр</div>
+          <div class="cta-contact__role">Основатель · BankFuture PFP</div>
+          <a class="cta-contact__link" href="tel:+79773575301">+7 977 357-53-01</a>
+          <a class="cta-contact__link" href="mailto:vissarovav@bank-future.com">vissarovav@bank-future.com</a>
+        </div>
+      </div>
+      <footer class="slide-footer cta-footer">
+        <span>BankFuture PFP × Клерк.ру × Сбер · projectId 29</span>
+        <span>Конфиденциально · май 2026</span>
+      </footer>
+    </div>
+  </section>
+
+  <nav class="deck-nav">
+    <span>B2B2C · Клерк · 16:9</span>
+    <a href="#s1">1</a><a href="#s2">2</a><a href="#s3">3</a><a href="#s4">4</a>
+    <a href="#s5">5</a><a href="#s6">6</a><a href="#s7">7</a><a href="#s8">8</a><a href="#s9">9</a>
+    · <a href="SBER_FAMILY_OFFICE_B2C_DECK.consulting.html">B2C</a>
+    · Ctrl+P — PDF
+  </nav>
+</body>
+</html>

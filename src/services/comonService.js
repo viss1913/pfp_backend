@@ -206,19 +206,28 @@ function normalizeStrategiesListPayload(body) {
 /**
  * Публичный список стратегий (пагинация).
  * Путь по умолчанию — типичный для Next/API Comon; переопределение: COMON_STRATEGIES_LIST_PATH (относительно base URL).
- * @param {{ page?: number, pageSize?: number }} query
+ * Для sync можно явно передать `path` и `tags`, чтобы не зависеть от env.
+ * @param {{ page?: number, pageSize?: number, tags?: string, path?: string }} query
  * @returns {Promise<{ paging?: object, data?: object[] }>}
  */
-async function fetchStrategiesList(query = {}) {
-    const listPath =
-        (process.env.COMON_STRATEGIES_LIST_PATH && String(process.env.COMON_STRATEGIES_LIST_PATH).trim()) ||
-        '/api/v2/strategies';
+function buildStrategiesListRequest(query = {}) {
+    const envPath = process.env.COMON_STRATEGIES_LIST_PATH && String(process.env.COMON_STRATEGIES_LIST_PATH).trim();
+    const pathOverride = query.path != null ? String(query.path).trim() : '';
+    const listPath = pathOverride || envPath || '/api/v2/strategies';
     const page = Number(query.page) > 0 ? Number(query.page) : 1;
     const pageSize = Number(query.pageSize) > 0 ? Number(query.pageSize) : 100;
+    const tags = query.tags != null ? String(query.tags).trim() : '';
+    const params = { page, pageSize };
+    if (tags) params.tags = tags;
+    return { listPath, params };
+}
+
+async function fetchStrategiesList(query = {}) {
+    const { listPath, params } = buildStrategiesListRequest(query);
 
     const http = client();
     const res = await comonGetWithRetry(http, listPath, {
-        params: { page, pageSize },
+        params,
         headers: {
             Accept: 'application/json',
             ...strategiesCatalogHeaders(),
@@ -364,6 +373,7 @@ async function getNormalizedStrategyDetails(strategyId) {
 }
 
 module.exports = {
+    buildStrategiesListRequest,
     getMaintenanceInfo,
     getStrategyProfit,
     getStrategyPagePayload,

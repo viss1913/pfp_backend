@@ -1,8 +1,84 @@
+const dns = require('dns');
+const https = require('https');
+const axios = require('axios');
 const { Resend } = require('resend');
 const fs = require('fs');
 const path = require('path');
 
+// Docker/VPS: после Puppeteer fetch иногда лезет в IPv6 AAAA → «could not be resolved»
+if (typeof dns.setDefaultResultOrder === 'function') {
+    dns.setDefaultResultOrder('ipv4first');
+}
+
+const RESEND_API_HOST = (process.env.RESEND_API_HOST || 'api.resend.com').trim();
+
+/** Cloudflare anycast для api.resend.com — запас, если Docker DNS отдаёт только AAAA. */
+const RESEND_API_IPV4_FALLBACKS = ['104.20.29.242', '172.66.165.132'];
+
+const resendDnsServers = String(process.env.RESEND_DNS_SERVERS || '')
+    .split(/[,;\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+if (resendDnsServers.length && typeof dns.setServers === 'function') {
+    dns.setServers(resendDnsServers);
+}
+
 let resend = null;
+let cachedResendIpv4 = null;
+
+/**
+ * IPv4 для HTTPS к Resend (обход «Unable to fetch / could not be resolved» на VPS после Puppeteer).
+ * RESEND_API_IPV4 — жёсткий IP; иначе resolve4 → fallback.
+ */
+async function resolveResendIpv4() {
+    const fromEnv = String(process.env.RESEND_API_IPV4 || '').trim();
+    if (fromEnv) return fromEnv;
+    if (cachedResendIpv4) return cachedResendIpv4;
+
+    try {
+        const addrs = await dns.promises.resolve4(RESEND_API_HOST);
+        if (addrs?.length) {
+            cachedResendIpv4 = addrs[0];
+            return cachedResendIpv4;
+        }
+    } catch (e) {
+        console.warn(`[EmailService] resolve4(${RESEND_API_HOST}) failed:`, e.message || e);
+    }
+
+    cachedResendIpv4 = RESEND_API_IPV4_FALLBACKS[0];
+    console.warn(`[EmailService] Using Resend IPv4 fallback ${cachedResendIpv4}`);
+    return cachedResendIpv4;
+}
+
+/** Прогрев DNS на IPv4 перед emails.send (NDA идёт после тяжёлого PDF). */
+async function ensureResendDnsReady() {
+    const address = await resolveResendIpv4();
+    return { address, family: 4 };
+}
+
+/** Новый HTTPS-агент на каждую попытку — после Puppeteer иначе часто ECONNRESET на большом JSON. */
+function createResendHttpsAgent() {
+    return new https.Agent({
+        keepAlive: false,
+        maxSockets: 1,
+        timeout: 120000,
+        family: 4,
+        servername: RESEND_API_HOST,
+    });
+}
+
+function estimateResendPayloadBytes(payload) {
+    let n = 512;
+    if (payload.html) n += Buffer.byteLength(String(payload.html), 'utf8');
+    if (payload.text) n += Buffer.byteLength(String(payload.text), 'utf8');
+    if (payload.attachments?.length) {
+        for (const a of payload.attachments) {
+            const c = a?.content;
+            n += typeof c === 'string' ? c.length : Buffer.isBuffer(c) ? c.length : 0;
+        }
+    }
+    return n;
+}
 
 function getResendClient() {
     if (!resend) {
@@ -22,32 +98,122 @@ function isTransientResendNetworkError(error) {
         msg.includes('unable to fetch') ||
         msg.includes('fetch failed') ||
         msg.includes('econnreset') ||
+        msg.includes('socket hang up') ||
         msg.includes('etimedout') ||
+        msg.includes('econnrefused') ||
         msg.includes('network')
     );
 }
 
+/**
+ * HTTP POST в Resend API через axios (не fetch SDK).
+ * На Docker после Puppeteer fetch часто падает с «could not be resolved»; axios + /etc/hosts стабильнее.
+ */
+async function sendViaResendHttp(payload) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+        throw { status: 500, message: 'RESEND_API_KEY is not configured' };
+    }
+
+    const toList = Array.isArray(payload.to) ? payload.to.filter(Boolean) : [payload.to].filter(Boolean);
+    const body = {
+        from: payload.from,
+        to: toList,
+        subject: payload.subject,
+    };
+    if (payload.html) body.html = payload.html;
+    if (payload.text) body.text = payload.text;
+    if (payload.cc) {
+        body.cc = Array.isArray(payload.cc) ? payload.cc.filter(Boolean) : [payload.cc];
+    }
+    if (payload.reply_to) body.reply_to = payload.reply_to;
+    if (payload.attachments?.length) {
+        body.attachments = payload.attachments.map((a) => {
+            const filename = a?.filename || 'attachment.pdf';
+            if (a?.path) {
+                return { path: String(a.path), filename };
+            }
+            return { content: a.content, filename };
+        });
+    }
+
+    const httpsAgent = createResendHttpsAgent();
+    const resendIp = await resolveResendIpv4();
+    const resendUrl = `https://${resendIp}/emails`;
+    try {
+        const res = await axios.post(resendUrl, body, {
+            headers: {
+                Host: RESEND_API_HOST,
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                Connection: 'close',
+            },
+            httpsAgent,
+            proxy: false,
+            timeout: 120000,
+            maxBodyLength: Infinity,
+            maxContentLength: Infinity,
+            validateStatus: (s) => s >= 200 && s < 300,
+        });
+        return { data: res.data, error: null };
+    } catch (err) {
+        const apiErr = err.response?.data;
+        if (apiErr && typeof apiErr === 'object') {
+            return { data: null, error: apiErr };
+        }
+        return { data: null, error: { message: err.message || String(err) } };
+    } finally {
+        httpsAgent.destroy();
+    }
+}
+
 /** Resend с retry при сбоях DNS/сети (часто на VPS/Docker, api.resend.com → IPv6). */
-async function sendViaResend(payload, { attempts = 5 } = {}) {
+async function sendViaResend(payload, { attempts } = {}) {
+    const hasAttachments = Boolean(payload?.attachments?.length);
+    const maxAttempts =
+        attempts != null
+            ? attempts
+            : hasAttachments
+              ? Math.min(Math.max(Number(process.env.RESEND_ATTACH_ATTEMPTS) || 10, 5), 15)
+              : 5;
     let lastError = null;
-    for (let attempt = 0; attempt < attempts; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (hasAttachments && attempt === 0) {
+            await new Promise((r) => setTimeout(r, 1500));
+        }
         try {
-            const { data, error } = await getResendClient().emails.send(payload);
+            await ensureResendDnsReady();
+            let data = null;
+            let error = null;
+            try {
+                ({ data, error } = await sendViaResendHttp(payload));
+            } catch (httpErr) {
+                if (httpErr?.status) throw httpErr;
+                error = { message: httpErr?.message || String(httpErr) };
+            }
             if (!error) return { data, error: null };
             lastError = error;
-            if (!isTransientResendNetworkError(error) || attempt >= attempts - 1) {
+            if (!isTransientResendNetworkError(error) || attempt >= maxAttempts - 1) {
                 break;
             }
         } catch (err) {
             lastError = err;
-            if (!isTransientResendNetworkError(err) || attempt >= attempts - 1) {
+            if (!isTransientResendNetworkError(err) || attempt >= maxAttempts - 1) {
                 break;
             }
         }
-        const delayMs = Math.min(5000, 500 * 2 ** attempt);
+        if (isTransientResendNetworkError(lastError)) {
+            try {
+                await ensureResendDnsReady();
+            } catch {
+                /* retry loop */
+            }
+        }
+        const delayMs = Math.min(8000, 800 * 2 ** attempt);
         const msg = lastError?.message || String(lastError);
+        const sizeHint = hasAttachments ? ` payload~${estimateResendPayloadBytes(payload)}b` : '';
         console.warn(
-            `[EmailService] Resend transient error (attempt ${attempt + 1}/${attempts}), retry in ${delayMs}ms:`,
+            `[EmailService] Resend transient error (attempt ${attempt + 1}/${maxAttempts}), retry in ${delayMs}ms:${sizeHint}`,
             msg
         );
         await new Promise((r) => setTimeout(r, delayMs));
@@ -380,7 +546,7 @@ class EmailService {
      */
     /**
      * Письмо с PDF соглашения о неразглашении (NDA).
-     * @param {{ to: string, cc?: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, pdfBuffer: Buffer, filename: string, ndaAgent: { id: number, email?: string|null, email_corp?: string|null } }} opts
+     * @param {{ to: string, cc?: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, pdfBuffer?: Buffer|null, pdfDownloadUrl?: string|null, filename: string, ndaAgent: { id: number, email?: string|null, email_corp?: string|null }, attachmentViaUrl?: boolean, linkOnly?: boolean }} opts
      */
     async sendNdaPdfEmail({
         to,
@@ -391,19 +557,30 @@ class EmailService {
         agentEmail,
         agentPhone,
         pdfBuffer,
+        pdfDownloadUrl,
         filename,
         ndaAgent,
+        attachmentViaUrl = false,
+        linkOnly = false,
     }) {
         const safeName = filename && String(filename).endsWith('.pdf') ? filename : `${filename || 'NDA'}.pdf`;
         const salutation = buildNdaSalutationLine(clientGender, clientFullName);
         const signature = buildNdaAgentSignatureHtml(agentFullName, agentEmail, agentPhone);
         const subject = buildNdaEmailSubject(agentFullName);
+        const linkUrl = pdfDownloadUrl && String(pdfDownloadUrl).trim() ? String(pdfDownloadUrl).trim() : null;
+        const useUrlAttachment = Boolean(linkUrl && attachmentViaUrl && !linkOnly);
+        const docLine = useUrlAttachment || (!linkUrl && pdfBuffer)
+            ? `<p>Направляю вам во вложении соглашение о неразглашении информации (NDA). Документ подготовлен в рамках консультационного сопровождения.</p>`
+            : linkUrl
+              ? `<p>Направляю вам соглашение о неразглашении информации (NDA). Документ подготовлен в рамках консультационного сопровождения.</p>
+  <p><a href="${escapeHtmlLite(linkUrl)}" target="_blank" rel="noopener noreferrer" style="font-weight:600;">Скачать PDF соглашения (NDA)</a></p>`
+              : `<p>Направляю вам во вложении соглашение о неразглашении информации (NDA). Документ подготовлен в рамках консультационного сопровождения.</p>`;
         const html = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"/></head>
 <body style="font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:15px;color:#333;line-height:1.6;">
   <p>${salutation}</p>
-  <p>Направляю вам во вложении соглашение о неразглашении информации (NDA). Документ подготовлен в рамках консультационного сопровождения.</p>
+  ${docLine}
   <p>При необходимости вы можете задать вопросы по контактным данным ниже.</p>
   <p style="margin-top:1.5em;">${signature}</p>
 </body></html>`;
@@ -412,26 +589,49 @@ class EmailService {
         const fromHeader = buildNdaFromHeader(agentFullName, ndaMailbox);
         const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
 
+        const resendPayload = {
+            from: fromHeader,
+            to,
+            ...(cc ? { cc } : {}),
+            ...(replyTo ? { reply_to: replyTo } : {}),
+            subject,
+            html,
+        };
+        if (useUrlAttachment) {
+            resendPayload.attachments = [{ path: linkUrl, filename: safeName }];
+        } else if (!linkUrl && pdfBuffer) {
+            const buf = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+            resendPayload.attachments = [
+                {
+                    filename: safeName,
+                    content: buf.toString('base64'),
+                },
+            ];
+        }
+
+        const hasHeavyAttach = Boolean(!useUrlAttachment && resendPayload.attachments?.length);
+        const attachAttempts = Math.min(
+            Math.max(
+                Number(process.env.RESEND_ATTACH_ATTEMPTS) ||
+                    Number(process.env.NDA_RESEND_ATTACH_ATTEMPTS) ||
+                    10,
+                5
+            ),
+            15
+        );
+
         try {
-            const { data, error } = await sendViaResend({
-                from: fromHeader,
-                to,
-                ...(cc ? { cc } : {}),
-                ...(replyTo ? { reply_to: replyTo } : {}),
-                subject,
-                html,
-                attachments: [
-                    {
-                        filename: safeName,
-                        content: Buffer.isBuffer(pdfBuffer)
-                            ? pdfBuffer.toString('base64')
-                            : Buffer.from(pdfBuffer).toString('base64'),
-                    },
-                ],
+            const { data, error } = await sendViaResend(resendPayload, {
+                attempts: hasHeavyAttach || useUrlAttachment ? attachAttempts : undefined,
             });
 
             if (error) {
-                console.error('[EmailService] Resend NDA error:', JSON.stringify(error));
+                console.error(
+                    '[EmailService] Resend NDA error:',
+                    JSON.stringify(error),
+                    'from=',
+                    fromHeader
+                );
                 if (process.env.NODE_ENV !== 'production') {
                     console.warn('[EmailService] DEV: NDA email failed; PDF still returned in API response');
                     return { id: 'dev-mode-nda', error: error.message };
@@ -439,7 +639,10 @@ class EmailService {
                 throw { status: 502, message: 'Не удалось отправить письмо с NDA' };
             }
 
-            console.log(`[EmailService] NDA PDF sent to ${to}, messageId: ${data?.id}`);
+            const delivery = useUrlAttachment ? 'attach-url' : linkUrl && linkOnly ? 'link' : linkUrl ? 'link' : 'attach';
+            console.log(
+                `[EmailService] NDA PDF sent to ${to}${cc ? ` (cc: ${cc})` : ''}, delivery=${delivery}, messageId: ${data?.id}`
+            );
             return data;
         } catch (err) {
             if (err.status) throw err;
@@ -453,7 +656,7 @@ class EmailService {
 
     /**
      * Письмо с PDF финансового плана (от ящика агента, как NDA).
-     * @param {{ to: string, cc?: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, pdfBuffer: Buffer, filename: string, reportAgent: { id: number, email?: string|null, email_corp?: string|null }, portfolio: object, goalsCount: number, executiveSummaryText: string }} opts
+     * @param {{ to: string, cc?: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, pdfBuffer?: Buffer|null, pdfDownloadUrl?: string|null, filename: string, reportAgent: { id: number, email?: string|null, email_corp?: string|null }, portfolio: object, goalsCount: number, executiveSummaryText: string, attachmentViaUrl?: boolean, linkOnly?: boolean }} opts
      */
     async sendFinancialPlanReportPdfEmail({
         to,
@@ -464,11 +667,14 @@ class EmailService {
         agentEmail,
         agentPhone,
         pdfBuffer,
+        pdfDownloadUrl,
         filename,
         reportAgent,
         portfolio,
         goalsCount,
         executiveSummaryText,
+        attachmentViaUrl = false,
+        linkOnly = false,
     }) {
         const safeName =
             filename && String(filename).endsWith('.pdf') ? filename : `${filename || 'report'}.pdf`;
@@ -480,12 +686,21 @@ class EmailService {
         const disclaimer =
             '<p style="margin:16px 0 0;font-size:12px;color:#64748b;">Материал носит информационный характер и не является индивидуальной инвестиционной рекомендацией.</p>';
 
+        const linkUrl = pdfDownloadUrl && String(pdfDownloadUrl).trim() ? String(pdfDownloadUrl).trim() : null;
+        const useUrlAttachment = Boolean(linkUrl && attachmentViaUrl && !linkOnly);
+        const introLine = useUrlAttachment || (!linkUrl && pdfBuffer)
+            ? '<p>Направляю вам во вложении PDF-отчёт по вашему финансовому плану.</p>'
+            : linkUrl
+              ? `<p>Направляю вам PDF-отчёт по вашему финансовому плану.</p>
+  <p><a href="${escapeHtmlLite(linkUrl)}" target="_blank" rel="noopener noreferrer" style="font-weight:600;">Скачать PDF-отчёт</a></p>`
+              : '<p>Направляю вам во вложении PDF-отчёт по вашему финансовому плану.</p>';
+
         const html = `
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"/></head>
 <body style="font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:15px;color:#333;line-height:1.6;">
   <p>${salutation}</p>
-  <p>Направляю вам во вложении PDF-отчёт по вашему финансовому плану.</p>
+  ${introLine}
   ${portfolioBlock}
   ${summaryBlock ? `<p style="margin:16px 0 8px;"><strong>Краткое резюме:</strong></p>${summaryBlock}` : ''}
   <p style="margin-top:1.2em;">При необходимости вы можете задать вопросы по контактным данным ниже.</p>
@@ -497,22 +712,40 @@ class EmailService {
         const fromHeader = buildNdaFromHeader(agentFullName, ndaMailbox);
         const replyTo = buildNdaReplyTo(agentEmail, ndaMailbox);
 
+        const resendPayload = {
+            from: fromHeader,
+            to,
+            ...(cc ? { cc } : {}),
+            ...(replyTo ? { reply_to: replyTo } : {}),
+            subject,
+            html,
+        };
+        if (useUrlAttachment) {
+            resendPayload.attachments = [{ path: linkUrl, filename: safeName }];
+        } else if (!linkUrl && pdfBuffer) {
+            const buf = Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+            resendPayload.attachments = [
+                {
+                    filename: safeName,
+                    content: buf.toString('base64'),
+                },
+            ];
+        }
+
+        const hasHeavyAttach = Boolean(!useUrlAttachment && resendPayload.attachments?.length);
+        const attachAttempts = Math.min(
+            Math.max(
+                Number(process.env.RESEND_ATTACH_ATTEMPTS) ||
+                    Number(process.env.NDA_RESEND_ATTACH_ATTEMPTS) ||
+                    10,
+                5
+            ),
+            15
+        );
+
         try {
-            const { data, error } = await sendViaResend({
-                from: fromHeader,
-                to,
-                ...(cc ? { cc } : {}),
-                ...(replyTo ? { reply_to: replyTo } : {}),
-                subject,
-                html,
-                attachments: [
-                    {
-                        filename: safeName,
-                        content: Buffer.isBuffer(pdfBuffer)
-                            ? pdfBuffer.toString('base64')
-                            : Buffer.from(pdfBuffer).toString('base64'),
-                    },
-                ],
+            const { data, error } = await sendViaResend(resendPayload, {
+                attempts: hasHeavyAttach ? attachAttempts : undefined,
             });
 
             if (error) {
@@ -524,7 +757,10 @@ class EmailService {
                 throw { status: 502, message: 'Не удалось отправить письмо с отчётом' };
             }
 
-            console.log(`[EmailService] Financial plan PDF sent to ${to}, messageId: ${data?.id}`);
+            const delivery = useUrlAttachment ? 'attach-url' : linkUrl && linkOnly ? 'link' : 'attach';
+            console.log(
+                `[EmailService] Financial plan PDF sent to ${to}${cc ? ` (cc: ${cc})` : ''}, delivery=${delivery}, messageId: ${data?.id}`
+            );
             return data;
         } catch (err) {
             if (err.status) throw err;

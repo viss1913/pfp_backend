@@ -10,6 +10,11 @@ const {
     normalizeIszhQuoteParameters
 } = require('../src/services/resolutIszhQuoteParameters');
 const { buildResolutQuoteParameters, normalizeResolutQuoteLine } = require('../src/services/resolutQuoteParameters');
+const {
+    isResolutDepositLikeProduct,
+    normalizeDepositClientType,
+    resolveDepositTermValue
+} = require('../src/services/resolutDepositQuoteParameters');
 
 test('parseIszhPfpCodes: default capital', () => {
     const prev = process.env.RESOLUT_ISZH_PFP_CODES;
@@ -118,4 +123,128 @@ test('buildResolutQuoteParameters routes NSZH vs ISZH', () => {
         if (prev !== undefined) process.env.RESOLUT_PROJECT_ID = prev;
         else delete process.env.RESOLUT_PROJECT_ID;
     }
+});
+
+test('isResolutDepositLikeProduct: detects DEPOSIT and PDS', () => {
+    assert.strictEqual(isResolutDepositLikeProduct({ product_type: 'DEPOSIT' }), true);
+    assert.strictEqual(isResolutDepositLikeProduct({ product_type: 'PDS' }), true);
+    assert.strictEqual(isResolutDepositLikeProduct({ product_type: 'NSZH' }), false);
+});
+
+test('normalizeDepositClientType: accepts string and object', () => {
+    assert.deepStrictEqual(normalizeDepositClientType('common'), { code: 'common', name: 'Общий' });
+    assert.deepStrictEqual(normalizeDepositClientType({ code: 'private', name: 'VIP' }), { code: 'private', name: 'Привилегированный' });
+});
+
+test('resolveDepositTermValue: deposit uses months, PDS uses years', () => {
+    assert.strictEqual(resolveDepositTermValue({ product_type: 'DEPOSIT' }, 18), 18);
+    assert.strictEqual(resolveDepositTermValue({ product_type: 'PDS' }, 60), 5);
+});
+
+test('buildResolutQuoteParameters: DEPOSIT builds clientType + calcData', () => {
+    const prev = process.env.RESOLUT_PROJECT_ID;
+    process.env.RESOLUT_PROJECT_ID = '23';
+    try {
+        const line = buildResolutQuoteParameters({
+            projectId: 23,
+            product: { resolut_pfp_code: 'depAlfa', product_type: 'DEPOSIT' },
+            termMonths: 12,
+            amount: 2000000,
+            clientType: 'common',
+            capitalise: false
+        });
+        assert.strictEqual(line.code, 'depAlfa');
+        assert.deepStrictEqual(line.parameters.clientType, { code: 'common', name: 'Общий' });
+        assert.deepStrictEqual(line.parameters.calcData, {
+            limit: 2000000,
+            capitalise: false,
+            term: 12
+        });
+    } finally {
+        if (prev !== undefined) process.env.RESOLUT_PROJECT_ID = prev;
+        else delete process.env.RESOLUT_PROJECT_ID;
+    }
+});
+
+test('buildResolutQuoteParameters: PDS maps termMonths to years', () => {
+    const prev = process.env.RESOLUT_PROJECT_ID;
+    process.env.RESOLUT_PROJECT_ID = '23';
+    try {
+        const line = buildResolutQuoteParameters({
+            projectId: 23,
+            product: { resolut_pfp_code: 'pdsAlfa', product_type: 'PDS' },
+            termMonths: 60,
+            amount: 2000000,
+            clientType: { code: 'private' },
+            capitalise: true
+        });
+        assert.strictEqual(line.code, 'pdsAlfa');
+        assert.deepStrictEqual(line.parameters.clientType, { code: 'private', name: 'Привилегированный' });
+        assert.deepStrictEqual(line.parameters.calcData, {
+            limit: 2000000,
+            capitalise: true,
+            term: 5
+        });
+    } finally {
+        if (prev !== undefined) process.env.RESOLUT_PROJECT_ID = prev;
+        else delete process.env.RESOLUT_PROJECT_ID;
+    }
+});
+
+test('normalizeResolutQuoteLine: deposit-like parameters normalize clientType string', () => {
+    const line = normalizeResolutQuoteLine({
+        projectId: 23,
+        code: 'depAlfa',
+        parameters: {
+            clientType: 'common',
+            calcData: {
+                limit: 2000000,
+                capitalise: false,
+                term: 12
+            }
+        }
+    });
+    assert.strictEqual(line.code, 'depAlfa');
+    assert.deepStrictEqual(line.parameters.clientType, { code: 'common', name: 'Общий' });
+    assert.deepStrictEqual(line.parameters.calcData, {
+        limit: 2000000,
+        capitalise: false,
+        term: 12
+    });
+});
+
+test('normalizeResolutQuoteLine: deposit-like payload without clientType fails closed', () => {
+    assert.throws(() => normalizeResolutQuoteLine({
+        projectId: 23,
+        code: 'depAlfa',
+        parameters: {
+            calcData: {
+                limit: 2000000,
+                capitalise: false,
+                term: 12
+            }
+        }
+    }), (err) => {
+        assert.strictEqual(err.error, 'INVALID_RESOLUT_CLIENT_TYPE');
+        assert.match(err.message, /clientType is required/);
+        return true;
+    });
+});
+
+test('normalizeResolutQuoteLine: deposit-like payload requires explicit capitalise boolean', () => {
+    assert.throws(() => normalizeResolutQuoteLine({
+        projectId: 23,
+        code: 'depAlfa',
+        parameters: {
+            clientType: 'common',
+            calcData: {
+                limit: 2000000,
+                term: 12
+            }
+        }
+    }), (err) => {
+        assert.strictEqual(err.error, 'INVALID_RESOLUT_DEPOSIT_CAPITALISE');
+        assert.match(err.message, /capitalise must be explicitly set/);
+        return true;
+    });
 });

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Office B2B2C + Правкард Забота — предложение для Сбера</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="sber-family-office-proposal.consulting.css" />
+</head>
+<body>
+  <div class="cover-consulting cover-consulting--sber">
+    <div class="cover-consulting__main">
+      <div class="brand-line">BankFuture PFP × Правкард Забота × Сбер</div>
+      <span class="deck-tag">Вариант 3 · B2B2C</span>
+      <h1>Family Office в ЛК «Правкард Забота»</h1>
+      <p class="lead">Встраивание FO в личный кабинет платформы «Забота». Правкард показывает сервис <strong>сотрудникам компаний-клиентов</strong> (много работодателей — большой охват) с переходами на продукты экосистемы Сбер.</p>
+    </div>
+    <footer>BankFuture PFP · Co-brand Правкард — на согласовании · 20 мая 2026 г.</footer>
+  </div>
+
+  <article>
+    <div class="exec-summary">
+      <h2>Кратко</h2>
+      <div class="exec-summary__body">
+        <ul>
+          <li><strong>Канал:</strong> HR/бенефиты — ЛК <strong>Правкард Забота</strong>; FO внутри или рядом с привычным UX сотрудника.</li>
+          <li><strong>Охват:</strong> сотрудники множества работодателей — клиентов Правкарда; одна интеграция → массовый B2B2C.</li>
+          <li><strong>Для Сбера:</strong> корпоративная аудитория без собственного HR-ЛК; те же продукты и дисклеймеры, что в B2C.</li>
+          <li><strong>Интеграция с ЛК:</strong> deep link / iframe / SSO — <span class="badge badge--phase2">ТЗ с Правкард</span>, в репозитории PFP не реализовано.</li>
+          <li><strong>SberID:</strong> дополняет SSO работодателя (финданные), не заменяет его <span class="badge badge--phase2">фаза 2</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <h2>Ценность для Сбера</h2>
+    <ul>
+      <li>Выход на занятых сотрудников в точке, где они уже получают льготы и сервисы от работодателя.</li>
+      <li>Финплан «под ключ» с CTA на НПФ, страхование, УК, брокер — без отдельной рекламной кампании на каждого HR.</li>
+      <li>Единый согласованный отчёт и риск-декларация для всех работодателей канала.</li>
+      <li>Атрибуция канала Правкард (и при необходимости работодателя) — через согласованный <code>agent_id_param</code>.</li>
+    </ul>
+
+    <h2>Что уже готово у BankFuture</h2>
+    <ul>
+      <li>Движок FO, тенант SBER (29), отчёт v2, витрина, реферальный трекинг (после параметров от Сбера).</li>
+      <li>B2C-демо как референс UX для согласования с Правкард и Сбером.</li>
+      <li><strong>Не готово:</strong> встраивание в ЛК Правкард — требует отдельного ТЗ (см. ниже).</li>
+    </ul>
+
+    <h2>Сценарий (сотрудник)</h2>
+    <ol class="flow-steps">
+      <li>Сотрудник входит в <strong>ЛК Правкард Забота</strong> (льготы, сервисы HR).</li>
+      <li>Раздел «Финансовое планирование / Family Office» — встроенный виджет или переход с SSO.</li>
+      <li>Опционально: «Войти через Сбер ID» для подтягивания доходов и расходов (фаза 2).</li>
+      <li>Цели → расчёт → PDF-отчёт с витриной Сбера.</li>
+      <li>CTA на продукты Сбера с атрибуцией канала (и/или работодателя — модель на пилоте).</li>
+    </ol>
+    <div class="diagram-box">[Работодатели] → сотрудники → [ЛК Забота] → embed/SSO → PFP FO
+       → отчёт → CTA → Сбер</div>
+
+    <h2>Встраивание в ЛК Правкард</h2>
+    <table>
+      <thead><tr><th>Модель</th><th>Плюсы</th><th>Нужно от Правкард</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Deep link</strong></td><td>Быстрый пилот</td><td>Кнопка в меню, signed URL</td></tr>
+        <tr><td><strong>iframe / виджет</strong></td><td>Не выходим из «Заботы»</td><td>CSP, postMessage, домены</td></tr>
+        <tr><td><strong>SSO OIDC/SAML</strong></td><td>Единый вход</td><td>IdP, маппинг user_id</td></tr>
+        <tr><td><strong>Поддомен</strong></td><td>Проще ИБ на старте</td><td>fo.*.zabota… + co-brand</td></tr>
+      </tbody>
+    </table>
+    <p>PFP размещается в <strong>изолированном облаке Yandex</strong> или <strong>on-prem</strong>; Правкард — фронт-дистрибуция, не хостинг расчётного ядра (на MVP).</p>
+
+    <h2>Интеграции</h2>
+    <h3>MVP <span class="badge badge--mvp">сейчас</span></h3>
+    <p>Реферальные CTA; ID канала в <code>partner_agent_id</code> или суб-параметр по работодателю — согласовать с Сбером.</p>
+    <h3>Два входа <span class="badge badge--phase2">важно</span></h3>
+    <ul>
+      <li><strong>SSO Правкард</strong> — идентификация сотрудника в ЛК работодателя.</li>
+      <li><strong>SberID</strong> — согласованный доступ к финансовым агрегатам для автозаполнения плана (отдельный consent).</li>
+    </ul>
+    <h3>ПДн</h3>
+    <p>Оператор ПДн сотрудника: BankFuture / Правкард / работодатель — <strong>TBD</strong> в тройном договоре. Минимизация данных, согласие работодателя на сервис.</p>
+
+    <h2>ИИ / GigaChat</h2>
+    <p>Рекомендуем с ключами в изолированном контуре. Согласовать с ИБ Правкард и политиками работодателей (некоторые запрещают LLM для данных сотрудников).</p>
+
+    <h2>ИБ и размещение</h2>
+    <ul>
+      <li>VPN / private API между контурами при iframe/SSO.</li>
+      <li>Журналы доступа; запрет утечки сырых выписок SberID в логи.</li>
+      <li>РФ-резиденция данных пилота.</li>
+    </ul>
+
+    <h2>Roadmap</h2>
+    <table>
+      <thead><tr><th>Фаза</th><th>Содержание</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>Ядро FO + демо B2C</td></tr>
+        <tr><td>1</td><td>Юридика Сбер + DPA с Правкард + co-brand</td></tr>
+        <tr><td>2</td><td>ТЗ встраивания (iframe/SSO), dev</td></tr>
+        <tr><td>3</td><td>Пилот 1–2 работодателя из портфеля Правкард</td></tr>
+        <tr><td>4</td><td>agent_id и whitelist от Сбера</td></tr>
+        <tr><td>4a</td><td>SberID для сотрудников</td></tr>
+        <tr><td>5</td><td>Rollout на базу Правкард</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Что нужно от Сбера</h2>
+    <table>
+      <thead><tr><th>Артефакт</th><th>Зачем</th></tr></thead>
+      <tbody>
+        <tr><td>Согласование B2B2C через HR-платформу</td><td>Комплаенс, бренд</td></tr>
+        <tr><td>Модель agent_id: канал vs работодатель</td><td>Атрибуция</td></tr>
+        <tr><td>Дисклеймеры для корпоративного сотрудника</td><td>Отчёт</td></tr>
+        <tr><td>ИБ (в т.ч. при iframe)</td><td>Допуск</td></tr>
+        <tr><td>SberID scopes</td><td>Фаза 2</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Что нужно от Правкард Забота</h2>
+    <table>
+      <thead><tr><th>Артефакт</th><th>Зачем</th><th>Срок</th></tr></thead>
+      <tbody>
+        <tr><td>Владелец интеграции (IT)</td><td>ТЗ, sandbox</td><td>TBD</td></tr>
+        <tr><td>Выбор модели (iframe / SSO / link)</td><td>UX пилота</td><td>TBD</td></tr>
+        <tr><td>Co-brand, юридическая строка</td><td>ЛК</td><td>TBD</td></tr>
+        <tr><td>Пилотные работодатели (1–2)</td><td>N сотрудников</td><td>TBD</td></tr>
+        <tr><td>Политика ПДн и согласие сотрудника</td><td>Запуск</td><td>TBD</td></tr>
+        <tr><td>Коммерция: доля комиссии канала</td><td>Мотивация</td><td>TBD</td></tr>
+      </tbody>
+    </table>
+  </article>
+
+  <div class="screen-bar">
+    <a href="SBER_FAMILY_OFFICE_CHANNELS_INDEX.consulting.html">Все каналы</a> ·
+    <a href="SBER_FAMILY_OFFICE_B2B2C_CLERK_PROPOSAL.consulting.html">← Клерк</a> ·
+    <a href="SBER_FAMILY_OFFICE_B2C_PROPOSAL.consulting.html">B2C</a>
+  </div>
+</body>
+</html>
