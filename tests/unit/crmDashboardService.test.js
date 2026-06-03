@@ -33,6 +33,14 @@ test('getAgentDashboard enriches response with commission forecast fields', asyn
                 commission_total_rub: 5000,
             },
         ],
+        clients: [
+            {
+                client_id: 1,
+                commission_year_1_rub: 1234.56,
+                commission_total_rub: 7890.12,
+                commission_by_product: [],
+            },
+        ],
     });
 
     try {
@@ -40,6 +48,8 @@ test('getAgentDashboard enriches response with commission forecast fields', asyn
         assert.equal(dashboard.commission_year_1_rub, 1234.56);
         assert.equal(dashboard.commission_total_rub, 7890.12);
         assert.equal(dashboard.commission_by_product.length, 1);
+        assert.equal(dashboard.clients[0].commission_year_1_rub, 1234.56);
+        assert.equal(dashboard.clients[0].commission_total_rub, 7890.12);
     } finally {
         clientService.getClientsByAgent = originalGetClientsByAgent;
         commissionForecastService.buildAgentsCommissionForecast = originalBuildForecast;

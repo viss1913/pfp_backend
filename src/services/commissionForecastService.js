@@ -1,9 +1,31 @@
 'use strict';
 
 const productRepository = require('../repositories/productRepository');
-const { parseGoalsSummary } = require('../utils/goalsSummaryMetrics');
+const {
+    parseGoalsSummary,
+    isLifeGoal,
+} = require('../utils/goalsSummaryMetrics');
+const {
+    FINAM_PROJECT_ID,
+    IMMERS_TEST_FINAM_PROJECT_ID,
+    fixedLifeTermYearsForProject,
+} = require('../algorithms/calculators/lifeTermDefaults');
 
 const DEFAULT_TERM_YEARS = Math.max(1, Number(process.env.CRM_COMMISSION_DEFAULT_TERM_YEARS || 10));
+
+/** Finam / Immers-test: «Подушка безопасности» — 30% от годовой премии каждый год (пока без commission_schema на продукте). */
+const LIFE_CUSHION_BUILTIN_SCHEMA = {
+    version: 1,
+    rules: [
+        {
+            rule_type: 'ANNUAL_PERCENT_OF_PREMIUM',
+            base: 'FLOW',
+            rate_percent: 30,
+        },
+    ],
+};
+
+const FINAM_COMMISSION_PROJECT_IDS = new Set([FINAM_PROJECT_ID, IMMERS_TEST_FINAM_PROJECT_ID]);
 
 function toNum(value) {
     const n = Number(value);
@@ -62,6 +84,95 @@ function detectTermYears(parsedSummary) {
     }
     if (maxMonths > 0) return Math.max(1, Math.ceil(maxMonths / 12));
     return DEFAULT_TERM_YEARS;
+}
+
+function isFinamCommissionProject(projectId) {
+    const pid = Number(projectId);
+    return Number.isFinite(pid) && FINAM_COMMISSION_PROJECT_IDS.has(pid);
+}
+
+function isLifeCushionPosition(position) {
+    const pt = String(position?.product_type || '').toUpperCase();
+    if (pt === 'LIFE' || pt === 'NSJ' || pt === 'LIFE_INSURANCE') return true;
+    const name = String(position?.name || '').toLowerCase();
+    return /подушк|безопасност|нсж|страхован.*жизн/.test(name);
+}
+
+function shouldUseLifeCushionBuiltin(position, projectId) {
+    return isFinamCommissionProject(projectId) && isLifeCushionPosition(position);
+}
+
+function extractLifeAnnualPremiumFromGoal(goal) {
+    const details = goal?.details && typeof goal.details === 'object' ? goal.details : {};
+    const nsj =
+        details.nsj_calculation && typeof details.nsj_calculation === 'object'
+            ? details.nsj_calculation
+            : goal?.nsj_calculation && typeof goal.nsj_calculation === 'object'
+              ? goal.nsj_calculation
+              : {};
+    return toNum(details.annual_premium ?? nsj.annual_premium);
+}
+
+function enrichPositionsFromLifeGoals(positions, parsed) {
+    if (!parsed?.goals?.length) return positions;
+    const out = positions.map((p) => ({ ...p }));
+
+    for (const goal of parsed.goals) {
+        if (!isLifeGoal(goal)) continue;
+        const annual = extractLifeAnnualPremiumFromGoal(goal);
+        if (annual <= 0) continue;
+
+        const details = goal.details && typeof goal.details === 'object' ? goal.details : {};
+        const name = String(details.program_name || goal.goal_name || 'Подушка безопасности').trim() || 'Подушка безопасности';
+
+        let pos = out.find((p) => isLifeCushionPosition(p) && String(p.name).trim() === name);
+        if (!pos) {
+            pos = out.find((p) => isLifeCushionPosition(p));
+        }
+        if (!pos) {
+            pos = {
+                key: `name:${name}`,
+                product_id: null,
+                name,
+                product_type: 'LIFE',
+                initial_amount_rub: 0,
+                monthly_flow_rub: 0,
+            };
+            out.push(pos);
+        }
+        if (toNum(pos.monthly_flow_rub) <= 0) {
+            pos.monthly_flow_rub = annual / 12;
+        }
+        if (!pos.product_type) pos.product_type = 'LIFE';
+    }
+
+    return out;
+}
+
+function resolvePositionTermYears(position, parsed, projectId) {
+    if (!isLifeCushionPosition(position)) {
+        return detectTermYears(parsed);
+    }
+    const fixedYears = fixedLifeTermYearsForProject(projectId);
+    if (fixedYears != null) return fixedYears;
+
+    let maxLifeMonths = 0;
+    for (const goal of parsed?.goals || []) {
+        if (!isLifeGoal(goal)) continue;
+        const months = toNum(goal?.term_months ?? goal?.summary?.target_months ?? goal?.details?.term_months);
+        if (months > maxLifeMonths) maxLifeMonths = months;
+    }
+    if (maxLifeMonths > 0) return Math.max(1, Math.ceil(maxLifeMonths / 12));
+    return detectTermYears(parsed);
+}
+
+function resolveEffectiveCommissionSchema(dbSchema, position, projectId) {
+    const rules = Array.isArray(dbSchema?.rules) ? dbSchema.rules : [];
+    if (rules.length > 0) return dbSchema;
+    if (shouldUseLifeCushionBuiltin(position, projectId)) {
+        return LIFE_CUSHION_BUILTIN_SCHEMA;
+    }
+    return null;
 }
 
 function isRuleActiveForYear(rule, year) {
@@ -186,11 +297,12 @@ async function buildClientCommissionForecast(client, projectId) {
         };
     }
 
-    const positions = collectProductPositions(parsed);
-    const termYears = detectTermYears(parsed);
+    const positions = enrichPositionsFromLifeGoals(collectProductPositions(parsed), parsed);
     const ruleMap = await resolveProductRuleMap(projectId, positions);
     const productRows = positions.map((position) => {
-        const schema = position.product_id != null ? ruleMap.get(position.product_id) : null;
+        const dbSchema = position.product_id != null ? ruleMap.get(position.product_id) : null;
+        const schema = resolveEffectiveCommissionSchema(dbSchema, position, projectId);
+        const termYears = resolvePositionTermYears(position, parsed, projectId);
         return projectPositionForecast(position, schema, termYears);
     });
 

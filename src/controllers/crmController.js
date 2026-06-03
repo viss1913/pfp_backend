@@ -50,8 +50,11 @@ class CrmController {
                 return res.status(400).json({ error: 'Agent ID not found in token' });
             }
             const projectId = req.projectId || req.user?.projectId || null;
+            const includeClients =
+                req.query.include_clients === '1' || req.query.include_clients === 'true';
             const dashboard = await crmDashboardService.getAgentCommissionForecast(agentId, projectId, {
                 clientId: req.query.client_id,
+                includeClients,
             });
             res.json(dashboard);
         } catch (error) {

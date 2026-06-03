@@ -1926,9 +1926,9 @@ paths:
 
         **Тренды:** `trends_pct` в v1 всегда `null` (нет истории снимков).
 
-        Query `include_clients=1` — компактный список `{ id, created_at, last_rebalance_at, has_plan }`.
-        В ответе также отдаются агрегаты прогноза комиссий:
-        `commission_year_1_rub`, `commission_total_rub`, `commission_by_product[]`.
+        Query `include_clients=1` — список клиентов с датами и прогнозом комиссий
+        (`commission_year_1_rub`, `commission_total_rub` на каждого).
+        В ответе также агрегаты: `commission_year_1_rub`, `commission_total_rub`, `commission_by_product[]`.
       parameters:
         - name: include_clients
           in: query
@@ -1957,6 +1957,10 @@ paths:
           required: false
           schema: { type: integer, format: int64 }
           description: Опционально — прогноз только по одному клиенту
+        - name: include_clients
+          in: query
+          schema: { type: string, enum: ['0', '1', 'true', 'false'] }
+          description: Вернуть `clients[]` с прогнозом по каждому клиенту
       responses:
         '200':
           description: OK
@@ -3327,6 +3331,22 @@ components:
         as_of:
           type: string
           format: date-time
+        clients:
+          type: array
+          description: При `include_clients=1` — прогноз по каждому клиенту
+          items:
+            $ref: '#/components/schemas/CrmCommissionForecastClientRow'
+
+    CrmCommissionForecastClientRow:
+      type: object
+      properties:
+        id: { type: integer }
+        commission_year_1_rub: { type: number }
+        commission_total_rub: { type: number }
+        commission_by_product:
+          type: array
+          items:
+            $ref: '#/components/schemas/CrmCommissionByProductRow'
 
     CrmDashboardClientRow:
       type: object
@@ -3337,6 +3357,12 @@ components:
           type: string
           format: date-time
           nullable: true
+        commission_year_1_rub:
+          type: number
+          description: Прогноз комиссии за 1-й год (при include_clients=1)
+        commission_total_rub:
+          type: number
+          description: Прогноз комиссии за весь горизонт (при include_clients=1)
           description: Последний пересчёт / first-run (из goals_summary), не clients.updated_at
         has_plan: { type: boolean }
         first_name: { type: string, nullable: true }

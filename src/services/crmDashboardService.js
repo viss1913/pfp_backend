@@ -27,6 +27,27 @@ async function getAgentDashboard(agentId, projectId, options = {}) {
     dashboard.commission_total_rub = forecast.commission_total_rub;
     dashboard.commission_by_product = forecast.commission_by_product;
 
+    if (options.includeClients === true && Array.isArray(dashboard.clients)) {
+        const byClientId = new Map(
+            (forecast.clients || []).map((row) => [Number(row.client_id), row])
+        );
+        dashboard.clients = dashboard.clients.map((row) => {
+            const fc = byClientId.get(Number(row.id));
+            if (!fc) {
+                return {
+                    ...row,
+                    commission_year_1_rub: 0,
+                    commission_total_rub: 0,
+                };
+            }
+            return {
+                ...row,
+                commission_year_1_rub: fc.commission_year_1_rub,
+                commission_total_rub: fc.commission_total_rub,
+            };
+        });
+    }
+
     return dashboard;
 }
 
@@ -43,13 +64,24 @@ async function getAgentCommissionForecast(agentId, projectId, options = {}) {
     }
 
     const forecast = await commissionForecastService.buildAgentsCommissionForecast(clients, projectId);
-    return {
+    const payload = {
         commission_year_1_rub: forecast.commission_year_1_rub,
         commission_total_rub: forecast.commission_total_rub,
         commission_by_product: forecast.commission_by_product,
         series: forecast.series,
         as_of: forecast.as_of,
     };
+
+    if (options.includeClients === true) {
+        payload.clients = (forecast.clients || []).map((row) => ({
+            id: row.client_id,
+            commission_year_1_rub: row.commission_year_1_rub,
+            commission_total_rub: row.commission_total_rub,
+            commission_by_product: row.commission_by_product,
+        }));
+    }
+
+    return payload;
 }
 
 module.exports = {
