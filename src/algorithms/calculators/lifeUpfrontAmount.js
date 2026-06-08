@@ -5,10 +5,12 @@
 
 const nsjApiServiceSingleton = require('../../services/nsjApiService');
 const {
-    fixedLifeTermMonthsForProject,
     fixedLifeTermYearsForProject,
+    IMMERS_TEST_FINAM_PROJECT_ID,
+    resolveLifeTermMonths,
 } = require('./lifeTermDefaults');
 const { isSberLifeCalcProject } = require('./sberLifeProjectIds');
+const { buildSberPodushkaNsjResult } = require('./sberPodushkaActuarial');
 const SBER_LIFE_TARIFF = 0.0144;
 
 /**
@@ -38,14 +40,25 @@ async function fetchLifeNsjResult(goal, context) {
     const agentUserId = context?.agentUserId != null ? Number(context.agentUserId) : null;
 
     if (ctxProjectId != null && isSberLifeCalcProject(ctxProjectId)) {
+        const resolvedTermMonths = resolveLifeTermMonths(ctxProjectId, goal.term_months ?? termMonths);
+
+        if (Number(ctxProjectId) === IMMERS_TEST_FINAM_PROJECT_ID) {
+            const goalWithTerm = { ...goal, term_months: resolvedTermMonths, target_amount: targetAmount };
+            return {
+                nsjResult: buildSberPodushkaNsjResult(goalWithTerm, context?.client || {}),
+                apiError: null,
+            };
+        }
+
         const annualPremium = Math.round(targetAmount * SBER_LIFE_TARIFF * 100) / 100;
         const termYears =
-            fixedLifeTermYearsForProject(ctxProjectId) ?? Math.ceil(termMonths / 12);
+            fixedLifeTermYearsForProject(ctxProjectId) ?? Math.ceil(resolvedTermMonths / 12);
         return {
             nsjResult: {
                 success: true,
                 total_premium: annualPremium,
                 term_years: termYears,
+                term_months: resolvedTermMonths,
                 total_limit: targetAmount,
                 program: 'Подушка безопасности',
                 risks: [
