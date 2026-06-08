@@ -13,6 +13,7 @@ Finam Report v2 — порядок макетов (черновик).
                   http://127.0.0.1:8766/page-executive-summary-v2.html  (ИФУС + управленческий вывод, McKinsey-блок)
                   http://127.0.0.1:8766/page-goal-fin-reserve-v2.html
                   http://127.0.0.1:8766/page-goal-life-v2.html
+                  http://127.0.0.1:8766/page-goal-life-subscription-v2.html  (Immers projectId=2)
                   http://127.0.0.1:8766/page-goal-pension-v2.html
                   http://127.0.0.1:8766/page-goal-passive-income-v2.html
                   http://127.0.0.1:8766/page-goal-save-grow-v2.html
@@ -36,6 +37,8 @@ Finam Report v2 — порядок макетов (черновик).
   assets/cover-bg.png — фон нижней зоны обложки (дом у озера)
   assets/icon-roadmap.png, icon-control.png, icon-freedom.png — иконки трёх карточек на page-intro-v2
   assets/avatar-ai-finam-v2.png — аватар ИИ на page-current-state-v2 (можно заменить на фото/data URL)
+  assets/life-subscription-hero.png, life-sub-icon-clock.png, life-sub-icon-wallet.png,
+  life-sub-icon-map.png, life-sub-icon-security.png — LIFE «по подписке» (projectId=2)
   assets/goal-reserve.webp, goal-lifeinsurance.webp, goal-pension.webp,
   goal-passive-income.webp, goal-save-grow.webp, goal-inheritance.webp, goal-other-*.webp — локальные копии goal-cards для v2-превью
 
@@ -47,6 +50,7 @@ Finam Report v2 — порядок макетов (черновик).
   5. page-executive-summary-v2.html — управленческий вывод после диагностики целей: главный вывод, риск, рекомендуемый сценарий
   6. page-goal-fin-reserve-v2.html — цель FIN_RESERVE / Финансовый резерв, перед LIFE
   7. page-goal-life-v2.html — цель LIFE / Защита жизни, после финансового резерва
+     (projectId=2 Immers test Finam: page-goal-life-subscription-v2.html — «Страхование по подписке»)
   8. page-goal-pension-v2.html — цель PENSION / Достойная пенсия, 3 листа в одном HTML, включая методику расчёта госпенсии
   9. page-goal-passive-income-v2.html — цель PASSIVE_INCOME / Пассивный доход, 2 листа в одном HTML, без госпенсии
   10. page-goal-save-grow-v2.html — цель «Сохранить и приумножить», 2 листа в одном HTML

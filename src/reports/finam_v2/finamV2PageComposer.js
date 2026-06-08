@@ -4,6 +4,7 @@ const {
     FINAM_V2_TEMPLATE_MANIFEST,
 } = require('./finamV2PageManifest');
 const { resolveTailPageOrder } = require('./finamV2SberPageConfig');
+const { resolveLifeGoalTemplateFileName } = require('./finamV2LifePageConfig');
 const {
     loadTemplateDocument,
     loadTemplatePhysicalPages,
@@ -26,12 +27,21 @@ function defaultGoalPageType(goal) {
     return FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER;
 }
 
+function resolveTemplateFileName(pageType, projectId, spec) {
+    if (pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_LIFE) {
+        return resolveLifeGoalTemplateFileName(projectId);
+    }
+    return spec.fileName;
+}
+
 function loadAppliedPhysicalPages({ pageType, model, goal = null, helpers = {} }) {
     const spec = FINAM_V2_TEMPLATE_MANIFEST[pageType];
     if (!spec) return [];
 
+    const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec);
+
     if (pageType === FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN) {
-        const fullDoc = loadTemplateDocument(spec.fileName);
+        const fullDoc = loadTemplateDocument(templateFileName);
         const applied = applyTemplateData(fullDoc, {
             model,
             pageType,
@@ -41,7 +51,7 @@ function loadAppliedPhysicalPages({ pageType, model, goal = null, helpers = {} }
         return splitFinamV2DocumentIntoPhysicalPages(applied);
     }
 
-    return loadTemplatePhysicalPages(spec.fileName).map((html) =>
+    return loadTemplatePhysicalPages(templateFileName).map((html) =>
         applyTemplateData(html, {
             model,
             pageType,
@@ -81,12 +91,13 @@ function buildFinamV2TemplatePackage({
         }
         const spec = FINAM_V2_TEMPLATE_MANIFEST[pageType];
         if (!spec) return;
+        const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec);
         const physicalPages = loadAppliedPhysicalPages({ pageType, model, goal, helpers });
         if (!physicalPages.length) return;
         sections.push({
             type: pageType,
             title: goal && helpers.goalDisplayName ? helpers.goalDisplayName(goal) : spec.title,
-            templateFileName: spec.fileName,
+            templateFileName,
             page_count: physicalPages.length,
             physicalPages,
             goal_id: goal?.goal_id ?? null,
@@ -140,7 +151,8 @@ function buildFinamV2TemplatePageHtml({
 } = {}) {
     const spec = FINAM_V2_TEMPLATE_MANIFEST[pageType];
     if (!spec) return null;
-    return applyTemplateData(loadTemplateDocument(spec.fileName), {
+    const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec);
+    return applyTemplateData(loadTemplateDocument(templateFileName), {
         model,
         pageType,
         goal,

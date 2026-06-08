@@ -9,6 +9,9 @@ const {
     atbBrandingRiskDeclarationHtml,
     applyAtbReportBranding,
 } = require('./finamV2AtbBranding');
+const { DEFAULT_SBER_LIFE_OFFER_URL } = require('../../utils/atbBankBranding');
+const { buildTrackedPartnerUrl } = require('../../utils/trackedPartnerUrl');
+const { isLifeSubscriptionLifePage } = require('./finamV2LifePageConfig');
 const {
     isSberProject,
     replaceSberEquitiesPage,
@@ -662,6 +665,85 @@ function buildLifeRiskGridHtml(life, helpers) {
         <div class="finam-v2-life__risk-value">${moneyHtml(helpers, risk.amount, { short: true })}</div>
       </div>`).join('\n      ')}
     </div>`;
+}
+
+function pickLifeRiskAmount(risks, patterns, fallback) {
+    const list = Array.isArray(risks) ? risks : [];
+    const hit = list.find((risk) => patterns.some((pattern) => String(risk?.name || '').toLowerCase().includes(pattern)));
+    return hit?.amount ?? fallback;
+}
+
+function formatLifeSubTermYears(goal) {
+    const months = maybeFinite(goal?.summary?.target_months ?? goal?.summary?.term_months ?? goal?.term_months);
+    if (months != null && months > 0) {
+        const years = Math.max(1, Math.round(months / 12));
+        return `${years} ${pluralRu(years, 'год', 'года', 'лет')}`;
+    }
+    return 'от 5 до 30 лет';
+}
+
+function formatLifeSubAnnualPremiumHtml(helpers, annualPremium) {
+    const amount = Math.round(finite(annualPremium, 0)).toLocaleString('ru-RU');
+    return `Подписка от <strong>${escapeHtml(amount).replace(/\s/g, '&nbsp;')} рублей в год</strong>`;
+}
+
+function formatLifeSubCoverageHtml(helpers, coverage) {
+    const n = finite(coverage, 0);
+    const millions = n / 1000000;
+    const formatted = millions.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+    return `с защитой <strong>${escapeHtml(formatted).replace(/\s/g, '&nbsp;')} млн руб.</strong>`;
+}
+
+function replaceLifeSubscriptionGoalPage(html, context) {
+    const { goal, helpers, model } = context;
+    if (!goal) return html;
+    const life = applyAtbLifeGoalDisplay(normalizeLifeGoal(goal, helpers), model?.meta?.projectId);
+    const titleHtml = escapeHtml(life.title);
+    const annualPremiumHtml = formatLifeSubAnnualPremiumHtml(helpers, life.annualPremium);
+    const coverageHtml = formatLifeSubCoverageHtml(helpers, life.coverage);
+    const programHtml = escapeHtml(life.programName);
+    const termYearsHtml = escapeHtml(formatLifeSubTermYears(goal));
+    const traumaAmount = pickLifeRiskAmount(life.risks, ['травм'], life.coverage * 0.3);
+    const disabilityAmount = pickLifeRiskAmount(life.risks, ['инвалид'], life.coverage);
+    const deathAmount = pickLifeRiskAmount(life.risks, ['уход', 'смерть'], life.coverage);
+    const traumaHtml = moneyHtml(helpers, traumaAmount);
+    const disabilityHtml = moneyHtml(helpers, disabilityAmount);
+    const deathHtml = moneyHtml(helpers, deathAmount);
+    const trackedCtaUrl = buildTrackedPartnerUrl(DEFAULT_SBER_LIFE_OFFER_URL, {
+        agent: model?.meta?.agent,
+        projectSettings: model?.meta?.projectSettings,
+        clientId: model?.meta?.clientId,
+        linkType: 'generic',
+    });
+    const ctaHref = escapeAttr(trackedCtaUrl || DEFAULT_SBER_LIFE_OFFER_URL);
+
+    let out = String(html || '');
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-page-title', `<h1 class="finam-v2-life-sub__hero-title" data-finam-v2-field="life-sub-page-title">Цель – ${titleHtml}</h1>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-tagline', `<p class="finam-v2-life-sub__tagline" data-finam-v2-field="life-sub-tagline">
+      Надежная защита жизни и здоровья <strong>по всему миру</strong>
+    </p>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-kicker', `<div class="finam-v2-life-sub__kicker" data-finam-v2-field="life-sub-kicker">LIFE</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-annual-premium', `<p class="finam-v2-life-sub__annual-premium" data-finam-v2-field="life-sub-annual-premium">${annualPremiumHtml}</p>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-coverage', `<p class="finam-v2-life-sub__coverage" data-finam-v2-field="life-sub-coverage">${coverageHtml}</p>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-product-name', `<p class="finam-v2-life-sub__product-name" data-finam-v2-field="life-sub-product-name">
+          Продукт: <strong>${programHtml}</strong>
+        </p>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-term-years', `<div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-term-years">${termYearsHtml}</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-benefit-price', `<div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-price">на весь срок действия полиса</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-benefit-world', `<div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-world">весь мир</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-benefit-sport', `<div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-sport">для занятий спортом</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-trauma', `<div class="finam-v2-life-sub__scenario-amount" data-finam-v2-field="life-sub-scenario-trauma">${traumaHtml}</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-disability', `<div class="finam-v2-life-sub__scenario-amount" data-finam-v2-field="life-sub-scenario-disability">${disabilityHtml}</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-death', `<div class="finam-v2-life-sub__scenario-amount" data-finam-v2-field="life-sub-scenario-death">${deathHtml}</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-cta-href', `<a
+        class="finam-v2-life-sub__cta"
+        data-finam-v2-field="life-sub-cta-href"
+        href="${ctaHref}"
+        target="_blank"
+        rel="noopener"
+      ><span data-finam-v2-field="life-sub-cta-label">Оформить полис</span></a>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-cta-label', `<span data-finam-v2-field="life-sub-cta-label">Оформить полис</span>`);
+    return out;
 }
 
 function replaceLifeGoalPage(html, context) {
@@ -3873,7 +3955,9 @@ function applyTemplateData(html, context = {}) {
         out = replaceFinReserveGoalPage(out, context);
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_LIFE) {
-        out = replaceLifeGoalPage(out, context);
+        out = isLifeSubscriptionLifePage(context.model?.meta?.projectId)
+            ? replaceLifeSubscriptionGoalPage(out, context)
+            : replaceLifeGoalPage(out, context);
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION) {
         out = replacePensionGoalPage(out, context);
@@ -3908,4 +3992,6 @@ function applyTemplateData(html, context = {}) {
 
 module.exports = {
     applyTemplateData,
+    pickLifeRiskAmount,
+    replaceLifeSubscriptionGoalPage,
 };
