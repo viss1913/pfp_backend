@@ -682,16 +682,18 @@ function formatLifeSubTermYears(goal) {
     return 'от 5 до 30 лет';
 }
 
-function formatLifeSubAnnualPremiumHtml(helpers, annualPremium) {
+function formatLifeSubOfferHtml(helpers, annualPremium, coverage) {
     const amount = Math.round(finite(annualPremium, 0)).toLocaleString('ru-RU');
-    return `Подписка от <strong>${escapeHtml(amount).replace(/\s/g, '&nbsp;')} рублей в год</strong>`;
+    const millions = finite(coverage, 0) / 1000000;
+    const coverageFormatted = millions.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+    return `Подписка от <strong>${escapeHtml(amount).replace(/\s/g, '&nbsp;')} рублей в год</strong> с защитой <strong>до ${escapeHtml(coverageFormatted).replace(/\s/g, '&nbsp;')} млн.руб.</strong>`;
 }
 
-function formatLifeSubCoverageHtml(helpers, coverage) {
-    const n = finite(coverage, 0);
-    const millions = n / 1000000;
+function formatLifeSubLimitInlineHtml(amount, { trailingSpace = false } = {}) {
+    const millions = finite(amount, 0) / 1000000;
     const formatted = millions.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
-    return `с защитой <strong>${escapeHtml(formatted).replace(/\s/g, '&nbsp;')} млн руб.</strong>`;
+    const suffix = trailingSpace ? 'млн. руб.' : 'млн руб.';
+    return `<strong>до ${escapeHtml(formatted).replace(/\s/g, '&nbsp;')} ${suffix}</strong>`;
 }
 
 function replaceLifeSubscriptionGoalPage(html, context) {
@@ -699,16 +701,15 @@ function replaceLifeSubscriptionGoalPage(html, context) {
     if (!goal) return html;
     const life = applyAtbLifeGoalDisplay(normalizeLifeGoal(goal, helpers), model?.meta?.projectId);
     const titleHtml = escapeHtml(life.title);
-    const annualPremiumHtml = formatLifeSubAnnualPremiumHtml(helpers, life.annualPremium);
-    const coverageHtml = formatLifeSubCoverageHtml(helpers, life.coverage);
+    const offerHtml = formatLifeSubOfferHtml(helpers, life.annualPremium, life.coverage);
     const programHtml = escapeHtml(life.programName);
     const termYearsHtml = escapeHtml(formatLifeSubTermYears(goal));
     const traumaAmount = pickLifeRiskAmount(life.risks, ['травм'], life.coverage * 0.3);
     const disabilityAmount = pickLifeRiskAmount(life.risks, ['инвалид'], life.coverage);
     const deathAmount = pickLifeRiskAmount(life.risks, ['уход', 'смерть'], life.coverage);
-    const traumaHtml = moneyHtml(helpers, traumaAmount);
-    const disabilityHtml = moneyHtml(helpers, disabilityAmount);
-    const deathHtml = moneyHtml(helpers, deathAmount);
+    const traumaTextHtml = `Выплата при травме дома, в дороге, на прогулке или во время спорта ${formatLifeSubLimitInlineHtml(traumaAmount)}`;
+    const disabilityTextHtml = `Выплата при страховых случаях по инвалидности I, II группы из-за болезни или несчастного случая ${formatLifeSubLimitInlineHtml(disabilityAmount)}`;
+    const deathTextHtml = `Выплата близким ${formatLifeSubLimitInlineHtml(deathAmount, { trailingSpace: true })}`;
     const trackedCtaUrl = buildTrackedPartnerUrl(DEFAULT_SBER_LIFE_OFFER_URL, {
         agent: model?.meta?.agent,
         projectSettings: model?.meta?.projectSettings,
@@ -723,8 +724,7 @@ function replaceLifeSubscriptionGoalPage(html, context) {
       Надежная защита жизни и здоровья <strong>по всему миру</strong>
     </p>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-kicker', `<div class="finam-v2-life-sub__kicker" data-finam-v2-field="life-sub-kicker">LIFE</div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-annual-premium', `<p class="finam-v2-life-sub__annual-premium" data-finam-v2-field="life-sub-annual-premium">${annualPremiumHtml}</p>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-coverage', `<p class="finam-v2-life-sub__coverage" data-finam-v2-field="life-sub-coverage">${coverageHtml}</p>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-offer', `<p class="finam-v2-life-sub__offer" data-finam-v2-field="life-sub-offer">${offerHtml}</p>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-product-name', `<p class="finam-v2-life-sub__product-name" data-finam-v2-field="life-sub-product-name">
           Продукт: <strong>${programHtml}</strong>
         </p>`);
@@ -732,9 +732,9 @@ function replaceLifeSubscriptionGoalPage(html, context) {
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-benefit-price', `<div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-price">на весь срок действия полиса</div>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-benefit-world', `<div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-world">весь мир</div>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-benefit-sport', `<div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-sport">для занятий спортом</div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-trauma', `<div class="finam-v2-life-sub__scenario-amount" data-finam-v2-field="life-sub-scenario-trauma">${traumaHtml}</div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-disability', `<div class="finam-v2-life-sub__scenario-amount" data-finam-v2-field="life-sub-scenario-disability">${disabilityHtml}</div>`);
-    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-death', `<div class="finam-v2-life-sub__scenario-amount" data-finam-v2-field="life-sub-scenario-death">${deathHtml}</div>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-trauma', `<p class="finam-v2-life-sub__scenario-text" data-finam-v2-field="life-sub-scenario-trauma">${traumaTextHtml}</p>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-disability', `<p class="finam-v2-life-sub__scenario-text" data-finam-v2-field="life-sub-scenario-disability">${disabilityTextHtml}</p>`);
+    out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-scenario-death', `<p class="finam-v2-life-sub__scenario-text" data-finam-v2-field="life-sub-scenario-death">${deathTextHtml}</p>`);
     out = replaceElementByDataAttr(out, 'data-finam-v2-field', 'life-sub-cta-href', `<a
         class="finam-v2-life-sub__cta"
         data-finam-v2-field="life-sub-cta-href"

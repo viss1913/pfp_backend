@@ -91,11 +91,15 @@ test('replaceLifeSubscriptionGoalPage substitutes actuarial premiums and limits'
     });
 
     assert.match(out, /14(?:&nbsp;|\s)700 рублей в год/);
-    assert.match(out, /0,7 млн руб/);
+    assert.match(out, /0,7 млн\.руб/);
     assert.match(out, /Подушка безопасности/);
     assert.match(out, /6 лет/);
-    assert.match(out, /195(?:&nbsp;|\s)135/);
-    assert.match(out, /650(?:&nbsp;|\s)455/);
+    assert.match(out, /При травмах/);
+    assert.match(out, /0,2 млн руб/);
+    assert.match(out, /При инвалидности/);
+    assert.match(out, /0,7 млн руб/);
+    assert.match(out, /При уходе из жизни/);
+    assert.match(out, /Преимущества продукта/);
     assert.match(out, /Оформить полис/);
     assert.match(out, new RegExp(escapeRegExp(DEFAULT_SBER_LIFE_OFFER_URL)));
 });
