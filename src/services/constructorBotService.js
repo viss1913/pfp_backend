@@ -3,6 +3,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const knex = require('../config/database');
 const constructorAiService = require('./constructorAiService');
 const maxBotService = require('./maxBotService');
+const { telegramBotOptions, telegramProxyRequestOptions } = require('../utils/telegramProxy');
 
 /**
  * Экранирует подчёркивания в Telegram Markdown, чтобы никнеймы типа alex_vitte не ломали парсер.
@@ -12,6 +13,42 @@ const maxBotService = require('./maxBotService');
 function escapeMarkdown(text) {
     if (typeof text !== 'string') return text;
     return text.replace(/\\/g, '\\\\').replace(/_/g, '\\_');
+}
+
+async function sendTelegramMediaItems(botInstance, chatId, media = []) {
+    const sorted = [...media].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+    for (const item of sorted) {
+        const url = item?.url;
+        if (!url) continue;
+        const caption = item.caption ? escapeMarkdown(item.caption) : undefined;
+        const opts = caption ? { caption, parse_mode: 'Markdown' } : {};
+        if (item.type === 'video') {
+            await botInstance.sendVideo(chatId, url, opts);
+        } else {
+            await botInstance.sendPhoto(chatId, url, opts);
+        }
+    }
+}
+
+async function deliverTelegramResponse(botInstance, chatId, response) {
+    if (typeof response === 'string') {
+        await botInstance.sendMessage(chatId, escapeMarkdown(response), { parse_mode: 'Markdown' });
+        return;
+    }
+
+    const { text = '', document, media, plain } = response;
+    const textOpts = plain ? {} : { parse_mode: 'Markdown' };
+    const textBody = plain ? text : escapeMarkdown(text);
+
+    if (document) {
+        if (text) await botInstance.sendMessage(chatId, textBody, textOpts);
+        await botInstance.sendDocument(chatId, document);
+        if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
+        return;
+    }
+
+    if (text) await botInstance.sendMessage(chatId, textBody, textOpts);
+    if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
 }
 
 /** Токен недействителен или бот удалён в Telegram — дальше polling бессмысленен. */
@@ -57,7 +94,7 @@ class ConstructorBotService {
         try {
             if (!botData.bot_type || botData.bot_type === 'telegram') {
                 // --- TELEGRAM ---
-                const botInstance = new TelegramBot(botData.token, { polling: true });
+                const botInstance = new TelegramBot(botData.token, telegramBotOptions());
 
                 botInstance.on('message', async (msg) => {
                     await this.handleTelegramMessage(botData, botInstance, msg);
@@ -142,18 +179,13 @@ class ConstructorBotService {
                 clearInterval(typingInterval);
             }
 
-            if (typeof response === 'object' && response.document) {
-                await botInstance.sendMessage(msg.chat.id, escapeMarkdown(response.text), { parse_mode: 'Markdown' });
-                await botInstance.sendDocument(msg.chat.id, response.document);
+            await deliverTelegramResponse(botInstance, msg.chat.id, response);
 
+            if (typeof response === 'object' && response.document) {
                 const fs = require('fs');
                 fs.unlink(response.document, (err) => {
                     if (err) console.error('Cleanup failed:', err);
                 });
-            } else if (typeof response === 'object' && response.plain) {
-                await botInstance.sendMessage(msg.chat.id, response.text);
-            } else {
-                await botInstance.sendMessage(msg.chat.id, escapeMarkdown(response), { parse_mode: 'Markdown' });
             }
         } catch (err) {
             console.error(`Error in bot ${botData.id}:`, err);
@@ -324,11 +356,28 @@ class ConstructorBotService {
         const botType = botRecord.type || botRecord.bot_type || 'telegram';
         const token = botRecord.token;
 
-        const { text, document } = content;
+        const { text, document, photo, video, media } = content;
 
         if (botType === 'telegram') {
-            const instance = botRecord.instance || new TelegramBot(token);
-            if (document) return await instance.sendDocument(userId, document, { caption: text, parse_mode: 'Markdown' });
+            const instance = botRecord.instance || new TelegramBot(token, {
+                request: telegramProxyRequestOptions(),
+            });
+            const mergedMedia = Array.isArray(media) && media.length
+                ? media
+                : [
+                    ...(photo ? [{ type: 'image', url: photo, sort: 0 }] : []),
+                    ...(video ? [{ type: 'video', url: video, sort: photo ? 1 : 0 }] : []),
+                ];
+
+            if (document || mergedMedia.length) {
+                await deliverTelegramResponse(instance, userId, {
+                    text,
+                    document,
+                    media: mergedMedia,
+                    plain: false,
+                });
+                return { message_id: null };
+            }
             return await instance.sendMessage(userId, text, { parse_mode: 'Markdown' });
         } else if (botType === 'max') {
             if (document) return await maxBotService.sendDocument(token, userId, document, text);
