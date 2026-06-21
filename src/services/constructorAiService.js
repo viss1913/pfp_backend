@@ -2788,6 +2788,8 @@ class ConstructorAiService {
         session = await knex('constructor_sessions').where('id', session.id).first();
         console.log(`[Flow] Session ID: ${session.id}, Current Command ID: ${session.current_command_id}`);
 
+        const previousCommandId = session.current_command_id;
+
         const { nextCommand, classifierSkipped } = await this.resolveCommandForSessionTurn(botId, session, userMessage);
         if (classifierSkipped) {
             console.log('[Flow] First session turn: skipped classifier, using /start response context only');
@@ -3002,11 +3004,23 @@ class ConstructorAiService {
 
         console.log(`--- Message Processed (Next Command: ${nextCommand ? nextCommand.command : 'none'}) ---\n`);
 
+        const { parseCommandMedia } = require('../utils/constructorCommandMedia');
+        const commandChanged =
+            nextCommand &&
+            nextCommand.id != null &&
+            Number(nextCommand.id) !== Number(previousCommandId);
+        const stageMedia = commandChanged ? parseCommandMedia(nextCommand.media) : [];
+
         if (pdfPath) {
             return {
                 text: responseText,
-                document: pdfPath
+                document: pdfPath,
+                ...(stageMedia.length ? { media: stageMedia } : {}),
             };
+        }
+
+        if (stageMedia.length) {
+            return { text: responseText, media: stageMedia };
         }
 
         return responseText;

@@ -2387,10 +2387,11 @@ paths:
   /pfp/constructor/bot:
     post:
       tags: [ "Конструктор ИИ" ]
-      summary: Зарегистрировать или обновить бота конструктора
+      summary: Зарегистрировать или обновить бота конструктора проекта
       description: |
-        Одна запись бота на пару (агент, проект, `bot_type`): при повторном вызове — обновление полей и перезапуск бота.
-        Для MAX: задайте `webhook_secret` и укажите вебхук на `POST /api/pfp/constructor/webhook/max/{id}` (id бота из ответа списка/БД).
+        **Один бот на проект** (`project_id` + `bot_type`): любой агент tenant может читать/обновлять общую запись.
+        При повторном вызове — обновление полей и перезапуск. В ответе `scope: project`.
+        Для MAX: `webhook_secret` и вебхук `POST /api/pfp/constructor/webhook/max/{id}`.
       requestBody:
         required: true
         content:
@@ -2408,7 +2409,7 @@ paths:
           description: Ошибка сохранения
     get:
       tags: [ "Конструктор ИИ" ]
-      summary: Список ботов агента в проекте (или один по типу)
+      summary: Бот(ы) проекта — общие для всех агентов (или один по типу)
       parameters:
         - name: bot_type
           in: query
@@ -2435,14 +2436,14 @@ paths:
   /pfp/constructor/clients:
     get:
       tags: [ "Конструктор ИИ" ]
-      summary: Клиенты ботов конструктора
+      summary: Клиенты бота(ов) проекта
       parameters:
         - name: bot_id
           in: query
           required: false
           schema:
             type: string
-          description: Фильтр по id бота; иначе — клиенты всех ботов агента
+          description: Фильтр по id бота в проекте; иначе — клиенты всех messenger-ботов проекта
       responses:
         '200':
           description: Список с полями сессии и последним сообщением
@@ -2550,8 +2551,12 @@ paths:
       tags: [ "Конструктор ИИ" ]
       summary: Список команд CJM (шаблоны проекта или привязка к боту)
       description: |
-        Без `bot_id`: по умолчанию шаблоны (`is_template: true`) текущего `project_id`.
-        С `bot_id` — команды этого бота. С `is_template=true|false` — фильтр по шаблонам и проекту.
+        **Шаблоны проекта** (`is_template: true`, `project_id` из `x-project-key` / JWT) — общий CJM для всех ботов проекта.
+        Партнёр-админ настраивает один раз на проект; агенты читают те же шаблоны.
+
+        Без `bot_id`: только шаблоны текущего `project_id`.
+        С `bot_id`: команды бота **+** шаблоны проекта (по умолчанию). `include_project_templates=false` — только команды бота.
+        С `is_template=true|false` — фильтр по шаблонам в рамках проекта.
       parameters:
         - name: bot_id
           in: query
@@ -2559,6 +2564,10 @@ paths:
         - name: is_template
           in: query
           schema: { type: boolean }
+        - name: include_project_templates
+          in: query
+          schema: { type: boolean, default: true }
+          description: При `bot_id` — включать шаблоны проекта (default true)
       responses:
         '200':
           content:
@@ -2571,7 +2580,8 @@ paths:
       tags: [ "Конструктор ИИ" ]
       summary: Создать команду или шаблон
       description: |
-        Если не передан `bot_id`, запись создаётся как шаблон проекта (`is_template` по умолчанию true).
+        Без `bot_id` (или `is_template: true`) — **шаблон проекта** (`project_id` из JWT / `x-project-key`).
+        С `bot_id` — команда конкретного бота в том же проекте (для переопределения шаблона).
       requestBody:
         required: true
         content:
@@ -2627,6 +2637,69 @@ paths:
                 type: object
                 properties:
                   success: { type: boolean, example: true }
+
+  /pfp/constructor/commands/{id}/media:
+    post:
+      tags: [ "Конструктор ИИ" ]
+      summary: Загрузить картинку или видео к стадии CJM
+      description: multipart/form-data, поле `file`. До 5 файлов на команду. Хранение в R2.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+                  nullable: true
+                  description: Подпись к файлу в Telegram
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  media: { $ref: '#/components/schemas/ConstructorCommandMediaItem' }
+                  all:
+                    type: array
+                    items: { $ref: '#/components/schemas/ConstructorCommandMediaItem' }
+
+  /pfp/constructor/commands/{id}/media/{mediaId}:
+    delete:
+      tags: [ "Конструктор ИИ" ]
+      summary: Удалить медиа со стадии CJM
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: mediaId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  all:
+                    type: array
+                    items: { $ref: '#/components/schemas/ConstructorCommandMediaItem' }
 
   /pfp/constructor/brain-contexts:
     get:
@@ -4016,6 +4089,18 @@ components:
         audio: { type: string, nullable: true }
         document: { type: string, nullable: true }
 
+    ConstructorCommandMediaItem:
+      type: object
+      properties:
+        id: { type: string, description: UUID файла в массиве media }
+        type: { type: string, enum: [image, video] }
+        url: { type: string, description: Публичный URL в R2/CDN }
+        key: { type: string, nullable: true, description: Ключ объекта в R2 }
+        filename: { type: string, nullable: true }
+        mime: { type: string, nullable: true }
+        caption: { type: string, nullable: true, description: Подпись к картинке/видео в Telegram }
+        sort: { type: integer, description: Порядок отправки }
+
     ConstructorCommand:
       type: object
       properties:
@@ -4027,6 +4112,11 @@ components:
         response: { type: string, description: Ответ или шаблон ответа на стадии }
         section: { type: string, nullable: true }
         is_template: { type: boolean }
+        media:
+          type: array
+          nullable: true
+          description: Картинки/видео стадии (до 5). Отправляются в Telegram при переходе на стадию.
+          items: { $ref: '#/components/schemas/ConstructorCommandMediaItem' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
@@ -4050,6 +4140,10 @@ components:
         section: { type: string, nullable: true }
         is_template: { type: boolean }
         bot_id: { type: string, nullable: true }
+        media:
+          type: array
+          nullable: true
+          items: { $ref: '#/components/schemas/ConstructorCommandMediaItem' }
 
     ConstructorBrainContext:
       type: object

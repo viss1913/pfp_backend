@@ -1,22 +1,53 @@
+const crypto = require('crypto');
+const path = require('path');
 const knex = require('../config/database');
 const constructorBotService = require('../services/constructorBotService');
 const maxBotService = require('../services/maxBotService');
+const {
+    uploadPublicFile,
+    deleteObjectByKey,
+    isR2ClientReady,
+    isStorageUploadRequireR2,
+} = require('../utils/r2Client');
+const {
+    parseCommandMedia,
+    normalizeCommandMediaForDb,
+    inferMediaType,
+    commandKeyToSlug,
+    enrichCommandRow,
+    MAX_MEDIA_PER_COMMAND,
+} = require('../utils/constructorCommandMedia');
+const {
+    resolveProjectId,
+    findBotInProject,
+    findCommandInProject,
+} = require('../utils/constructorCommandAccess');
+const {
+    findProjectBot,
+    listProjectMessengerBots,
+    projectBotIds,
+    clientBelongsToProject,
+} = require('../utils/constructorProjectBot');
 
 class ConstructorController {
     // --- Agent Methods ---
 
     /**
      * POST /pfp/constructor/bot
-     * Регистрация или обновление бота агента
+     * Регистрация или обновление бота проекта (один telegram/max на project_id; любой агент проекта)
      */
     async registerBot(req, res) {
         const agentId = req.user.agentId || req.user.id;
-        const projectId = req.projectId || req.user?.projectId;
+        const projectId = resolveProjectId(req) || req.user?.projectId;
         const { name, link, token, communication_style, base_brain_context, bot_type, webhook_secret } = req.body;
 
         try {
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved' });
+            }
+
             const type = bot_type || 'telegram';
-            let bot = await knex('constructor_bots').where({ agent_id: agentId, project_id: projectId, bot_type: type }).first();
+            let bot = await findProjectBot(projectId, type);
 
             if (bot) {
                 await knex('constructor_bots')
@@ -28,7 +59,8 @@ class ConstructorController {
                         webhook_secret,
                         communication_style,
                         base_brain_context,
-                        updated_at: knex.fn.now()
+                        project_id: projectId,
+                        updated_at: knex.fn.now(),
                     });
             } else {
                 const [id] = await knex('constructor_bots').insert({
@@ -40,15 +72,14 @@ class ConstructorController {
                     webhook_secret,
                     bot_type: type,
                     communication_style,
-                    base_brain_context
+                    base_brain_context,
                 });
                 bot = { id };
             }
 
-            // Перезапускаем бота с новым токеном/настройками
             await constructorBotService.restartBot(bot.id);
 
-            res.json({ success: true, message: 'Bot registered and started' });
+            res.json({ success: true, message: 'Bot registered and started', bot_id: bot.id, scope: 'project' });
         } catch (error) {
             console.error('registerBot error details:', {
                 agentId,
@@ -65,24 +96,24 @@ class ConstructorController {
 
     /**
      * GET /pfp/constructor/bot
-     * Получение всех ботов агента (Telegram, MAX и др.)
+     * Бот(ы) проекта — общие для всех агентов tenant (telegram, max; без site)
      */
     async getMyBot(req, res) {
-        const agentId = req.user.agentId || req.user.id;
-        const projectId = req.projectId || req.user?.projectId;
+        const projectId = resolveProjectId(req) || req.user?.projectId;
         const { bot_type } = req.query;
 
         try {
-            let query = knex('constructor_bots').where({ agent_id: agentId, project_id: projectId });
-
-            if (bot_type) {
-                query = query.where('bot_type', bot_type);
-                const bot = await query.first();
-                return res.json(bot || {});
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved' });
             }
 
-            const bots = await query.orderBy('created_at', 'desc');
-            res.json(bots);
+            if (bot_type) {
+                const bot = await findProjectBot(projectId, bot_type);
+                return res.json(bot ? { ...bot, scope: 'project' } : {});
+            }
+
+            const bots = await listProjectMessengerBots(projectId);
+            res.json(bots.map((b) => ({ ...b, scope: 'project' })));
         } catch (error) {
             res.status(500).json({ error: 'Failed to get bots' });
         }
@@ -92,17 +123,20 @@ class ConstructorController {
      * GET /pfp/constructor/clients
      */
     async getMyClients(req, res) {
-        const agentId = req.user.agentId || req.user.id;
+        const projectId = resolveProjectId(req) || req.user?.projectId;
         const { bot_id } = req.query;
 
         try {
-            // Либо берем конкретного бота, либо всех ботов агента
-            let botIdsQuery = knex('constructor_bots').where('agent_id', agentId);
-            if (bot_id) {
-                botIdsQuery = botIdsQuery.where('id', bot_id);
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved' });
             }
-            const bots = await botIdsQuery.select('id');
-            const botIds = bots.map(b => b.id);
+
+            let botIds = await projectBotIds(projectId);
+            if (bot_id) {
+                const allowed = await findBotInProject(bot_id, projectId);
+                if (!allowed) return res.status(404).json({ error: 'Bot not found in this project' });
+                botIds = [allowed.id];
+            }
 
             if (botIds.length === 0) return res.json([]);
 
@@ -150,14 +184,16 @@ class ConstructorController {
      * GET /pfp/constructor/messages/:clientId
      */
     async getMessages(req, res) {
-        const agentId = req.user.agentId || req.user.id;
+        const projectId = resolveProjectId(req) || req.user?.projectId;
         const { clientId } = req.params;
 
         try {
-            const bot = await knex('constructor_bots').where('agent_id', agentId).first();
-            const client = await knex('constructor_clients').where('id', clientId).first();
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved' });
+            }
 
-            if (!bot || !client || client.bot_id !== bot.id) {
+            const client = await clientBelongsToProject(clientId, projectId);
+            if (!client) {
                 return res.status(403).json({ error: 'Access denied' });
             }
 
@@ -178,18 +214,20 @@ class ConstructorController {
      * Отправка сообщения конкретному клиенту (текст + медиа)
      */
     async sendMessage(req, res) {
-        const agentId = req.user.agentId || req.user.id;
+        const projectId = resolveProjectId(req) || req.user?.projectId;
         const { clientId, text, photo, video, voice, audio, document } = req.body;
 
         try {
-            const bot = await knex('constructor_bots').where('agent_id', agentId).first();
-            const client = await knex('constructor_clients').where('id', clientId).first();
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved' });
+            }
 
-            if (!bot || !client || client.bot_id !== bot.id) {
+            const client = await clientBelongsToProject(clientId, projectId);
+            if (!client) {
                 return res.status(403).json({ error: 'Access denied' });
             }
 
-            const result = await constructorBotService.sendMessageToClient(bot.id, client.user_id, {
+            const result = await constructorBotService.sendMessageToClient(client.bot_id, client.user_id, {
                 text, photo, video, voice, audio, document
             });
 
@@ -215,11 +253,15 @@ class ConstructorController {
      * Массовая рассылка всем клиентам агента
      */
     async broadcast(req, res) {
-        const agentId = req.user.agentId || req.user.id;
-        const { text, photo, video, voice, audio, document } = req.body;
+        const projectId = resolveProjectId(req) || req.user?.projectId;
+        const { text, photo, video, voice, audio, document, bot_type } = req.body;
 
         try {
-            const bot = await knex('constructor_bots').where('agent_id', agentId).first();
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved' });
+            }
+
+            const bot = await findProjectBot(projectId, bot_type || 'telegram');
             if (!bot) return res.status(404).json({ error: 'Bot not found' });
 
             const results = await constructorBotService.broadcastMessage(bot.id, {
@@ -258,27 +300,45 @@ class ConstructorController {
 
     /**
      * GET /commands
-     * Получение списка команд (шаблонов или команд конкретного бота)
+     * Шаблоны проекта (is_template + project_id) или команды бота.
+     * По умолчанию без bot_id — только шаблоны текущего project_id (партнёр настраивает один раз на проект).
+     * С bot_id — команды бота + шаблоны проекта (агенты видят полный CJM).
      */
     async getCommands(req, res) {
-        const { bot_id, is_template } = req.query;
-        const projectId = req.projectId || req.user?.projectId;
+        const { bot_id, is_template, include_project_templates } = req.query;
+        const projectId = resolveProjectId(req);
         try {
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved (x-project-key or user token)' });
+            }
+
             let query = knex('constructor_commands');
 
             if (bot_id) {
-                query = query.where('bot_id', bot_id);
+                const bot = await findBotInProject(bot_id, projectId);
+                if (!bot) {
+                    return res.status(404).json({ error: 'Bot not found in this project' });
+                }
+                const withProjectTemplates = include_project_templates !== 'false' && include_project_templates !== '0';
+                if (withProjectTemplates) {
+                    query = query.where(function () {
+                        this.where('bot_id', bot.id).orWhere(function () {
+                            this.where({ is_template: true, project_id: projectId });
+                        });
+                    });
+                } else {
+                    query = query.where('bot_id', bot.id);
+                }
             } else if (is_template !== undefined) {
-                query = query.where('is_template', is_template === 'true' || is_template === true);
-                if (projectId) query = query.andWhere('project_id', projectId);
+                query = query
+                    .where('is_template', is_template === 'true' || is_template === true)
+                    .andWhere('project_id', projectId);
             } else {
-                // По умолчанию возвращаем шаблоны текущего проекта
-                query = query.where('is_template', true);
-                if (projectId) query = query.andWhere('project_id', projectId);
+                query = query.where({ is_template: true, project_id: projectId });
             }
 
-            const commands = await query.orderBy('created_at', 'desc');
-            res.json(commands);
+            const commands = await query.orderByRaw('is_template ASC, bot_id DESC, created_at DESC');
+            res.json(commands.map(enrichCommandRow));
         } catch (error) {
             console.error('getCommands error:', error);
             res.status(500).json({ error: 'Failed to fetch commands' });
@@ -286,51 +346,272 @@ class ConstructorController {
     }
 
     async createCommand(req, res) {
-        const { command, classifier, response, section, is_template, bot_id } = req.body;
-        const projectId = req.projectId || req.user?.projectId;
+        const { command, classifier, response, section, is_template, bot_id, media } = req.body;
+        const projectId = resolveProjectId(req);
         try {
-            const [id] = await knex('constructor_commands').insert({
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved (x-project-key or user token)' });
+            }
+
+            let mediaValue;
+            try {
+                mediaValue = normalizeCommandMediaForDb(media);
+            } catch (mediaErr) {
+                return res.status(400).json({ error: mediaErr.message });
+            }
+
+            const wantsProjectTemplate = is_template === true || is_template === 'true' || (!bot_id && is_template !== false);
+            const baseRow = {
                 command,
                 classifier,
                 response,
                 section,
-                is_template: is_template || (bot_id ? false : true),
-                bot_id: bot_id || null,
-                project_id: projectId || null
+                ...(mediaValue !== undefined ? { media: JSON.stringify(mediaValue) } : {}),
+            };
+
+            if (wantsProjectTemplate) {
+                const [id] = await knex('constructor_commands').insert({
+                    ...baseRow,
+                    is_template: true,
+                    bot_id: null,
+                    project_id: projectId,
+                });
+                return res.json({ id, success: true, scope: 'project' });
+            }
+
+            if (!bot_id) {
+                return res.status(400).json({ error: 'bot_id is required for bot-specific commands' });
+            }
+
+            const bot = await findBotInProject(bot_id, projectId);
+            if (!bot) {
+                return res.status(404).json({ error: 'Bot not found in this project' });
+            }
+
+            const [id] = await knex('constructor_commands').insert({
+                ...baseRow,
+                is_template: false,
+                bot_id: bot.id,
+                project_id: projectId,
             });
-            res.json({ id, success: true });
+            res.json({ id, success: true, scope: 'bot' });
         } catch (error) {
+            console.error('createCommand error:', error);
             res.status(500).json({ error: 'Failed to create command' });
         }
     }
 
     async updateCommand(req, res) {
         const { id } = req.params;
-        const { command, classifier, response, section, is_template, bot_id } = req.body;
+        const { command, classifier, response, section, is_template, bot_id, media } = req.body;
+        const projectId = resolveProjectId(req);
         try {
-            await knex('constructor_commands')
-                .where('id', id)
-                .update({
-                    command,
-                    classifier,
-                    response,
-                    section,
-                    is_template,
-                    bot_id,
-                    updated_at: knex.fn.now()
-                });
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved (x-project-key or user token)' });
+            }
+
+            const existing = await findCommandInProject(id, projectId);
+            if (!existing) {
+                return res.status(404).json({ error: 'Command not found in this project' });
+            }
+
+            let mediaValue;
+            try {
+                mediaValue = normalizeCommandMediaForDb(media);
+            } catch (mediaErr) {
+                return res.status(400).json({ error: mediaErr.message });
+            }
+
+            const patch = {
+                command,
+                classifier,
+                response,
+                section,
+                updated_at: knex.fn.now(),
+            };
+            if (mediaValue !== undefined) {
+                patch.media = mediaValue == null ? null : JSON.stringify(mediaValue);
+            }
+
+            if (existing.is_template) {
+                patch.is_template = true;
+                patch.bot_id = null;
+                patch.project_id = projectId;
+            } else {
+                patch.is_template = false;
+                if (bot_id != null && Number(bot_id) !== Number(existing.bot_id)) {
+                    const bot = await findBotInProject(bot_id, projectId);
+                    if (!bot) {
+                        return res.status(404).json({ error: 'Bot not found in this project' });
+                    }
+                    patch.bot_id = bot.id;
+                }
+                patch.project_id = projectId;
+            }
+
+            await knex('constructor_commands').where('id', id).update(patch);
             res.json({ success: true });
         } catch (error) {
+            console.error('updateCommand error:', error);
             res.status(500).json({ error: 'Failed to update command' });
+        }
+    }
+
+    /**
+     * POST /commands/:id/media
+     * Загрузка картинки или видео к стадии CJM (R2).
+     */
+    async uploadCommandMedia(req, res) {
+        const { id } = req.params;
+        const projectId = resolveProjectId(req);
+        try {
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved (x-project-key or user token)' });
+            }
+            if (!req.file) {
+                return res.status(400).json({ error: 'No file uploaded. Use field name "file".' });
+            }
+
+            const existing = await findCommandInProject(id, projectId);
+            if (!existing) {
+                return res.status(404).json({ error: 'Command not found in this project' });
+            }
+
+            const media = parseCommandMedia(existing.media);
+            if (media.length >= MAX_MEDIA_PER_COMMAND) {
+                return res.status(400).json({
+                    error: `Не больше ${MAX_MEDIA_PER_COMMAND} файлов на команду`,
+                });
+            }
+
+            const type = inferMediaType(req.file.mimetype, req.file.originalname);
+            if (!type) {
+                return res.status(400).json({ error: 'Неподдерживаемый тип файла' });
+            }
+
+            const ext = path.extname(req.file.originalname || '') || (type === 'video' ? '.mp4' : '.webp');
+            const slug = commandKeyToSlug(existing.command);
+            const key = `constructor-commands/${projectId}/${slug}/${Date.now()}_${crypto.randomUUID()}${ext}`;
+
+            const up = await uploadPublicFile({
+                key,
+                body: req.file.buffer,
+                contentType: req.file.mimetype || (type === 'video' ? 'video/mp4' : 'image/webp'),
+            });
+
+            if (!up.ok) {
+                if (up.reason === 'r2_public_url_missing' || (isR2ClientReady() && up.reason === 'r2_put_failed')) {
+                    return res.status(503).json({
+                        error:
+                            up.reason === 'r2_public_url_missing'
+                                ? 'R2: не задан публичный URL (R2_PUBLIC_BASE_URL / R2_CDN_BASE_URL / R2_PUBLIC_DOMAIN)'
+                                : 'Загрузка в Cloudflare R2 не удалась',
+                        code: up.reason === 'r2_public_url_missing' ? 'R2_PUBLIC_URL_MISSING' : 'R2_PUT_FAILED',
+                        detail: up.detail || undefined,
+                    });
+                }
+                if (isStorageUploadRequireR2()) {
+                    return res.status(503).json({
+                        error: 'Cloudflare R2 is required (STORAGE_REQUIRE_R2) but upload failed',
+                        code: 'STORAGE_R2_REQUIRED',
+                        reason: up.reason || 'unknown',
+                    });
+                }
+                return res.status(503).json({ error: 'Storage upload failed', reason: up.reason });
+            }
+
+            const item = {
+                id: crypto.randomUUID(),
+                type,
+                url: up.url,
+                key,
+                filename: req.file.originalname || null,
+                mime: req.file.mimetype || null,
+                caption: typeof req.body.caption === 'string' ? req.body.caption.trim() : '',
+                sort: media.length,
+            };
+            const nextMedia = [...media, item];
+
+            await knex('constructor_commands').where('id', id).update({
+                media: JSON.stringify(nextMedia),
+                updated_at: knex.fn.now(),
+            });
+
+            return res.status(201).json({
+                success: true,
+                media: item,
+                all: nextMedia,
+            });
+        } catch (error) {
+            console.error('uploadCommandMedia error:', error);
+            res.status(500).json({ error: 'Failed to upload command media' });
+        }
+    }
+
+    /**
+     * DELETE /commands/:id/media/:mediaId
+     */
+    async deleteCommandMedia(req, res) {
+        const { id, mediaId } = req.params;
+        const projectId = resolveProjectId(req);
+        try {
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved (x-project-key or user token)' });
+            }
+
+            const existing = await findCommandInProject(id, projectId);
+            if (!existing) {
+                return res.status(404).json({ error: 'Command not found in this project' });
+            }
+
+            const media = parseCommandMedia(existing.media);
+            const target = media.find((m) => m.id === mediaId);
+            if (!target) {
+                return res.status(404).json({ error: 'Media not found on this command' });
+            }
+
+            const nextMedia = media.filter((m) => m.id !== mediaId);
+            await knex('constructor_commands').where('id', id).update({
+                media: nextMedia.length ? JSON.stringify(nextMedia) : null,
+                updated_at: knex.fn.now(),
+            });
+
+            if (target.key) {
+                deleteObjectByKey(target.key).catch((err) => {
+                    console.warn('[Constructor] R2 delete after media remove failed:', err.message || err);
+                });
+            }
+
+            res.json({ success: true, all: nextMedia });
+        } catch (error) {
+            console.error('deleteCommandMedia error:', error);
+            res.status(500).json({ error: 'Failed to delete command media' });
         }
     }
 
     async deleteCommand(req, res) {
         const { id } = req.params;
+        const projectId = resolveProjectId(req);
         try {
+            if (!projectId) {
+                return res.status(400).json({ error: 'project_id not resolved (x-project-key or user token)' });
+            }
+
+            const existing = await findCommandInProject(id, projectId);
+            if (!existing) {
+                return res.status(404).json({ error: 'Command not found in this project' });
+            }
+
+            for (const item of parseCommandMedia(existing.media)) {
+                if (item.key) {
+                    deleteObjectByKey(item.key).catch(() => {});
+                }
+            }
+
             await knex('constructor_commands').where('id', id).del();
             res.json({ success: true });
         } catch (error) {
+            console.error('deleteCommand error:', error);
             res.status(500).json({ error: 'Failed to delete command' });
         }
     }

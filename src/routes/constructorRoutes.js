@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const constructorController = require('../controllers/constructorController');
+const {
+    constructorCommandMediaUpload,
+    constructorCommandMediaUploadError,
+} = require('../middlewares/constructorCommandMediaUpload');
 
 // Агентские роуты (будут под /api/pfp/constructor)
 router.post('/bot', constructorController.registerBot);
@@ -17,6 +21,13 @@ router.get('/bots', constructorController.getAllBots);
 router.get('/commands', constructorController.getCommands);
 router.post('/commands', constructorController.createCommand);
 router.put('/commands/:id', constructorController.updateCommand);
+router.post(
+    '/commands/:id/media',
+    constructorCommandMediaUpload.single('file'),
+    constructorCommandMediaUploadError,
+    constructorController.uploadCommandMedia
+);
+router.delete('/commands/:id/media/:mediaId', constructorController.deleteCommandMedia);
 router.delete('/commands/:id', constructorController.deleteCommand);
 
 // Алиасы для обратной совместимости (опционально)
@@ -28,6 +39,13 @@ router.put('/templates/:id', constructorController.updateCommand);
 router.patch('/templates/:id', constructorController.updateCommand);
 router.put('/constructor_commands/:id', constructorController.updateCommand);
 router.patch('/constructor_commands/:id', constructorController.updateCommand);
+router.post(
+    '/constructor_commands/:id/media',
+    constructorCommandMediaUpload.single('file'),
+    constructorCommandMediaUploadError,
+    constructorController.uploadCommandMedia
+);
+router.delete('/constructor_commands/:id/media/:mediaId', constructorController.deleteCommandMedia);
 router.delete('/templates/:id', constructorController.deleteCommand);
 router.delete('/constructor_commands/:id', constructorController.deleteCommand);
 
