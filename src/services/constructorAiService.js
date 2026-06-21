@@ -1262,6 +1262,97 @@ function userMessageImpliesExplicitStartCommand(userMessage) {
     return false;
 }
 
+/** Короткое «готов идти дальше» — без LLM-роутера (FOA / platform_* / family_office_*). */
+function userMessageImpliesAdvanceToNextStage(userMessage) {
+    const t = (userMessage || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[!?.…,]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (!t || t.length > 60) return false;
+    if (t.includes('?')) return false;
+    if (/(?:^|\s)(?:как|что|где|почему|зачем|когда|сколько|можно ли|расскаж|объясн|уточн|не понял|непонятн)/.test(t)) {
+        return false;
+    }
+    const exact = new Set([
+        'ок',
+        'ok',
+        'okay',
+        'да',
+        'дальше',
+        'давай',
+        'давай дальше',
+        'ага',
+        'ага дальше',
+        'понятно',
+        'понял',
+        'поняла',
+        'ясно',
+        'всё ясно',
+        'все ясно',
+        'готов',
+        'готова',
+        'готово',
+        'поехали',
+        'есть',
+        'согласен',
+        'согласна',
+        'хорошо',
+        'ладно',
+        'идём дальше',
+        'идем дальше',
+        'продолжай',
+        'продолжаем',
+        'ок понятно',
+        'да понятно',
+        'да понимаю',
+        'ок понял',
+        'следующий этап',
+        'следующий шаг',
+    ]);
+    return exact.has(t);
+}
+
+/** Следующий этап FOA по имени команды (/family_office_3 → /family_office_4, /platform_1 → /platform_2). */
+function resolveNextAcademyCommand(commands, currentCommand) {
+    if (!currentCommand?.command || !commands?.length) return null;
+    const key = normalizeConstructorCommandKey(currentCommand.command);
+    let nextKey = null;
+
+    const fo = key.match(/^\/family_office_(\d+)$/);
+    if (fo) {
+        const n = parseInt(fo[1], 10);
+        nextKey = n >= 5 ? '/platform_1' : `/family_office_${n + 1}`;
+    } else if (key.match(/^\/platform_(\d+)$/)) {
+        const n = parseInt(key.match(/^\/platform_(\d+)$/)[1], 10);
+        if (n < 6) nextKey = `/platform_${n + 1}`;
+    } else if (key === '/start' || key === '/startpfp') {
+        nextKey = '/family_office_1';
+    }
+
+    if (!nextKey) return null;
+    return findCommandByKey(commands, nextKey);
+}
+
+/** Парсер ответа роутера: whitelist ключей, последнее вхождение /command в тексте. */
+function parseClassifierCommandFromLlm(rawResponse, commands, fallbackCommand) {
+    const text = String(rawResponse || '').trim();
+    if (!text) return fallbackCommand;
+
+    const firstLine = text.split('\n')[0].trim();
+    const exact = findCommandByKey(commands, firstLine);
+    if (exact) return exact;
+
+    const matches = [...text.matchAll(/\/[a-zA-Z0-9_-]+/g)].map((m) => m[0]);
+    for (let i = matches.length - 1; i >= 0; i--) {
+        const cmd = findCommandByKey(commands, matches[i]);
+        if (cmd) return cmd;
+    }
+
+    return fallbackCommand;
+}
+
 function normalizeConstructorCommandKey(cmd) {
     return String(cmd || '')
         .trim()
@@ -1810,6 +1901,21 @@ class ConstructorAiService {
             }
         }
 
+        if (currentCommand && userMessageImpliesAdvanceToNextStage(userMessage)) {
+            const nextByAdvance = resolveNextAcademyCommand(commands, currentCommand);
+            if (nextByAdvance) {
+                console.log(
+                    `[ConstructorAI Step1] Роутер LLM НЕ вызывается (шорткат): «дальше/ок» ${currentCommand.command} → ${nextByAdvance.command}`
+                );
+                traceConstructorMeta('step1_classifier_shortcut', {
+                    reason: 'advance phrase → next academy stage',
+                    from: { id: currentCommand.id, command: currentCommand.command },
+                    resolved: { id: nextByAdvance.id, command: nextByAdvance.command },
+                });
+                return nextByAdvance;
+            }
+        }
+
         const startCmdForRouter = findCommandByKey(commands, '/start');
         const classifierInstructions = currentCommand
             ? (currentCommand.classifier || '')
@@ -1863,10 +1969,10 @@ class ConstructorAiService {
 
             const result = await aiService.getCompletion(prompt);
 
-            // Очистка ответа: убираем markdown (**), кавычки, берём первое слово
             const rawTrimmed = result.trim();
-            const cleaned = rawTrimmed.replace(/[."'`#*@]/g, '').trim();
-            const detectedCommand = (cleaned.startsWith('/') ? cleaned : `/${cleaned}`).split(/\s+/)[0];
+            const fallbackCmd = currentCommand || findCommandByKey(commands, '/start');
+            const nextCommandFromLlm = parseClassifierCommandFromLlm(rawTrimmed, commands, fallbackCmd);
+            const detectedCommand = nextCommandFromLlm?.command || rawTrimmed.split('\n')[0].trim();
 
             console.log(`[ConstructorAI Step1] ОТВЕТ роутера LLM (raw): ${JSON.stringify(rawTrimmed)}`);
             console.log(`[AI Step 1] Classifier RAW response: "${rawTrimmed}"`);
@@ -1877,12 +1983,11 @@ class ConstructorAiService {
                 parsedKey: detectedCommand,
             });
 
-            let nextCommand = findCommandByKey(commands, detectedCommand);
+            let nextCommand = nextCommandFromLlm;
 
-            // Если команда не распознана — остаёмся на текущей или /start
             if (!nextCommand) {
                 console.log(`[AI Step 1] Command "${detectedCommand}" not in list; fallback to current or /start`);
-                nextCommand = currentCommand || findCommandByKey(commands, '/start');
+                nextCommand = fallbackCmd;
                 traceConstructorMeta('step1_classifier_fallback', {
                     reason: 'key not in list',
                     fallbackTo: nextCommand ? { id: nextCommand.id, command: nextCommand.command } : null,
