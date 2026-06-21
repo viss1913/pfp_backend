@@ -5,10 +5,10 @@ const constructorAiService = require('./constructorAiService');
 const maxBotService = require('./maxBotService');
 const { telegramBotOptions, telegramProxyRequestOptions } = require('../utils/telegramProxy');
 
+const TELEGRAM_TEXT_CHUNK = 4000;
+
 /**
- * Экранирует подчёркивания в Telegram Markdown, чтобы никнеймы типа alex_vitte не ломали парсер.
- * (_ в Markdown = курсив, неэкранированный _ даёт "can't find end of entity").
- * Звёздочки * не трогаем — пусть **жирный** остаётся.
+ * Экранирует подчёркивания в Telegram Markdown (legacy). Предпочтительно plain text — см. sendTelegramTextMessage.
  */
 function escapeMarkdown(text) {
     if (typeof text !== 'string') return text;
@@ -20,21 +20,34 @@ function isTelegramParseEntitiesError(err) {
     return /can't parse entities|parse entities/i.test(msg);
 }
 
-async function sendTelegramTextMessage(botInstance, chatId, text, { plain = false } = {}) {
-    if (!text) return;
-    if (plain) {
-        await botInstance.sendMessage(chatId, text);
-        return;
+function splitTelegramText(text) {
+    if (text.length <= TELEGRAM_TEXT_CHUNK) return [text];
+    const chunks = [];
+    for (let i = 0; i < text.length; i += TELEGRAM_TEXT_CHUNK) {
+        chunks.push(text.slice(i, i + TELEGRAM_TEXT_CHUNK));
     }
-    try {
-        await botInstance.sendMessage(chatId, escapeMarkdown(text), { parse_mode: 'Markdown' });
-    } catch (err) {
-        if (isTelegramParseEntitiesError(err)) {
-            console.warn('[Telegram] Markdown parse failed, retrying as plain text');
-            await botInstance.sendMessage(chatId, text);
-            return;
+    return chunks;
+}
+
+/** Constructor bot: plain text only — LLM часто ломает legacy Markdown списками с «*». */
+async function sendTelegramTextMessage(botInstance, chatId, text, { plain = true } = {}) {
+    if (!text) return;
+    const chunks = splitTelegramText(text);
+    for (const chunk of chunks) {
+        if (plain) {
+            await botInstance.sendMessage(chatId, chunk);
+            continue;
         }
-        throw err;
+        try {
+            await botInstance.sendMessage(chatId, escapeMarkdown(chunk), { parse_mode: 'Markdown' });
+        } catch (err) {
+            if (isTelegramParseEntitiesError(err)) {
+                console.warn('[Telegram] Markdown parse failed, retrying as plain text');
+                await botInstance.sendMessage(chatId, chunk);
+                continue;
+            }
+            throw err;
+        }
     }
 }
 
@@ -72,6 +85,7 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
 async function deliverTelegramResponse(botInstance, chatId, response) {
     if (typeof response === 'string') {
         await sendTelegramTextMessage(botInstance, chatId, response);
+        console.log(`[Telegram] Sent text to chat ${chatId} (${response.length} chars)`);
         return;
     }
 
@@ -85,7 +99,10 @@ async function deliverTelegramResponse(botInstance, chatId, response) {
     }
 
     if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
-    if (text) await sendTelegramTextMessage(botInstance, chatId, text, { plain });
+    if (text) {
+        await sendTelegramTextMessage(botInstance, chatId, text, { plain });
+        console.log(`[Telegram] Sent text to chat ${chatId} (${text.length} chars)`);
+    }
 }
 
 /** Токен недействителен или бот удалён в Telegram — дальше polling бессмысленен. */
