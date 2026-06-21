@@ -15,6 +15,29 @@ function escapeMarkdown(text) {
     return text.replace(/\\/g, '\\\\').replace(/_/g, '\\_');
 }
 
+function isTelegramParseEntitiesError(err) {
+    const msg = String(err?.message || err?.response?.body?.description || '');
+    return /can't parse entities|parse entities/i.test(msg);
+}
+
+async function sendTelegramTextMessage(botInstance, chatId, text, { plain = false } = {}) {
+    if (!text) return;
+    if (plain) {
+        await botInstance.sendMessage(chatId, text);
+        return;
+    }
+    try {
+        await botInstance.sendMessage(chatId, escapeMarkdown(text), { parse_mode: 'Markdown' });
+    } catch (err) {
+        if (isTelegramParseEntitiesError(err)) {
+            console.warn('[Telegram] Markdown parse failed, retrying as plain text');
+            await botInstance.sendMessage(chatId, text);
+            return;
+        }
+        throw err;
+    }
+}
+
 async function sendTelegramMediaItems(botInstance, chatId, media = []) {
     const sorted = [...media].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
     if (!sorted.length) return;
@@ -31,6 +54,15 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
                 await botInstance.sendPhoto(chatId, url, opts);
             }
         } catch (err) {
+            if (caption && isTelegramParseEntitiesError(err)) {
+                const plainOpts = caption ? { caption: item.caption } : {};
+                if (item.type === 'video') {
+                    await botInstance.sendVideo(chatId, url, plainOpts);
+                } else {
+                    await botInstance.sendPhoto(chatId, url, plainOpts);
+                }
+                continue;
+            }
             console.error(`[Telegram] Failed to send stage media (${url}):`, err.message || err);
             throw err;
         }
@@ -39,23 +71,21 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
 
 async function deliverTelegramResponse(botInstance, chatId, response) {
     if (typeof response === 'string') {
-        await botInstance.sendMessage(chatId, escapeMarkdown(response), { parse_mode: 'Markdown' });
+        await sendTelegramTextMessage(botInstance, chatId, response);
         return;
     }
 
     const { text = '', document, media, plain } = response;
-    const textOpts = plain ? {} : { parse_mode: 'Markdown' };
-    const textBody = plain ? text : escapeMarkdown(text);
 
     if (document) {
         if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
-        if (text) await botInstance.sendMessage(chatId, textBody, textOpts);
+        if (text) await sendTelegramTextMessage(botInstance, chatId, text, { plain });
         await botInstance.sendDocument(chatId, document);
         return;
     }
 
     if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
-    if (text) await botInstance.sendMessage(chatId, textBody, textOpts);
+    if (text) await sendTelegramTextMessage(botInstance, chatId, text, { plain });
 }
 
 /** Токен недействителен или бот удалён в Telegram — дальше polling бессмысленен. */
