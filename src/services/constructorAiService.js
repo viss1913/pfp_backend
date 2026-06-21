@@ -3009,7 +3009,17 @@ class ConstructorAiService {
             nextCommand &&
             nextCommand.id != null &&
             Number(nextCommand.id) !== Number(previousCommandId);
-        const stageMedia = commandChanged ? parseCommandMedia(nextCommand.media) : [];
+        let stageMedia = [];
+        if (commandChanged && nextCommand.id != null) {
+            const mediaRow = await knex('constructor_commands')
+                .where('id', nextCommand.id)
+                .select('media')
+                .first();
+            stageMedia = parseCommandMedia(mediaRow?.media ?? nextCommand.media);
+            console.log(
+                `[ConstructorAI] Stage switch ${previousCommandId ?? 'none'} -> ${nextCommand.command} (id=${nextCommand.id}): ${stageMedia.length} media file(s)`
+            );
+        }
 
         if (pdfPath) {
             return {

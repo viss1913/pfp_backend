@@ -17,15 +17,22 @@ function escapeMarkdown(text) {
 
 async function sendTelegramMediaItems(botInstance, chatId, media = []) {
     const sorted = [...media].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+    if (!sorted.length) return;
+    console.log(`[Telegram] Sending ${sorted.length} stage media item(s) to chat ${chatId}`);
     for (const item of sorted) {
         const url = item?.url;
         if (!url) continue;
         const caption = item.caption ? escapeMarkdown(item.caption) : undefined;
         const opts = caption ? { caption, parse_mode: 'Markdown' } : {};
-        if (item.type === 'video') {
-            await botInstance.sendVideo(chatId, url, opts);
-        } else {
-            await botInstance.sendPhoto(chatId, url, opts);
+        try {
+            if (item.type === 'video') {
+                await botInstance.sendVideo(chatId, url, opts);
+            } else {
+                await botInstance.sendPhoto(chatId, url, opts);
+            }
+        } catch (err) {
+            console.error(`[Telegram] Failed to send stage media (${url}):`, err.message || err);
+            throw err;
         }
     }
 }
@@ -41,14 +48,14 @@ async function deliverTelegramResponse(botInstance, chatId, response) {
     const textBody = plain ? text : escapeMarkdown(text);
 
     if (document) {
+        if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
         if (text) await botInstance.sendMessage(chatId, textBody, textOpts);
         await botInstance.sendDocument(chatId, document);
-        if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
         return;
     }
 
-    if (text) await botInstance.sendMessage(chatId, textBody, textOpts);
     if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
+    if (text) await botInstance.sendMessage(chatId, textBody, textOpts);
 }
 
 /** Токен недействителен или бот удалён в Telegram — дальше polling бессмысленен. */
