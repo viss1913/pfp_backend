@@ -94,7 +94,10 @@ function requestViaHttpProxy(proxyUrl) {
 }
 
 function requestViaSocks(proxyUrl) {
-    const agent = new SocksProxyAgent(proxyUrl);
+    const socksUrl = String(proxyUrl)
+        .replace(/^socks5:\/\//i, 'socks5h://')
+        .replace(/^socks4:\/\//i, 'socks4a://');
+    const agent = new SocksProxyAgent(socksUrl);
     return new Promise((resolve, reject) => {
         const req = https.get(TARGET, { agent, timeout: TIMEOUT_MS }, (res) => {
             res.resume();

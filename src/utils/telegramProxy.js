@@ -3,8 +3,20 @@ const { SocksProxyAgent } = require('socks-proxy-agent');
 let loggedOnce = false;
 
 /**
+ * socks5:// резолвит хост локально (на Immers api.telegram.org → заблокированный IP).
+ * socks5h:// — DNS на стороне прокси (аналог curl --socks5-hostname).
+ * @param {string} url
+ * @returns {string}
+ */
+function socksProxyUrlWithRemoteDns(url) {
+    return String(url)
+        .replace(/^socks5:\/\//i, 'socks5h://')
+        .replace(/^socks4:\/\//i, 'socks4a://');
+}
+
+/**
  * Исходящий прокси только для node-telegram-bot-api (не глобальный HTTP_PROXY).
- * TELEGRAM_PROXY_URL: http(s)://[user:pass@]host:port или socks5://[user:pass@]host:port
+ * TELEGRAM_PROXY_URL: http(s)://[user:pass@]host:port или socks5(h)://[user:pass@]host:port
  * @returns {import('request').CoreOptions}
  */
 function telegramProxyRequestOptions() {
@@ -33,17 +45,19 @@ function telegramProxyRequestOptions() {
         return { proxy: url };
     }
 
-    if (protocol === 'socks5' || protocol === 'socks4') {
+    if (protocol === 'socks5' || protocol === 'socks5h' || protocol === 'socks4' || protocol === 'socks4a') {
+        const socksUrl = socksProxyUrlWithRemoteDns(url);
         if (!loggedOnce) {
             loggedOnce = true;
             console.info(
-                '[telegramProxy] Telegram Bot API uses TELEGRAM_PROXY_URL (%s proxy host=%s port=%s)',
+                '[telegramProxy] Telegram Bot API uses TELEGRAM_PROXY_URL (%s → remote DNS, host=%s port=%s)',
                 protocol,
                 parsed.hostname,
                 parsed.port || '1080'
             );
         }
-        return { agent: new SocksProxyAgent(url) };
+        const agent = new SocksProxyAgent(socksUrl);
+        return { agent, httpsAgent: agent, httpAgent: agent };
     }
 
     console.warn('[telegramProxy] TELEGRAM_PROXY_URL must be http(s):// or socks5://, ignored');
