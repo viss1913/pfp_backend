@@ -1308,10 +1308,29 @@ function userMessageImpliesAdvanceToNextStage(userMessage) {
         'да понятно',
         'да понимаю',
         'ок понял',
+        'ок дальше',
         'следующий этап',
         'следующий шаг',
     ]);
     return exact.has(t);
+}
+
+const CLASSIFIER_RETRY_NUDGE =
+    'Неверный формат. Ответь ТОЛЬКО одним ключом команды из списка — одна строка, без текста и пояснений.';
+
+/** Оркестратор валиден только если весь ответ — ровно одна строка с ключом из whitelist. */
+function parseStrictClassifierCommandFromLlm(rawResponse, commands) {
+    const lines = String(rawResponse || '')
+        .trim()
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+    if (lines.length !== 1) return null;
+    return findCommandByKey(commands, lines[0]) || null;
+}
+
+function isClassifierLlmResponseValidCommand(rawResponse, commands) {
+    return parseStrictClassifierCommandFromLlm(rawResponse, commands) != null;
 }
 
 /** Следующий этап FOA по имени команды (/family_office_3 → /family_office_4, /platform_1 → /platform_2). */
@@ -1967,29 +1986,59 @@ class ConstructorAiService {
             console.log(`[AI Step 1] User Message: "${userMessage}"`);
             console.log(`[AI Step 1] System Prompt Instructions: ${classifierInstructions}`);
 
-            const result = await aiService.getCompletion(prompt);
-
-            const rawTrimmed = result.trim();
             const fallbackCmd = currentCommand || findCommandByKey(commands, '/start');
-            const nextCommandFromLlm = parseClassifierCommandFromLlm(rawTrimmed, commands, fallbackCmd);
-            const detectedCommand = nextCommandFromLlm?.command || rawTrimmed.split('\n')[0].trim();
+
+            let rawTrimmed = (await aiService.getCompletion(prompt)).trim();
+            let nextCommandFromLlm = parseStrictClassifierCommandFromLlm(rawTrimmed, commands);
 
             console.log(`[ConstructorAI Step1] ОТВЕТ роутера LLM (raw): ${JSON.stringify(rawTrimmed)}`);
             console.log(`[AI Step 1] Classifier RAW response: "${rawTrimmed}"`);
+
+            if (!nextCommandFromLlm) {
+                console.log('[ConstructorAI Step1] Роутер не вернул команду (не одна строка / ключ) — retry');
+                const retryPrompt = [
+                    ...prompt,
+                    { role: 'assistant', content: rawTrimmed },
+                    { role: 'user', content: CLASSIFIER_RETRY_NUDGE },
+                ];
+                traceConstructorMessages('step1_classifier_llm_retry_request', retryPrompt);
+
+                rawTrimmed = (await aiService.getCompletion(retryPrompt)).trim();
+                nextCommandFromLlm = parseStrictClassifierCommandFromLlm(rawTrimmed, commands);
+
+                console.log(`[ConstructorAI Step1] ОТВЕТ роутера LLM (retry raw): ${JSON.stringify(rawTrimmed)}`);
+                traceConstructorMeta('step1_classifier_llm_retry_response', {
+                    raw: rawTrimmed,
+                    parsedKey: nextCommandFromLlm?.command || null,
+                    valid: isClassifierLlmResponseValidCommand(rawTrimmed, commands),
+                });
+            }
+
+            const detectedCommand = nextCommandFromLlm?.command || rawTrimmed.split('\n')[0].trim();
             console.log(`[AI Step 1] Classifier cleaned command: "${detectedCommand}"`);
 
             traceConstructorMeta('step1_classifier_llm_response', {
                 raw: rawTrimmed,
                 parsedKey: detectedCommand,
+                strictValid: nextCommandFromLlm != null,
             });
 
             let nextCommand = nextCommandFromLlm;
 
             if (!nextCommand) {
-                console.log(`[AI Step 1] Command "${detectedCommand}" not in list; fallback to current or /start`);
-                nextCommand = fallbackCmd;
+                const nextByAdvance =
+                    currentCommand && userMessageImpliesAdvanceToNextStage(userMessage)
+                        ? resolveNextAcademyCommand(commands, currentCommand)
+                        : null;
+                nextCommand = nextByAdvance || fallbackCmd;
+                console.log(
+                    `[AI Step 1] Роутер после retry не дал команду; fallback → ${nextCommand?.command || 'null'}${
+                        nextByAdvance ? ' (advance phrase)' : ''
+                    }`
+                );
                 traceConstructorMeta('step1_classifier_fallback', {
-                    reason: 'key not in list',
+                    reason: 'invalid llm response after retry',
+                    advancePhrase: Boolean(nextByAdvance),
                     fallbackTo: nextCommand ? { id: nextCommand.id, command: nextCommand.command } : null,
                 });
             }
@@ -3218,3 +3267,8 @@ function buildFirstRunLayeredMessagesForSmoke(opts = {}) {
 const constructorAiServiceSingleton = new ConstructorAiService();
 constructorAiServiceSingleton.buildFirstRunLayeredMessagesForSmoke = buildFirstRunLayeredMessagesForSmoke;
 module.exports = constructorAiServiceSingleton;
+module.exports.parseStrictClassifierCommandFromLlm = parseStrictClassifierCommandFromLlm;
+module.exports.isClassifierLlmResponseValidCommand = isClassifierLlmResponseValidCommand;
+module.exports.parseClassifierCommandFromLlm = parseClassifierCommandFromLlm;
+module.exports.userMessageImpliesAdvanceToNextStage = userMessageImpliesAdvanceToNextStage;
+module.exports.resolveNextAcademyCommand = resolveNextAcademyCommand;
