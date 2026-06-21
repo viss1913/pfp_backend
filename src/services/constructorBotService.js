@@ -117,6 +117,22 @@ function isTelegramBotGoneError(error) {
 class ConstructorBotService {
     constructor() {
         this.bots = new Map(); // botId -> { instance, token, type, secret }
+        /** Очередь на chatId: без неё параллельные handlers крутят sendChatAction(typing) вечно. */
+        this.chatQueues = new Map(); // `${botId}:${chatId}` -> Promise
+    }
+
+    _runQueuedChatTask(queueKey, task) {
+        const prev = this.chatQueues.get(queueKey) || Promise.resolve();
+        const run = prev.catch(() => {}).then(task);
+        this.chatQueues.set(
+            queueKey,
+            run.finally(() => {
+                if (this.chatQueues.get(queueKey) === run) {
+                    this.chatQueues.delete(queueKey);
+                }
+            })
+        );
+        return run;
     }
 
     /**
@@ -208,30 +224,32 @@ class ConstructorBotService {
     }
 
     /**
-     * Обработка сообщения из Telegram
+     * Обработка сообщения из Telegram (с очередью на чат — одно сообщение за раз).
      */
     async handleTelegramMessage(botData, botInstance, msg) {
         console.log(`[Telegram] Received message from ${msg.from.id}: "${msg.text}"`);
         if (!msg.text) return;
 
+        const queueKey = `${botData.id}:${msg.chat.id}`;
+        return this._runQueuedChatTask(queueKey, () =>
+            this._handleTelegramMessageInner(botData, botInstance, msg)
+        );
+    }
+
+    async _handleTelegramMessageInner(botData, botInstance, msg) {
+        let typingInterval;
         try {
-            // «Печатает...» пока бот обрабатывает сообщение
             await botInstance.sendChatAction(msg.chat.id, 'typing');
-            const typingInterval = setInterval(() => {
+            typingInterval = setInterval(() => {
                 botInstance.sendChatAction(msg.chat.id, 'typing').catch(() => { });
             }, 4000);
 
-            let response;
-            try {
-                response = await constructorAiService.processMessage(
-                    botData.id,
-                    msg.from.id.toString(),
-                    msg.from.username || msg.from.first_name,
-                    msg.text
-                );
-            } finally {
-                clearInterval(typingInterval);
-            }
+            const response = await constructorAiService.processMessage(
+                botData.id,
+                msg.from.id.toString(),
+                msg.from.username || msg.from.first_name,
+                msg.text
+            );
 
             await deliverTelegramResponse(botInstance, msg.chat.id, response);
 
@@ -248,6 +266,8 @@ class ConstructorBotService {
             } catch (sendErr) {
                 console.error('Failed to send error message:', sendErr);
             }
+        } finally {
+            if (typingInterval) clearInterval(typingInterval);
         }
     }
 
