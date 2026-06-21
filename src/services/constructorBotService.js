@@ -55,6 +55,7 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
     const sorted = [...media].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
     if (!sorted.length) return;
     console.log(`[Telegram] Sending ${sorted.length} stage media item(s) to chat ${chatId}`);
+    await botInstance.sendChatAction(chatId, 'upload_photo').catch(() => { });
     for (const item of sorted) {
         const url = item?.url;
         if (!url) continue;
@@ -238,9 +239,20 @@ class ConstructorBotService {
 
     async _handleTelegramMessageInner(botData, botInstance, msg) {
         let typingInterval;
+        let typingActive = false;
+        const stopTyping = () => {
+            typingActive = false;
+            if (typingInterval) {
+                clearInterval(typingInterval);
+                typingInterval = null;
+            }
+        };
+
         try {
+            typingActive = true;
             await botInstance.sendChatAction(msg.chat.id, 'typing');
             typingInterval = setInterval(() => {
+                if (!typingActive) return;
                 botInstance.sendChatAction(msg.chat.id, 'typing').catch(() => { });
             }, 4000);
 
@@ -250,6 +262,9 @@ class ConstructorBotService {
                 msg.from.username || msg.from.first_name,
                 msg.text
             );
+
+            // Не держим «печатает…» пока грузится фото — иначе Telegram висит после доставки
+            stopTyping();
 
             await deliverTelegramResponse(botInstance, msg.chat.id, response);
 
@@ -267,7 +282,7 @@ class ConstructorBotService {
                 console.error('Failed to send error message:', sendErr);
             }
         } finally {
-            if (typingInterval) clearInterval(typingInterval);
+            stopTyping();
         }
     }
 
