@@ -17,6 +17,7 @@
     "test:portfolio-fallback": "node scripts/test_portfolio_find_by_criteria_fallback.js",
     "r2:smoke": "node scripts/r2_smoke_test.js",
     "smoke:resend": "node scripts/smoke_resend.js",
+    "smoke:telegram-proxy": "node scripts/smoke_telegram_proxy.mjs",
     "preview:nda": "node scripts/generate_nda_preview_html.js",
     "r2:upload-sample-image": "node scripts/r2_upload_sample_image.js",
     "seed:pdf-cover-default": "node scripts/seed_default_report_cover_all_agents.js",
@@ -32,7 +33,9 @@
     "seed:pdf-summary-stock-assets-r2": "node scripts/seed_pdf_summary_stock_assets_r2.js",
     "import:comon-recommended": "node scripts/import_comon_recommended_strategies.js",
     "sync:comon-recommended": "node scripts/sync_comon_recommended_strategies.js",
-    "docs:atb-brief-html": "node scripts/md_to_print_html.mjs docs/atb/ATB_SECURITY_IT_BRIEF.md docs/atb/ATB_SECURITY_IT_BRIEF.consulting.html \"BankFuture PFP — сводка для ИБ и ИТ АТБ Банка\" --consulting && node scripts/md_to_print_html.mjs docs/atb/ATB_SECURITY_IT_BRIEF.md docs/atb/ATB_SECURITY_IT_BRIEF.print.html \"BankFuture PFP — сводка для ИБ и ИТ АТБ Банка\""
+    "docs:atb-brief-html": "node scripts/md_to_print_html.mjs docs/atb/ATB_SECURITY_IT_BRIEF.md docs/atb/ATB_SECURITY_IT_BRIEF.consulting.html \"BankFuture PFP — сводка для ИБ и ИТ АТБ Банка\" --consulting && node scripts/md_to_print_html.mjs docs/atb/ATB_SECURITY_IT_BRIEF.md docs/atb/ATB_SECURITY_IT_BRIEF.print.html \"BankFuture PFP — сводка для ИБ и ИТ АТБ Банка\"",
+    "deck:klerk-screenshots": "node scripts/klerk_deck_screenshots.mjs",
+    "deck:klerk-kie-pdf": "node scripts/klerk_deck_kie_mckinsey_pdf.mjs"
   },
   "keywords": [],
   "author": "",
@@ -67,6 +70,7 @@
     "puppeteer": "^24.40.0",
     "resend": "^6.9.2",
     "sharp": "^0.34.5",
+    "socks-proxy-agent": "^10.1.0",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.19.0",
     "xlsx": "^0.18.5",
