@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { sanitizeLlmUserText } = require('../utils/sanitizeLlmUserText');
 require('dotenv').config();
 
 class AiService {
@@ -150,7 +151,7 @@ class AiService {
                         options.appendTextBeforeDone && String(options.appendTextBeforeDone).length > 0
                             ? String(options.appendTextBeforeDone)
                             : '';
-                    resolve(fullText + tail);
+                    resolve(sanitizeLlmUserText(fullText + tail));
                 });
 
                 response.data.on('error', (err) => {
@@ -220,7 +221,7 @@ class AiService {
                         timeout: 30000 // 30 seconds timeout
                     }
                 );
-                return response.data.choices[0].message.content;
+                return sanitizeLlmUserText(response.data.choices[0].message.content);
             } catch (error) {
                 lastError = error;
                 const status = error.response ? error.response.status : 'No Response';
