@@ -125,7 +125,16 @@ function keyFromPublicUrl(storedUrl) {
  * Без ACL: у R2 x-amz-acl часто NotImplemented.
  * @returns {{ ok: true, url: string, storage: 'r2' } | { ok: false, reason: string, detail?: string }}
  */
-async function uploadPublicFile({ key, body, contentType }) {
+function buildContentDisposition(filename) {
+    const name = String(filename || '').trim();
+    if (!name) return undefined;
+    const withExt = /\.[a-z0-9]+$/i.test(name) ? name : `${name}.pdf`;
+    const ascii = withExt.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
+    const encoded = encodeURIComponent(withExt);
+    return `inline; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
+async function uploadPublicFile({ key, body, contentType, filename }) {
     const client = getR2Client();
     if (!client) {
         return { ok: false, reason: 'r2_not_configured' };
@@ -135,6 +144,7 @@ async function uploadPublicFile({ key, body, contentType }) {
     const k = String(key).replace(/^\/+/, '');
 
     try {
+        const contentDisposition = buildContentDisposition(filename);
         await client.send(
             new PutObjectCommand({
                 Bucket: bucket,
@@ -142,6 +152,7 @@ async function uploadPublicFile({ key, body, contentType }) {
                 Body: body,
                 ContentType: contentType || 'application/octet-stream',
                 CacheControl: 'public, max-age=31536000',
+                ...(contentDisposition ? { ContentDisposition: contentDisposition } : {}),
             })
         );
     } catch (err) {

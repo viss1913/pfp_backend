@@ -108,6 +108,19 @@ function resolveTelegramDocumentFilename(item, fallback = 'document.pdf') {
     return fallback;
 }
 
+/** Безопасный slug для ключа в R2 — Telegram берёт имя из URL, если нет Content-Disposition. */
+function mediaFilenameToKeySlug(filename, fallback = 'document') {
+    const raw = String(filename || '').trim().replace(/\.[a-z0-9]+$/i, '');
+    const base = raw || fallback;
+    return (
+        base
+            .replace(/[^\w.\- \u0400-\u04FF]+/g, '_')
+            .replace(/\s+/g, '_')
+            .replace(/_+/g, '_')
+            .slice(0, 60) || fallback
+    );
+}
+
 function enrichCommandRow(row) {
     if (!row || typeof row !== 'object') return row;
     return {
@@ -126,5 +139,6 @@ module.exports = {
     inferMediaType,
     commandKeyToSlug,
     resolveTelegramDocumentFilename,
+    mediaFilenameToKeySlug,
     enrichCommandRow,
 };

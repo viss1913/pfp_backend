@@ -14,6 +14,7 @@ const {
     normalizeCommandMediaForDb,
     inferMediaType,
     commandKeyToSlug,
+    mediaFilenameToKeySlug,
     enrichCommandRow,
     MAX_MEDIA_PER_COMMAND,
 } = require('../utils/constructorCommandMedia');
@@ -490,9 +491,18 @@ class ConstructorController {
                 return res.status(400).json({ error: 'Неподдерживаемый тип файла' });
             }
 
-            const ext = path.extname(req.file.originalname || '') || (type === 'video' ? '.mp4' : '.webp');
+            const bodyFilename =
+                typeof req.body.filename === 'string' ? req.body.filename.trim() : '';
+            const storedFilename =
+                bodyFilename ||
+                normalizeUploadedFilename(req.file.originalname) ||
+                null;
+
+            const ext = path.extname(storedFilename || req.file.originalname || '') ||
+                (type === 'video' ? '.mp4' : type === 'document' ? '.pdf' : '.webp');
             const slug = commandKeyToSlug(existing.command);
-            const key = `constructor-commands/${projectId}/${slug}/${Date.now()}_${crypto.randomUUID()}${ext}`;
+            const fileSlug = mediaFilenameToKeySlug(storedFilename, type === 'document' ? 'document' : 'media');
+            const key = `constructor-commands/${projectId}/${slug}/${fileSlug}_${Date.now()}${ext}`;
 
             const up = await uploadPublicFile({
                 key,
@@ -500,6 +510,7 @@ class ConstructorController {
                 contentType:
                     req.file.mimetype ||
                     (type === 'video' ? 'video/mp4' : type === 'document' ? 'application/pdf' : 'image/webp'),
+                filename: storedFilename || undefined,
             });
 
             if (!up.ok) {
@@ -522,13 +533,6 @@ class ConstructorController {
                 }
                 return res.status(503).json({ error: 'Storage upload failed', reason: up.reason });
             }
-
-            const bodyFilename =
-                typeof req.body.filename === 'string' ? req.body.filename.trim() : '';
-            const storedFilename =
-                bodyFilename ||
-                normalizeUploadedFilename(req.file.originalname) ||
-                null;
 
             const item = {
                 id: crypto.randomUUID(),
