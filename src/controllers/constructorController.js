@@ -17,6 +17,7 @@ const {
     enrichCommandRow,
     MAX_MEDIA_PER_COMMAND,
 } = require('../utils/constructorCommandMedia');
+const { normalizeUploadedFilename } = require('../services/documentTextExtractionService');
 const {
     resolveProjectId,
     findBotInProject,
@@ -522,12 +523,19 @@ class ConstructorController {
                 return res.status(503).json({ error: 'Storage upload failed', reason: up.reason });
             }
 
+            const bodyFilename =
+                typeof req.body.filename === 'string' ? req.body.filename.trim() : '';
+            const storedFilename =
+                bodyFilename ||
+                normalizeUploadedFilename(req.file.originalname) ||
+                null;
+
             const item = {
                 id: crypto.randomUUID(),
                 type,
                 url: up.url,
                 key,
-                filename: req.file.originalname || null,
+                filename: storedFilename,
                 mime: req.file.mimetype || null,
                 caption: typeof req.body.caption === 'string' ? req.body.caption.trim() : '',
                 sort: media.length,

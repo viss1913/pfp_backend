@@ -4,6 +4,8 @@ const knex = require('../config/database');
 const constructorAiService = require('./constructorAiService');
 const maxBotService = require('./maxBotService');
 const { telegramBotOptions, telegramProxyRequestOptions } = require('../utils/telegramProxy');
+const { resolveTelegramDocumentFilename } = require('../utils/constructorCommandMedia');
+const { getObjectBuffer } = require('../utils/r2Client');
 
 const TELEGRAM_TEXT_CHUNK = 4000;
 
@@ -51,6 +53,40 @@ async function sendTelegramTextMessage(botInstance, chatId, text, { plain = true
     }
 }
 
+async function loadTelegramMediaBuffer(item) {
+    if (item?.key) {
+        const got = await getObjectBuffer(item.key);
+        if (got.ok && got.buffer) {
+            return { buffer: got.buffer, contentType: got.contentType || item.mime };
+        }
+    }
+    const res = await fetch(item.url);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch media (${res.status})`);
+    }
+    return {
+        buffer: Buffer.from(await res.arrayBuffer()),
+        contentType: item.mime || res.headers.get('content-type'),
+    };
+}
+
+async function sendTelegramDocument(botInstance, chatId, item, opts, plainOpts) {
+    const { buffer, contentType } = await loadTelegramMediaBuffer(item);
+    const fileOpts = {
+        filename: resolveTelegramDocumentFilename(item),
+        contentType: contentType || 'application/pdf',
+    };
+    try {
+        await botInstance.sendDocument(chatId, buffer, opts, fileOpts);
+    } catch (err) {
+        if (plainOpts && isTelegramParseEntitiesError(err)) {
+            await botInstance.sendDocument(chatId, buffer, plainOpts, fileOpts);
+            return;
+        }
+        throw err;
+    }
+}
+
 async function sendTelegramMediaItems(botInstance, chatId, media = []) {
     const sorted = [...media].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
     if (!sorted.length) return;
@@ -66,17 +102,15 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
         const plainOpts = caption ? { caption: item.caption } : {};
         try {
             if (item.type === 'document') {
-                await botInstance.sendDocument(chatId, url, opts);
+                await sendTelegramDocument(botInstance, chatId, item, opts, plainOpts);
             } else if (item.type === 'video') {
                 await botInstance.sendVideo(chatId, url, opts);
             } else {
                 await botInstance.sendPhoto(chatId, url, opts);
             }
         } catch (err) {
-            if (caption && isTelegramParseEntitiesError(err)) {
-                if (item.type === 'document') {
-                    await botInstance.sendDocument(chatId, url, plainOpts);
-                } else if (item.type === 'video') {
+            if (caption && isTelegramParseEntitiesError(err) && item.type !== 'document') {
+                if (item.type === 'video') {
                     await botInstance.sendVideo(chatId, url, plainOpts);
                 } else {
                     await botInstance.sendPhoto(chatId, url, plainOpts);

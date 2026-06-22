@@ -93,6 +93,21 @@ function commandKeyToSlug(commandKey = '') {
         .slice(0, 80) || 'command';
 }
 
+/** Имя файла для отображения в Telegram (не путать с S3 key). */
+function resolveTelegramDocumentFilename(item, fallback = 'document.pdf') {
+    const raw = String(item?.filename || '').trim();
+    if (raw) {
+        return raw.toLowerCase().endsWith('.pdf') ? raw : `${raw}.pdf`;
+    }
+    try {
+        const base = decodeURIComponent(new URL(item.url).pathname.split('/').pop() || '');
+        if (base && base.includes('.')) return base;
+    } catch {
+        // noop
+    }
+    return fallback;
+}
+
 function enrichCommandRow(row) {
     if (!row || typeof row !== 'object') return row;
     return {
@@ -110,5 +125,6 @@ module.exports = {
     normalizeCommandMediaForDb,
     inferMediaType,
     commandKeyToSlug,
+    resolveTelegramDocumentFilename,
     enrichCommandRow,
 };
