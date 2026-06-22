@@ -2641,8 +2641,8 @@ paths:
   /pfp/constructor/commands/{id}/media:
     post:
       tags: [ "Конструктор ИИ" ]
-      summary: Загрузить картинку или видео к стадии CJM
-      description: multipart/form-data, поле `file`. До 5 файлов на команду. Хранение в R2.
+      summary: Загрузить картинку, видео или PDF к стадии CJM
+      description: multipart/form-data, поле `file`. До 5 файлов на команду. Хранение в R2. PDF отправляется в Telegram как документ.
       parameters:
         - name: id
           in: path
@@ -4093,7 +4093,7 @@ components:
       type: object
       properties:
         id: { type: string, description: UUID файла в массиве media }
-        type: { type: string, enum: [image, video] }
+        type: { type: string, enum: [image, video, document] }
         url: { type: string, description: Публичный URL в R2/CDN }
         key: { type: string, nullable: true, description: Ключ объекта в R2 }
         filename: { type: string, nullable: true }
@@ -4115,7 +4115,7 @@ components:
         media:
           type: array
           nullable: true
-          description: Картинки/видео стадии (до 5). Отправляются в Telegram при переходе на стадию.
+          description: Картинки, видео и PDF стадии (до 5). Отправляются в Telegram при переходе на стадию.
           items: { $ref: '#/components/schemas/ConstructorCommandMediaItem' }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

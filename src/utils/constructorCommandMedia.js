@@ -17,9 +17,11 @@ const VIDEO_MIMES = new Set([
     'video/quicktime',
 ]);
 
+const DOCUMENT_MIMES = new Set(['application/pdf']);
+
 /**
  * @param {unknown} raw
- * @returns {Array<{ id: string, type: 'image'|'video', url: string, key?: string, filename?: string, mime?: string, caption?: string, sort: number }>}
+ * @returns {Array<{ id: string, type: 'image'|'video'|'document', url: string, key?: string, filename?: string, mime?: string, caption?: string, sort: number }>}
  */
 function parseCommandMedia(raw) {
     if (raw == null || raw === '') return [];
@@ -42,7 +44,12 @@ function normalizeMediaItem(item, fallbackSort = 0) {
     if (!item || typeof item !== 'object') return null;
     const url = typeof item.url === 'string' ? item.url.trim() : '';
     if (!url) return null;
-    const type = item.type === 'video' ? 'video' : 'image';
+    let type = 'image';
+    if (item.type === 'video') type = 'video';
+    else if (item.type === 'document') type = 'document';
+    else if (item.mime === 'application/pdf' || String(item.filename || '').toLowerCase().endsWith('.pdf')) {
+        type = 'document';
+    }
     return {
         id: typeof item.id === 'string' && item.id ? item.id : crypto.randomUUID(),
         type,
@@ -72,6 +79,7 @@ function normalizeCommandMediaForDb(input) {
 function inferMediaType(mime, filename = '') {
     const m = String(mime || '').toLowerCase();
     const ext = path.extname(filename).toLowerCase();
+    if (DOCUMENT_MIMES.has(m) || ext === '.pdf') return 'document';
     if (VIDEO_MIMES.has(m) || ['.mp4', '.webm', '.mov'].includes(ext)) return 'video';
     if (IMAGE_MIMES.has(m) || ['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext)) return 'image';
     return null;
@@ -97,6 +105,7 @@ module.exports = {
     MAX_MEDIA_PER_COMMAND,
     IMAGE_MIMES,
     VIDEO_MIMES,
+    DOCUMENT_MIMES,
     parseCommandMedia,
     normalizeCommandMediaForDb,
     inferMediaType,

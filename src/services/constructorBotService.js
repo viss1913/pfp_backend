@@ -55,22 +55,28 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
     const sorted = [...media].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
     if (!sorted.length) return;
     console.log(`[Telegram] Sending ${sorted.length} stage media item(s) to chat ${chatId}`);
-    await botInstance.sendChatAction(chatId, 'upload_photo').catch(() => { });
+    const hasDocument = sorted.some((item) => item?.type === 'document');
+    const chatAction = hasDocument ? 'upload_document' : 'upload_photo';
+    await botInstance.sendChatAction(chatId, chatAction).catch(() => { });
     for (const item of sorted) {
         const url = item?.url;
         if (!url) continue;
         const caption = item.caption ? escapeMarkdown(item.caption) : undefined;
         const opts = caption ? { caption, parse_mode: 'Markdown' } : {};
+        const plainOpts = caption ? { caption: item.caption } : {};
         try {
-            if (item.type === 'video') {
+            if (item.type === 'document') {
+                await botInstance.sendDocument(chatId, url, opts);
+            } else if (item.type === 'video') {
                 await botInstance.sendVideo(chatId, url, opts);
             } else {
                 await botInstance.sendPhoto(chatId, url, opts);
             }
         } catch (err) {
             if (caption && isTelegramParseEntitiesError(err)) {
-                const plainOpts = caption ? { caption: item.caption } : {};
-                if (item.type === 'video') {
+                if (item.type === 'document') {
+                    await botInstance.sendDocument(chatId, url, plainOpts);
+                } else if (item.type === 'video') {
                     await botInstance.sendVideo(chatId, url, plainOpts);
                 } else {
                     await botInstance.sendPhoto(chatId, url, plainOpts);

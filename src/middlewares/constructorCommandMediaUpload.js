@@ -1,9 +1,9 @@
 const multer = require('multer');
 const path = require('path');
-const { IMAGE_MIMES, VIDEO_MIMES } = require('../utils/constructorCommandMedia');
+const { IMAGE_MIMES, VIDEO_MIMES, DOCUMENT_MIMES } = require('../utils/constructorCommandMedia');
 
-const ALLOWED_MIMES = new Set([...IMAGE_MIMES, ...VIDEO_MIMES]);
-const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.mp4', '.webm', '.mov']);
+const ALLOWED_MIMES = new Set([...IMAGE_MIMES, ...VIDEO_MIMES, ...DOCUMENT_MIMES]);
+const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.mp4', '.webm', '.mov', '.pdf']);
 
 const constructorCommandMediaUpload = multer({
     storage: multer.memoryStorage(),
@@ -13,7 +13,7 @@ const constructorCommandMediaUpload = multer({
         if (ALLOWED_MIMES.has(file.mimetype) || ALLOWED_EXT.has(ext)) {
             return cb(null, true);
         }
-        return cb(new Error('Допустимы изображения (jpg, png, webp, gif) и видео (mp4, webm, mov)'));
+        return cb(new Error('Допустимы изображения (jpg, png, webp, gif), видео (mp4, webm, mov) и PDF'));
     },
 });
 

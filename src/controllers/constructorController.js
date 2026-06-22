@@ -496,7 +496,9 @@ class ConstructorController {
             const up = await uploadPublicFile({
                 key,
                 body: req.file.buffer,
-                contentType: req.file.mimetype || (type === 'video' ? 'video/mp4' : 'image/webp'),
+                contentType:
+                    req.file.mimetype ||
+                    (type === 'video' ? 'video/mp4' : type === 'document' ? 'application/pdf' : 'image/webp'),
             });
 
             if (!up.ok) {
