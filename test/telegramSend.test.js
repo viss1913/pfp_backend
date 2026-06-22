@@ -27,6 +27,15 @@ test('isRetryableTelegramError: retry on HTTP 502', () => {
     assert.equal(isRetryableTelegramError(err), true);
 });
 
+test('isUncertainTelegramDeliveryError: ESOCKETTIMEDOUT from request library', () => {
+    const cause = new Error('Error: ESOCKETTIMEDOUT');
+    cause.code = 'ESOCKETTIMEDOUT';
+    const err = new Error('RequestError: Error: ESOCKETTIMEDOUT');
+    err.cause = cause;
+    assert.equal(isUncertainTelegramDeliveryError(err), true);
+    assert.equal(isRetryableTelegramError(err), false);
+});
+
 test('callTelegramApi does not retry sendMessage after timeout', async () => {
     let calls = 0;
     await assert.rejects(

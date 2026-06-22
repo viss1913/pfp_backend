@@ -14,17 +14,36 @@ function withTimeout(promise, ms, label) {
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+function collectTelegramErrorText(err) {
+    const parts = [];
+    let current = err;
+    while (current) {
+        if (current.message) parts.push(String(current.message));
+        if (current.code) parts.push(String(current.code));
+        current = current.cause;
+    }
+    return parts.join(' ');
+}
+
 function isTelegramApiTimeoutError(err) {
-    return String(err?.message || '').includes('Telegram API timeout:');
+    return collectTelegramErrorText(err).includes('Telegram API timeout:');
 }
 
 function isTelegramChatHandlerTimeoutError(err) {
-    return String(err?.message || '').includes('Telegram chat handler timeout:');
+    return collectTelegramErrorText(err).includes('Telegram chat handler timeout:');
 }
 
-/** Таймаут ответа через прокси — sendMessage мог уже уйти в Telegram, повтор опасен. */
+/** Таймаут сокета/ответа через прокси — sendMessage мог уже уйти в Telegram, повтор и «ошибка» опасны. */
+function isTelegramSocketTimeoutError(err) {
+    return /ESOCKETTIMEDOUT|ETIMEDOUT|ECONNABORTED/i.test(collectTelegramErrorText(err));
+}
+
 function isUncertainTelegramDeliveryError(err) {
-    return isTelegramApiTimeoutError(err) || isTelegramChatHandlerTimeoutError(err);
+    return (
+        isTelegramApiTimeoutError(err) ||
+        isTelegramChatHandlerTimeoutError(err) ||
+        isTelegramSocketTimeoutError(err)
+    );
 }
 
 /**
@@ -33,9 +52,9 @@ function isUncertainTelegramDeliveryError(err) {
  * @returns {boolean}
  */
 function isRetryableTelegramError(err) {
-    if (isTelegramApiTimeoutError(err)) return false;
+    if (isUncertainTelegramDeliveryError(err)) return false;
 
-    const msg = String(err?.message || err?.code || '');
+    const msg = collectTelegramErrorText(err);
     const status = err?.response?.statusCode ?? err?.response?.status;
 
     if (status === 429) return true;
@@ -78,6 +97,11 @@ async function callTelegramApi(operation, label, options = {}) {
                     );
                     throw err;
                 }
+            } else if (isTelegramSocketTimeoutError(err)) {
+                console.warn(
+                    `[Telegram] ${label}: socket timeout — not retrying (message may already be delivered via proxy)`
+                );
+                throw err;
             } else if (!isRetryableTelegramError(err)) {
                 throw err;
             }
@@ -97,6 +121,7 @@ module.exports = {
     TELEGRAM_CHAT_TASK_TIMEOUT_MS,
     isTelegramApiTimeoutError,
     isTelegramChatHandlerTimeoutError,
+    isTelegramSocketTimeoutError,
     isUncertainTelegramDeliveryError,
     isRetryableTelegramError,
     callTelegramApi,

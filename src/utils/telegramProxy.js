@@ -32,7 +32,7 @@ function buildRequestOptionsFromProxyUrl(parsed) {
     if (!parsed) return {};
 
     const protocol = parsed.protocol.replace(':', '');
-    const timeout = Number(process.env.TELEGRAM_API_TIMEOUT_MS || 45000);
+    const timeout = Number(process.env.TELEGRAM_API_TIMEOUT_MS || 60000);
     const base = {
         timeout,
         forever: false,
