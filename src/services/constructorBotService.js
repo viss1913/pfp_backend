@@ -6,6 +6,24 @@ const maxBotService = require('./maxBotService');
 const { telegramBotOptions, telegramProxyRequestOptions } = require('../utils/telegramProxy');
 
 const TELEGRAM_TEXT_CHUNK = 4000;
+const TELEGRAM_API_TIMEOUT_MS = Number(process.env.TELEGRAM_API_TIMEOUT_MS || 45000);
+const TELEGRAM_CHAT_TASK_TIMEOUT_MS = Number(process.env.TELEGRAM_CHAT_TASK_TIMEOUT_MS || 120000);
+
+function withTimeout(promise, ms, label) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} (${ms}ms)`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+function withTelegramTimeout(promise, label) {
+    return withTimeout(promise, TELEGRAM_API_TIMEOUT_MS, `Telegram API timeout: ${label}`);
+}
+
+function withChatHandlerTimeout(promise, queueKey) {
+    return withTimeout(promise, TELEGRAM_CHAT_TASK_TIMEOUT_MS, `Telegram chat handler timeout: ${queueKey}`);
+}
 
 /**
  * Экранирует подчёркивания в Telegram Markdown (legacy). Предпочтительно plain text — см. sendTelegramTextMessage.
@@ -35,15 +53,24 @@ async function sendTelegramTextMessage(botInstance, chatId, text, { plain = true
     const chunks = splitTelegramText(text);
     for (const chunk of chunks) {
         if (plain) {
-            await botInstance.sendMessage(chatId, chunk);
+            await withTelegramTimeout(
+                botInstance.sendMessage(chatId, chunk),
+                `sendMessage chat=${chatId}`
+            );
             continue;
         }
         try {
-            await botInstance.sendMessage(chatId, escapeMarkdown(chunk), { parse_mode: 'Markdown' });
+            await withTelegramTimeout(
+                botInstance.sendMessage(chatId, escapeMarkdown(chunk), { parse_mode: 'Markdown' }),
+                `sendMessage markdown chat=${chatId}`
+            );
         } catch (err) {
             if (isTelegramParseEntitiesError(err)) {
                 console.warn('[Telegram] Markdown parse failed, retrying as plain text');
-                await botInstance.sendMessage(chatId, chunk);
+                await withTelegramTimeout(
+                    botInstance.sendMessage(chatId, chunk),
+                    `sendMessage plain-retry chat=${chatId}`
+                );
                 continue;
             }
             throw err;
@@ -57,7 +84,10 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
     console.log(`[Telegram] Sending ${sorted.length} stage media item(s) to chat ${chatId}`);
     const hasDocument = sorted.some((item) => item?.type === 'document');
     const chatAction = hasDocument ? 'upload_document' : 'upload_photo';
-    await botInstance.sendChatAction(chatId, chatAction).catch(() => { });
+    await withTelegramTimeout(
+        botInstance.sendChatAction(chatId, chatAction),
+        `sendChatAction ${chatAction} chat=${chatId}`
+    ).catch(() => { });
     for (const item of sorted) {
         const url = item?.url;
         if (!url) continue;
@@ -66,20 +96,38 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
         const plainOpts = caption ? { caption: item.caption } : {};
         try {
             if (item.type === 'document') {
-                await botInstance.sendDocument(chatId, url, opts);
+                await withTelegramTimeout(
+                    botInstance.sendDocument(chatId, url, opts),
+                    `sendDocument chat=${chatId}`
+                );
             } else if (item.type === 'video') {
-                await botInstance.sendVideo(chatId, url, opts);
+                await withTelegramTimeout(
+                    botInstance.sendVideo(chatId, url, opts),
+                    `sendVideo chat=${chatId}`
+                );
             } else {
-                await botInstance.sendPhoto(chatId, url, opts);
+                await withTelegramTimeout(
+                    botInstance.sendPhoto(chatId, url, opts),
+                    `sendPhoto chat=${chatId}`
+                );
             }
         } catch (err) {
             if (caption && isTelegramParseEntitiesError(err)) {
                 if (item.type === 'document') {
-                    await botInstance.sendDocument(chatId, url, plainOpts);
+                    await withTelegramTimeout(
+                        botInstance.sendDocument(chatId, url, plainOpts),
+                        `sendDocument plain-retry chat=${chatId}`
+                    );
                 } else if (item.type === 'video') {
-                    await botInstance.sendVideo(chatId, url, plainOpts);
+                    await withTelegramTimeout(
+                        botInstance.sendVideo(chatId, url, plainOpts),
+                        `sendVideo plain-retry chat=${chatId}`
+                    );
                 } else {
-                    await botInstance.sendPhoto(chatId, url, plainOpts);
+                    await withTelegramTimeout(
+                        botInstance.sendPhoto(chatId, url, plainOpts),
+                        `sendPhoto plain-retry chat=${chatId}`
+                    );
                 }
                 continue;
             }
@@ -102,7 +150,10 @@ async function deliverTelegramResponse(botInstance, chatId, response) {
     if (document) {
         if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
         if (text) await sendTelegramTextMessage(botInstance, chatId, text, { plain });
-        await botInstance.sendDocument(chatId, document);
+        await withTelegramTimeout(
+            botInstance.sendDocument(chatId, document),
+            `sendDocument file chat=${chatId}`
+        );
         return;
     }
 
@@ -131,7 +182,13 @@ class ConstructorBotService {
 
     _runQueuedChatTask(queueKey, task) {
         const prev = this.chatQueues.get(queueKey) || Promise.resolve();
-        const run = prev.catch(() => {}).then(task);
+        const run = prev
+            .catch(() => {})
+            .then(() =>
+                withChatHandlerTimeout(Promise.resolve().then(task), queueKey).catch((err) => {
+                    console.error(`[Telegram] Chat task failed (${queueKey}):`, err.message || err);
+                })
+            );
         this.chatQueues.set(
             queueKey,
             run.finally(() => {
@@ -273,7 +330,9 @@ class ConstructorBotService {
             // Не держим «печатает…» пока грузится фото — иначе Telegram висит после доставки
             stopTyping();
 
+            console.log(`[Telegram] Delivering response to chat ${msg.chat.id}`);
             await deliverTelegramResponse(botInstance, msg.chat.id, response);
+            console.log(`[Telegram] Delivered response to chat ${msg.chat.id}`);
 
             if (typeof response === 'object' && response.document) {
                 const fs = require('fs');

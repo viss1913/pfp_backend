@@ -42,7 +42,7 @@ function telegramProxyRequestOptions() {
                 parsed.port || (protocol === 'https' ? '443' : '80')
             );
         }
-        return { proxy: url };
+        return { proxy: url, timeout: 45000 };
     }
 
     if (protocol === 'socks5' || protocol === 'socks5h' || protocol === 'socks4' || protocol === 'socks4a') {
@@ -57,7 +57,7 @@ function telegramProxyRequestOptions() {
             );
         }
         const agent = new SocksProxyAgent(socksUrl);
-        return { agent, httpsAgent: agent, httpAgent: agent };
+        return { agent, httpsAgent: agent, httpAgent: agent, timeout: 45000 };
     }
 
     console.warn('[telegramProxy] TELEGRAM_PROXY_URL must be http(s):// or socks5://, ignored');
