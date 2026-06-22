@@ -1,6 +1,6 @@
-const TELEGRAM_API_TIMEOUT_MS = Number(process.env.TELEGRAM_API_TIMEOUT_MS || 45000);
+const TELEGRAM_API_TIMEOUT_MS = Number(process.env.TELEGRAM_API_TIMEOUT_MS || 60000);
 const TELEGRAM_API_RETRIES = Math.max(1, Number(process.env.TELEGRAM_API_RETRIES || 3));
-const TELEGRAM_CHAT_TASK_TIMEOUT_MS = Number(process.env.TELEGRAM_CHAT_TASK_TIMEOUT_MS || 120000);
+const TELEGRAM_CHAT_TASK_TIMEOUT_MS = Number(process.env.TELEGRAM_CHAT_TASK_TIMEOUT_MS || 180000);
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -14,22 +14,56 @@ function withTimeout(promise, ms, label) {
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+function isTelegramApiTimeoutError(err) {
+    return String(err?.message || '').includes('Telegram API timeout:');
+}
+
+function isTelegramChatHandlerTimeoutError(err) {
+    return String(err?.message || '').includes('Telegram chat handler timeout:');
+}
+
+/** Таймаут ответа через прокси — sendMessage мог уже уйти в Telegram, повтор опасен. */
+function isUncertainTelegramDeliveryError(err) {
+    return isTelegramApiTimeoutError(err) || isTelegramChatHandlerTimeoutError(err);
+}
+
 /**
- * Обёртка для sendMessage/sendDocument/… — таймаут + несколько попыток при сбое прокси.
+ * Повторяем только когда запрос с высокой вероятностью не дошёл до Telegram.
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function isRetryableTelegramError(err) {
+    if (isTelegramApiTimeoutError(err)) return false;
+
+    const msg = String(err?.message || err?.code || '');
+    const status = err?.response?.statusCode ?? err?.response?.status;
+
+    if (status === 429) return true;
+    if (status >= 502 && status <= 504) return true;
+    if (/ECONNRESET|ECONNREFUSED|ENETUNREACH|EAI_AGAIN|socket hang up|network/i.test(msg)) return true;
+
+    return false;
+}
+
+/**
+ * Обёртка для sendMessage/sendDocument/… — таймаут + retry только на сетевых сбоях.
  * @template T
  * @param {() => Promise<T>} operation
  * @param {string} label
+ * @param {{ retryOnTimeout?: boolean, maxRetries?: number }} [options]
  * @returns {Promise<T>}
  */
-async function callTelegramApi(operation, label) {
+async function callTelegramApi(operation, label, options = {}) {
+    const maxRetries = Math.max(1, options.maxRetries ?? TELEGRAM_API_RETRIES);
+    const retryOnTimeout = options.retryOnTimeout === true;
     const retryDelaysMs = [0, 800, 2000];
     let lastErr;
 
-    for (let attempt = 0; attempt < TELEGRAM_API_RETRIES; attempt++) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
         if (attempt > 0) {
             const delay = retryDelaysMs[attempt] ?? 2000;
             console.warn(
-                `[Telegram] Retry ${attempt}/${TELEGRAM_API_RETRIES - 1} for ${label}: ${lastErr?.message || lastErr}`
+                `[Telegram] Retry ${attempt}/${maxRetries - 1} for ${label}: ${lastErr?.message || lastErr}`
             );
             await sleep(delay);
         }
@@ -37,6 +71,16 @@ async function callTelegramApi(operation, label) {
             return await withTimeout(operation(), TELEGRAM_API_TIMEOUT_MS, `Telegram API timeout: ${label}`);
         } catch (err) {
             lastErr = err;
+            if (isTelegramApiTimeoutError(err)) {
+                if (!retryOnTimeout) {
+                    console.warn(
+                        `[Telegram] ${label}: response timeout — not retrying (message may already be delivered via proxy)`
+                    );
+                    throw err;
+                }
+            } else if (!isRetryableTelegramError(err)) {
+                throw err;
+            }
         }
     }
 
@@ -51,6 +95,10 @@ module.exports = {
     TELEGRAM_API_TIMEOUT_MS,
     TELEGRAM_API_RETRIES,
     TELEGRAM_CHAT_TASK_TIMEOUT_MS,
+    isTelegramApiTimeoutError,
+    isTelegramChatHandlerTimeoutError,
+    isUncertainTelegramDeliveryError,
+    isRetryableTelegramError,
     callTelegramApi,
     withChatHandlerTimeout,
 };

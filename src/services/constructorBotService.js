@@ -4,7 +4,7 @@ const knex = require('../config/database');
 const constructorAiService = require('./constructorAiService');
 const maxBotService = require('./maxBotService');
 const { telegramBotOptions, telegramProxyRequestOptions, probeTelegramEgress, logTelegramEgressProbe } = require('../utils/telegramProxy');
-const { callTelegramApi, withChatHandlerTimeout } = require('../utils/telegramSend');
+const { callTelegramApi, withChatHandlerTimeout, isUncertainTelegramDeliveryError } = require('../utils/telegramSend');
 
 const TELEGRAM_TEXT_CHUNK = 4000;
 
@@ -258,7 +258,11 @@ class ConstructorBotService {
                 this.bots.set(botData.id, { instance: botInstance, token: botData.token, type: 'telegram' });
                 console.log(`🚀 Telegram Bot "${botData.name}" (ID: ${botData.id}) started.`);
                 try {
-                    const me = await callTelegramApi(() => botInstance.getMe(), `getMe bot=${botData.id}`);
+                    const me = await callTelegramApi(
+                        () => botInstance.getMe(),
+                        `getMe bot=${botData.id}`,
+                        { retryOnTimeout: true }
+                    );
                     console.log(`[Telegram] Bot ${botData.id} health OK @${me.username}`);
                 } catch (healthErr) {
                     console.error(
@@ -352,10 +356,16 @@ class ConstructorBotService {
             }
         } catch (err) {
             console.error(`Error in bot ${botData.id}:`, err);
-            try {
-                await botInstance.sendMessage(msg.chat.id, "Извините, произошла внутренняя ошибка.");
-            } catch (sendErr) {
-                console.error('Failed to send error message:', sendErr);
+            if (isUncertainTelegramDeliveryError(err)) {
+                console.warn(
+                    `[Telegram] Skipping user-facing error after uncertain delivery (${msg.chat.id}) — message may already be in chat`
+                );
+            } else {
+                try {
+                    await botInstance.sendMessage(msg.chat.id, "Извините, произошла внутренняя ошибка.");
+                } catch (sendErr) {
+                    console.error('Failed to send error message:', sendErr);
+                }
             }
         } finally {
             stopTyping();
