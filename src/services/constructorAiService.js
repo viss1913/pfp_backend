@@ -90,8 +90,8 @@ function envPositiveInt(name, fallback) {
     const n = parseInt(process.env[name], 10);
     return Number.isFinite(n) && n >= 1 ? n : fallback;
 }
-const CLASSIFIER_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_CLASSIFIER_HISTORY_LOGS', 5);
-const GENERATOR_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_GENERATOR_HISTORY_LOGS', 10);
+const CLASSIFIER_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_CLASSIFIER_HISTORY_LOGS', 20);
+const GENERATOR_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_GENERATOR_HISTORY_LOGS', 20);
 
 /** Частые опечатки ключа команды в ответе классификатора → канонический ключ из БД */
 const CLASSIFIER_COMMAND_TYPOS = {
