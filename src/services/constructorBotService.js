@@ -3,27 +3,10 @@ const TelegramBot = require('node-telegram-bot-api');
 const knex = require('../config/database');
 const constructorAiService = require('./constructorAiService');
 const maxBotService = require('./maxBotService');
-const { telegramBotOptions, telegramProxyRequestOptions } = require('../utils/telegramProxy');
+const { telegramBotOptions, telegramProxyRequestOptions, probeTelegramEgress, logTelegramEgressProbe } = require('../utils/telegramProxy');
+const { callTelegramApi, withChatHandlerTimeout } = require('../utils/telegramSend');
 
 const TELEGRAM_TEXT_CHUNK = 4000;
-const TELEGRAM_API_TIMEOUT_MS = Number(process.env.TELEGRAM_API_TIMEOUT_MS || 45000);
-const TELEGRAM_CHAT_TASK_TIMEOUT_MS = Number(process.env.TELEGRAM_CHAT_TASK_TIMEOUT_MS || 120000);
-
-function withTimeout(promise, ms, label) {
-    let timer;
-    const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label} (${ms}ms)`)), ms);
-    });
-    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
-
-function withTelegramTimeout(promise, label) {
-    return withTimeout(promise, TELEGRAM_API_TIMEOUT_MS, `Telegram API timeout: ${label}`);
-}
-
-function withChatHandlerTimeout(promise, queueKey) {
-    return withTimeout(promise, TELEGRAM_CHAT_TASK_TIMEOUT_MS, `Telegram chat handler timeout: ${queueKey}`);
-}
 
 /**
  * Экранирует подчёркивания в Telegram Markdown (legacy). Предпочтительно plain text — см. sendTelegramTextMessage.
@@ -53,22 +36,22 @@ async function sendTelegramTextMessage(botInstance, chatId, text, { plain = true
     const chunks = splitTelegramText(text);
     for (const chunk of chunks) {
         if (plain) {
-            await withTelegramTimeout(
-                botInstance.sendMessage(chatId, chunk),
+            await callTelegramApi(
+                () => botInstance.sendMessage(chatId, chunk),
                 `sendMessage chat=${chatId}`
             );
             continue;
         }
         try {
-            await withTelegramTimeout(
-                botInstance.sendMessage(chatId, escapeMarkdown(chunk), { parse_mode: 'Markdown' }),
+            await callTelegramApi(
+                () => botInstance.sendMessage(chatId, escapeMarkdown(chunk), { parse_mode: 'Markdown' }),
                 `sendMessage markdown chat=${chatId}`
             );
         } catch (err) {
             if (isTelegramParseEntitiesError(err)) {
                 console.warn('[Telegram] Markdown parse failed, retrying as plain text');
-                await withTelegramTimeout(
-                    botInstance.sendMessage(chatId, chunk),
+                await callTelegramApi(
+                    () => botInstance.sendMessage(chatId, chunk),
                     `sendMessage plain-retry chat=${chatId}`
                 );
                 continue;
@@ -84,8 +67,8 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
     console.log(`[Telegram] Sending ${sorted.length} stage media item(s) to chat ${chatId}`);
     const hasDocument = sorted.some((item) => item?.type === 'document');
     const chatAction = hasDocument ? 'upload_document' : 'upload_photo';
-    await withTelegramTimeout(
-        botInstance.sendChatAction(chatId, chatAction),
+    await callTelegramApi(
+        () => botInstance.sendChatAction(chatId, chatAction),
         `sendChatAction ${chatAction} chat=${chatId}`
     ).catch(() => { });
     for (const item of sorted) {
@@ -96,36 +79,36 @@ async function sendTelegramMediaItems(botInstance, chatId, media = []) {
         const plainOpts = caption ? { caption: item.caption } : {};
         try {
             if (item.type === 'document') {
-                await withTelegramTimeout(
-                    botInstance.sendDocument(chatId, url, opts),
+                await callTelegramApi(
+                    () => botInstance.sendDocument(chatId, url, opts),
                     `sendDocument chat=${chatId}`
                 );
             } else if (item.type === 'video') {
-                await withTelegramTimeout(
-                    botInstance.sendVideo(chatId, url, opts),
+                await callTelegramApi(
+                    () => botInstance.sendVideo(chatId, url, opts),
                     `sendVideo chat=${chatId}`
                 );
             } else {
-                await withTelegramTimeout(
-                    botInstance.sendPhoto(chatId, url, opts),
+                await callTelegramApi(
+                    () => botInstance.sendPhoto(chatId, url, opts),
                     `sendPhoto chat=${chatId}`
                 );
             }
         } catch (err) {
             if (caption && isTelegramParseEntitiesError(err)) {
                 if (item.type === 'document') {
-                    await withTelegramTimeout(
-                        botInstance.sendDocument(chatId, url, plainOpts),
+                    await callTelegramApi(
+                        () => botInstance.sendDocument(chatId, url, plainOpts),
                         `sendDocument plain-retry chat=${chatId}`
                     );
                 } else if (item.type === 'video') {
-                    await withTelegramTimeout(
-                        botInstance.sendVideo(chatId, url, plainOpts),
+                    await callTelegramApi(
+                        () => botInstance.sendVideo(chatId, url, plainOpts),
                         `sendVideo plain-retry chat=${chatId}`
                     );
                 } else {
-                    await withTelegramTimeout(
-                        botInstance.sendPhoto(chatId, url, plainOpts),
+                    await callTelegramApi(
+                        () => botInstance.sendPhoto(chatId, url, plainOpts),
                         `sendPhoto plain-retry chat=${chatId}`
                     );
                 }
@@ -147,20 +130,35 @@ async function deliverTelegramResponse(botInstance, chatId, response) {
 
     const { text = '', document, media, plain } = response;
 
-    if (document) {
-        if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
-        if (text) await sendTelegramTextMessage(botInstance, chatId, text, { plain });
-        await withTelegramTimeout(
-            botInstance.sendDocument(chatId, document),
-            `sendDocument file chat=${chatId}`
-        );
-        return;
-    }
-
-    if (media?.length) await sendTelegramMediaItems(botInstance, chatId, media);
+    // Сначала текст — даже если PDF/медиа через прокси подвиснут, пользователь не остаётся без ответа.
     if (text) {
         await sendTelegramTextMessage(botInstance, chatId, text, { plain });
         console.log(`[Telegram] Sent text to chat ${chatId} (${text.length} chars)`);
+    }
+
+    if (media?.length) {
+        try {
+            await sendTelegramMediaItems(botInstance, chatId, media);
+        } catch (err) {
+            console.error(
+                `[Telegram] Stage media failed for chat ${chatId} (text already sent):`,
+                err.message || err
+            );
+        }
+    }
+
+    if (document) {
+        try {
+            await callTelegramApi(
+                () => botInstance.sendDocument(chatId, document),
+                `sendDocument file chat=${chatId}`
+            );
+        } catch (err) {
+            console.error(
+                `[Telegram] Document file failed for chat ${chatId} (text already sent):`,
+                err.message || err
+            );
+        }
     }
 }
 
@@ -206,6 +204,9 @@ class ConstructorBotService {
     async initAllBots() {
         console.log('🤖 Initializing AI Constructor Bots...');
         try {
+            const probe = await probeTelegramEgress();
+            logTelegramEgressProbe(probe);
+
             const activeBots = await knex('constructor_bots').where('is_active', true);
             const totalBots = await knex('constructor_bots').count('* as count').first();
             console.log(`📊 Found ${activeBots.length} active bots out of ${totalBots.count} total`);
@@ -256,6 +257,15 @@ class ConstructorBotService {
 
                 this.bots.set(botData.id, { instance: botInstance, token: botData.token, type: 'telegram' });
                 console.log(`🚀 Telegram Bot "${botData.name}" (ID: ${botData.id}) started.`);
+                try {
+                    const me = await callTelegramApi(() => botInstance.getMe(), `getMe bot=${botData.id}`);
+                    console.log(`[Telegram] Bot ${botData.id} health OK @${me.username}`);
+                } catch (healthErr) {
+                    console.error(
+                        `[Telegram] Bot ${botData.id} getMe failed (check TELEGRAM_PROXY_URL):`,
+                        healthErr.message || healthErr
+                    );
+                }
             } else if (botData.bot_type === 'max') {
                 // --- MAX ---
                 // Для MAX мы просто регистрируем вебхук. Сами сообщения придут в контроллер.
