@@ -1,6 +1,7 @@
 const path = require('path');
 const { resolveGoalCardImageSrc } = require('../../summary/buildSummaryOverviewHtml');
 const { resolveReportRasterRef } = require('../../../utils/reportRasterSrc');
+const { resolveRostechStyleReportBranding } = require('./rostechStyleReportBranding');
 
 function esc(v) {
     if (v == null) return '';
@@ -373,6 +374,7 @@ function buildShell({
 async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) {
     const root = path.join(__dirname, '../../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
+    const brand = resolveRostechStyleReportBranding(options.projectId);
     const logoFromSettings = options.logoSrc
         ? await resolveReportRasterRef(options.logoSrc, root, root, inlineLocalAssets)
         : '';
@@ -392,13 +394,17 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         root,
         inlineLocalAssets
     );
-    const rostechLogo59Src = await resolveReportRasterRef(
-        'assets/reports/rostech/rostech-logo-59-51-lite.webp',
-        root,
-        root,
-        inlineLocalAssets
-    );
-    const startPdsUrl = 'https://lk.rostecnpf.ru/new-contract/pds/';
+    const rostechLogo59Src = brand.useRostechLogo
+        ? await resolveReportRasterRef(
+              'assets/reports/rostech/rostech-logo-59-51-lite.webp',
+              root,
+              root,
+              inlineLocalAssets
+          )
+        : '';
+    const tenantLogoSrc = rostechLogo59Src || logoFromSettings || '';
+    const startPdsUrl = brand.startPdsUrl;
+    const pageFooter = brand.footerPension;
 
     const s = goal?.summary || {};
     const yearsToPension = Number(goal?.details?.state_pension?.years_to_pension ?? 0);
@@ -575,12 +581,12 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         buildShell({
             title: 'Ваш финансовый план',
             subtitle: '',
-            logoSrc: rostechLogo59Src || logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
             useBackground: false,
             footerText:
                 'Финансовый план не является коммерческим предложением или договором,\nносит исключительно информационный характер.',
-            footerLogoSrc: rostechLogo59Src || logoFromSettings || '',
+            footerLogoSrc: tenantLogoSrc,
             bodyHtml: `
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:60px;height:68px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
@@ -628,8 +634,9 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         buildShell({
             title: 'Достойная пенсия',
             subtitle: 'Прогноз Госпенсии',
-            logoSrc: logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
+            footerText: pageFooter,
             showTop: false,
             pagePaddingTop: 14,
             bodyHtml: `
@@ -666,8 +673,9 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         buildShell({
             title: 'Предлагаемый план',
             subtitle: 'График формирования пенсионного капитала',
-            logoSrc: logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
+            footerText: pageFooter,
             showTop: false,
             pagePaddingTop: 16,
             bodyHtml: `
@@ -689,7 +697,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
               <div style="font-size:11px;line-height:1.33;color:#212121;margin-top:10px;">
                 <b>Предлагаемый план:</b><br/>
                 <br/>
-                1. Заключить договор долгосрочных сбережений (ПДС) в АО «НПФ «Ростех».<br/>
+                ${esc(brand.pdsContractStep)}<br/>
                 Плюсы:<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет добавлять до 36 000 руб./год в течение 10 лет.<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Налоговые вычеты (до 22% в год со взносов в пределах 400 000 руб.).<br/>
@@ -738,8 +746,9 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         buildShell({
             title: 'Структура портфеля НПФ',
             subtitle: 'Консервативный профиль с контролем риска',
-            logoSrc: logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
+            footerText: pageFooter,
             showTop: false,
             pagePaddingTop: 18,
             bodyHtml: `
@@ -777,7 +786,7 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
                   </div>
                   <div style="font-size:11px;line-height:1.24;color:#343434;">
                     Как видите, доля рисковых активов (акций) не более 7%.<br/>
-                    Это позволяет снизить риски потерь при инвестировании. В 2025 году НПФ Ростех заработал своим клиентам на ДДС в среднем 19% годовых.<br/>
+                    ${esc(brand.portfolioYieldNote)}<br/>
                     Итак, если Вы начнете пополнять капитал на ${esc(money(planFacts.monthlyContribution))} в этом году, и будете индексировать пополнение на величину инфляции, то за счет процентов Вы накопите ${esc(money(totalCapital))} к моменту выхода на пенсию.
                   </div>
                   <div style="margin-top:8px;border-radius:9px;overflow:hidden;height:92px;background:#f0f0f0;">
@@ -829,8 +838,9 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         buildShell({
             title: 'Методика расчета Госпенсии',
             subtitle: 'Фиксированная выплата + ИПК × стоимость ИПК',
-            logoSrc: logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
+            footerText: pageFooter,
             showTop: false,
             pagePaddingTop: 0,
             bodyHtml: `
@@ -901,8 +911,9 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         buildShell({
             title: 'Методика расчета Госпенсии',
             subtitle: 'Фиксированная выплата + ИПК × стоимость ИПК',
-            logoSrc: logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
+            footerText: pageFooter,
             showTop: false,
             pagePaddingTop: 0,
             bodyHtml: `
@@ -988,11 +999,12 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
         }),
         ...buildRostechStandardTailHtmlPages({
             goal,
-            logoFromSettings,
+            brand,
+            logoFromSettings: tenantLogoSrc,
             bgSrc,
             rostechAvatar59Src,
             cardImg,
-            footerText: 'Ренессанс Накопления • Финам • Ренессанс Жизнь',
+            footerText: brand.footerMethodologyTail,
         }),
     ];
 }
@@ -1000,12 +1012,20 @@ async function buildRostechPensionPagesHtml({ goal, clientName, options = {} }) 
 
 function buildRostechStandardTailHtmlPages({
     goal,
+    brand,
     logoFromSettings,
     bgSrc,
     rostechAvatar59Src,
     cardImg,
-    footerText = 'НПФ Ростех • Госпенсия',
+    footerText,
 }) {
+    const resolvedFooterText = footerText || brand?.footerPension || 'НПФ Ростех • Госпенсия';
+    const inflationRiskIntro =
+        brand?.inflationRiskIntro ||
+        'План объединяет решения в контурах НПФ «Ренессанс Накопления», инвестиционной платформы «Финам» и страховых продуктов «СК Ренессанс Жизнь». Во всех контурах используется прогноз инфляции, но фактическая динамика цен может отличаться от сценария. Это создает следующие риски:';
+    const npfBankruptcyIntro =
+        brand?.npfBankruptcyIntro ||
+        'Для пенсионной части плана используется НПФ «Ренессанс Накопления». Теоретически риск финансовой нестабильности фонда может привести к:';
     const riskNotebookBgHtml = `
       <div style="position:absolute;inset:0;border-radius:12px;overflow:hidden;z-index:0;">
         <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(248,241,247,0.55) 0%,rgba(244,248,255,0.55) 100%);"></div>
@@ -1014,7 +1034,7 @@ function buildRostechStandardTailHtmlPages({
     return [
         // 59:657
         buildShell({
-            footerText,
+            footerText: resolvedFooterText,
             title: 'Важная Информация. Инфляция',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1109,7 +1129,7 @@ function buildRostechStandardTailHtmlPages({
         }),
         // 59:1303
         buildShell({
-            footerText,
+            footerText: resolvedFooterText,
             title: 'Декларация о рисках финансового планирования',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1127,7 +1147,7 @@ function buildRostechStandardTailHtmlPages({
                 </div>
                 <div style="position:absolute;top:143px;left:0;width:535px;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;z-index:1;">
                   <p style="font-size:14px;margin-bottom:12px;">Суть риска:</p>
-                  <p style="margin-bottom:12px;">План объединяет решения в контурах НПФ «Ренессанс Накопления», инвестиционной платформы «Финам» и страховых продуктов «СК Ренессанс Жизнь». Во всех контурах используется прогноз инфляции, но фактическая динамика цен может отличаться от сценария. Это создает следующие риски:</p>
+                  <p style="margin-bottom:12px;">${esc(inflationRiskIntro)}</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
                     <li>Если инфляция выше ожидаемой: реальная доходность снижается, покупательная способность капитала падает, расходная часть целей растет быстрее плана.</li>
                     <li>Если инфляция ниже ожидаемой: возможно перераспределение капитала не в оптимальные цели и избыточная ликвидность в консервативной части портфеля.</li>
@@ -1145,7 +1165,7 @@ function buildRostechStandardTailHtmlPages({
         }),
         // 59:1335
         buildShell({
-            footerText,
+            footerText: resolvedFooterText,
             title: '2. Риск банкротства НПФ',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1160,7 +1180,7 @@ function buildRostechStandardTailHtmlPages({
                 </div>
                 <div style="position:absolute;top:73px;left:0;width:535px;border:1px solid rgba(114,34,87,0.75);background:rgba(255,255,255,0.90);border-radius:0 8px 8px 8px;padding:16px 12px;font-size:12px;line-height:1.24;color:#212121;z-index:1;">
                   <p style="font-size:14px;margin-bottom:12px;">Суть риска:</p>
-                  <p style="margin-bottom:12px;">Для пенсионной части плана используется НПФ «Ренессанс Накопления». Теоретически риск финансовой нестабильности фонда может привести к:</p>
+                  <p style="margin-bottom:12px;">${esc(npfBankruptcyIntro)}</p>
                   <ul style="padding-left:24px;margin-bottom:12px;">
                     <li>Заморозке или задержке выплат пенсионных накоплений.</li>
                     <li>Переоформлению пенсионных прав в другой фонд при регуляторных процедурах.</li>
@@ -1195,7 +1215,7 @@ function buildRostechStandardTailHtmlPages({
         }),
         // 59:1419
         buildShell({
-            footerText,
+            footerText: resolvedFooterText,
             title: '3. Риск дефолта государства по облигациям федерального займа (ОФЗ)',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1234,7 +1254,7 @@ function buildRostechStandardTailHtmlPages({
         }),
         // 59:1363
         buildShell({
-            footerText,
+            footerText: resolvedFooterText,
             title: '4. Риски инвестирования в акции российских компаний',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1268,7 +1288,7 @@ function buildRostechStandardTailHtmlPages({
         }),
         // 59:1391
         buildShell({
-            footerText,
+            footerText: resolvedFooterText,
             title: '5. Риски инвестирования НПФ в корпоративные облигации',
             subtitle: '',
             logoSrc: logoFromSettings,
@@ -1328,7 +1348,7 @@ function buildRostechStandardTailHtmlPages({
 
             return chunks.map((chunk, idx) =>
                 buildShell({
-            footerText,
+            footerText: resolvedFooterText,
                     title: 'График достижения целей',
                     subtitle: '',
                     logoSrc: logoFromSettings,

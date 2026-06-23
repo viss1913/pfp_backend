@@ -546,6 +546,7 @@ class PdfSettingsService {
             goal,
             clientName: 'Алексей Петров',
             options: {
+                projectId,
                 inlineLocalAssets: true,
                 accentColor: s.summary_chart_color,
                 textColor: s.summary_text_color,

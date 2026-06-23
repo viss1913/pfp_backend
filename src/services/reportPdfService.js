@@ -519,6 +519,7 @@ class ReportPdfService {
                     goal,
                     clientName,
                     options: {
+                        projectId,
                         inlineLocalAssets: true,
                         accentColor: pdfSettings?.summary_chart_color || undefined,
                         textColor: pdfSettings?.summary_text_color || '#0f172a',

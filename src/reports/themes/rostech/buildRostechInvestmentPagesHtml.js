@@ -5,6 +5,7 @@ const {
     buildRostechStandardTailHtmlPages,
     rostechInvestmentPdfUtils: U,
 } = require('./buildRostechPensionPagesHtml');
+const { resolveRostechStyleReportBranding } = require('./rostechStyleReportBranding');
 
 const { esc, money, moneyPerMonth, moneyWithPrecision, pickPositive, getCofinancingRateTextByIncome } = U;
 const {
@@ -16,7 +17,6 @@ const {
 } = U;
 
 const INVEST_GOAL_LABEL = 'Сохранить и приумножить';
-const FOOTER_INVEST = 'НПФ Ростех • Сохранить и приумножить';
 const DISCLAIMER = `Финансовый план не является коммерческим предложением или договором,\nносит исключительно информационный характер.`;
 
 function computeInvestmentEndContext(goal, s) {
@@ -60,6 +60,8 @@ function computeInvestmentEndContext(goal, s) {
 async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} }) {
     const root = path.join(__dirname, '../../../..');
     const inlineLocalAssets = Boolean(options.inlineLocalAssets);
+    const brand = resolveRostechStyleReportBranding(options.projectId);
+    const footerInvest = brand.footerInvestment;
     const logoFromSettings = options.logoSrc
         ? await resolveReportRasterRef(options.logoSrc, root, root, inlineLocalAssets)
         : '';
@@ -79,13 +81,16 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         root,
         inlineLocalAssets
     );
-    const rostechLogo59Src = await resolveReportRasterRef(
-        'assets/reports/rostech/rostech-logo-59-51-lite.webp',
-        root,
-        root,
-        inlineLocalAssets
-    );
-    const startPdsUrl = 'https://lk.rostecnpf.ru/new-contract/pds/';
+    const rostechLogo59Src = brand.useRostechLogo
+        ? await resolveReportRasterRef(
+              'assets/reports/rostech/rostech-logo-59-51-lite.webp',
+              root,
+              root,
+              inlineLocalAssets
+          )
+        : '';
+    const tenantLogoSrc = rostechLogo59Src || logoFromSettings || '';
+    const startPdsUrl = brand.startPdsUrl;
 
     const s = goal?.summary || {};
     const monthly = Number(s.monthly_replenishment ?? 0);
@@ -159,11 +164,11 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         buildShell({
             title: 'Ваш финансовый план',
             subtitle: '',
-            logoSrc: rostechLogo59Src || logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
             useBackground: false,
             footerText: DISCLAIMER,
-            footerLogoSrc: rostechLogo59Src || logoFromSettings || '',
+            footerLogoSrc: tenantLogoSrc,
             bodyHtml: `
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:60px;height:68px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
@@ -210,11 +215,11 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         buildShell({
             title: 'Предлагаемый план',
             subtitle: 'График достижения цели',
-            logoSrc: logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
             showTop: false,
             pagePaddingTop: 16,
-            footerText: FOOTER_INVEST,
+            footerText: footerInvest,
             bodyHtml: `
               <div style="display:flex;gap:10px;align-items:flex-start;">
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
@@ -233,7 +238,7 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
               <div style="font-size:11px;line-height:1.33;color:#212121;margin-top:10px;">
                 <b>Предлагаемый план:</b><br/>
                 <br/>
-                1. Заключить договор долгосрочных сбережений (ПДС) в АО «НПФ «Ростех».<br/>
+                ${esc(brand.pdsContractStep)}<br/>
                 Плюсы:<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет добавлять до 36 000 руб./год в течение 10 лет.<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Налоговые вычеты (до 22% в год со взносов в пределах 400 000 руб.).<br/>
@@ -280,11 +285,11 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         buildShell({
             title: 'Структура портфеля НПФ',
             subtitle: 'Консервативный профиль с контролем риска',
-            logoSrc: logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
             showTop: false,
             pagePaddingTop: 18,
-            footerText: FOOTER_INVEST,
+            footerText: footerInvest,
             bodyHtml: `
               <div style="display:flex;gap:8px;align-items:flex-start;">
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:66px;object-fit:cover;border-radius:9px;flex-shrink:0;" />
@@ -320,7 +325,7 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
                   </div>
                   <div style="font-size:11px;line-height:1.24;color:#343434;">
                     Как видите, доля рисковых активов (акций) не более 7%.<br/>
-                    Это позволяет снизить риски потерь при инвестировании. В 2025 году НПФ Ростех заработал своим клиентам на ДДС в среднем 19% годовых.<br/>
+                    ${esc(brand.portfolioYieldNote)}<br/>
                     Итак, если Вы начнете пополнять капитал на ${esc(money(monthly))} в этом году, и будете индексировать пополнение на величину инфляции, то за счет процентов Вы накопите ${esc(money(totalCapitalEnd))}.
                   </div>
                   <div style="margin-top:8px;border-radius:9px;overflow:hidden;height:92px;background:#f0f0f0;">
@@ -345,11 +350,11 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         buildShell({
             title: 'Методика расчета Госпенсии',
             subtitle: 'Фиксированная выплата + ИПК × стоимость ИПК',
-            logoSrc: logoFromSettings,
+            logoSrc: tenantLogoSrc,
             bgSrc,
             showTop: false,
             pagePaddingTop: 0,
-            footerText: FOOTER_INVEST,
+            footerText: footerInvest,
             bodyHtml: `
               <div style="position:relative;height:770px;width:535px;background:#ffffff;">
                 <div style="position:absolute;left:0;top:30px;display:flex;gap:10px;width:535px;">
@@ -416,11 +421,12 @@ async function buildRostechInvestmentPagesHtml({ goal, clientName, options = {} 
         }),
         ...buildRostechStandardTailHtmlPages({
             goal,
-            logoFromSettings,
+            brand,
+            logoFromSettings: tenantLogoSrc,
             bgSrc,
             rostechAvatar59Src,
             cardImg,
-            footerText: FOOTER_INVEST,
+            footerText: footerInvest,
         }),
     ];
 }
