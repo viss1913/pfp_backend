@@ -28,8 +28,16 @@ VM: `81.94.159.209`, код: `/opt/pfp/app`, Docker `mysql` + `backend`.
 | `COMON_SYNC_PAGE_SIZE=100`, `COMON_SYNC_MAX_PAGES=3` | Daily sync recommended-каталога Comon в `comon_recommended_strategies` |
 | `AGENT_REGISTER_BASE_URL=https://family-office.bank-future.com/register/` | Ссылка субагента (invite-link, письмо) |
 | `AGENT_INVITE_ACTIVATE_BASE_URL=https://family-office.bank-future.com/invite/activate` | Magic-link после `POST .../family-office-invite` (без env после деплоя кода — тот же хост из `AGENT_REGISTER_BASE_URL`) |
+| `TELEGRAM_PROXY_URL` | Опционально: HTTP/SOCKS-прокси **только** для Telegram Bot API (конструктор), если Immers блокирует `api.telegram.org`. Пример: `http://user:pass@45.77.80.63:3128`. Не путать с глобальным `HTTP_PROXY`. |
 
 Полный список — `.env.example`. Секреты не коммитить.
+
+### Telegram конструктора через VPS (если блок api.telegram.org)
+
+1. На Vultr поднять HTTP-прокси (например 3proxy) с auth; firewall — порт только с `81.94.159.209`.
+2. В `.env.production`: `TELEGRAM_PROXY_URL=http://user:pass@VPS_IP:3128`
+3. Smoke в контейнере: `node scripts/smoke_telegram_proxy.mjs` → `OK ... HTTP 200/302`
+4. `docker compose restart backend` — в логах: `[telegramProxy] Telegram Bot API uses TELEGRAM_PROXY_URL`
 
 ## DNS и HTTPS
 
@@ -143,6 +151,18 @@ docker compose up -d
 docker compose exec backend npm run migrate
 ```
 
+Миграция **`20260703120000_create_pension_payout_coefficients.js`** — таблица коэффициентов фазы выплат по пенсии (пол × возраст). После выката API:
+
+```bash
+# smoke (нужен JWT admin + X-Project-Key проекта)
+curl -sS "https://pfp-api.bank-future.com/api/pfp/settings/pension/payout-coefficients" \
+  -H "Authorization: Bearer <token>" \
+  -H "X-Project-Key: <project_key>"
+# ожидаем 200 и [] до заливки таблицы с фронта
+```
+
+Пока таблица пуста, расчёт PENSION работает как раньше (`passive_income_yield`). После заливки коэффициентов — пересчёт клиентов.
+
 Скрипты `scripts/seed_default_portfolios_if_missing.js` и `scripts/run_macro_sync.js` — в образе после pull; для hotfix без rebuild — `docker compose cp` как выше.
 
 ### 4. Comon recommended (витрина в Finam Report v2)
@@ -193,11 +213,11 @@ time curl -sS -o /dev/null "https://pfp-api.bank-future.com/api/pfp/reports/<cli
 
 | Симптом | Fix |
 |---------|-----|
-| Пенсия не считается | 1) Нет default-портфеля PENSION → `seed_default_portfolios_if_missing.js`. 2) В `goals_summary` ошибка `Passive income yield line not found` → в `system_settings` нужен `passive_income_yield` с `max_term_months` **360** (не 60), миграция `20260522150000_extend_passive_income_yield_for_pension.js`. После фикса — **пересчёт** клиента. |
+| Пенсия не считается | 1) Нет default-портфеля PENSION → `seed_default_portfolios_if_missing.js`. 2) В `goals_summary` ошибка `Passive income yield line not found` → в `system_settings` нужен `passive_income_yield` с `max_term_months` **360** (не 60), миграция `20260522150000_extend_passive_income_yield_for_pension.js`. После фикса — **пересчёт** клиента. 3) Таблица `pension_payout_coefficients` опциональна: пустая → fallback на `passive_income_yield`. |
 | Старый отчёт | `report_finam=1` или проект не в `FINAM_REPORT_PROJECT_IDS` |
 | Макро 1970 | `macro_data` пуст → `run_macro_sync.js` |
 | HTML/PDF медленные | 1) Проверить, что клиент уже со snapshot в `goals_summary`. 2) Снизить `REPORT_PDF_POST_LOAD_DELAY_MS` (`100 -> 50 -> 0`) со smoke. 3) Убедиться, что UI ходит в `?format=html` и `pdf-url`, а не в тяжёлый JSON/`/pdf`. |
-| NDA 502 Resend | 1) `docker-compose.yml`: DNS `8.8.8.8`, `NODE_OPTIONS=--dns-result-order=ipv4first`, `extra_hosts: api.resend.com:104.20.29.242`. 2) `.env.production`: `RESEND_FROM_EMAIL={agent}@bank-future.com` (не голый `noreply@`). 3) PDF > ~55 KB: письмо **со ссылкой на R2**, не вложением (`read ECONNRESET` на Immers). Опционально: `NDA_EMAIL_DELIVERY=link` или `attach`. После правок: `docker cp` свежих `ndaService.js` / `emailService.js` в контейнер + `docker compose restart backend` (или `git pull && docker compose build backend`). |
+| NDA 502 / 120s timeout | 1) DNS/Resend как выше. 2) По умолчанию `NDA_EMAIL_DELIVERY=attach-url` (вложение через R2 path, ~секунды). Не включать `attach` + inline base64 на Immers. 3) `docker cp` / `git pull && docker compose build backend`. |
 | `birth_date` 19980 | `normalizeMysqlDate.js` на backend |
 | Полный seed | **Не запускать** на живой БД — удалит users |
 

@@ -116,10 +116,17 @@ class PensionCalculator extends BaseCalculator {
         const desiredPensionMonthlyFuture = (goal.target_amount || 0) * Math.pow(1 + (inflationAnnualUsed / 100), statePensionResult.years_to_pension);
         const pensionGapMonthlyFuture = Math.max(desiredPensionMonthlyFuture - statePensionResult.state_pension_monthly_future, 0);
 
-        // Фаза накопления
-        const payoutYieldLine = await context.services.settingsService.findPassiveIncomeYieldLine(0, monthsToPension, true, context.projectId);
-        if (!payoutYieldLine) throw new Error('Passive income yield line not found');
-        const payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
+        // Фаза выплат: коэффициент из таблицы (пол × возраст) или passive_income_yield
+        const payoutResolved = await context.services.settingsService.resolvePensionPayoutYield({
+            gender: client.gender || client.sex,
+            retirementAge: statePensionResult.retirement_age,
+            monthsToPension,
+            projectId: context.projectId,
+        });
+        if (!payoutResolved) throw new Error('Passive income yield line not found');
+        const payoutYieldPercent = payoutResolved.payoutYieldPercent;
+        const payoutYieldSource = payoutResolved.payoutYieldSource;
+        const payoutCoefficientRow = payoutResolved.payoutCoefficient;
         // Капитал нужен такой, чтобы его доходность (passive yield) покрывала нехватку
         const requiredCapitalFuture = (pensionGapMonthlyFuture * 12 * 100) / payoutYieldPercent;
 
@@ -365,6 +372,12 @@ class PensionCalculator extends BaseCalculator {
 
                 accumulation_yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
                 payout_yield_percent: payoutYieldPercent,
+                payout_yield_source: payoutYieldSource,
+                payout_coefficient_gender: payoutCoefficientRow?.gender ?? null,
+                payout_coefficient_age: payoutCoefficientRow?.age ?? null,
+                payout_coefficient_value: payoutCoefficientRow
+                    ? Math.round(parseFloat(payoutCoefficientRow.coefficient) * 100) / 100
+                    : null,
 
                 state_pension_monthly_future: Math.round(statePensionResult.state_pension_monthly_future * 100) / 100,
                 state_pension_monthly_today: Math.round(statePensionResult.state_pension_monthly_current * 100) / 100,

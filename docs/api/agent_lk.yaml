@@ -945,6 +945,114 @@ paths:
         '404':
           description: Настройка не найдена
 
+  /pfp/settings/pension/payout-coefficients:
+    get:
+      tags: [ "Настройки планов и проекта" ]
+      summary: Таблица коэффициентов выплат по пенсии (пол × возраст)
+      description: |
+        Коэффициенты **фазы выплат** для цели PENSION: доходность перевода накопленного капитала в ежемесячную пенсию.
+        Поля строки:
+        - **gender** — `male` / `female`;
+        - **age** — возраст на пенсии (лет), обычно 60 (Ж) или 65 (М);
+        - **coefficient** — число, **годовая доходность %** (как `yield_percent` в `passive_income_yield`, например `3.4`).
+
+        В расчёте `POST /client/calculate` при наличии строки для пола и пенсионного возраста клиента
+        используется таблица; иначе — fallback на `passive_income_yield` (поведение как раньше).
+
+        В `summary` цели PENSION: `payout_yield_percent`, `payout_yield_source`
+        (`pension_payout_coefficients` | `passive_income_yield`), при таблице — также
+        `payout_coefficient_gender`, `payout_coefficient_age`, `payout_coefficient_value`.
+
+        CRUD записи — **admin**; чтение — агент проекта.
+      responses:
+        '200':
+          description: Список коэффициентов (проект + глобальные строки)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficient'
+    post:
+      tags: [ "Настройки планов и проекта" ]
+      summary: Добавить коэффициент выплат (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficientCreate'
+            example:
+              gender: female
+              age: 60
+              coefficient: 3.4
+      responses:
+        '201':
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficient'
+        '400':
+          description: Валидация или дубликат (gender + age)
+        '403':
+          description: Только admin
+
+  /pfp/settings/pension/payout-coefficients/{id}:
+    get:
+      tags: [ "Настройки планов и проекта" ]
+      summary: Коэффициент выплат по ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficient'
+        '404':
+          description: Не найдено
+    patch:
+      tags: [ "Настройки планов и проекта" ]
+      summary: Обновить коэффициент выплат (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficientUpdate'
+      responses:
+        '200':
+          description: Обновлено
+        '403':
+          description: Только admin
+        '404':
+          description: Не найдено
+    delete:
+      tags: [ "Настройки планов и проекта" ]
+      summary: Удалить коэффициент выплат (admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Удалено
+        '403':
+          description: Только admin
+        '404':
+          description: Не найдено
+
   # ==================== РАСЧЁТ ПФП И НАЛОГОВОЕ ПЛАНИРОВАНИЕ ====================
   /client/calculate:
     post:
@@ -2642,7 +2750,11 @@ paths:
     post:
       tags: [ "Конструктор ИИ" ]
       summary: Загрузить картинку, видео или PDF к стадии CJM
-      description: multipart/form-data, поле `file`. До 5 файлов на команду. Хранение в R2. PDF отправляется в Telegram как документ.
+      description: |
+        multipart/form-data, поле `file`. До 5 файлов на команду. Хранение в R2. PDF отправляется в Telegram как документ.
+
+        Допустимые типы: jpg, png, webp, gif, mp4, webm, mov, **pdf** (макс. 50 MB).
+        Фронт: `accept` на input должен включать `application/pdf,.pdf` (не только image/* и video/*).
       parameters:
         - name: id
           in: path

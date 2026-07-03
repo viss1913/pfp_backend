@@ -24,6 +24,13 @@ router.post('/pds/cofin-income-brackets', settingsController.createPdsCofinIncom
 router.patch('/pds/cofin-income-brackets/:id', settingsController.updatePdsCofinIncomeBracket);
 router.delete('/pds/cofin-income-brackets/:id', settingsController.deletePdsCofinIncomeBracket);
 
+// Коэффициенты выплат по пенсии (пол × возраст)
+router.get('/pension/payout-coefficients', settingsController.getAllPensionPayoutCoefficients);
+router.get('/pension/payout-coefficients/:id', settingsController.getPensionPayoutCoefficientById);
+router.post('/pension/payout-coefficients', settingsController.createPensionPayoutCoefficient);
+router.patch('/pension/payout-coefficients/:id', settingsController.updatePensionPayoutCoefficient);
+router.delete('/pension/payout-coefficients/:id', settingsController.deletePensionPayoutCoefficient);
+
 // Настройки пассивного дохода (должны быть ПЕРЕД /:key, чтобы не перехватывались)
 router.get('/passive-income/yield', settingsController.getPassiveIncomeYield);
 router.put('/passive-income/yield', settingsController.updatePassiveIncomeYield);
