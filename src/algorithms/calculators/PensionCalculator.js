@@ -116,8 +116,9 @@ class PensionCalculator extends BaseCalculator {
         const desiredPensionMonthlyFuture = (goal.target_amount || 0) * Math.pow(1 + (inflationAnnualUsed / 100), statePensionResult.years_to_pension);
         const pensionGapMonthlyFuture = Math.max(desiredPensionMonthlyFuture - statePensionResult.state_pension_monthly_future, 0);
 
-        // Фаза выплат: коэффициент из таблицы (пол × возраст) или passive_income_yield
+        // Фаза выплат: матрица passive_income_yield (срок + капитал + пол + возраст)
         const payoutResolved = await context.services.settingsService.resolvePensionPayoutYield({
+            amount: initialCapital,
             gender: client.gender || client.sex,
             retirementAge: statePensionResult.retirement_age,
             monthsToPension,
@@ -126,7 +127,7 @@ class PensionCalculator extends BaseCalculator {
         if (!payoutResolved) throw new Error('Passive income yield line not found');
         const payoutYieldPercent = payoutResolved.payoutYieldPercent;
         const payoutYieldSource = payoutResolved.payoutYieldSource;
-        const payoutCoefficientRow = payoutResolved.payoutCoefficient;
+        const payoutLine = payoutResolved.payoutLine;
         // Капитал нужен такой, чтобы его доходность (passive yield) покрывала нехватку
         const requiredCapitalFuture = (pensionGapMonthlyFuture * 12 * 100) / payoutYieldPercent;
 
@@ -315,7 +316,17 @@ class PensionCalculator extends BaseCalculator {
         if (simResult.usedCofinancingPerYear) context.usedCofinancingPerYear = simResult.usedCofinancingPerYear;
         if (simResult.usedTaxBasePerYear) context.usedTaxBasePerYear = simResult.usedTaxBasePerYear;
 
-        const pensionFromCapitalMonthlyFuture = (simResult.totalCapital * (payoutYieldPercent / 100)) / 12;
+        const payoutAtRetirement = await context.services.settingsService.resolvePensionPayoutYield({
+            amount: simResult.totalCapital,
+            gender: client.gender || client.sex,
+            retirementAge: statePensionResult.retirement_age,
+            monthsToPension,
+            projectId: context.projectId,
+        }) || payoutResolved;
+        const payoutYieldPercentAtRetirement = payoutAtRetirement.payoutYieldPercent;
+        const payoutLineAtRetirement = payoutAtRetirement.payoutLine || payoutLine;
+
+        const pensionFromCapitalMonthlyFuture = (simResult.totalCapital * (payoutYieldPercentAtRetirement / 100)) / 12;
         const totalPensionMonthlyFuture = pensionFromCapitalMonthlyFuture + statePensionResult.state_pension_monthly_future;
 
         // Discount to Present Value (Today's buying power)
@@ -371,12 +382,13 @@ class PensionCalculator extends BaseCalculator {
                 total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,
 
                 accumulation_yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
-                payout_yield_percent: payoutYieldPercent,
+                payout_yield_percent: Math.round(payoutYieldPercentAtRetirement * 100) / 100,
+                payout_yield_percent_planning: Math.round(payoutYieldPercent * 100) / 100,
                 payout_yield_source: payoutYieldSource,
-                payout_coefficient_gender: payoutCoefficientRow?.gender ?? null,
-                payout_coefficient_age: payoutCoefficientRow?.age ?? null,
-                payout_coefficient_value: payoutCoefficientRow
-                    ? Math.round(parseFloat(payoutCoefficientRow.coefficient) * 100) / 100
+                payout_coefficient_gender: payoutLineAtRetirement?.gender ?? null,
+                payout_coefficient_age: payoutLineAtRetirement?.age ?? null,
+                payout_coefficient_value: payoutLineAtRetirement
+                    ? Math.round(parseFloat(payoutLineAtRetirement.yield_percent) * 100) / 100
                     : null,
 
                 state_pension_monthly_future: Math.round(statePensionResult.state_pension_monthly_future * 100) / 100,

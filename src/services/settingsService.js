@@ -2,7 +2,6 @@ const settingsRepository = require('../repositories/settingsRepository');
 const tax2ndflRepository = require('../repositories/tax2ndflRepository');
 const pdsSettingsRepository = require('../repositories/pdsSettingsRepository');
 const pdsCofinIncomeBracketsRepository = require('../repositories/pdsCofinIncomeBracketsRepository');
-const pensionPayoutCoefficientsRepository = require('../repositories/pensionPayoutCoefficientsRepository');
 const db = require('../config/database');
 
 // Ключи, которые настраиваются агентом на уровне проекта (без глобальных дефолтов)
@@ -784,6 +783,32 @@ class SettingsService {
                     error: 'Validation error'
                 };
             }
+            if (line.gender !== undefined && line.gender !== null && line.gender !== '') {
+                const normalizedGender = this.normalizePensionGender(line.gender);
+                if (!normalizedGender) {
+                    throw {
+                        status: 400,
+                        message: `Line ${i}: gender must be male or female`,
+                        error: 'Validation error'
+                    };
+                }
+                line.gender = normalizedGender;
+            } else {
+                line.gender = null;
+            }
+            if (line.age !== undefined && line.age !== null && line.age !== '') {
+                const age = parseInt(line.age, 10);
+                if (!Number.isFinite(age) || age < 18 || age > 120) {
+                    throw {
+                        status: 400,
+                        message: `Line ${i}: age must be an integer between 18 and 120`,
+                        error: 'Validation error'
+                    };
+                }
+                line.age = age;
+            } else {
+                line.age = null;
+            }
         }
 
         const setting = await settingsRepository.findByKey('passive_income_yield', projectId);
@@ -813,14 +838,38 @@ class SettingsService {
         return this.getPassiveIncomeYield(projectId);
     }
 
+    _passiveIncomeLineSpecificityScore(line) {
+        let score = 0;
+        if (line.gender != null) score += 2;
+        if (line.age != null) score += 2;
+        return score;
+    }
+
+    _passiveIncomeLineMatches(line, amount, termMonths, byTermOnly, clientGender, clientAge, useDemographics) {
+        if (termMonths < line.min_term_months || termMonths > line.max_term_months) {
+            return false;
+        }
+        if (!byTermOnly && (amount < line.min_amount || amount > line.max_amount)) {
+            return false;
+        }
+        if (useDemographics) {
+            if (line.gender != null && line.gender !== clientGender) return false;
+            if (line.age != null && line.age !== clientAge) return false;
+        } else if (line.gender != null || line.age != null) {
+            return false;
+        }
+        return true;
+    }
+
     /**
-     * Найти подходящую линию доходности по сумме и сроку
-     * @param {number} amount - Сумма (опционально, для пассивного дохода можно передать 0)
+     * Найти подходящую линию доходности по сумме, сроку и (опционально) полу/возрасту.
+     * @param {number} amount - Сумма капитала (₽)
      * @param {number} termMonths - Срок в месяцах
      * @param {boolean} byTermOnly - Если true, искать только по сроку, игнорируя сумму
-     * @returns {Object|null} - Найденная линия или null
+     * @param {number|null} projectId
+     * @param {{ gender?: string, age?: number }} [filters] - для пенсии: пол и возраст на пенсии
      */
-    async findPassiveIncomeYieldLine(amount, termMonths, byTermOnly = false, projectId = null) {
+    async findPassiveIncomeYieldLine(amount, termMonths, byTermOnly = false, projectId = null, filters = {}) {
         const setting = await this.getPassiveIncomeYield(projectId);
         const lines = setting.lines;
 
@@ -828,25 +877,35 @@ class SettingsService {
             return null;
         }
 
-        let line;
+        const useDemographics = filters.gender !== undefined || filters.age !== undefined;
+        const clientGender = filters.gender !== undefined
+            ? this.normalizePensionGender(filters.gender)
+            : null;
+        const clientAge = filters.age !== undefined ? parseInt(filters.age, 10) : null;
 
-        if (byTermOnly) {
-            // Ищем только по сроку
-            line = lines.find(l =>
-                termMonths >= l.min_term_months &&
-                termMonths <= l.max_term_months
-            );
-        } else {
-            // Ищем по сумме и сроку
-            line = lines.find(l =>
-                amount >= l.min_amount &&
-                amount <= l.max_amount &&
-                termMonths >= l.min_term_months &&
-                termMonths <= l.max_term_months
-            );
+        if (useDemographics && filters.gender !== undefined && !clientGender) {
+            return null;
+        }
+        if (useDemographics && filters.age !== undefined && !Number.isFinite(clientAge)) {
+            return null;
         }
 
-        return line || null;
+        const candidates = lines.filter((line) => this._passiveIncomeLineMatches(
+            line,
+            amount,
+            termMonths,
+            byTermOnly,
+            clientGender,
+            clientAge,
+            useDemographics
+        ));
+
+        if (candidates.length === 0) {
+            return null;
+        }
+
+        candidates.sort((a, b) => this._passiveIncomeLineSpecificityScore(b) - this._passiveIncomeLineSpecificityScore(a));
+        return candidates[0];
     }
 
     normalizePensionGender(sex) {
@@ -856,203 +915,23 @@ class SettingsService {
         return null;
     }
 
-    async getAllPensionPayoutCoefficients(projectId = null) {
-        return pensionPayoutCoefficientsRepository.findAll(projectId);
-    }
-
-    async getPensionPayoutCoefficientById(id, projectId = null) {
-        const row = await pensionPayoutCoefficientsRepository.findById(id, projectId);
-        if (!row) {
-            throw {
-                status: 404,
-                message: `Pension payout coefficient with id ${id} not found`,
-                error: 'Coefficient not found'
-            };
-        }
-        return row;
-    }
-
-    async createPensionPayoutCoefficient(data, isAdmin, projectId = null) {
-        if (!isAdmin) {
-            throw {
-                status: 403,
-                message: 'Only administrators can manage pension payout coefficients',
-                error: 'Forbidden'
-            };
-        }
-
-        const gender = this.normalizePensionGender(data.gender);
-        if (!gender) {
-            throw {
-                status: 400,
-                message: 'gender must be male or female',
-                error: 'Validation error'
-            };
-        }
-
-        const age = parseInt(data.age, 10);
-        if (!Number.isFinite(age) || age < 18 || age > 120) {
-            throw {
-                status: 400,
-                message: 'age must be an integer between 18 and 120',
-                error: 'Validation error'
-            };
-        }
-
-        const coefficient = parseFloat(data.coefficient);
-        if (!Number.isFinite(coefficient) || coefficient <= 0) {
-            throw {
-                status: 400,
-                message: 'coefficient must be a positive number',
-                error: 'Validation error'
-            };
-        }
-
-        const duplicate = await pensionPayoutCoefficientsRepository.findDuplicate(gender, age, projectId);
-        if (duplicate) {
-            throw {
-                status: 400,
-                message: `Coefficient for gender=${gender}, age=${age} already exists (id: ${duplicate.id})`,
-                error: 'Duplicate coefficient'
-            };
-        }
-
-        const id = await pensionPayoutCoefficientsRepository.create({
-            gender,
-            age,
-            coefficient,
-        }, projectId);
-        return pensionPayoutCoefficientsRepository.findById(id, projectId);
-    }
-
-    async updatePensionPayoutCoefficient(id, data, isAdmin, projectId = null) {
-        if (!isAdmin) {
-            throw {
-                status: 403,
-                message: 'Only administrators can manage pension payout coefficients',
-                error: 'Forbidden'
-            };
-        }
-
-        const existing = await pensionPayoutCoefficientsRepository.findById(id, projectId);
-        if (!existing) {
-            throw {
-                status: 404,
-                message: `Pension payout coefficient with id ${id} not found`,
-                error: 'Coefficient not found'
-            };
-        }
-
-        const gender = data.gender !== undefined
-            ? this.normalizePensionGender(data.gender)
-            : existing.gender;
-        if (!gender) {
-            throw {
-                status: 400,
-                message: 'gender must be male or female',
-                error: 'Validation error'
-            };
-        }
-
-        const age = data.age !== undefined ? parseInt(data.age, 10) : existing.age;
-        if (!Number.isFinite(age) || age < 18 || age > 120) {
-            throw {
-                status: 400,
-                message: 'age must be an integer between 18 and 120',
-                error: 'Validation error'
-            };
-        }
-
-        const coefficient = data.coefficient !== undefined
-            ? parseFloat(data.coefficient)
-            : parseFloat(existing.coefficient);
-        if (!Number.isFinite(coefficient) || coefficient <= 0) {
-            throw {
-                status: 400,
-                message: 'coefficient must be a positive number',
-                error: 'Validation error'
-            };
-        }
-
-        const duplicate = await pensionPayoutCoefficientsRepository.findDuplicate(
-            gender,
-            age,
-            existing.project_id,
-            id
-        );
-        if (duplicate) {
-            throw {
-                status: 400,
-                message: `Coefficient for gender=${gender}, age=${age} already exists (id: ${duplicate.id})`,
-                error: 'Duplicate coefficient'
-            };
-        }
-
-        await pensionPayoutCoefficientsRepository.update(id, {
-            gender,
-            age,
-            coefficient,
-        }, existing.project_id);
-        return pensionPayoutCoefficientsRepository.findById(id, projectId);
-    }
-
-    async deletePensionPayoutCoefficient(id, isAdmin, projectId = null) {
-        if (!isAdmin) {
-            throw {
-                status: 403,
-                message: 'Only administrators can manage pension payout coefficients',
-                error: 'Forbidden'
-            };
-        }
-
-        const row = await pensionPayoutCoefficientsRepository.findById(id, projectId);
-        if (!row) {
-            throw {
-                status: 404,
-                message: `Pension payout coefficient with id ${id} not found`,
-                error: 'Coefficient not found'
-            };
-        }
-
-        await pensionPayoutCoefficientsRepository.delete(id, row.project_id);
-    }
-
     /**
-     * Коэффициент выплат по полу и возрасту на пенсии.
-     * coefficient — годовая доходность % (как yield_percent в passive_income_yield).
+     * Доходность фазы выплат для пенсии: матрица passive_income_yield (срок + капитал + пол + возраст).
      */
-    async findPensionPayoutCoefficient(gender, age, projectId = null) {
-        const normalizedGender = this.normalizePensionGender(gender);
-        if (!normalizedGender) return null;
-        const retirementAge = parseInt(age, 10);
-        if (!Number.isFinite(retirementAge)) return null;
-        return pensionPayoutCoefficientsRepository.findByGenderAndAge(
-            normalizedGender,
-            retirementAge,
-            projectId
+    async resolvePensionPayoutYield({ amount, gender, retirementAge, monthsToPension, projectId = null }) {
+        const payoutYieldLine = await this.findPassiveIncomeYieldLine(
+            amount,
+            monthsToPension,
+            false,
+            projectId,
+            { gender, age: retirementAge }
         );
-    }
-
-    /**
-     * Доходность фазы выплат для пенсии: таблица коэффициентов → fallback passive_income_yield.
-     */
-    async resolvePensionPayoutYield({ gender, retirementAge, monthsToPension, projectId = null }) {
-        const coefficientRow = await this.findPensionPayoutCoefficient(gender, retirementAge, projectId);
-        if (coefficientRow) {
-            return {
-                payoutYieldPercent: parseFloat(coefficientRow.coefficient),
-                payoutYieldSource: 'pension_payout_coefficients',
-                payoutCoefficient: coefficientRow,
-            };
-        }
-
-        const payoutYieldLine = await this.findPassiveIncomeYieldLine(0, monthsToPension, true, projectId);
         if (!payoutYieldLine) return null;
 
         return {
             payoutYieldPercent: parseFloat(payoutYieldLine.yield_percent),
             payoutYieldSource: 'passive_income_yield',
-            payoutCoefficient: null,
+            payoutLine: payoutYieldLine,
         };
     }
 

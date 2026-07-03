@@ -241,41 +241,37 @@
 
 ---
 
-### 14. Фаза выплат: коэффициент по полу и возрасту
+### 14. Фаза выплат: матрица passive_income_yield
 
 После накопления капитала модель переводит его в **дополнительную ежемесячную пенсию** (фаза выплат).
 
-#### 14.1. Источник коэффициента
+#### 14.1. Матрица линий (`passive_income_yield`)
 
-1. **Таблица `pension_payout_coefficients`** (настройка проекта через API):
-   - ключ: `gender` (`male` / `female`) + `age` (возраст на пенсии, лет);
-   - значение: `coefficient` — **годовая доходность фазы выплат, %** (тот же смысл, что `yield_percent` в `passive_income_yield`).
-2. **Fallback**, если строка для пола/возраста не найдена:
-   - используется `passive_income_yield` (линии по сроку), как в прежней версии алгоритма.
+Каждая строка матрицы задаёт **годовую доходность %** (`yield_percent`) для комбинации:
 
-Приоритет lookup: сначала строка с `project_id` текущего проекта, затем глобальная (`project_id IS NULL`).
+| Поле | Смысл |
+|------|--------|
+| `min_term_months` / `max_term_months` | Срок до пенсии (мес.) |
+| `min_amount` / `max_amount` | Капитал (₽): на этапе планирования — начальный + ОПС; на выплате — накопленный капитал |
+| `gender` | `male` / `female` (опционально; `null` — любой пол) |
+| `age` | Возраст на пенсии, лет (опционально; `null` — любой возраст) |
+
+API: `GET/PUT /api/pfp/settings/passive-income/yield`.
+
+При нескольких подходящих строках выбирается **более специфичная** (с заданными gender/age).
+
+Строки без `gender`/`age` используются целью «Пассивный доход» и как fallback для пенсии.
 
 #### 14.2. Формулы (без изменений по смыслу)
 
-Пусть `R` — годовая доходность фазы выплат, % (`coefficient` или `yield_percent` из fallback).
+Пусть `R` — `yield_percent` выбранной строки.
 
-1. **Требуемый капитал** для закрытия разрыва `Gap` (руб./мес., в ценах года выхода на пенсию):
-\[
-\text{Капитал} = \frac{\text{Gap} \times 12 \times 100}{R}
-\]
+1. **Требуемый капитал:** `Капитал = Gap × 12 × 100 / R`
+2. **Доп. пенсия из капитала `K`:** `Пенсия_доп = K × R / 100 / 12`
 
-2. **Дополнительная пенсия из накопленного капитала** `K`:
-\[
-\text{Пенсия\_доп} = \frac{K \times R}{100 \times 12}
-\]
+#### 14.3. Поля ответа цели PENSION
 
-#### 14.3. API управления таблицей
-
-Префикс `/api/pfp/settings/pension/payout-coefficients` (CRUD, admin для записи).
-
-#### 14.4. Поля ответа расчёта цели PENSION
-
-В `summary` дополнительно:
-- `payout_yield_percent` — использованная `R`;
-- `payout_yield_source` — `pension_payout_coefficients` или `passive_income_yield`;
-- `payout_coefficient_gender`, `payout_coefficient_age`, `payout_coefficient_value` — при lookup из таблицы.
+- `payout_yield_percent` — доходность по матрице на момент выплат (капитал после симуляции);
+- `payout_yield_percent_planning` — та же матрица на этапе планирования (начальный капитал);
+- `payout_yield_source` — `passive_income_yield`;
+- `payout_coefficient_gender`, `payout_coefficient_age`, `payout_coefficient_value` — из выбранной строки.

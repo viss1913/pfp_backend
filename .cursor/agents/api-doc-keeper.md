@@ -40,7 +40,7 @@ description: Следит за изменениями в коде и архит�
 
 - **`/api/pfp/settings`** — настройки проекта/платформы:
   - конфигурация параметров, которые влияют на расчёты, доступность функционала и т.п.;
-  - **`/pfp/settings/pension/payout-coefficients`** — таблица коэффициентов фазы выплат по пенсии (пол × возраст на пенсии); CRUD для admin, lookup в `PensionCalculator` с fallback на `passive_income_yield`.
+  - **`/pfp/settings/passive-income/yield`** — матрица доходности фазы выплат (срок × сумма × опционально пол/возраст); lookup в `PensionCalculator.resolvePensionPayoutYield()`.
 
 - **`/api/pfp/agents`** — управление агентами:
   - `GET /` — список агентов;
@@ -159,7 +159,7 @@ description: Следит за изменениями в коде и архит�
 
 - файлам вида `docs/STATE_PENSION_ALGORITHM_*.md` (в т.ч. версии для Word);
 - коду алгоритмов в:
-  - `src/algorithms/calculators/PensionCalculator.js` — основной модуль комплексного пенсионного расчёта (госпенсия + пенсия из капитала, риск‑профили, портфели); **фаза выплат**: `settingsService.resolvePensionPayoutYield()` — таблица `pension_payout_coefficients` (пол × возраст) → fallback `passive_income_yield`;
+  - `src/algorithms/calculators/PensionCalculator.js` — … **фаза выплат**: `resolvePensionPayoutYield()` → `findPassiveIncomeYieldLine(amount, term, { gender, age })` по матрице `passive_income_yield`;
   - `src/algorithms/recalculators/PensionRecalculator.js` — перерасчёт цели “Пенсия” при частичных изменениях (в т.ч. `desired_monthly_income`);
   - `src/services/calculationService.js` — регистрация калькуляторов, подготовка контекста (настройки `pension_*`, инфляция и т.п.), смарт‑распределение капитала;
   - `src/controllers/clientController.js` — публичные API‑эндпоинты для расчёта (`POST /api/client/first-run`, `POST /api/client/calculateFirstRun`, `PATCH /api/client/:id/recalculate` и т.п.).
@@ -173,10 +173,9 @@ description: Следит за изменениями в коде и архит�
    - описывай новые/изменённые правила понятным, но точным языком;
    - приводите **минимум один понятный пример** (входные данные → расчёт → результат), если это уместно;
    - явно помечай, какие части алгоритма изменились по сравнению с прошлой версией.
-3. При изменениях **коэффициентов выплат по пенсии** (`pension_payout_coefficients`, API `/pfp/settings/pension/payout-coefficients`):
-   - обновляй `docs/STATE_PENSION_ALGORITHM_NPF.md` (раздел 14) и `docs/api/agent_lk.yaml`;
-   - фиксируй смысл поля `coefficient` (годовая доходность %, как `yield_percent`) и правило fallback на `passive_income_yield`;
-   - перечисляй новые поля `summary` цели PENSION: `payout_yield_source`, `payout_coefficient_*`.
+3. При изменениях **матрицы доходности** (`passive_income_yield`, поля `gender`/`age` в lines):
+   - обновляй `docs/STATE_PENSION_ALGORITHM_NPF.md` (раздел 14) и `docs/api/agent_lk.yaml` (`/pfp/settings/passive-income/yield`);
+   - фиксируй оси lookup: срок, сумма, пол, возраст; универсальные строки без gender/age.
 4. Если видишь несостыковки между кодом и описанием алгоритма:
    - явно укажи, что именно расходится (формулы, параметры, дефолтные значения, допущения);
    - предложи, как переписать фрагмент документа, чтобы стало консистентно;

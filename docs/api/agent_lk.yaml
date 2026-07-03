@@ -945,113 +945,51 @@ paths:
         '404':
           description: Настройка не найдена
 
-  /pfp/settings/pension/payout-coefficients:
+  /pfp/settings/passive-income/yield:
     get:
       tags: [ "Настройки планов и проекта" ]
-      summary: Таблица коэффициентов выплат по пенсии (пол × возраст)
+      summary: Матрица доходности (срок × сумма × пол × возраст)
       description: |
-        Коэффициенты **фазы выплат** для цели PENSION: доходность перевода накопленного капитала в ежемесячную пенсию.
-        Поля строки:
-        - **gender** — `male` / `female`;
-        - **age** — возраст на пенсии (лет), обычно 60 (Ж) или 65 (М);
-        - **coefficient** — число, **годовая доходность %** (как `yield_percent` в `passive_income_yield`, например `3.4`).
+        Линии `passive_income_yield` — единая матрица для фазы выплат.
+        Поля строки: **min_term_months**, **max_term_months**, **min_amount**, **max_amount**,
+        **yield_percent** (% годовых); опционально **gender** (`male`/`female`) и **age** (возраст на пенсии).
 
-        В расчёте `POST /client/calculate` при наличии строки для пола и пенсионного возраста клиента
-        используется таблица; иначе — fallback на `passive_income_yield` (поведение как раньше).
+        В расчёте **PENSION** строка выбирается по:
+        - сроку до пенсии (`monthsToPension`);
+        - капиталу (на планировании — начальный + ОПС, на выплате — накопленный);
+        - полу и пенсионному возрасту клиента.
 
-        В `summary` цели PENSION: `payout_yield_percent`, `payout_yield_source`
-        (`pension_payout_coefficients` | `passive_income_yield`), при таблице — также
+        Строки **без** gender/age — универсальные (цель «Пассивный доход» и fallback для пенсии).
+
+        В `summary` цели PENSION: `payout_yield_percent`, `payout_yield_source`,
         `payout_coefficient_gender`, `payout_coefficient_age`, `payout_coefficient_value`.
-
-        CRUD записи — **admin**; чтение — агент проекта.
       responses:
         '200':
-          description: Список коэффициентов (проект + глобальные строки)
+          description: Матрица линий
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficient'
-    post:
+                $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PassiveIncomeYieldSettings'
+    put:
       tags: [ "Настройки планов и проекта" ]
-      summary: Добавить коэффициент выплат (admin)
+      summary: Сохранить матрицу доходности (admin)
+      description: |
+        Полная замена массива `lines`. Пример строки для НПФ:
+        `{ "min_term_months": 0, "max_term_months": 360, "min_amount": 0, "max_amount": 10000000,
+        "gender": "female", "age": 60, "yield_percent": 3.4 }`
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficientCreate'
-            example:
-              gender: female
-              age: 60
-              coefficient: 3.4
-      responses:
-        '201':
-          description: Создано
-          content:
-            application/json:
-              schema:
-                $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficient'
-        '400':
-          description: Валидация или дубликат (gender + age)
-        '403':
-          description: Только admin
-
-  /pfp/settings/pension/payout-coefficients/{id}:
-    get:
-      tags: [ "Настройки планов и проекта" ]
-      summary: Коэффициент выплат по ID
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficient'
-        '404':
-          description: Не найдено
-    patch:
-      tags: [ "Настройки планов и проекта" ]
-      summary: Обновить коэффициент выплат (admin)
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PensionPayoutCoefficientUpdate'
+              $ref: '../../openapi/OPENAPI_SPEC.yaml#/components/schemas/PassiveIncomeYieldUpdate'
       responses:
         '200':
           description: Обновлено
+        '400':
+          description: Ошибка валидации
         '403':
           description: Только admin
-        '404':
-          description: Не найдено
-    delete:
-      tags: [ "Настройки планов и проекта" ]
-      summary: Удалить коэффициент выплат (admin)
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: integer }
-      responses:
-        '204':
-          description: Удалено
-        '403':
-          description: Только admin
-        '404':
-          description: Не найдено
 
   # ==================== РАСЧЁТ ПФП И НАЛОГОВОЕ ПЛАНИРОВАНИЕ ====================
   /client/calculate:

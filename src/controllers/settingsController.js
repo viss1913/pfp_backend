@@ -82,23 +82,13 @@ const passiveIncomeYieldLineSchema = Joi.object({
     max_term_months: Joi.number().min(0).unsafe().required(),
     min_amount: Joi.number().min(0).unsafe().required(),
     max_amount: Joi.number().min(0).unsafe().required(),
-    yield_percent: Joi.number().min(0).unsafe().required()
+    yield_percent: Joi.number().min(0).unsafe().required(),
+    gender: Joi.string().valid('male', 'female', 'M', 'F', 'мужской', 'женский').allow(null, '').optional(),
+    age: Joi.number().integer().min(18).max(120).allow(null).optional()
 });
 
 const passiveIncomeYieldUpdateSchema = Joi.object({
     lines: Joi.array().items(passiveIncomeYieldLineSchema).min(1).required()
-});
-
-const pensionPayoutCoefficientSchema = Joi.object({
-    gender: Joi.string().valid('male', 'female', 'M', 'F', 'мужской', 'женский').required(),
-    age: Joi.number().integer().min(18).max(120).required(),
-    coefficient: Joi.number().positive().required()
-});
-
-const pensionPayoutCoefficientUpdateSchema = Joi.object({
-    gender: Joi.string().valid('male', 'female', 'M', 'F', 'мужской', 'женский').optional(),
-    age: Joi.number().integer().min(18).max(120).optional(),
-    coefficient: Joi.number().positive().optional()
 });
 
 class SettingsController {
@@ -432,82 +422,6 @@ class SettingsController {
             const isAdmin = req.user.isAdmin;
 
             await settingsService.deletePdsCofinIncomeBracket(parseInt(id), isAdmin);
-            res.status(204).send();
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    // ========== Коэффициенты выплат по пенсии (пол × возраст) ==========
-
-    async getAllPensionPayoutCoefficients(req, res, next) {
-        try {
-            const projectId = req.user.projectId;
-            const rows = await settingsService.getAllPensionPayoutCoefficients(projectId);
-            res.json(rows);
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    async getPensionPayoutCoefficientById(req, res, next) {
-        try {
-            const { id } = req.params;
-            const projectId = req.user.projectId;
-            const row = await settingsService.getPensionPayoutCoefficientById(parseInt(id, 10), projectId);
-            res.json(row);
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    async createPensionPayoutCoefficient(req, res, next) {
-        try {
-            const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
-
-            const validation = pensionPayoutCoefficientSchema.validate(req.body);
-            if (validation.error) {
-                return res.status(400).json({ error: validation.error.details[0].message });
-            }
-
-            const created = await settingsService.createPensionPayoutCoefficient(req.body, isAdmin, projectId);
-            res.status(201).json(created);
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    async updatePensionPayoutCoefficient(req, res, next) {
-        try {
-            const { id } = req.params;
-            const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
-
-            const validation = pensionPayoutCoefficientUpdateSchema.validate(req.body);
-            if (validation.error) {
-                return res.status(400).json({ error: validation.error.details[0].message });
-            }
-
-            const updated = await settingsService.updatePensionPayoutCoefficient(
-                parseInt(id, 10),
-                req.body,
-                isAdmin,
-                projectId
-            );
-            res.json(updated);
-        } catch (err) {
-            next(err);
-        }
-    }
-
-    async deletePensionPayoutCoefficient(req, res, next) {
-        try {
-            const { id } = req.params;
-            const isAdmin = req.user.isAdmin;
-            const projectId = req.user.projectId;
-
-            await settingsService.deletePensionPayoutCoefficient(parseInt(id, 10), isAdmin, projectId);
             res.status(204).send();
         } catch (err) {
             next(err);

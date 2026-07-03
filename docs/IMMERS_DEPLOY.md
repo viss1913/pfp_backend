@@ -151,17 +151,17 @@ docker compose up -d
 docker compose exec backend npm run migrate
 ```
 
-Миграция **`20260703120000_create_pension_payout_coefficients.js`** — таблица коэффициентов фазы выплат по пенсии (пол × возраст). После выката API:
+Миграция **`20260703130000_drop_pension_payout_coefficients.js`** — коэффициенты только в матрице `passive_income_yield` (поля `gender`, `age` в `lines`).
+
+После выката — smoke:
 
 ```bash
-# smoke (нужен JWT admin + X-Project-Key проекта)
-curl -sS "https://pfp-api.bank-future.com/api/pfp/settings/pension/payout-coefficients" \
+curl -sS "https://pfp-api.bank-future.com/api/pfp/settings/passive-income/yield" \
   -H "Authorization: Bearer <token>" \
   -H "X-Project-Key: <project_key>"
-# ожидаем 200 и [] до заливки таблицы с фронта
 ```
 
-Пока таблица пуста, расчёт PENSION работает как раньше (`passive_income_yield`). После заливки коэффициентов — пересчёт клиентов.
+Пока в строках нет gender/age — пенсия берёт универсальные линии (как на скрине админки). После заливки матрицы — пересчёт клиентов.
 
 Скрипты `scripts/seed_default_portfolios_if_missing.js` и `scripts/run_macro_sync.js` — в образе после pull; для hotfix без rebuild — `docker compose cp` как выше.
 
@@ -213,7 +213,7 @@ time curl -sS -o /dev/null "https://pfp-api.bank-future.com/api/pfp/reports/<cli
 
 | Симптом | Fix |
 |---------|-----|
-| Пенсия не считается | 1) Нет default-портфеля PENSION → `seed_default_portfolios_if_missing.js`. 2) В `goals_summary` ошибка `Passive income yield line not found` → в `system_settings` нужен `passive_income_yield` с `max_term_months` **360** (не 60), миграция `20260522150000_extend_passive_income_yield_for_pension.js`. После фикса — **пересчёт** клиента. 3) Таблица `pension_payout_coefficients` опциональна: пустая → fallback на `passive_income_yield`. |
+| Пенсия не считается | 1) Нет default-портфеля PENSION → `seed_default_portfolios_if_missing.js`. 2) `Passive income yield line not found` → проверить `passive_income_yield` (срок до 360 мес., сумма, при НПФ-таблице — gender/age в строках или универсальные fallback-строки без gender/age). 3) Пересчёт клиента после смены матрицы. |
 | Старый отчёт | `report_finam=1` или проект не в `FINAM_REPORT_PROJECT_IDS` |
 | Макро 1970 | `macro_data` пуст → `run_macro_sync.js` |
 | HTML/PDF медленные | 1) Проверить, что клиент уже со snapshot в `goals_summary`. 2) Снизить `REPORT_PDF_POST_LOAD_DELAY_MS` (`100 -> 50 -> 0`) со smoke. 3) Убедиться, что UI ходит в `?format=html` и `pdf-url`, а не в тяжёлый JSON/`/pdf`. |

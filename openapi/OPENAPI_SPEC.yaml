@@ -841,69 +841,6 @@ components:
           type: integer
           minimum: 1
           description: Знаменатель соотношения
-    PensionPayoutCoefficient:
-      type: object
-      description: Коэффициент доходности фазы выплат по пенсии (пол × возраст на пенсии)
-      properties:
-        id:
-          type: integer
-        project_id:
-          type: integer
-          nullable: true
-          description: ID проекта; NULL — глобальная строка (fallback)
-        gender:
-          type: string
-          enum: [male, female]
-          description: Пол клиента на момент выхода на пенсию
-        age:
-          type: integer
-          minimum: 18
-          maximum: 120
-          description: Возраст на пенсии (лет), обычно пенсионный возраст
-          example: 60
-        coefficient:
-          type: number
-          format: float
-          description: Годовая доходность фазы выплат, % (как yield_percent в passive_income_yield)
-          example: 3.4
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-    PensionPayoutCoefficientCreate:
-      type: object
-      required:
-        - gender
-        - age
-        - coefficient
-      properties:
-        gender:
-          type: string
-          enum: [male, female, M, F, мужской, женский]
-        age:
-          type: integer
-          minimum: 18
-          maximum: 120
-        coefficient:
-          type: number
-          minimum: 0
-          exclusiveMinimum: true
-    PensionPayoutCoefficientUpdate:
-      type: object
-      properties:
-        gender:
-          type: string
-          enum: [male, female, M, F, мужской, женский]
-        age:
-          type: integer
-          minimum: 18
-          maximum: 120
-        coefficient:
-          type: number
-          minimum: 0
-          exclusiveMinimum: true
     PdsCofinCalculationRequest:
       type: object
       required:
@@ -985,6 +922,21 @@ components:
           minimum: 0
           description: Доходность в процентах годовых (%)
           example: 14.0
+        gender:
+          type: string
+          nullable: true
+          enum: [male, female, null]
+          description: |
+            Пол для строки матрицы (пенсия). NULL или отсутствие — строка для любого пола
+            (используется целями без демографии, например «Пассивный доход»).
+        age:
+          type: integer
+          nullable: true
+          minimum: 18
+          maximum: 120
+          description: |
+            Возраст на пенсии (лет). NULL — для любого возраста.
+            В расчёте PENSION выбирается строка по сроку, сумме капитала, полу и возрасту.
     PassiveIncomeYieldSettings:
       type: object
       description: Настройки линий доходности для пассивного дохода
@@ -2650,121 +2602,16 @@ paths:
         '404':
           description: PDS cofinancing income bracket not found
 
-  /pfp/settings/pension/payout-coefficients:
-    get:
-      summary: Получить таблицу коэффициентов выплат по пенсии
-      tags:
-        - Settings
-      description: |
-        Возвращает коэффициенты фазы выплат (пол × возраст на пенсии) для текущего проекта
-        и глобальные строки (project_id = null). Сортировка — gender, age.
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PensionPayoutCoefficient'
-    post:
-      summary: Создать коэффициент выплат (admin only)
-      tags:
-        - Settings
-      description: |
-        Создаёт строку таблицы. coefficient — годовая доходность % (как yield_percent в passive_income_yield).
-        Уникальность — (project_id, gender, age).
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PensionPayoutCoefficientCreate'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PensionPayoutCoefficient'
-        '400':
-          description: Validation error or duplicate row
-        '403':
-          description: Forbidden (admin only)
-
-  /pfp/settings/pension/payout-coefficients/{id}:
-    get:
-      summary: Получить коэффициент выплат по ID
-      tags:
-        - Settings
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PensionPayoutCoefficient'
-        '404':
-          description: Pension payout coefficient not found
-    patch:
-      summary: Обновить коэффициент выплат (admin only)
-      tags:
-        - Settings
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PensionPayoutCoefficientUpdate'
-      responses:
-        '200':
-          description: Updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PensionPayoutCoefficient'
-        '400':
-          description: Validation error or duplicate row
-        '403':
-          description: Forbidden (admin only)
-        '404':
-          description: Pension payout coefficient not found
-    delete:
-      summary: Удалить коэффициент выплат (admin only)
-      tags:
-        - Settings
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '204':
-          description: Deleted
-        '403':
-          description: Forbidden (admin only)
-        '404':
-          description: Pension payout coefficient not found
-
   /pfp/settings/passive-income/yield:
     get:
       summary: Получить линии доходности для пассивного дохода
       tags:
         - Settings
-      description: Возвращает все линии доходности для целей типа "Пассивный доход"
+      description: |
+        Матрица доходности фазы выплат: каждая строка — диапазоны срока и суммы,
+        опционально **gender** и **age** (для пенсии), **yield_percent** (% годовых).
+        В расчёте PENSION строка подбирается по сроку до пенсии, капиталу, полу и возрасту на пенсии.
+        Строки без gender/age — fallback / цели «Пассивный доход».
       responses:
         '200':
           description: OK
@@ -2778,7 +2625,10 @@ paths:
       summary: Обновить линии доходности для пассивного дохода (admin only)
       tags:
         - Settings
-      description: Обновляет линии доходности для целей типа "Пассивный доход". Полностью заменяет существующие линии новым массивом.
+      description: |
+        Полностью заменяет матрицу линий. Поля строки: min_term_months, max_term_months,
+        min_amount, max_amount, yield_percent; опционально gender (male/female) и age (лет на пенсии).
+        Пустой gender/age — универсальная строка.
       requestBody:
         required: true
         content:
