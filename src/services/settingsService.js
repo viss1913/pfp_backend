@@ -918,13 +918,13 @@ class SettingsService {
     /**
      * Доходность фазы выплат для пенсии: матрица passive_income_yield (срок + капитал + пол + возраст).
      */
-    async resolvePensionPayoutYield({ amount, gender, retirementAge, monthsToPension, projectId = null }) {
+    async resolvePensionPayoutYield({ amount, gender, ageAtGoal, monthsToPension, projectId = null }) {
         const payoutYieldLine = await this.findPassiveIncomeYieldLine(
             amount,
             monthsToPension,
             false,
             projectId,
-            { gender, age: retirementAge }
+            { gender, age: ageAtGoal }
         );
         if (!payoutYieldLine) return null;
 

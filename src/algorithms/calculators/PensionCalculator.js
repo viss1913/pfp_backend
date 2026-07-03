@@ -66,7 +66,8 @@ class PensionCalculator extends BaseCalculator {
             retirement_year: retirementYear,
             years_to_pension: yearsToPension,
             years_of_work: yearsOfWork,
-            age: age
+            age: age,
+            age_at_goal: age + yearsToPension,
         };
     }
 
@@ -111,6 +112,7 @@ class PensionCalculator extends BaseCalculator {
         const inflationAnnualUsed = pensionSettings.inflation_rate;
         const infl_month_decimal = (inflationAnnualUsed / 12) / 100; // Correct monthly decimal
         const monthsToPension = statePensionResult.years_to_pension * 12;
+        const ageAtGoal = statePensionResult.age_at_goal;
 
         // Желаемая пенсия в ценах БУДУЩЕГО (индексируем на инфляцию за весь срок)
         const desiredPensionMonthlyFuture = (goal.target_amount || 0) * Math.pow(1 + (inflationAnnualUsed / 100), statePensionResult.years_to_pension);
@@ -120,7 +122,7 @@ class PensionCalculator extends BaseCalculator {
         const payoutResolved = await context.services.settingsService.resolvePensionPayoutYield({
             amount: initialCapital,
             gender: client.gender || client.sex,
-            retirementAge: statePensionResult.retirement_age,
+            ageAtGoal,
             monthsToPension,
             projectId: context.projectId,
         });
@@ -319,7 +321,7 @@ class PensionCalculator extends BaseCalculator {
         const payoutAtRetirement = await context.services.settingsService.resolvePensionPayoutYield({
             amount: simResult.totalCapital,
             gender: client.gender || client.sex,
-            retirementAge: statePensionResult.retirement_age,
+            ageAtGoal,
             monthsToPension,
             projectId: context.projectId,
         }) || payoutResolved;
@@ -385,6 +387,7 @@ class PensionCalculator extends BaseCalculator {
                 payout_yield_percent: Math.round(payoutYieldPercentAtRetirement * 100) / 100,
                 payout_yield_percent_planning: Math.round(payoutYieldPercent * 100) / 100,
                 payout_yield_source: payoutYieldSource,
+                payout_age_at_goal: ageAtGoal,
                 payout_coefficient_gender: payoutLineAtRetirement?.gender ?? null,
                 payout_coefficient_age: payoutLineAtRetirement?.age ?? null,
                 payout_coefficient_value: payoutLineAtRetirement
@@ -406,7 +409,8 @@ class PensionCalculator extends BaseCalculator {
                     fixed_payment_future: statePensionResult.fixed_payment_future,
                     retirement_age: statePensionResult.retirement_age,
                     retirement_year: statePensionResult.retirement_year,
-                    years_to_pension: statePensionResult.years_to_pension
+                    years_to_pension: statePensionResult.years_to_pension,
+                    age_at_goal: statePensionResult.age_at_goal,
                 },
                 initial_instruments: initial_instruments,
                 monthly_instruments: monthly_instruments,

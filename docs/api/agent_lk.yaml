@@ -952,16 +952,19 @@ paths:
       description: |
         Линии `passive_income_yield` — единая матрица для фазы выплат.
         Поля строки: **min_term_months**, **max_term_months**, **min_amount**, **max_amount**,
-        **yield_percent** (% годовых); опционально **gender** (`male`/`female`) и **age** (возраст на пенсии).
+        **yield_percent** (% годовых); опционально **gender** (`male`/`female`) и **age** (возраст **на момент наступления цели**).
 
         В расчёте **PENSION** строка выбирается по:
         - сроку до пенсии (`monthsToPension`);
         - капиталу (на планировании — начальный + ОПС, на выплате — накопленный);
-        - полу и пенсионному возрасту клиента.
+        - полу клиента;
+        - **возрасту на момент цели** = текущий возраст + лет до пенсии (`age_at_goal`).
+          Срок до пенсии для цели PENSION: выход **М 65 / Ж 60** (см. `details.state_pension.retirement_age`).
 
         Строки **без** gender/age — универсальные (цель «Пассивный доход» и fallback для пенсии).
 
-        В `summary` цели PENSION: `payout_yield_percent`, `payout_yield_source`,
+        В `summary` цели PENSION: `payout_yield_percent`, `payout_yield_percent_planning`,
+        `payout_age_at_goal`, `payout_yield_source`,
         `payout_coefficient_gender`, `payout_coefficient_age`, `payout_coefficient_value`.
       responses:
         '200':
