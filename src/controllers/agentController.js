@@ -9,6 +9,7 @@ const agentInviteService = require('../services/agentInviteService');
 const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
 const { bufferToWebp } = require('../utils/imageToWebp');
 const { buildAgentRegistrationInviteUrl } = require('../utils/agentRegistrationInviteUrl');
+const { buildClientLandingInviteUrl } = require('../utils/clientLandingInviteUrl');
 const authService = require('../services/authService');
 const agentPartnerIdWizardService = require('../services/agentPartnerIdWizardService');
 const subagentDashboardService = require('../services/subagentDashboardService');
@@ -305,6 +306,23 @@ class AgentController {
 
         const inviter = inviterRow || (await agentService.getAgentById(agentId, projectId));
         const url = buildAgentRegistrationInviteUrl({
+            projectPublicKey: project.public_key,
+            referralRef: slug,
+            inviterPartnerAgentId: inviter?.partner_agent_id || null,
+        });
+
+        return { url, referral_slug: slug, ref: slug };
+    }
+
+    async _buildClientInviteLinkPayload(agentId, projectId, inviterRow = null) {
+        const slug = await agentNetworkService.ensureReferralSlug(agentId);
+        const project = await projectService.getProjectById(projectId);
+        if (!project?.public_key) {
+            throw { status: 500, message: 'У проекта не задан public_key' };
+        }
+
+        const inviter = inviterRow || (await agentService.getAgentById(agentId, projectId));
+        const url = buildClientLandingInviteUrl({
             projectPublicKey: project.public_key,
             referralRef: slug,
             inviterPartnerAgentId: inviter?.partner_agent_id || null,

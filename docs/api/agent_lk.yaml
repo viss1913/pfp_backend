@@ -234,6 +234,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/AgentInvitePreviewResponse'
 
+  /auth/client-referral/preview:
+    get:
+      tags: [ "Регистрация" ]
+      summary: Проверить реферальную ссылку агента для B2C-клиента
+      security: []
+      parameters:
+        - name: ref
+          in: query
+          required: true
+          schema: { type: string }
+          description: referral_slug или uuid агента
+        - name: project_key
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid: { type: boolean, example: true }
+                  agent:
+                    type: object
+                    properties:
+                      id: { type: integer }
+                      first_name: { type: string, nullable: true }
+                      last_name: { type: string, nullable: true }
+                      display_name: { type: string }
+        '400':
+          description: Невалидный ref или project_key
+
   /auth/activate-agent-invite:
     post:
       tags: [ "Регистрация и профиль агента" ]
@@ -334,6 +368,23 @@ paths:
         **Глубина сети:** лимит `projects.settings.agent_network.max_depth` (по умолчанию после миграции `20260519120000` — **2**).
         При `max_depth=2` приглашать могут куратор (depth 0) и субагент (depth 1); при `max_depth=1` — только куратор.
         Превышение → `400` с текстом про `max_depth`.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentInviteLinkResponse'
+
+  /pfp/agents/me/client-invite-link:
+    get:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Реферальная ссылка для приглашения B2C-клиента
+      description: |
+        Возвращает `url` на B2C-лендинг с `project_key`, `ref={referral_slug}` и UTM (`utm_source`, `utm_medium=agent_client_invite`, `utm_campaign=b2c_register`, `utm_partner_finam` пригласившего).
+        База URL: env `CLIENT_LANDING_BASE_URL` или `FRONTEND_CLIENT_LANDING_URL` (по умолчанию `https://family-office.bank-future.com/`).
+
+        **Привязка клиента:** параметр `ref` в ссылке → поле `ref` в `POST /auth/register-client` → `clients.agent_id` и `clients.referred_by_agent_id`.
       responses:
         '200':
           description: OK

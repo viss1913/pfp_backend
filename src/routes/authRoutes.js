@@ -27,6 +27,7 @@ router.post(
 );
 router.post('/parse-partner-agent', authController.parsePartnerAgent.bind(authController));
 router.get('/agent-invite/preview', authController.previewAgentInvite.bind(authController));
+router.get('/client-referral/preview', authController.previewClientReferral.bind(authController));
 router.post('/activate-agent-invite', authController.activateAgentInvite.bind(authController));
 
 // Protected routes (auth required)

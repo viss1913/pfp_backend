@@ -27,6 +27,7 @@ VM: `81.94.159.209`, код: `/opt/pfp/app`, Docker `mysql` + `backend`.
 | `REPORT_PDF_GS_PDFSETTINGS=/screen` | Самый агрессивный профиль на Immers для small-size PDF; мягче вариант — `/ebook` |
 | `COMON_SYNC_PAGE_SIZE=100`, `COMON_SYNC_MAX_PAGES=3` | Daily sync recommended-каталога Comon в `comon_recommended_strategies` |
 | `AGENT_REGISTER_BASE_URL=https://family-office.bank-future.com/register/` | Ссылка субагента (invite-link, письмо) |
+| `CLIENT_LANDING_BASE_URL=https://family-office.bank-future.com/` | B2C client-invite-link (`GET /pfp/agents/me/client-invite-link`) |
 | `AGENT_INVITE_ACTIVATE_BASE_URL=https://family-office.bank-future.com/invite/activate` | Magic-link после `POST .../family-office-invite` (без env после деплоя кода — тот же хост из `AGENT_REGISTER_BASE_URL`) |
 | `TELEGRAM_PROXY_URL` | Опционально: HTTP/SOCKS-прокси **только** для Telegram Bot API (конструктор), если Immers блокирует `api.telegram.org`. Пример: `http://user:pass@45.77.80.63:3128`. Не путать с глобальным `HTTP_PROXY`. |
 

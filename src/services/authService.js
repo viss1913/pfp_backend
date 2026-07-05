@@ -189,15 +189,26 @@ class AuthService {
 
     /**
      * Step 1: Initiate client registration — send verification code to email
-     * @param {{ email: string, name: string, project_key: string }} data
+     * @param {object} data
      */
-    async initiateClientRegistration({ email, name, project_key }) {
+    async initiateClientRegistration(data) {
+        const { email, name, project_key, ref } = data;
         const project = await projectService.getProjectByPublicKey(project_key);
         if (!project) {
             throw { status: 400, message: 'Неверный ключ проекта' };
         }
 
         await assertActiveUserEmailAvailable(email, project.id);
+
+        let parentAgent = null;
+        if (ref != null && String(ref).trim() !== '') {
+            parentAgent = await agentNetworkService.resolveParentAgentFromRef(project.id, ref);
+        }
+
+        const verificationPayload = agentNetworkService.buildClientRegistrationVerificationPayload(
+            data,
+            parentAgent
+        );
 
         // Generate 6-digit code
         const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -215,6 +226,7 @@ class AuthService {
             project_id: project.id,
             name,
             purpose: 'client_register',
+            payload: JSON.stringify(verificationPayload),
             expires_at: expiresAt,
             verified: false,
         });
@@ -228,6 +240,15 @@ class AuthService {
             message: 'Код подтверждения отправлен на вашу почту',
             email,
             expires_in_minutes: VERIFICATION_CODE_TTL_MINUTES
+        };
+    }
+
+    async _resolveClientOwnershipFields(agentId, trx = db) {
+        if (!agentId) return {};
+        const referredByAgentId = await agentNetworkService.resolveReferredByAgentId(agentId, trx);
+        return {
+            agent_id: Number(agentId),
+            referred_by_agent_id: referredByAgentId,
         };
     }
 
@@ -263,6 +284,7 @@ class AuthService {
         const passwordHash = await bcrypt.hash(password, 10);
 
         const normalizedEmail = normalizeRegistrationEmail(email);
+        const registrationPayload = agentNetworkService.parseEmailVerificationPayload(verification.payload);
 
         // Create user + client in a transaction
         const result = await db.transaction(async (trx) => {
@@ -278,16 +300,22 @@ class AuthService {
                 is_active: true
             });
 
+            const ownershipFields = await this._resolveClientOwnershipFields(
+                registrationPayload.agent_id,
+                trx
+            );
+
             // Create client record linked to user
             const [clientId] = await trx('clients').insert({
                 user_id: userId,
                 project_id: verification.project_id,
                 first_name: firstName,
                 last_name: lastName || firstName,
-                email
+                email,
+                ...ownershipFields,
             });
 
-            return { userId, clientId };
+            return { userId, clientId, agentId: ownershipFields.agent_id || null };
         });
 
         // Generate JWT token (auto-login after registration)
@@ -301,7 +329,9 @@ class AuthService {
 
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-        console.log(`[AuthService] Client account created: userId=${result.userId}, clientId=${result.clientId}`);
+        console.log(
+            `[AuthService] Client account created: userId=${result.userId}, clientId=${result.clientId}, agentId=${result.agentId || 'none'}`
+        );
 
         return {
             token,
@@ -320,13 +350,23 @@ class AuthService {
      * Fast Client registration without email verification
      * @param {{ email: string, password: string, project_key: string, name?: string }} data
      */
-    async registerFastClient({ email, password, project_key, name }) {
+    async registerFastClient(data) {
+        const { email, password, project_key, name, ref } = data;
         const project = await projectService.getProjectByPublicKey(project_key);
         if (!project) {
             throw { status: 400, message: 'Неверный ключ проекта' };
         }
 
         await assertActiveUserEmailAvailable(email, project.id);
+
+        let parentAgent = null;
+        if (ref != null && String(ref).trim() !== '') {
+            parentAgent = await agentNetworkService.resolveParentAgentFromRef(project.id, ref);
+        }
+        const registrationPayload = agentNetworkService.buildClientRegistrationVerificationPayload(
+            data,
+            parentAgent
+        );
 
         // Parse name into first/last
         const clientName = name || 'Client';
@@ -349,16 +389,22 @@ class AuthService {
                 is_active: true
             });
 
+            const ownershipFields = await this._resolveClientOwnershipFields(
+                registrationPayload.agent_id,
+                trx
+            );
+
             // Create client record linked to user
             const [clientId] = await trx('clients').insert({
                 user_id: userId,
                 project_id: project.id,
                 first_name: firstName,
                 last_name: lastName || firstName,
-                email
+                email,
+                ...ownershipFields,
             });
 
-            return { userId, clientId };
+            return { userId, clientId, agentId: ownershipFields.agent_id || null };
         });
 
         // Generate JWT token (auto-login after registration)
@@ -372,7 +418,9 @@ class AuthService {
 
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-        console.log(`[AuthService] Fast Client account created: userId=${result.userId}, clientId=${result.clientId}`);
+        console.log(
+            `[AuthService] Fast Client account created: userId=${result.userId}, clientId=${result.clientId}, agentId=${result.agentId || 'none'}`
+        );
 
         return {
             token,
@@ -841,6 +889,30 @@ class AuthService {
         if (payload.clientId) responseUser.clientId = payload.clientId;
 
         return { token, user: responseUser };
+    }
+
+    /**
+     * @param {{ ref: string, project_key: string }} params
+     */
+    async previewClientReferral({ ref, project_key }) {
+        const project = await projectService.getProjectByPublicKey(project_key);
+        if (!project) {
+            throw { status: 400, message: 'Неверный ключ проекта' };
+        }
+
+        const agent = await agentNetworkService.resolveParentAgentFromRef(project.id, ref);
+        const displayName =
+            [agent.first_name, agent.last_name].filter(Boolean).join(' ').trim() || 'Агент';
+
+        return {
+            valid: true,
+            agent: {
+                id: agent.id,
+                first_name: agent.first_name || null,
+                last_name: agent.last_name || null,
+                display_name: displayName,
+            },
+        };
     }
 
     /**

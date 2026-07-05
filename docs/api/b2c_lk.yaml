@@ -39,6 +39,9 @@ paths:
     post:
       tags: [ "Регистрация" ]
       summary: Шаг 1. Инициация регистрации (отправка кода на email)
+      description: |
+        Опционально передайте `ref` (referral_slug агента) и UTM-поля — привязка к агенту сохраняется в payload верификации
+        и применяется при `POST /auth/verify-code` (`clients.agent_id`, `clients.referred_by_agent_id`).
       parameters:
         - $ref: '../../openapi/pfpB2C.yaml#/components/parameters/ProjectKeyHeader'
       requestBody:
@@ -47,13 +50,18 @@ paths:
           application/json:
             schema:
               type: object
-              required: [ email, password, password_confirm ]
+              required: [ email, name, project_key ]
               properties:
                 email: { type: string, format: email }
-                password: { type: string, minLength: 6 }
-                password_confirm: { type: string }
-                role: { type: string, enum: [client], default: client }
-                fio: { type: string, description: "Необязательно на 1 шаге" }
+                name: { type: string, minLength: 2, maxLength: 255 }
+                project_key: { type: string }
+                ref: { type: string, maxLength: 128, description: "referral_slug агента из client-invite-link" }
+                utm_source: { type: string }
+                utm_medium: { type: string }
+                utm_campaign: { type: string }
+                utm_content: { type: string }
+                utm_term: { type: string }
+                utm_partner_finam: { type: string }
 
   /auth/verify-code:
     post:
@@ -69,6 +77,25 @@ paths:
               properties:
                 email: { type: string }
                 code: { type: string, description: "6-значный код из письма" }
+                password: { type: string, minLength: 6, description: "Пароль для нового аккаунта" }
+
+  /auth/client-referral/preview:
+    get:
+      tags: [ "Регистрация" ]
+      summary: Проверить ref агента (публично, без JWT)
+      security: []
+      parameters:
+        - name: ref
+          in: query
+          required: true
+          schema: { type: string }
+        - name: project_key
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Имя агента для UI «Вас пригласил …»
 
   /auth/register-fast:
     post:
@@ -87,6 +114,73 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string, minLength: 6 }
                 fio: { type: string }
+                ref: { type: string, maxLength: 128 }
+                utm_source: { type: string }
+                utm_medium: { type: string }
+                utm_campaign: { type: string }
+                utm_partner_finam: { type: string }
+
+  /client/calculate:
+    post:
+      tags: [ "Гостевой CJM" ]
+      summary: Расчёт плана без логина (stateless)
+      security: []
+      parameters:
+        - $ref: '../../openapi/pfpB2C.yaml#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationRequest'
+      responses:
+        '200':
+          description: Результат расчёта (в БД не сохраняется)
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationResponse'
+
+  /client/risk-profile/questionnaire-v2:
+    get:
+      tags: [ "Гостевой CJM" ]
+      summary: Анкета риск-профиля для гостя (без JWT)
+      security: []
+      parameters:
+        - $ref: '../../openapi/pfpB2C.yaml#/components/parameters/ProjectKeyHeader'
+      responses:
+        '200':
+          description: Client-friendly анкета v2
+
+  /client/risk-profile/evaluate:
+    post:
+      tags: [ "Гостевой CJM" ]
+      summary: Оценка риск-профиля без сохранения в БД
+      security: []
+      parameters:
+        - $ref: '../../openapi/pfpB2C.yaml#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ risk_profile_answers ]
+              properties:
+                risk_profile_answers:
+                  type: object
+                  additionalProperties: true
+                goal:
+                  type: object
+                  properties:
+                    goal_type_id: { type: integer }
+                    term_months: { type: integer }
+                client:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: risk_profile_result и risk_profile_explanation
 
   /my/account:
     delete:

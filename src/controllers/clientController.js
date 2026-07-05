@@ -198,6 +198,23 @@ const sendBrokerOfferSchema = Joi.object({
     short_description: Joi.string().trim().max(2000).optional(),
 });
 
+const guestRiskEvaluateSchema = Joi.object({
+    risk_profile_answers: riskProfileAnswersSchema.required(),
+    goal: Joi.object({
+        goal_type_id: Joi.number().integer().positive().optional(),
+        term_months: Joi.number().integer().min(0).optional(),
+        name: Joi.string().optional(),
+    }).optional().default({}),
+    client: Joi.object({
+        avg_monthly_income: Joi.number().min(0).optional(),
+        assets_total: Joi.number().min(0).optional(),
+        liabilities_total: Joi.number().min(0).optional(),
+        net_worth: Joi.number().min(0).optional(),
+        dependents_count: Joi.number().integer().min(0).optional(),
+        family_profile: familyProfileSchema,
+    }).optional().default({}),
+});
+
 const clientService = require('../services/clientService');
 const aiB2cService = require('../services/aiB2cService');
 const constructorSiteChatAgentService = require('../services/constructorSiteChatAgentService');
@@ -213,6 +230,9 @@ const commissionService = require('../services/commissionService');
 const { buildTrackedPartnerUrl } = require('../utils/trackedPartnerUrl');
 const { resolveLastRebalanceAt, hasPlan } = require('../utils/goalsSummaryMetrics');
 const { resolveLifeOfferEmailPayload } = require('../utils/atbBankBranding');
+const riskQuestionnaireService = require('../services/riskQuestionnaireService');
+const riskProfileService = require('../services/riskProfileService');
+const riskProfileExplanationService = require('../services/riskProfileExplanationService');
 
 function attachCrmClientDates(clientRow) {
     const createdAt = clientRow.created_at;
@@ -317,6 +337,92 @@ class ClientController {
                 agentUserId: req.user?.id
             });
             res.json(calculationService.simplify(result));
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /client/risk-profile/questionnaire-v2 — guest-friendly questionnaire (public)
+     */
+    async getGuestRiskProfileQuestionnaireV2(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user?.projectId || null;
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context is missing (x-project-key required)' });
+            }
+            const questionnaire = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId);
+            if (!questionnaire) {
+                return res.status(404).json({ error: 'Risk questionnaire is not configured' });
+            }
+            res.json({ questionnaire });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /client/risk-profile/evaluate — stateless risk scoring for guest CJM
+     */
+    async evaluateGuestRiskProfile(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user?.projectId || null;
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context is missing (x-project-key required)' });
+            }
+
+            const validation = guestRiskEvaluateSchema.validate(req.body, {
+                abortEarly: false,
+                allowUnknown: true,
+            });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map((d) => ({
+                        field: d.path.join('.'),
+                        message: d.message,
+                    })),
+                });
+            }
+
+            const questionnaire = await riskQuestionnaireService.getActiveQuestionnaire(projectId);
+            if (!questionnaire) {
+                return res.status(404).json({ error: 'Risk questionnaire is not configured' });
+            }
+
+            const normalizedAnswers = riskQuestionnaireService.normalizeAnswerMap(
+                validation.value.risk_profile_answers,
+                questionnaire
+            );
+
+            const goal = validation.value.goal || {};
+            const clientData = validation.value.client || {};
+            const riskProfileResult = await riskProfileService.calculateGoalProfile({
+                answers: normalizedAnswers,
+                goal,
+                client: clientData,
+                projectId,
+            });
+
+            let riskProfileExplanation = null;
+            if (riskProfileResult) {
+                const questionnaireV2 = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId);
+                riskProfileExplanation = await riskProfileExplanationService.build({
+                    riskProfileResult,
+                    answerMap: normalizedAnswers,
+                    questionnaire: questionnaireV2,
+                    projectId,
+                    goalsPortfolioRisk: [],
+                });
+            }
+
+            res.json({
+                risk_profile_answers: normalizedAnswers,
+                risk_questionnaire_version_id:
+                    riskProfileResult?.questionnaire_version_id || questionnaire.id,
+                risk_profile_result: riskProfileResult,
+                risk_profile_explanation: riskProfileExplanation,
+            });
         } catch (err) {
             next(err);
         }
@@ -809,7 +915,7 @@ class ClientController {
             const { id } = req.params;
             await clientService.addGoal(id, req.body);
             if (!req.body) req.body = {};
-            req.body.goals = null;
+            req.body.goals = [];
             return this.recalculate(req, res, next);
         } catch (err) {
             next(err);
@@ -819,9 +925,15 @@ class ClientController {
     async deleteGoal(req, res, next) {
         try {
             const { id, goalId } = req.params;
+            const projectId = req.projectId != null ? req.projectId : req.user?.projectId;
+            const existingClient = await clientService.getFullClient(id, projectId);
+            if (!existingClient) {
+                return res.status(404).json({ error: 'Client not found' });
+            }
+            await assertAgentCanMutateClient({ req, client: existingClient, projectId });
             await clientService.deleteGoal(id, goalId);
             if (!req.body) req.body = {};
-            req.body.goals = null;
+            req.body.goals = [];
             return this.recalculate(req, res, next);
         } catch (err) {
             next(err);

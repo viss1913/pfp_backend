@@ -15,6 +15,20 @@ router.post(
     clientController.calculateFirstRun.bind(clientController)
 );
 
+router.get(
+    '/risk-profile/questionnaire-v2',
+    authMiddleware.optionalAuthMiddleware,
+    tenantMiddleware,
+    clientController.getGuestRiskProfileQuestionnaireV2.bind(clientController)
+);
+
+router.post(
+    '/risk-profile/evaluate',
+    authMiddleware.optionalAuthMiddleware,
+    tenantMiddleware,
+    clientController.evaluateGuestRiskProfile.bind(clientController)
+);
+
 // Protected Routes
 const pfpMiddleware = [authMiddleware, tenantMiddleware];
 

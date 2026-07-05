@@ -201,6 +201,31 @@ async function resolveReferredByAgentId(executorAgentId, trx = knex) {
     return Number(agent.id);
 }
 
+/**
+ * Payload stored in email_verifications for B2C client registration with agent ref.
+ * @param {object} body
+ * @param {{ id: number, partner_agent_id?: string|null }|null} parentAgent
+ */
+function buildClientRegistrationVerificationPayload(body = {}, parentAgent = null) {
+    const agentId = parentAgent?.id != null ? Number(parentAgent.id) : null;
+    const attributionBody = enrichRegistrationAttributionBody(body, parentAgent);
+    return {
+        agent_id: Number.isFinite(agentId) && agentId > 0 ? agentId : null,
+        ref: body.ref != null && String(body.ref).trim() !== '' ? String(body.ref).trim() : null,
+        registration_attribution: buildRegistrationAttribution(attributionBody),
+    };
+}
+
+function parseEmailVerificationPayload(raw) {
+    if (raw == null || raw === '') return {};
+    if (typeof raw === 'object') return raw;
+    try {
+        return JSON.parse(String(raw));
+    } catch (_) {
+        return {};
+    }
+}
+
 module.exports = {
     generateReferralSlug,
     ensureReferralSlug,
@@ -210,6 +235,8 @@ module.exports = {
     assertValidParentAssignment,
     enrichRegistrationAttributionBody,
     buildRegistrationAttribution,
+    buildClientRegistrationVerificationPayload,
+    parseEmailVerificationPayload,
     listSubagents,
     resolveReferredByAgentId,
 };

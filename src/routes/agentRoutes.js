@@ -37,6 +37,7 @@ router.post(
     agentController.completePartnerIdWizard.bind(agentController)
 );
 router.get('/me/invite-link', agentController.getInviteLink.bind(agentController));
+router.get('/me/client-invite-link', agentController.getClientInviteLink.bind(agentController));
 router.post(
     '/me/subagent-invite/send-email',
     agentController.sendSubagentInviteEmail.bind(agentController)

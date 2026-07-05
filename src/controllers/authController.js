@@ -17,10 +17,21 @@ const registerSchema = Joi.object({
 });
 
 // Client registration schemas (2-step)
+const clientReferralUtmFields = {
+    ref: Joi.string().max(128).allow('').optional(),
+    utm_source: Joi.string().max(128).allow('').optional(),
+    utm_medium: Joi.string().max(128).allow('').optional(),
+    utm_campaign: Joi.string().max(128).allow('').optional(),
+    utm_content: Joi.string().max(128).allow('').optional(),
+    utm_term: Joi.string().max(128).allow('').optional(),
+    utm_partner_finam: Joi.string().max(64).allow('').optional(),
+};
+
 const registerClientSchema = Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
     name: Joi.string().min(2).max(255).required(),
-    project_key: Joi.string().required()
+    project_key: Joi.string().required(),
+    ...clientReferralUtmFields,
 });
 
 const verifyCodeSchema = Joi.object({
@@ -34,7 +45,8 @@ const registerFastSchema = Joi.object({
     email: Joi.string().email({ tlds: { allow: false } }).required(),
     password: Joi.string().min(6).required(),
     project_key: Joi.string().required(),
-    name: Joi.string().min(2).max(255).optional()
+    name: Joi.string().min(2).max(255).optional(),
+    ...clientReferralUtmFields,
 });
 
 // Agent registration step 1 — send code (Resend)
@@ -292,6 +304,29 @@ class AuthController {
                 return res.status(400).json({ error: 'token is required' });
             }
             const preview = await authService.previewAgentInviteToken(String(token).trim());
+            res.json(preview);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    async previewClientReferral(req, res, next) {
+        try {
+            const ref = req.query.ref;
+            const projectKey =
+                req.query.project_key ||
+                req.headers['x-project-key'] ||
+                req.body?.project_key;
+            if (!ref || String(ref).trim() === '') {
+                return res.status(400).json({ error: 'ref is required' });
+            }
+            if (!projectKey || String(projectKey).trim() === '') {
+                return res.status(400).json({ error: 'project_key is required' });
+            }
+            const preview = await authService.previewClientReferral({
+                ref: String(ref).trim(),
+                project_key: String(projectKey).trim(),
+            });
             res.json(preview);
         } catch (err) {
             next(err);
