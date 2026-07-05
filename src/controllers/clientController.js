@@ -60,6 +60,16 @@ const riskProfileAnswersSchema = Joi.object().pattern(
     )
 ).optional();
 
+const calcAssetItemSchema = Joi.object({
+    type: Joi.string().required(),
+    amount: Joi.number().min(0).optional(),
+    current_value: Joi.number().min(0).optional(),
+    unlock_month: Joi.number().integer().min(0).optional(),
+    sell_month: Joi.number().integer().min(0).optional(),
+    name: Joi.string().optional(),
+    goal_id: Joi.string().allow(null).optional(),
+});
+
 // Схема валидации для запроса расчета
 const calculationRequestSchema = Joi.object({
     goals: Joi.array().items(Joi.object({
@@ -101,6 +111,10 @@ const calculationRequestSchema = Joi.object({
             .description('Приоритет цели (1 - самый высокий). Если не указан, определяется по типу цели')
     })).min(1).required()
         .description('Массив целей для расчета'),
+    assets: Joi.array().items(calcAssetItemSchema).optional()
+        .description('Активы в корне тела (альтернатива client.assets; фронт часто шлёт сюда)'),
+    ref: Joi.string().max(128).allow('').optional()
+        .description('referral_slug или UUID агента — для привязки лида в CRM'),
     client: Joi.object({
         birth_date: Joi.string().optional()
             .description('Дата рождения клиента (формат: YYYY-MM-DD или ISO 8601). Требуется для расчета НСЖ и Пенсии'),
@@ -122,15 +136,7 @@ const calculationRequestSchema = Joi.object({
             .description('Текущий ИПК (индивидуальный пенсионный коэффициент) клиента. Если не указан, будет оценен на основе дохода'),
         total_liquid_capital: Joi.number().min(0).optional().default(0)
             .description('Общий ликвидный капитал клиента (Бассейн)'),
-        assets: Joi.array().items(Joi.object({
-            type: Joi.string().required(),
-            amount: Joi.number().min(0).optional(),
-            current_value: Joi.number().min(0).optional(),
-            unlock_month: Joi.number().integer().min(0).optional(),
-            sell_month: Joi.number().integer().min(0).optional(),
-            name: Joi.string().optional(),
-            goal_id: Joi.string().allow(null).optional()
-        })).optional().default([])
+        assets: Joi.array().items(calcAssetItemSchema).optional().default([])
             .description('Список активов клиента (депозиты, недвижимость и т.д.)'),
         insured_person: Joi.object({
             is_policy_holder: Joi.boolean().optional()
@@ -215,9 +221,87 @@ const guestRiskEvaluateSchema = Joi.object({
     }).optional().default({}),
 });
 
-const guestPlanSaveSchema = calculationRequestSchema.keys({
-    ref: Joi.string().max(128).allow('').optional(),
-});
+const guestPlanSaveSchema = calculationRequestSchema;
+
+function normalizeGuestCalculationPayload(body) {
+    if (!body.client) body.client = {};
+    const rootAssets = Array.isArray(body.assets) ? body.assets : [];
+    const clientAssets = Array.isArray(body.client.assets) ? body.client.assets : [];
+    if (rootAssets.length > 0 && clientAssets.length === 0) {
+        body.client.assets = rootAssets;
+    }
+}
+
+/**
+ * Подготовка гостевого лида: email + ref → agent_id. Без email — null (только расчёт).
+ * @returns {Promise<{ projectId: number, normalizedEmail: string }|null>}
+ */
+async function prepareGuestLeadPersistence(req) {
+    const projectId = req.projectId || req.body.client?.project_id;
+    if (!projectId) return null;
+
+    normalizeGuestCalculationPayload(req.body);
+
+    const normalizedEmail = normalizeRegistrationEmail(req.body.client?.email);
+    if (!normalizedEmail) return null;
+
+    req.body.client.email = normalizedEmail;
+    req.body.client.project_id = projectId;
+
+    const existingUser = await db('users')
+        .where({ email: normalizedEmail, project_id: projectId, is_active: true })
+        .first();
+    if (existingUser) {
+        throw {
+            status: 400,
+            message: 'Email уже зарегистрирован. Войдите в аккаунт или используйте другой email.',
+        };
+    }
+
+    const existingClient = await clientRepository.findByEmail(normalizedEmail, projectId);
+    if (existingClient?.user_id) {
+        throw {
+            status: 400,
+            message: 'Клиент с этим email уже привязан к аккаунту. Войдите в личный кабинет.',
+        };
+    }
+
+    const ref = req.body.ref;
+    if (ref != null && String(ref).trim() !== '') {
+        const parentAgent = await agentNetworkService.resolveParentAgentFromRef(projectId, ref);
+        if (parentAgent) {
+            req.body.client.agent_id = parentAgent.id;
+        }
+    }
+
+    return { projectId, normalizedEmail };
+}
+
+async function finishGuestLeadPersistence(req, calculationResponse, persistCtx) {
+    if (!persistCtx) return null;
+
+    const { projectId, normalizedEmail } = persistCtx;
+    const { clientId } = await persistCalculatedPlan(req.body, calculationResponse, projectId);
+    const guestToken = authService.signGuestClientToken({
+        clientId,
+        projectId,
+        email: normalizedEmail,
+    });
+
+    calculationResponse.client_id = clientId;
+    warmupClientPdfInBackground({
+        clientId,
+        projectId,
+        agentId: req.body.client?.agent_id || null,
+        forceRegenerate: true,
+    });
+
+    return {
+        client_id: clientId,
+        guest_token: guestToken,
+        plan_saved: true,
+    };
+}
 
 const clientService = require('../services/clientService');
 const aiB2cService = require('../services/aiB2cService');
@@ -329,8 +413,7 @@ class ClientController {
     // --- Existing Calculator ---
     async calculateFirstRun(req, res, next) {
         try {
-            // Валидация входных данных
-            const validation = calculationRequestSchema.validate(req.body, { abortEarly: false });
+            const validation = calculationRequestSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
             if (validation.error) {
                 return res.status(400).json({
                     error: 'Validation error',
@@ -342,19 +425,50 @@ class ClientController {
             }
 
             if (!req.body.client) req.body.client = {};
-            // Strict scoping: priority to validated projectId from context/token
             req.body.client.project_id = req.projectId || req.user?.projectId;
 
             if (!req.body.client.project_id) {
                 return res.status(400).json({ error: 'Project context is missing' });
             }
 
+            normalizeGuestCalculationPayload(req.body);
+
+            const hasAssets = (req.body.client.assets?.length || req.body.assets?.length) > 0;
+            const hasPool = Number(req.body.client.total_liquid_capital || 0) > 0;
+            if (!hasAssets && !hasPool) {
+                console.warn(
+                    `[ClientController] calculateFirstRun: no client.assets/total_liquid_capital in request (project ${req.body.client.project_id})`
+                );
+            }
+
             console.log(`[ClientController] calculateFirstRun for project: ${req.body.client.project_id}`);
 
+            let persistCtx = null;
+            try {
+                persistCtx = await prepareGuestLeadPersistence(req);
+            } catch (persistErr) {
+                if (persistErr?.status) {
+                    return res.status(persistErr.status).json({ error: persistErr.message });
+                }
+                throw persistErr;
+            }
+
             const result = await calculationService.calculateFirstRun(req.body, null, null, {
-                agentUserId: req.user?.id
+                isFirstRun: true,
+                usePool: true,
+                agentUserId: req.user?.id,
             });
-            res.json(calculationService.simplify(result));
+
+            const persistMeta = await finishGuestLeadPersistence(req, result, persistCtx);
+            const simplified = calculationService.simplify(result);
+            if (persistMeta) {
+                Object.assign(simplified, persistMeta);
+                console.log(
+                    `[ClientController] calculateFirstRun auto-saved lead client_id=${persistMeta.client_id}, ref=${req.body.ref || 'none'}`
+                );
+            }
+
+            res.json(simplified);
         } catch (err) {
             next(err);
         }
@@ -517,72 +631,33 @@ class ClientController {
                 });
             }
 
-            const projectId = req.projectId;
-            if (!projectId) {
+            if (!req.projectId) {
                 return res.status(400).json({ error: 'Project context is missing (x-project-key)' });
             }
 
-            if (!req.body.client) req.body.client = {};
-            const normalizedEmail = normalizeRegistrationEmail(req.body.client.email);
-            if (!normalizedEmail) {
+            let persistCtx;
+            try {
+                persistCtx = await prepareGuestLeadPersistence(req);
+            } catch (persistErr) {
+                if (persistErr?.status) {
+                    return res.status(persistErr.status).json({ error: persistErr.message });
+                }
+                throw persistErr;
+            }
+            if (!persistCtx) {
                 return res.status(400).json({ error: 'client.email is required for guest plan save' });
             }
-            req.body.client.email = normalizedEmail;
-            req.body.client.project_id = projectId;
 
-            const existingUser = await db('users')
-                .where({ email: normalizedEmail, project_id: projectId, is_active: true })
-                .first();
-            if (existingUser) {
-                return res.status(400).json({
-                    error: 'Email уже зарегистрирован. Войдите в аккаунт или используйте другой email.',
-                });
-            }
-
-            const existingClient = await clientRepository.findByEmail(normalizedEmail, projectId);
-            if (existingClient?.user_id) {
-                return res.status(400).json({
-                    error: 'Клиент с этим email уже привязан к аккаунту. Войдите в личный кабинет.',
-                });
-            }
-
-            const ref = req.body.ref;
-            if (ref != null && String(ref).trim() !== '') {
-                const parentAgent = await agentNetworkService.resolveParentAgentFromRef(projectId, ref);
-                if (parentAgent) {
-                    req.body.client.agent_id = parentAgent.id;
-                }
-            }
-
-            console.log(`[ClientController] saveGuestPlan for project: ${projectId}, ref: ${ref || 'none'}`);
+            console.log(`[ClientController] saveGuestPlan for project: ${persistCtx.projectId}, ref: ${req.body.ref || 'none'}`);
 
             const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, {
                 isFirstRun: true,
                 usePool: true,
             });
 
-            const { clientId } = await persistCalculatedPlan(req.body, calculationResponse, projectId);
-            const guestToken = authService.signGuestClientToken({
-                clientId,
-                projectId,
-                email: normalizedEmail,
-            });
-
-            calculationResponse.client_id = clientId;
-            warmupClientPdfInBackground({
-                clientId,
-                projectId,
-                agentId: req.body.client?.agent_id || null,
-                forceRegenerate: true,
-            });
-
+            const persistMeta = await finishGuestLeadPersistence(req, calculationResponse, persistCtx);
             const simplified = calculationService.simplify(calculationResponse);
-            res.json({
-                ...simplified,
-                client_id: clientId,
-                guest_token: guestToken,
-                plan_saved: true,
-            });
+            res.json({ ...simplified, ...persistMeta });
         } catch (err) {
             next(err);
         }

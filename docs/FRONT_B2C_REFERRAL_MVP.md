@@ -7,37 +7,64 @@
 ```
 /?ref=XXX&project_key=pk
   → sessionStorage: ref, utm, project_key
-  → GET /auth/client-referral/preview (имя агента на лендинге)
-  → /plan (guest CJM, без логина)
+  → GET /auth/client-referral/preview
+  → /plan (guest CJM)
   → GET /client/risk-profile/questionnaire-v2
   → POST /client/risk-profile/evaluate (опционально)
-  → POST /client/calculate (client.risk_profile_answers в теле)
-  → Result + «Сохранить план»
-  → POST /client/plan/save { ...тот же payload..., ref, client.email }
-  → guest_token в ответе → Bearer на /my/plan/report/html и /pdf
-  → (опционально позже) register-client → verify-code — заклеймить аккаунт
+  → POST /client/calculate  ← один вызов: расчёт + сохранение + guest_token
+  → отчёты по guest_token
+  → (опционально) register-client → verify-code — заклеймить аккаунт
 ```
 
-## Задачи фронта
+## Авто-сохранение без регистрации
 
-| Задача | API |
-|--------|-----|
-| Публичный маршрут CJM | `/?ref=` → `/plan`, не `FamilyOfficeSelfRegisterModal` |
-| Захват ref/UTM | `sessionStorage` при заходе по ссылке |
-| Preview агента | `GET /api/auth/client-referral/preview?ref=&project_key=` |
-| Риск в CJM | `GET /api/client/risk-profile/questionnaire-v2` + `POST .../evaluate` |
-| Гостевой расчёт | `POST /api/client/calculate` + `x-project-key` |
-| **Сохранить план (без пароля)** | `POST /api/client/plan/save` + `ref` + `client.email` |
-| Отчёт после save | `Authorization: Bearer {guest_token}` → `GET /api/my/plan/report/html` |
-| Регистрация (опционально) | `POST /api/auth/register-client` → `verify-code` — линкует лид |
-| ЛК агента | `GET /api/pfp/agents/me/client-invite-link` — кнопка «Пригласить клиента» |
+**`POST /api/client/calculate`** — если в теле есть `client.email` (+ `ref` из sessionStorage):
 
-## Заголовки
+- создаёт/обновляет лид в `clients` (без `users`)
+- `agent_id` по `ref`
+- в ответе: `client_id`, `guest_token`, `plan_saved: true`
+- повторный расчёт с тем же email **обновляет** профиль (телефон, активы…)
 
-- Публичные guest-эндпоинты: `x-project-key: {project_key}` (как у `/client/calculate`).
-- Отчёты после save: `Authorization: Bearer {guest_token}`.
+Отдельный `plan/save` — опциональный дубль того же поведения.
+
+## Активы и капитал (частая ошибка фронта)
+
+Бэкенд ждёт **одно из**:
+
+| Поле | Где | Зачем |
+|------|-----|--------|
+| `client.total_liquid_capital` | `client` | Ликвидный «бассейн» (₽) |
+| `client.assets` | `client` | Массив активов |
+| `assets` | **корень JSON** | То же (альтернатива, бэкенд мержит в `client.assets`) |
+
+Пример актива:
+
+```json
+{
+  "type": "CASH",
+  "current_value": 500000,
+  "unlock_month": 0
+}
+```
+
+Если **ни assets, ни total_liquid_capital** — пул = 0, в логах бэка warning:
+`calculateFirstRun: no client.assets/total_liquid_capital in request`.
+
+**Ошибка на фронте**, если CJM собирает активы, но не кладёт их в payload `calculate`.
+
+## Отчёты
+
+```http
+Authorization: Bearer {guest_token}
+GET /api/my/plan/report/html
+GET /api/my/plan/report/pdf
+GET /api/my/plan/report/pdf-url
+```
+
+## Регистрация позже
+
+`register-client` → `verify-code` — линкует существующего лида по email, добавляет пароль. `agent_id` и план не теряются.
 
 ## CRM агента
 
-Клиент с `ref` при `plan/save` попадает в CRM (`GET /pfp/clients`) как **лид** (`registration_status: lead`, `user_id` пустой).
-После `verify-code` — `registration_status: registered`. `take-over` не нужен.
+Лид: `registration_status: lead`. После verify: `registered`.

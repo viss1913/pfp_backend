@@ -123,7 +123,12 @@ paths:
   /client/calculate:
     post:
       tags: [ "Гостевой CJM" ]
-      summary: Расчёт плана без логина (stateless)
+      summary: Расчёт плана; при client.email + ref — авто-сохранение лида
+      description: |
+        Stateless-расчёт. Если в теле есть **`client.email`** (и опционально **`ref`**), бэкенд **сразу сохраняет**
+        план в `clients` (лид без пароля), привязывает к агенту и в ответе отдаёт `client_id`, `guest_token`, `plan_saved: true`.
+        Повторный расчёт с тем же email **обновляет** карточку (телефон, активы и т.д.).
+        **Активы:** `client.assets` или корневой `assets`; ликвидный пул — `client.total_liquid_capital`.
       security: []
       parameters:
         - $ref: '../../openapi/pfpB2C.yaml#/components/parameters/ProjectKeyHeader'
@@ -135,11 +140,20 @@ paths:
               $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationRequest'
       responses:
         '200':
-          description: Результат расчёта (в БД не сохраняется)
+          description: Расчёт; при email — также client_id, guest_token, plan_saved
           content:
             application/json:
               schema:
-                $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationResponse'
+                allOf:
+                  - $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationResponse'
+                  - type: object
+                    properties:
+                      client_id:
+                        type: integer
+                      guest_token:
+                        type: string
+                      plan_saved:
+                        type: boolean
 
   /client/risk-profile/questionnaire-v2:
     get:

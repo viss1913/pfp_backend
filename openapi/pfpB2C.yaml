@@ -222,6 +222,30 @@ components:
           items:
             $ref: '#/components/schemas/CalculationGoal'
           description: Array of goals to calculate
+        ref:
+          type: string
+          maxLength: 128
+          description: referral_slug агента — при client.email лид сохранится в CRM
+        assets:
+          type: array
+          description: Активы в корне (альтернатива client.assets)
+          items:
+            type: object
+            required: [type]
+            properties:
+              type:
+                type: string
+                example: CASH
+              amount:
+                type: number
+              current_value:
+                type: number
+              unlock_month:
+                type: integer
+              sell_month:
+                type: integer
+              name:
+                type: string
         client:
           $ref: '#/components/schemas/ClientData'
 
@@ -301,6 +325,33 @@ components:
         email:
           type: string
           format: email
+        avg_monthly_income:
+          type: number
+          description: Доход до НДФЛ (₽/мес)
+        total_liquid_capital:
+          type: number
+          description: Ликвидный капитал / «бассейн» для смарт-аллокации между целями
+        assets:
+          type: array
+          description: Активы клиента (CASH, DEPOSIT, REAL_ESTATE и т.д.)
+          items:
+            type: object
+            required: [type]
+            properties:
+              type:
+                type: string
+                example: CASH
+              amount:
+                type: number
+              current_value:
+                type: number
+              unlock_month:
+                type: integer
+                description: Месяц, когда актив становится ликвидным (0 = сейчас)
+              sell_month:
+                type: integer
+              name:
+                type: string
         risk_profile_answers:
           type: object
           description: Answers map (question code -> selected option code/legacy score)
