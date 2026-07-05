@@ -182,6 +182,60 @@ paths:
         '200':
           description: risk_profile_result и risk_profile_explanation
 
+  /client/plan/save:
+    post:
+      tags: [ "Гостевой CJM" ]
+      summary: Сохранить план без регистрации (лид + guest_token)
+      description: |
+        Публичный эндпоинт после гостевого расчёта. Создаёт/обновляет запись в `clients` без `users`
+        (лид), привязывает к агенту по `ref`, сохраняет `goals_summary`. В ответе — `guest_token`
+        (JWT, `guest: true`, TTL ~30 дней) для `Authorization: Bearer` на `/my/plan/report/html` и `/pdf`.
+        Позже тот же email можно «заклеймить» через `register-client` → `verify-code`.
+      security: []
+      parameters:
+        - $ref: '../../openapi/pfpB2C.yaml#/components/parameters/ProjectKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationRequest'
+                - type: object
+                  required: [ client ]
+                  properties:
+                    ref:
+                      type: string
+                      maxLength: 128
+                      description: referral_slug или UUID агента (как в register-client)
+                    client:
+                      type: object
+                      required: [ email ]
+                      properties:
+                        email:
+                          type: string
+                          format: email
+      responses:
+        '200':
+          description: Расчёт + client_id + guest_token + plan_saved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../../openapi/pfpB2C.yaml#/components/schemas/CalculationResponse'
+                  - type: object
+                    required: [ client_id, guest_token, plan_saved ]
+                    properties:
+                      client_id:
+                        type: integer
+                      guest_token:
+                        type: string
+                        description: Bearer JWT для отчётов без полной регистрации
+                      plan_saved:
+                        type: boolean
+        '400':
+          description: Нет email, email уже зарегистрирован, или validation error
+
   /my/account:
     delete:
       tags: [ "Профиль" ]

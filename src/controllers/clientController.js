@@ -215,6 +215,10 @@ const guestRiskEvaluateSchema = Joi.object({
     }).optional().default({}),
 });
 
+const guestPlanSaveSchema = calculationRequestSchema.keys({
+    ref: Joi.string().max(128).allow('').optional(),
+});
+
 const clientService = require('../services/clientService');
 const aiB2cService = require('../services/aiB2cService');
 const constructorSiteChatAgentService = require('../services/constructorSiteChatAgentService');
@@ -233,6 +237,11 @@ const { resolveLifeOfferEmailPayload } = require('../utils/atbBankBranding');
 const riskQuestionnaireService = require('../services/riskQuestionnaireService');
 const riskProfileService = require('../services/riskProfileService');
 const riskProfileExplanationService = require('../services/riskProfileExplanationService');
+const authService = require('../services/authService');
+const agentNetworkService = require('../services/agentNetworkService');
+const db = require('../config/database');
+const clientRepository = require('../repositories/clientRepository');
+const { normalizeRegistrationEmail } = require('../utils/userEmailRegistration');
 
 function attachCrmClientDates(clientRow) {
     const createdAt = clientRow.created_at;
@@ -248,6 +257,7 @@ function attachCrmClientDates(clientRow) {
         created_at: created_at_iso,
         last_rebalance_at: resolveLastRebalanceAt(clientRow.goals_summary, clientRow.updated_at),
         has_plan: hasPlan(clientRow.goals_summary),
+        registration_status: clientRow.user_id ? 'registered' : 'lead',
     };
 }
 const { parseProjectSettings } = require('../utils/projectSettings');
@@ -280,6 +290,14 @@ function normalizeClientGender(raw) {
 function buildAgentDisplayFullName(agent) {
     const parts = [agent?.last_name, agent?.first_name, agent?.middle_name].filter(Boolean);
     return parts.length ? parts.join(' ') : '—';
+}
+
+async function persistCalculatedPlan(body, calculationResponse, projectId) {
+    const calculation = calculationResponse.calculation || calculationResponse;
+    const clientId = await clientService.createFullClient(body);
+    await syncCalculationGoalsWithDatabase(clientId, calculation);
+    await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
+    return { clientId, calculation };
 }
 
 async function warmupClientPdfInBackground({ clientId, projectId, agentId, forceRegenerate = false }) {
@@ -459,7 +477,6 @@ class ClientController {
                 usePool: true,
                 agentUserId: req.user?.id
             });
-            const calculation = calculationResponse.calculation || calculationResponse;
 
             // 3. Inject Agent ID
             if (req.user && req.user.agentId) {
@@ -467,16 +484,8 @@ class ClientController {
                 req.body.client.agent_id = req.user.agentId;
             }
 
-            // 4. Save/Update Profile
-            const clientId = await clientService.createFullClient(req.body);
-
-            // 5. SYNC IDs: Update calculation goals with real DB IDs
-            await syncCalculationGoalsWithDatabase(clientId, calculation);
-
             const projectId = req.projectId || req.user?.projectId || req.body.client.project_id;
-
-            // Save Calculation Snapshot to Client record (with real IDs)
-            await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
+            const { clientId } = await persistCalculatedPlan(req.body, calculationResponse, projectId);
 
             calculationResponse.client_id = clientId;
             warmupClientPdfInBackground({
@@ -486,6 +495,94 @@ class ClientController {
                 forceRegenerate: true,
             });
             res.json(calculationService.simplify(calculationResponse));
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Guest B2C: сохранить план без пароля, вернуть guest_token для отчётов.
+     * POST /api/client/plan/save — публичный, x-project-key + ref.
+     */
+    async saveGuestPlan(req, res, next) {
+        try {
+            const validation = guestPlanSaveSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map((d) => ({
+                        field: d.path.join('.'),
+                        message: d.message,
+                    })),
+                });
+            }
+
+            const projectId = req.projectId;
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context is missing (x-project-key)' });
+            }
+
+            if (!req.body.client) req.body.client = {};
+            const normalizedEmail = normalizeRegistrationEmail(req.body.client.email);
+            if (!normalizedEmail) {
+                return res.status(400).json({ error: 'client.email is required for guest plan save' });
+            }
+            req.body.client.email = normalizedEmail;
+            req.body.client.project_id = projectId;
+
+            const existingUser = await db('users')
+                .where({ email: normalizedEmail, project_id: projectId, is_active: true })
+                .first();
+            if (existingUser) {
+                return res.status(400).json({
+                    error: 'Email уже зарегистрирован. Войдите в аккаунт или используйте другой email.',
+                });
+            }
+
+            const existingClient = await clientRepository.findByEmail(normalizedEmail, projectId);
+            if (existingClient?.user_id) {
+                return res.status(400).json({
+                    error: 'Клиент с этим email уже привязан к аккаунту. Войдите в личный кабинет.',
+                });
+            }
+
+            const ref = req.body.ref;
+            if (ref != null && String(ref).trim() !== '') {
+                const parentAgent = await agentNetworkService.resolveParentAgentFromRef(projectId, ref);
+                if (parentAgent) {
+                    req.body.client.agent_id = parentAgent.id;
+                }
+            }
+
+            console.log(`[ClientController] saveGuestPlan for project: ${projectId}, ref: ${ref || 'none'}`);
+
+            const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, {
+                isFirstRun: true,
+                usePool: true,
+            });
+
+            const { clientId } = await persistCalculatedPlan(req.body, calculationResponse, projectId);
+            const guestToken = authService.signGuestClientToken({
+                clientId,
+                projectId,
+                email: normalizedEmail,
+            });
+
+            calculationResponse.client_id = clientId;
+            warmupClientPdfInBackground({
+                clientId,
+                projectId,
+                agentId: req.body.client?.agent_id || null,
+                forceRegenerate: true,
+            });
+
+            const simplified = calculationService.simplify(calculationResponse);
+            res.json({
+                ...simplified,
+                client_id: clientId,
+                guest_token: guestToken,
+                plan_saved: true,
+            });
         } catch (err) {
             next(err);
         }

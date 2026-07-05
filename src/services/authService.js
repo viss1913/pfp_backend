@@ -43,6 +43,7 @@ if (!process.env.JWT_SECRET) {
 }
 const JWT_SECRET = process.env.JWT_SECRET; // Must be provided via environment
 const JWT_EXPIRES_IN = '24h';
+const GUEST_CLIENT_TOKEN_EXPIRES_IN = process.env.GUEST_CLIENT_TOKEN_TTL || '30d';
 const VERIFICATION_CODE_TTL_MINUTES = 10;
 
 function maskEmailForLog(email) {
@@ -143,6 +144,75 @@ class AuthService {
         } catch (err) {
             throw { status: 401, message: 'Invalid or expired token' };
         }
+    }
+
+    /**
+     * Guest B2C token — доступ к /my/plan и отчётам без users-аккаунта (лид после plan/save).
+     * @param {{ clientId: number, projectId: number, email?: string|null }} params
+     */
+    signGuestClientToken({ clientId, projectId, email = null }) {
+        const cid = Number(clientId);
+        const pid = Number(projectId);
+        if (!Number.isFinite(cid) || cid <= 0 || !Number.isFinite(pid) || pid <= 0) {
+            throw { status: 400, message: 'Invalid guest token payload' };
+        }
+        const payload = {
+            role: 'client',
+            clientId: cid,
+            projectId: pid,
+            email: email != null ? String(email).trim() : null,
+            guest: true,
+        };
+        return jwt.sign(payload, JWT_SECRET, { expiresIn: GUEST_CLIENT_TOKEN_EXPIRES_IN });
+    }
+
+    /**
+     * @param {import('knex').Knex.Transaction} trx
+     * @param {{ normalizedEmail: string, projectId: number, registrationPayload: object, userId: number, verification: object }} ctx
+     */
+    async _linkOrInsertClientForRegisteredUser(trx, ctx) {
+        const { normalizedEmail, projectId, registrationPayload, userId, verification } = ctx;
+        const existingLead = await trx('clients')
+            .where({ email: normalizedEmail, project_id: projectId })
+            .whereNull('user_id')
+            .orderBy('id', 'desc')
+            .first();
+
+        if (existingLead) {
+            await trx('clients').where({ id: existingLead.id }).update({
+                user_id: userId,
+                updated_at: new Date(),
+            });
+            return {
+                clientId: existingLead.id,
+                agentId: existingLead.agent_id || registrationPayload.agent_id || null,
+                linkedExistingLead: true,
+            };
+        }
+
+        const nameParts = (verification.name || 'Client').trim().split(/\s+/);
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+        const ownershipFields = await this._resolveClientOwnershipFields(
+            registrationPayload.agent_id,
+            trx
+        );
+
+        const [clientId] = await trx('clients').insert({
+            user_id: userId,
+            project_id: projectId,
+            first_name: firstName,
+            last_name: lastName || firstName,
+            email: normalizedEmail,
+            ...ownershipFields,
+        });
+
+        return {
+            clientId,
+            agentId: ownershipFields.agent_id || null,
+            linkedExistingLead: false,
+        };
     }
 
     /**
@@ -275,11 +345,6 @@ class AuthService {
             .where({ id: verification.id })
             .update({ verified: true });
 
-        // Parse name into first/last
-        const nameParts = (verification.name || 'Client').trim().split(/\s+/);
-        const firstName = nameParts[0];
-        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
-
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
@@ -290,7 +355,6 @@ class AuthService {
         const result = await db.transaction(async (trx) => {
             await purgeInactiveUserForEmail(normalizedEmail, verification.project_id, trx);
 
-            // Create user
             const [userId] = await trx('users').insert({
                 project_id: verification.project_id,
                 email: normalizedEmail,
@@ -300,22 +364,20 @@ class AuthService {
                 is_active: true
             });
 
-            const ownershipFields = await this._resolveClientOwnershipFields(
-                registrationPayload.agent_id,
-                trx
-            );
-
-            // Create client record linked to user
-            const [clientId] = await trx('clients').insert({
-                user_id: userId,
-                project_id: verification.project_id,
-                first_name: firstName,
-                last_name: lastName || firstName,
-                email,
-                ...ownershipFields,
+            const clientResult = await this._linkOrInsertClientForRegisteredUser(trx, {
+                normalizedEmail,
+                projectId: verification.project_id,
+                registrationPayload,
+                userId,
+                verification,
             });
 
-            return { userId, clientId, agentId: ownershipFields.agent_id || null };
+            return {
+                userId,
+                clientId: clientResult.clientId,
+                agentId: clientResult.agentId,
+                linkedExistingLead: clientResult.linkedExistingLead,
+            };
         });
 
         // Generate JWT token (auto-login after registration)
@@ -330,7 +392,7 @@ class AuthService {
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
         console.log(
-            `[AuthService] Client account created: userId=${result.userId}, clientId=${result.clientId}, agentId=${result.agentId || 'none'}`
+            `[AuthService] Client account created: userId=${result.userId}, clientId=${result.clientId}, agentId=${result.agentId || 'none'}${result.linkedExistingLead ? ' (linked lead)' : ''}`
         );
 
         return {
@@ -341,7 +403,9 @@ class AuthService {
                 name: verification.name,
                 role: 'client',
                 clientId: result.clientId,
-                projectId: verification.project_id
+                projectId: verification.project_id,
+                guest: false,
+                linked_existing_lead: result.linkedExistingLead === true,
             }
         };
     }
@@ -368,49 +432,45 @@ class AuthService {
             parentAgent
         );
 
-        // Parse name into first/last
         const clientName = name || 'Client';
-        const nameParts = clientName.trim().split(/\s+/);
-        const firstName = nameParts[0];
-        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+        const normalizedEmail = normalizeRegistrationEmail(email);
 
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
         // Create user + client in a transaction
         const result = await db.transaction(async (trx) => {
-            // Create user
+            await purgeInactiveUserForEmail(normalizedEmail, project.id, trx);
+
             const [userId] = await trx('users').insert({
                 project_id: project.id,
-                email,
+                email: normalizedEmail,
                 password_hash: passwordHash,
                 name: clientName,
                 role: 'client',
                 is_active: true
             });
 
-            const ownershipFields = await this._resolveClientOwnershipFields(
-                registrationPayload.agent_id,
-                trx
-            );
-
-            // Create client record linked to user
-            const [clientId] = await trx('clients').insert({
-                user_id: userId,
-                project_id: project.id,
-                first_name: firstName,
-                last_name: lastName || firstName,
-                email,
-                ...ownershipFields,
+            const clientResult = await this._linkOrInsertClientForRegisteredUser(trx, {
+                normalizedEmail,
+                projectId: project.id,
+                registrationPayload,
+                userId,
+                verification: { name: clientName },
             });
 
-            return { userId, clientId, agentId: ownershipFields.agent_id || null };
+            return {
+                userId,
+                clientId: clientResult.clientId,
+                agentId: clientResult.agentId,
+                linkedExistingLead: clientResult.linkedExistingLead,
+            };
         });
 
         // Generate JWT token (auto-login after registration)
         const payload = {
             user_id: result.userId,
-            email,
+            email: normalizedEmail,
             role: 'client',
             clientId: result.clientId,
             projectId: project.id
@@ -419,18 +479,20 @@ class AuthService {
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
         console.log(
-            `[AuthService] Fast Client account created: userId=${result.userId}, clientId=${result.clientId}, agentId=${result.agentId || 'none'}`
+            `[AuthService] Fast Client account created: userId=${result.userId}, clientId=${result.clientId}, agentId=${result.agentId || 'none'}${result.linkedExistingLead ? ' (linked lead)' : ''}`
         );
 
         return {
             token,
             user: {
                 id: result.userId,
-                email,
+                email: normalizedEmail,
                 name: clientName,
                 role: 'client',
                 clientId: result.clientId,
-                projectId: project.id
+                projectId: project.id,
+                guest: false,
+                linked_existing_lead: result.linkedExistingLead === true,
             }
         };
     }

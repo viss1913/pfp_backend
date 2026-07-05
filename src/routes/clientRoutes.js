@@ -29,6 +29,13 @@ router.post(
     clientController.evaluateGuestRiskProfile.bind(clientController)
 );
 
+router.post(
+    '/plan/save',
+    authMiddleware.optionalAuthMiddleware,
+    tenantMiddleware,
+    clientController.saveGuestPlan.bind(clientController)
+);
+
 // Protected Routes
 const pfpMiddleware = [authMiddleware, tenantMiddleware];
 
