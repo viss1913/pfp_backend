@@ -215,6 +215,20 @@ class AgentController {
         }
     }
 
+    async getClientInviteLink(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            const agentId = Number(req.user?.agentId);
+            if (!Number.isFinite(agentId) || agentId <= 0) {
+                return res.status(403).json({ error: 'Forbidden' });
+            }
+            const payload = await this._buildClientInviteLinkPayload(agentId, projectId);
+            res.json(payload);
+        } catch (err) {
+            next(err);
+        }
+    }
+
     async sendFamilyOfficeInvite(req, res, next) {
         try {
             const validation = familyOfficeInviteSchema.validate(req.body);
