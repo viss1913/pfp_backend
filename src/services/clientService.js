@@ -117,6 +117,9 @@ const CLIENT_PATCH_FORBIDDEN_KEYS = new Set([
     'id',
     'assets',
     'liabilities',
+    'expenses',
+    'goals',
+    'credits',
     'assets_total',
     'liabilities_total',
     'net_worth',
@@ -262,9 +265,10 @@ class ClientService {
             let clientId;
             const clientData = { ...data.client };
 
-            // Handle name splitting if 'fio' is provided instead of first_name/last_name
-            if (clientData.fio && (!clientData.first_name || !clientData.last_name)) {
-                const parts = clientData.fio.trim().split(/\s+/);
+            // Handle name splitting if 'fio' or 'name' is provided instead of first_name/last_name
+            const displayName = clientData.fio || clientData.name;
+            if (displayName && (!clientData.first_name || !clientData.last_name)) {
+                const parts = String(displayName).trim().split(/\s+/);
                 if (parts.length >= 2) {
                     clientData.last_name = clientData.last_name || parts[0];
                     clientData.first_name = clientData.first_name || parts[1];
@@ -291,6 +295,7 @@ class ClientService {
 
             // Remove non-DB fields
             delete clientData.fio;
+            delete clientData.name;
             delete clientData.sex;
             delete clientData.uuid;
             delete clientData.insured_person;
