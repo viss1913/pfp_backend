@@ -1,0 +1,78 @@
+<!--
+  Figma node-id: 1:15 (frame "A decent pension_1")
+  Верхний хедер: да (title + logo)
+  Плейсхолдеры:
+    {{client_income_monthly}}       -> 110 000 ₽                 (доход клиента до вычета НДФЛ)
+    {{state_pension_age}}           -> 65 лет                    (возраст выхода на гос. пенсию)
+    {{state_pension_year}}          -> 2051 г.                   (год выхода на гос. пенсию)
+    {{target_pension_monthly}}      -> 100 000 ₽/мес.             (желаемая пенсия, сегодняшние деньги)
+    {{target_pension_monthly_inflated}} -> 390 479 ₽/мес.         (желаемая пенсия с учётом инфляции)
+    {{inflation_rate}}              -> 5,6                       (ставка инфляции, % в год)
+    {{target_pension_year}}         -> 2051 г.                   (год выхода на пенсию, для подписи графика)
+
+  Высота столбцов сравнения (px) — расчётный параметр, не текстовый плейсхолдер;
+  билдер пересчитывает её из соотношения значений и подставляет в style напрямую.
+  Ассеты:
+    assets/logo.svg            -> лого НПФ в хедере и футере
+    assets/avatar.png          -> аватар ассистента
+    assets/photo-calculator.png -> иконка цели «Достойная пенсия»
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ростех НПФ — Достойная пенсия, стр. 1</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<section class="page">
+  <div class="page__body">
+    <header class="page-header">
+      <h1 class="page-header__title">Ваш финансовый план</h1>
+      <img class="logo" src="assets/logo.svg" alt="Ростех НПФ">
+    </header>
+
+    <div class="message message--bordered">
+      <img class="message__avatar" src="assets/avatar.png" alt="">
+      <div class="message__body">
+        <p>Я подготовила детальный план для достижения Вашей финансовой цели.</p>
+        <p>Ваш текущий доход - {{client_income_monthly}} до вычета НДФЛ.</p>
+        <div class="message__inline message__inline--top">
+          <img class="message__thumb" src="assets/photo-calculator.png" alt="">
+          <p style="margin:0;">Цель: <strong>Достойная пенсия</strong></p>
+        </div>
+        <ul class="bullet-list">
+          <li>Старт выплат к моменту выхода на Государственную пенсию в {{state_pension_age}} - {{state_pension_year}}</li>
+          <li>Желаемая пенсия - {{target_pension_monthly}} (не облагается НДФЛ).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="compare-card compare-card--shift-down">
+      <div class="compare-card__title">Рост стоимости цели с учетом инфляции</div>
+      <div class="compare-card__col">
+        <div class="compare-card__value">{{target_pension_monthly}}</div>
+        <div class="compare-card__bar-track">
+          <div class="compare-card__bar" style="height:88px; background:var(--color-gray);"></div>
+        </div>
+        <div class="compare-card__caption">Желаемая пенсия<br>в сегодняшних деньгах</div>
+      </div>
+      <div class="compare-card__col">
+        <div class="compare-card__value">{{target_pension_monthly_inflated}}</div>
+        <div class="compare-card__bar-track">
+          <div class="compare-card__bar" style="height:130px; background:var(--color-accent);"></div>
+        </div>
+        <div class="compare-card__caption">Желаемая пенсия в {{target_pension_year}}<br>с учетом инфляции {{inflation_rate}}% в год</div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <p class="page-footer__notes">Финансовый план не является коммерческим предложением или договором, носит исключительно информационный характер.</p>
+    <img class="logo logo--footer" src="assets/logo.svg" alt="Ростех НПФ">
+    <span class="page-footer__page-num">{{page_number}}</span>
+  </footer>
+</section>
+</body>
+</html>

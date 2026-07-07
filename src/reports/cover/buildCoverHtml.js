@@ -436,12 +436,11 @@ async function buildReportCoverHtml(options = {}) {
 </html>`;
 }
 
-/** @deprecated используй buildReportCoverHtml */
 async function buildRostechCoverHtml(options = {}) {
-    return buildReportCoverHtml({
-        ...options,
-        coverTitle: options.title ?? options.coverTitle,
-        coverBackgroundUrl: options.coverImagePath ?? options.coverBackgroundUrl,
+    const { buildRostechV2CoverHtml } = require('../themes/rostech/v2/rostechV2Composer');
+    return buildRostechV2CoverHtml({
+        coverTitle: options.coverTitle ?? options.title,
+        dateLine: options.dateLine,
     });
 }
 

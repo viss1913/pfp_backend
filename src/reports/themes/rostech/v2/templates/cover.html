@@ -1,0 +1,32 @@
+<!--
+  Figma node-id: 1:445 (frame "Report")
+  Верхний хедер: нет (обложка)
+  Плейсхолдеры:
+    {{cover_title}}   -> Персональное финансовое решение   (текст плашки; может приходить с сервера или быть статичным)
+    {{report_date}}   -> 17 марта 2026г.                    (дата формирования отчёта)
+  Ассеты:
+    assets/logo.svg       -> лого НПФ "Ростех" (белый вариант, для тёмного фото)
+    assets/cover-bg.png   -> фоновая 3D-иллюстрация с фирменной подсветкой
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ростех НПФ — Обложка отчёта</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <section class="page cover">
+    <img class="cover__bg" src="assets/cover-bg.png" alt="">
+    <div class="cover__content">
+      <img class="logo" src="assets/logo.svg" alt="Ростех НПФ">
+
+      <div class="cover__box">
+        <p>{{cover_title}}</p>
+      </div>
+      <div class="cover__date">{{report_date}}</div>
+    </div>
+  </section>
+</body>
+</html>

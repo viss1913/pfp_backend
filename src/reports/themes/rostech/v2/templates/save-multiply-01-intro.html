@@ -1,0 +1,77 @@
+<!--
+  Figma node-id: 1:45 (frame "Save and multiply_1")
+  Верхний хедер: да (title + logo)
+  Плейсхолдеры:
+    {{client_income_monthly}}   -> 110 000 ₽                (доход клиента, до вычета НДФЛ)
+    {{goal_achieve_age}}        -> 65 лет                    (возраст клиента к моменту достижения цели)
+    {{initial_contribution}}    -> 50 000 ₽
+    {{monthly_contribution}}    -> 4 500 ₽/мес.
+    {{monthly_contribution_pct}} -> 3,6                      (% от ежемесячного дохода до вычета НДФЛ)
+    {{goal_achieve_year}}       -> 2046 г.
+    {{projected_capital_end}}   -> 12 114 268 ₽
+
+  Высота столбцов сравнения (px) — расчётный параметр, не текстовый плейсхолдер.
+  Ассеты:
+    assets/logo.svg, assets/avatar.png, assets/photo-calculator.png -> иконка цели «Сохранить и приумножить»
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ростех НПФ — Сохранить и приумножить, стр. 1</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<section class="page">
+  <div class="page__body">
+    <header class="page-header">
+      <h1 class="page-header__title">Ваш финансовый план</h1>
+      <img class="logo" src="assets/logo.svg" alt="Ростех НПФ">
+    </header>
+
+    <div class="message message--bordered">
+      <img class="message__avatar" src="assets/avatar.png" alt="">
+      <div class="message__body">
+        <p>Я подготовила детальный план для достижения Вашей финансовой цели.</p>
+        <p>Ваш возраст к моменту достижения цели - {{goal_achieve_age}}.</p>
+        <p>Ваш доход - {{client_income_monthly}} до вычета НДФЛ.</p>
+        <div class="message__inline message__inline--top">
+          <img class="message__thumb" src="assets/photo-calculator.png" alt="">
+          <p style="margin:0;">Цель: <strong>Сохранить и приумножить</strong></p>
+        </div>
+        <ul class="bullet-list">
+          <li>Первоначальная сумма - {{initial_contribution}}.</li>
+          <li>Пополнение капитала - {{monthly_contribution}} ({{monthly_contribution_pct}} % от Вашего ежемесячного дохода до вычета НДФЛ).</li>
+          <li>Срок достижения - {{goal_achieve_year}}</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="compare-card compare-card--shift-down">
+      <div class="compare-card__title">Прогноз роста капитала</div>
+      <div class="compare-card__col">
+        <div class="compare-card__value">{{initial_contribution}}</div>
+        <div class="compare-card__bar-track">
+          <div class="compare-card__bar" style="height:60px; background:var(--color-gray);"></div>
+        </div>
+        <div class="compare-card__caption">Первоначальная<br>сумма</div>
+      </div>
+      <div class="compare-card__col">
+        <div class="compare-card__value">{{projected_capital_end}}</div>
+        <div class="compare-card__bar-track">
+          <div class="compare-card__bar" style="height:130px; background:var(--color-accent);"></div>
+        </div>
+        <div class="compare-card__caption">Прогнозный капитал<br>к {{goal_achieve_year}}</div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <p class="page-footer__notes">Финансовый план не является коммерческим предложением или договором, носит исключительно информационный характер.</p>
+    <img class="logo logo--footer" src="assets/logo.svg" alt="Ростех НПФ">
+    <span class="page-footer__page-num">{{page_number}}</span>
+  </footer>
+</section>
+</body>
+</html>

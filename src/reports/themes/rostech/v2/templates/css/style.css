@@ -1,0 +1,482 @@
+:root {
+  --color-accent: #722257;
+  --color-gray: #8f8f8c;
+  --color-black: #000000;
+  --color-text: #1a1a1a;
+  --color-border-light: #d9d9d9;
+  --color-table-bg: #f3f3f4;
+  --color-gridline: #c4c4c4;
+
+  --font-base: "Proxima Nova", "Montserrat", Arial, sans-serif;
+
+  --page-width: 595px;
+  --page-height: 842px;
+  --page-margin: 30px;
+
+  --radius-card: 10px;
+  --radius-box: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 210mm;
+  height: 297mm;
+  overflow: hidden;
+  background: #fff;
+  font-family: var(--font-base);
+  color: var(--color-text);
+}
+
+.page {
+  position: relative;
+  width: var(--page-width);
+  height: var(--page-height);
+  overflow: hidden;
+  background: #ffffff;
+  transform: scale(1.3333333333);
+  transform-origin: top left;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page__body {
+  padding: 30px;
+}
+
+/* ---------- Page header ---------- */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.page-header__title {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.1;
+  margin: 0;
+}
+
+/* ---------- Logo ---------- */
+.logo {
+  width: 108px;
+  height: auto;
+  flex-shrink: 0;
+  display: block;
+}
+
+.logo--footer {
+  width: 92px;
+}
+
+/* ---------- Assistant message ---------- */
+.message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.message__avatar {
+  width: 46px;
+  height: 52px;
+  border-radius: var(--radius-box);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.message__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.message--bordered .message__body {
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-card);
+  padding: 15px 20px;
+}
+
+.message__body p {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.message__body p:last-child {
+  margin-bottom: 0;
+}
+
+.message__inline {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 12px 0;
+}
+
+.message__inline--top {
+  align-items: flex-start;
+}
+
+.message__thumb {
+  width: 120px;
+  height: 70px;
+  border-radius: var(--radius-box);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.message__photo {
+  width: 100%;
+  border-radius: var(--radius-box);
+  object-fit: cover;
+  display: block;
+  margin-top: 12px;
+}
+
+/* ---------- Bullet lists ---------- */
+.bullet-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.bullet-list li {
+  margin-bottom: 2px;
+}
+
+.bullet-list li:last-child {
+  margin-bottom: 0;
+}
+
+.bullet-list--columns {
+  columns: 2;
+  column-gap: 24px;
+  list-style: none;
+  padding-left: 0;
+}
+
+.bullet-list--columns li {
+  position: relative;
+  padding-left: 14px;
+}
+
+.bullet-list--columns li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dot-color, var(--color-accent));
+}
+
+/* ---------- Section heading ---------- */
+.section-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 10px 0 6px;
+}
+
+.body-text {
+  font-size: 13px;
+  line-height: 1.3;
+  margin: 0 0 8px;
+}
+
+/* ---------- Comparison card ---------- */
+.compare-card {
+  position: relative;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-box);
+  padding: 30px 20px 18px;
+  margin: 12px 0;
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+}
+
+.compare-card--shift-down {
+  margin-top: 32px;
+}
+
+.compare-card__title {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  padding: 0 12px;
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.compare-card__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.compare-card__value {
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.compare-card__bar-track {
+  height: 130px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.compare-card__bar {
+  width: 65px;
+  border-radius: 2px;
+}
+
+.compare-card__caption {
+  font-size: 12px;
+  line-height: 1.35;
+  max-width: 160px;
+}
+
+/* ---------- Highlight box ---------- */
+.highlight-box {
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-box);
+  padding: 12px 20px;
+  text-align: center;
+  color: var(--color-accent);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+
+/* ---------- Data table ---------- */
+.data-table {
+  border-radius: var(--radius-box);
+  border: 1px solid #fff;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.data-table__row {
+  display: flex;
+}
+
+.data-table__row--header {
+  background: var(--color-table-bg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.data-table__row + .data-table__row {
+  border-top: 1px solid var(--color-table-bg);
+}
+
+.data-table__cell {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---------- Button ---------- */
+.btn-primary {
+  display: inline-block;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  border: none;
+  border-radius: var(--radius-box);
+  padding: 10px 24px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-primary-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+/* ---------- Bar chart (page 3) ---------- */
+.bar-chart {
+  margin: 10px 0 6px;
+}
+
+.bar-chart__plot {
+  position: relative;
+  height: 125px;
+  margin-left: 70px;
+  border-left: 1px solid var(--color-gridline);
+}
+
+.bar-chart__gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--color-gridline);
+}
+
+.bar-chart__gridline-label {
+  position: absolute;
+  left: -70px;
+  width: 62px;
+  text-align: right;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--color-text);
+}
+
+.bar-chart__bars {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 0;
+  top: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+}
+
+.bar-chart__bar {
+  width: 100px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding-bottom: 6px;
+  border-radius: 2px 2px 0 0;
+}
+
+.bar-chart__legend {
+  display: flex;
+  gap: 20px;
+  margin-left: 70px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.bar-chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar-chart__legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* ---------- Footer ---------- */
+.page-footer {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  bottom: 20px;
+}
+
+.page-footer__notes {
+  font-size: 7.5px;
+  line-height: 1.5;
+  color: var(--color-text);
+  margin: 0 0 8px;
+}
+
+.page-footer__page-num {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 7.5px;
+  color: var(--color-text);
+}
+
+/* ---------- Placeholder assets ---------- */
+.placeholder-img {
+  background: repeating-linear-gradient(
+    45deg,
+    #e3e3e3,
+    #e3e3e3 8px,
+    #ececec 8px,
+    #ececec 16px
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9a9a9a;
+  font-size: 9px;
+  text-align: center;
+  line-height: 1.3;
+  padding: 8px;
+}
+
+/* ---------- Cover page ---------- */
+.cover {
+  position: relative;
+  color: #1a1a1a;
+}
+
+.cover__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.cover__content {
+  position: relative;
+  z-index: 1;
+  padding: 30px 30px 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.cover .logo {
+  width: 320px;
+  margin: 0 auto;
+}
+
+.cover__box {
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 0 var(--radius-box) var(--radius-box) 0;
+  padding: 18px 30px 18px 40px;
+  width: 380px;
+  margin-top: auto;
+  margin-bottom: 20px;
+  margin-left: -30px;
+}
+
+.cover__box p {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.cover__date {
+  font-size: 13px;
+  margin-bottom: 80px;
+}

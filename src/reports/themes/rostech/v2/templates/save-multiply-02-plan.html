@@ -1,0 +1,114 @@
+<!--
+  Figma node-id: 1:207 (frame "Save and multiply_2")
+  Верхний хедер: нет
+  Плейсхолдеры:
+    {{client_name}}              -> Иван
+    {{projected_capital_end}}    -> 12 114 268 ₽
+    {{goal_achieve_date}}        -> 20 марта 2046 г.
+    {{cofinancing_next_year}}    -> 36 000 ₽
+    {{initial_contribution}}     -> 50 000 ₽
+    {{monthly_contribution}}     -> 4 500 ₽
+    {{monthly_contribution_pct}} -> 3,6
+    {{deduction_next_year}}      -> 11 869 ₽
+    {{indexation_rate}}          -> 6
+    {{payout_years_min}}         -> 5 лет (60 мес.)
+    {{chart_bar_1_value}}        -> 2 129 660 ₽   (собственные средства)
+    {{chart_bar_2_value}}        -> 9 985 600 ₽   (инвестиционный доход фонда)
+    {{chart_bar_3_value}}        -> 12 114 268 ₽  (итого капитал)
+
+  Высота столбцов графика (%) — расчётный параметр, не текстовый плейсхолдер.
+  Ассеты:
+    assets/avatar.png, assets/photo-calculator.png, assets/logo.svg
+  Пункт 4 (дисклеймер о ненадёжности прогноза) и юр. сноски (*, **, ***) — дословный текст макета, не менять.
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ростех НПФ — Сохранить и приумножить, стр. 2</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* эта страница несёт на один смысловой блок больше, чем pension-03 (п.4 про риски) —
+     уплотняем интервалы, чтобы уложиться в те же 842px, как в макете Figma */
+  .page__body .section-title { margin: 4px 0 2px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="page__body">
+    <div class="message message--bordered" style="margin-bottom:4px;">
+      <img class="message__avatar" src="assets/avatar.png" alt="">
+      <div class="message__body">
+        <div class="message__inline message__inline--top">
+          <img class="message__thumb" src="assets/photo-calculator.png" alt="">
+          <div>
+            <p>{{client_name}}, для того чтобы Вы смогли накопить {{projected_capital_end}}, я подготовила финансовый план.</p>
+            <p>Дата достижения — {{goal_achieve_date}}.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="section-title">Предлагаемый план:</h2>
+    <p class="body-text" style="margin-bottom:6px;">1. Заключить договор долгосрочных сбережений (ДДС) в АО «НПФ «Ростех».</p>
+    <p class="body-text" style="margin-bottom:2px;">Плюсы:</p>
+    <ul class="bullet-list" style="margin-bottom:6px;">
+      <li>Государство будет добавлять до {{cofinancing_next_year}}/год в течение 10 лет, с момента внесения первого взноса по ДДС.</li>
+      <li>Налоговые вычеты (до 22% в год со взносов в пределах 400 000 ₽).</li>
+      <li>Капитал застрахован (до 2.8 млн ₽).</li>
+    </ul>
+
+    <p class="body-text" style="margin-bottom:2px;">2. Дальнейшие шаги:*</p>
+    <ul class="bullet-list" style="margin-bottom:6px;">
+      <li>Внести первоначальную сумму - {{initial_contribution}}.</li>
+      <li>В следующие месяцы пополнять по {{monthly_contribution}}.** ({{monthly_contribution_pct}} % от Вашего ежемесячного дохода до вычета НДФЛ).</li>
+      <li>Получить {{cofinancing_next_year}} в 2027 году от государства.</li>
+      <li>В 2027 г. подать на налоговый вычет {{deduction_next_year}} (рассчитан по ставке 13% НДФЛ).</li>
+      <li>Индексировать пополнения на {{indexation_rate}}% в год, чтобы учесть влияние инфляции.***</li>
+    </ul>
+
+    <p class="body-text" style="margin-bottom:2px;">3. Как растёт капитал?</p>
+    <ul class="bullet-list" style="margin-bottom:6px;">
+      <li>За счет пополнения, софинансирования, инвестиционного дохода Вы накопите {{projected_capital_end}}, которые можно получить равными выплатами от {{payout_years_min}}</li>
+    </ul>
+
+    <p style="margin:0 0 2px; font-size:9px; line-height:1.3; color:var(--color-gray);">4. Данный расчет не является публичной офертой, прогнозом деятельности Фонда или гарантией доходов от размещения средств пенсионных резервов в будущем. Возможное увеличение или уменьшение доходов от размещения средств пенсионных резервов, результаты доходов в прошлом не определяют доходов в будущем. Фонд и государство не гарантирует доходности размещения средств пенсионных резервов.</p>
+
+    <p class="section-title" style="font-weight:600;">График достижения цели с учетом пополнения:</p>
+
+    <div class="bar-chart" style="margin-top:4px;">
+      <div class="bar-chart__plot" style="height:65px;">
+        <div class="bar-chart__gridline" style="bottom:0%;"><span class="bar-chart__gridline-label">₽</span></div>
+        <div class="bar-chart__gridline" style="bottom:20%;"><span class="bar-chart__gridline-label">2 500 000 ₽</span></div>
+        <div class="bar-chart__gridline" style="bottom:40%;"><span class="bar-chart__gridline-label">5 000 000 ₽</span></div>
+        <div class="bar-chart__gridline" style="bottom:60%;"><span class="bar-chart__gridline-label">7 500 000 ₽</span></div>
+        <div class="bar-chart__gridline" style="bottom:80%;"><span class="bar-chart__gridline-label">10 000 000 ₽</span></div>
+        <div class="bar-chart__gridline" style="bottom:100%;"><span class="bar-chart__gridline-label">12 500 000 ₽</span></div>
+
+        <div class="bar-chart__bars">
+          <div class="bar-chart__bar" style="height:17%; background:var(--color-gray);">{{chart_bar_1_value}}</div>
+          <div class="bar-chart__bar" style="height:80%; background:var(--color-black);">{{chart_bar_2_value}}</div>
+          <div class="bar-chart__bar" style="height:97%; background:var(--color-accent);">{{chart_bar_3_value}}</div>
+        </div>
+      </div>
+    </div>
+    <div class="bar-chart__legend" style="margin-top:2px;">
+      <div class="bar-chart__legend-item"><span class="bar-chart__legend-dot" style="background:var(--color-gray);"></span>Собственные средства</div>
+      <div class="bar-chart__legend-item"><span class="bar-chart__legend-dot" style="background:var(--color-black);"></span>Инвестиционный доход Фонда</div>
+      <div class="bar-chart__legend-item"><span class="bar-chart__legend-dot" style="background:var(--color-accent);"></span>Итого капитал</div>
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <p class="page-footer__notes">
+      * Расчет носит ориентировочный характер и произведен без учета суммы взносов от работодателя в случае участия в Корпоративной пенсионной программе "Софинансирование" с ПДС<br>
+      ** Способ внесения сберегательных взносов любой (включая удержание из заработной платы)<br>
+      *** Предлагаемый размер индексации носит ориентировочный характер и в примере равен размеру инфляции для снижения ее негативного влияния. Вы можете индексировать взносы в большем или меньшем размере или не индексировать вообще.
+    </p>
+    <img class="logo logo--footer" src="assets/logo.svg" alt="Ростех НПФ">
+    <span class="page-footer__page-num">{{page_number}}</span>
+  </footer>
+</section>
+</body>
+</html>

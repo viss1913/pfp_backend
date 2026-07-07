@@ -1,0 +1,52 @@
+<!--
+  Figma node-id: 1:318 (frame "Save and multiply_3")
+  Верхний хедер: нет
+  Плейсхолдеры:
+    {{expected_return_rate}} -> 8,4   (прогнозируемая доходность, % годовых)
+  Ассеты:
+    assets/avatar.png, assets/photo-fistsup.png, assets/logo.svg
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ростех НПФ — Сохранить и приумножить, стр. 3</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<section class="page">
+  <div class="page__body">
+    <div class="message message--bordered">
+      <img class="message__avatar" src="assets/avatar.png" alt="">
+      <div class="message__body">
+        <p>Хотела бы отметить, что государство следит за структурой инвестирования Ваших средств. Вот перечень активов, куда НПФ может вкладывать Ваши деньги:</p>
+
+        <div style="border:1px solid var(--color-accent); border-radius:8px; padding:14px 20px; margin-bottom:12px;">
+          <ul class="bullet-list bullet-list--columns" style="margin-bottom:10px;">
+            <li style="--dot-color:var(--color-accent);">Банковские депозиты</li>
+            <li style="--dot-color:var(--color-gray);">ОФЗ</li>
+            <li style="--dot-color:#4a1338;">Корпоративные облигации</li>
+            <li style="--dot-color:var(--color-gray);">Муниципальные облигации</li>
+            <li style="--dot-color:var(--color-black);">Акции</li>
+          </ul>
+          <p style="margin:0; font-weight:700; font-size:13px;">Прогнозируемый доход - {{expected_return_rate}}% в год на весь период накопления</p>
+        </div>
+
+        <img class="message__photo" style="height:170px;" src="assets/photo-fistsup.png" alt="">
+      </div>
+    </div>
+
+    <div class="btn-primary-wrap">
+      <button class="btn-primary">Начать</button>
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <p class="page-footer__notes">Финансовый план не является коммерческим предложением или договором, носит исключительно информационный характер.</p>
+    <img class="logo logo--footer" src="assets/logo.svg" alt="Ростех НПФ">
+    <span class="page-footer__page-num">{{page_number}}</span>
+  </footer>
+</section>
+</body>
+</html>

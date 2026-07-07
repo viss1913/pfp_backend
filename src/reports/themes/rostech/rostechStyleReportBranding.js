@@ -44,7 +44,7 @@ const NPF_RENESSANS_BRANDING = Object.freeze({
 });
 
 /**
- * Копирайт/ссылки для purple PDF (Ростех 22 vs НПФ Ренессанс 4). Вёрстка общая.
+ * Копирайт/ссылки для purple PDF (Ростех 22/6 vs НПФ Ренессанс 4). Вёрстка общая.
  */
 function resolveRostechStyleReportBranding(projectId) {
     const pid = projectId == null ? null : Number(projectId);

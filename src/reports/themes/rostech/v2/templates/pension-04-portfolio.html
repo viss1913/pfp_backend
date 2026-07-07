@@ -1,0 +1,80 @@
+<!--
+  Figma node-id: 1:352 (frame "A decent pension_4")
+  Верхний хедер: нет
+  Плейсхолдеры:
+    {{expected_return_rate}}       -> 8,4                    (прогнозируемая доходность, % годовых)
+    {{deficit_inflated}}           -> 249 446 ₽/мес.          (доп. ежемесячный доход с учётом инфляции)
+    {{inflation_rate}}             -> 5,6
+    {{deficit_today}}              -> 63 883 ₽
+    {{state_pension_today}}        -> 36 117 ₽/мес.
+    {{state_pension_inflated}}     -> 141 033 ₽/мес.
+    {{target_pension_monthly}}     -> 100 000 ₽/мес.
+    {{target_pension_monthly_inflated}} -> 390 479 ₽/мес.
+  Ассеты:
+    assets/avatar.png, assets/photo-fistsup.png, assets/logo.svg
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ростех НПФ — Достойная пенсия, стр. 4</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<section class="page">
+  <div class="page__body">
+    <div class="message message--bordered">
+      <img class="message__avatar" src="assets/avatar.png" alt="">
+      <div class="message__body">
+        <p>Хотела бы отметить, что государство следит за структурой инвестирования Ваших средств. Вот перечень активов, куда НПФ может вкладывать Ваши деньги:</p>
+
+        <div style="border:1px solid var(--color-accent); border-radius:8px; padding:14px 20px; margin-bottom:12px;">
+          <ul class="bullet-list bullet-list--columns" style="margin-bottom:10px;">
+            <li style="--dot-color:var(--color-accent);">Банковские депозиты</li>
+            <li style="--dot-color:var(--color-gray);">ОФЗ</li>
+            <li style="--dot-color:#4a1338;">Корпоративные облигации</li>
+            <li style="--dot-color:var(--color-gray);">Муниципальные облигации</li>
+            <li style="--dot-color:var(--color-black);">Акции</li>
+          </ul>
+          <p style="margin:0; font-weight:700; font-size:13px;">Прогнозируемый доход - {{expected_return_rate}}% в год на весь период накопления</p>
+        </div>
+
+        <img class="message__photo" style="height:130px;" src="assets/photo-fistsup.png" alt="">
+      </div>
+    </div>
+
+    <div class="highlight-box">Дополнительный ежемесячный доход = {{deficit_inflated}}*</div>
+    <p class="body-text">С учетом заложенной инфляции {{inflation_rate}}% в год, это эквивалентно {{deficit_today}} сегодня.</p>
+
+    <div class="data-table">
+      <div class="data-table__row data-table__row--header">
+        <div class="data-table__cell">Тип дохода</div>
+        <div class="data-table__cell">В сегодняшних деньгах</div>
+        <div class="data-table__cell">С учетом инфляции</div>
+      </div>
+      <div class="data-table__row">
+        <div class="data-table__cell">Госпенсия<br>Дополнительный доход</div>
+        <div class="data-table__cell">{{state_pension_today}}<br>{{deficit_today}}/мес.</div>
+        <div class="data-table__cell">{{state_pension_inflated}}<br>{{deficit_inflated}}</div>
+      </div>
+      <div class="data-table__row">
+        <div class="data-table__cell">Итого:</div>
+        <div class="data-table__cell">{{target_pension_monthly}}</div>
+        <div class="data-table__cell">{{target_pension_monthly_inflated}}</div>
+      </div>
+    </div>
+
+    <div class="btn-primary-wrap">
+      <button class="btn-primary">Начать</button>
+    </div>
+  </div>
+
+  <footer class="page-footer">
+    <p class="page-footer__notes">* Размер дополнительного ежемесячного дохода рассчитан по правилам назначения пожизненной выплаты.</p>
+    <img class="logo logo--footer" src="assets/logo.svg" alt="Ростех НПФ">
+    <span class="page-footer__page-num">{{page_number}}</span>
+  </footer>
+</section>
+</body>
+</html>

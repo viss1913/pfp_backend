@@ -10,6 +10,7 @@ const {
 
 test('resolveReportThemeKey: Rostech and NPF Renaissance use rostech PDF theme', () => {
     assert.equal(resolveReportThemeKey(22), ROSTECH_THEME_KEY);
+    assert.equal(resolveReportThemeKey(6), ROSTECH_THEME_KEY);
     assert.equal(resolveReportThemeKey(4), ROSTECH_THEME_KEY);
     assert.equal(resolveReportThemeKey('4'), ROSTECH_THEME_KEY);
     assert.equal(resolveReportThemeKey(14), DEFAULT_THEME_KEY);
@@ -18,6 +19,7 @@ test('resolveReportThemeKey: Rostech and NPF Renaissance use rostech PDF theme',
 
 test('isRostechStyleReportProject', () => {
     assert.equal(isRostechStyleReportProject(22), true);
+    assert.equal(isRostechStyleReportProject(6), true);
     assert.equal(isRostechStyleReportProject(4), true);
     assert.equal(isRostechStyleReportProject(29), false);
 });

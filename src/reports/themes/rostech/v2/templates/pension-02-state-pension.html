@@ -1,0 +1,70 @@
+<!--
+  Figma node-id: 1:289 (frame "A decent pension_2")
+  Верхний хедер: нет
+  Плейсхолдеры:
+    {{client_name}}                    -> Иван
+    {{state_pension_today}}            -> 36 117 ₽/мес.
+    {{state_pension_inflated}}         -> 141 033 ₽/мес.
+    {{state_pension_year}}             -> 2051
+    {{inflation_rate}}                 -> 5,6
+    {{deficit_today}}                  -> 63 883 ₽/мес.        (нехватка до желаемой пенсии, сегодняшние деньги)
+    {{deficit_inflated}}               -> 249 446 ₽/мес.       (нехватка с учётом инфляции)
+
+  Высота столбцов сравнения (px) — расчётный параметр, не текстовый плейсхолдер.
+  Ассеты:
+    assets/avatar.png, assets/logo.svg (только в футере)
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ростех НПФ — Достойная пенсия, стр. 2</title>
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<section class="page">
+  <div class="page__body">
+    <div class="message message--bordered">
+      <img class="message__avatar" src="assets/avatar.png" alt="">
+      <div class="message__body">
+        <p><strong>Достойная пенсия</strong></p>
+        <div class="message__inline">
+          <img class="message__thumb" src="assets/photo-calculator.png" alt="">
+          <p style="margin:0;">{{client_name}}, Ваша будущая Достойная пенсия будет складываться из 2-х частей: Государственная пенсия и дополнительный доход, который мы с Вами планируем создать.</p>
+        </div>
+        <p>Давайте начнем с прогноза государственной пенсии.</p>
+      </div>
+    </div>
+
+    <h2 class="section-title">Прогноз государственной пенсии</h2>
+    <p class="body-text">С учетом Вашего возраста и зарплаты, по моему прогнозу Вы будете получать {{state_pension_today}} (в сегодняшних деньгах), а с учетом инфляции эта сумма составит в {{state_pension_year}} году - {{state_pension_inflated}}.</p>
+
+    <div class="compare-card">
+      <div class="compare-card__col">
+        <div class="compare-card__value">{{state_pension_today}} *</div>
+        <div class="compare-card__bar-track">
+          <div class="compare-card__bar" style="height:60px; background:var(--color-black);"></div>
+        </div>
+        <div class="compare-card__caption">Прогноз государственной<br>пенсии в сегодняшних<br>деньгах</div>
+      </div>
+      <div class="compare-card__col">
+        <div class="compare-card__value">{{state_pension_inflated}}</div>
+        <div class="compare-card__bar-track">
+          <div class="compare-card__bar" style="height:120px; background:var(--color-accent);"></div>
+        </div>
+        <div class="compare-card__caption">Прогноз государственной<br>пенсии в {{state_pension_year}} г. с учетом<br>инфляции {{inflation_rate}}%</div>
+      </div>
+    </div>
+
+    <p class="body-text">Как видите, для желаемой Достойной пенсии не хватает {{deficit_today}} в сегодняшних деньгах, а с учетом инфляции нужно создать план для получения дополнительного ежемесячного дохода в размере - {{deficit_inflated}}.</p>
+  </div>
+
+  <footer class="page-footer">
+    <p class="page-footer__notes">* Расчет государственной пенсии носит ориентировочный характер и фактический размер будет зависеть от количества ИПК, лет стажа, стоимости ИПК к моменту выхода на пенсию.</p>
+    <img class="logo logo--footer" src="assets/logo.svg" alt="Ростех НПФ">
+    <span class="page-footer__page-num">{{page_number}}</span>
+  </footer>
+</section>
+</body>
+</html>

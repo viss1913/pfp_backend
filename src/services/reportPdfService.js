@@ -6,7 +6,7 @@ const { mergePdfBuffers } = require('../utils/mergePdfBuffers');
 const pdfSettingsService = require('./pdfSettingsService');
 const agentService = require('./agentService');
 const macroService = require('./macroService');
-const { buildReportCoverHtml } = require('../reports/cover/buildCoverHtml');
+const { buildReportCoverHtml, buildRostechCoverHtml } = require('../reports/cover/buildCoverHtml');
 const { buildComonAutofollowPageHtml } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildInflationPageFinamHtml } = require('../reports/finam/buildInflationPageFinamHtml');
 const { buildFinamFullPageHtmlList } = require('../reports/finam/buildFinamReportHtml');
@@ -17,7 +17,7 @@ const {
 } = require('../reports/finam/reportVersionResolver');
 const { buildFinamReportV2HtmlPackage } = require('../reports/finam_v2/buildFinamReportV2HtmlPackage');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('../reports/themes/reportRenderers');
-const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
+const { resolveReportThemeKey, isRostechReportV2Project } = require('../reports/themes/themeResolver');
 const projectService = require('./projectService');
 const { parseProjectSettings, getPartnerLinkTrackingSettings } = require('../utils/projectSettings');
 const { applyTrackedPartnerUrlsToHtml } = require('../utils/trackedPartnerUrl');
@@ -404,14 +404,23 @@ class ReportPdfService {
         let toc = null;
         let reportSchemaVersion = null;
         if (includeCover && !isFinamReportV2) {
-            pageHtmlList.push(
-                await buildReportCoverHtml({
-                    coverTitle: pdfSettings?.cover_title,
-                    titleBandColor: pdfSettings?.title_band_color,
-                    coverBackgroundUrl: pdfSettings?.cover_background_url,
-                    inlineLocalAssets: true,
-                })
-            );
+            if (isRostechReportV2Project(projectId)) {
+                pageHtmlList.push(
+                    await buildRostechCoverHtml({
+                        coverTitle: pdfSettings?.cover_title,
+                        inlineLocalAssets: true,
+                    })
+                );
+            } else {
+                pageHtmlList.push(
+                    await buildReportCoverHtml({
+                        coverTitle: pdfSettings?.cover_title,
+                        titleBandColor: pdfSettings?.title_band_color,
+                        coverBackgroundUrl: pdfSettings?.cover_background_url,
+                        inlineLocalAssets: true,
+                    })
+                );
+            }
         }
 
         const clientName = report?.client_info?.first_name || report?.client_info?.full_name || '—';
@@ -531,6 +540,7 @@ class ReportPdfService {
                         overallPlan: report?.overall_plan || null,
                         comonShowcase: report?.comon_showcase || null,
                         clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
+                        clientAge: report?.client_info?.age ?? null,
                         reportGoalsOrdered: report?.goals_detailed || [],
                     },
                 });

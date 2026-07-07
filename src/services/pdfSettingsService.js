@@ -2,6 +2,7 @@ const path = require('path');
 const knex = require('../config/database');
 const {
     buildReportCoverHtml,
+    buildRostechCoverHtml,
     GLOBAL_DEFAULTS,
     buildCoverLayoutPayload,
     formatCoverDateRu,
@@ -14,7 +15,7 @@ const {
     sanitizeSummaryChartColor,
 } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPageHtmlByTheme } = require('../reports/themes/reportRenderers');
-const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
+const { resolveReportThemeKey, isRostechReportV2Project } = require('../reports/themes/themeResolver');
 const reportService = require('./reportService');
 const previewMockPayload = require('../reports/summary/previewMockPayload.json');
 const {
@@ -467,6 +468,11 @@ class PdfSettingsService {
      */
     async buildCoverHtmlForAgent(agentId, projectId) {
         const s = await this.getByAgentId(agentId, projectId);
+        if (isRostechReportV2Project(projectId)) {
+            return buildRostechCoverHtml({
+                coverTitle: s.cover_title,
+            });
+        }
         return await buildReportCoverHtml({
             coverTitle: s.cover_title,
             titleBandColor: s.title_band_color,
