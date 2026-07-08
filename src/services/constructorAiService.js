@@ -92,6 +92,7 @@ function envPositiveInt(name, fallback) {
 }
 const CLASSIFIER_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_CLASSIFIER_HISTORY_LOGS', 20);
 const GENERATOR_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_GENERATOR_HISTORY_LOGS', 20);
+const FIRST_RUN_STREAM_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_FIRST_RUN_STREAM_HISTORY_LOGS', 8);
 
 /** Частые опечатки ключа команды в ответе классификатора → канонический ключ из БД */
 const CLASSIFIER_COMMAND_TYPOS = {
@@ -306,6 +307,62 @@ function compactCalculationForPresentationPrompt(calculationResult) {
         client_id: full.client_id,
         investment_expense_growth_annual_percent: full.investment_expense_growth_annual_percent,
     };
+}
+
+function formatRubForFallback(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return `${Math.round(n).toLocaleString('ru-RU')} ₽`;
+}
+
+/** Короткая презентация firstRun, если LLM-стрим упал (socket hang up / timeout). */
+function buildFirstRunStreamFallbackText(calculationResult, pdfUrl) {
+    const compact = compactCalculationForPresentationPrompt(calculationResult);
+    const goal = Array.isArray(compact?.goals) ? compact.goals[0] : null;
+    const s = goal?.summary && typeof goal.summary === 'object' ? goal.summary : compact?.summary || {};
+    const lines = [
+        'Расчёт финансового плана выполнен на сервере. Кратко по модели:',
+    ];
+    if (goal?.goal_name) lines.push(`• Цель: ${goal.goal_name}`);
+    const pensionToday =
+        s.target_amount_initial ?? s.projected_pension_monthly_present ?? s.desired_monthly_income;
+    if (pensionToday != null) {
+        lines.push(`• Желаемый пенсионный доход (в сегодняшних ценах): ${formatRubForFallback(pensionToday)}/мес`);
+    }
+    if (s.state_pension_monthly_today != null) {
+        lines.push(`• Ожидаемая госпенсия (оценка): ${formatRubForFallback(s.state_pension_monthly_today)}/мес`);
+    }
+    const cap = s.projected_capital_at_retirement ?? s.required_capital_at_retirement;
+    if (cap != null) {
+        lines.push(`• Капитал к выходу на пенсию (прогноз): ${formatRubForFallback(cap)}`);
+    }
+    if (s.monthly_replenishment != null) {
+        lines.push(`• Рекомендуемое пополнение: ${formatRubForFallback(s.monthly_replenishment)}/мес`);
+    }
+    if (s.total_tax_benefit != null || s.total_cofinancing != null) {
+        const tax = s.total_tax_benefit != null ? `вычеты ~${formatRubForFallback(s.total_tax_benefit)}` : null;
+        const cof = s.total_cofinancing != null ? `софинансирование ~${formatRubForFallback(s.total_cofinancing)}` : null;
+        lines.push(`• Господдержка (оценка модели): ${[tax, cof].filter(Boolean).join(', ')}`);
+    }
+    lines.push(
+        'Цифры — оценка по модели расчёта, не гарантия доходности и не налоговая консультация.'
+    );
+    if (pdfUrl) {
+        lines.push(`📄 Подробный PDF-отчёт: ${pdfUrl}`);
+    }
+    return lines.join('\n');
+}
+
+function writeFirstRunStreamFallbackSse(res, calculationResult, pdfUrl) {
+    const text = buildFirstRunStreamFallbackText(calculationResult, pdfUrl);
+    if (!res || typeof res.write !== 'function' || res.writableEnded) return text;
+    res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`);
+    if (pdfUrl) {
+        res.write(`data: ${JSON.stringify({ type: 'pdf_url', pdf_url: pdfUrl })}\n\n`);
+    }
+    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+    res.end();
+    return text;
 }
 
 /** Расшифровка полей summary цели «пенсия» для генератора текста (без дублирования сырых JSON). */
@@ -700,6 +757,11 @@ function normalizeExtractedFinancialPlanPayload(extracted) {
     coerceClientMoneyAndIncomeInExtraction(extracted);
     if (trimText(c.birth_date)) {
         c.birth_date = fixLikelyMissingCenturyInBirthDate(c.birth_date);
+    }
+    for (const g of extracted.goals) {
+        if (g && typeof g === 'object' && Object.prototype.hasOwnProperty.call(g, 'inflation_rate')) {
+            delete g.inflation_rate;
+        }
     }
     return extracted;
 }
@@ -1995,6 +2057,20 @@ class ConstructorAiService {
             console.log(`[AI Step 1] Classifier RAW response: "${rawTrimmed}"`);
 
             if (!nextCommandFromLlm) {
+                const lenient = parseClassifierCommandFromLlm(rawTrimmed, commands, null);
+                if (lenient) {
+                    nextCommandFromLlm = lenient;
+                    console.log(
+                        `[ConstructorAI Step1] Роутер: мягкий парсинг команды из текста → ${lenient.command} (retry LLM не нужен)`
+                    );
+                    traceConstructorMeta('step1_classifier_lenient_parse', {
+                        raw: rawTrimmed,
+                        parsedKey: lenient.command,
+                    });
+                }
+            }
+
+            if (!nextCommandFromLlm) {
                 console.log('[ConstructorAI Step1] Роутер не вернул команду (не одна строка / ключ) — retry');
                 const retryPrompt = [
                     ...prompt,
@@ -2426,7 +2502,11 @@ class ConstructorAiService {
 
         const baseBrainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
 
-        const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
+        const historyLimit =
+            isFirstRunCalculationCommand(cmdKeyEarly) && firstRunCalculationSucceeded(calculationResult)
+                ? FIRST_RUN_STREAM_HISTORY_LOG_ROWS
+                : GENERATOR_HISTORY_LOG_ROWS;
+        const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, historyLimit);
         const brainSection = await this._buildDynamicConstructorBrainSection(
             bot.project_id,
             userMessage,
@@ -2854,18 +2934,35 @@ class ConstructorAiService {
                 res.end();
             }
         } else {
-            responseText = await this.generateResponseStream(
-                session,
-                nextCommand || { response: '' },
-                userMessage,
-                calculationResult,
-                res,
-                {
-                    trailingSsePayload: pfpReportPdfUrl ? { type: 'pdf_url', pdf_url: pfpReportPdfUrl } : null,
-                    appendToFullText: pdfSuffix,
-                    firstRunExtraction,
+            try {
+                responseText = await this.generateResponseStream(
+                    session,
+                    nextCommand || { response: '' },
+                    userMessage,
+                    calculationResult,
+                    res,
+                    {
+                        trailingSsePayload: pfpReportPdfUrl ? { type: 'pdf_url', pdf_url: pfpReportPdfUrl } : null,
+                        appendToFullText: pdfSuffix,
+                        firstRunExtraction,
+                    }
+                );
+            } catch (streamErr) {
+                const errMsg = String(streamErr?.message || streamErr || '');
+                console.error('[ConstructorAI] firstRun(stream): generator failed:', errMsg);
+                if (
+                    isFirstRunCalculationCommand(cmdKey) &&
+                    firstRunCalculationSucceeded(calculationResult) &&
+                    res &&
+                    typeof res.write === 'function' &&
+                    !res.writableEnded
+                ) {
+                    responseText = writeFirstRunStreamFallbackSse(res, calculationResult, pfpReportPdfUrl);
+                    console.warn('[ConstructorAI] firstRun(stream): sent fallback presentation after stream error');
+                } else {
+                    throw streamErr;
                 }
-            );
+            }
         }
 
         traceConstructorMeta('stream.turn_complete', {

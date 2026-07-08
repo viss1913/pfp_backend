@@ -10,11 +10,8 @@ class PassiveIncomeCalculator extends BaseCalculator {
 
         // 1. Определение желаемого дохода в будущем (с учетом инфляции)
         const initialDesiredIncome = goal.desired_monthly_income || goal.target_amount || 0;
-        const inflationRate = (goal.inflation_rate !== undefined && goal.inflation_rate !== null)
-            ? Number(goal.inflation_rate)
-            : (settings.inflation_rate_year || 4.0);
-
         const termMonths = Number(goal.term_months || 120);
+        const inflationRate = this.resolveAnnualInflationPercent(goal, context, Math.max(0, termMonths - 1));
         const termYears = termMonths / 12;
         const infl_month_decimal = (inflationRate / 12) / 100;
 

@@ -666,6 +666,15 @@ class CalculationService {
 
             logger.info(`[CalculationService] calculateFirstRun for project: ${clientData.project_id}, Goals: ${goals?.length}`);
 
+            // First-run: инфляция только из админки — LLM/фронт часто шлёт goal.inflation_rate (напр. 5.6).
+            if (isFirstRun && Array.isArray(goals)) {
+                for (const g of goals) {
+                    if (g && Object.prototype.hasOwnProperty.call(g, 'inflation_rate')) {
+                        delete g.inflation_rate;
+                    }
+                }
+            }
+
             // 1. Prepare Shared Context
             const context = await this._prepareContext(clientData, options);
             logger.info(`[CalculationService] Context prepared. Project: ${context.projectId}`);

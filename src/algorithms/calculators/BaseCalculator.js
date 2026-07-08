@@ -56,6 +56,26 @@ class BaseCalculator {
         return Number(last.rateAnnual ?? last.rate_annual ?? 0);
     }
 
+    /**
+     * Годовая инфляция (%): first-run — только админка (матрица → inflation_rate_year).
+     * Перерасчёт — приоритет у goal.inflation_rate из запроса.
+     */
+    resolveAnnualInflationPercent(goal, context, termMonths = 0) {
+        const settings = context.settings || {};
+        const rateFromMatrix = this.getInflationRateForMonth(
+            context.inflationMatrix || null,
+            Math.max(0, Number(termMonths) || 0)
+        );
+        const fallbackRate = context.inflationYear ?? settings.inflation_rate_year ?? 4.0;
+        if (context.isFirstRun) {
+            return rateFromMatrix != null ? rateFromMatrix : fallbackRate;
+        }
+        if (goal?.inflation_rate !== undefined && goal?.inflation_rate !== null) {
+            return Number(goal.inflation_rate);
+        }
+        return rateFromMatrix != null ? rateFromMatrix : fallbackRate;
+    }
+
     async handleTaxEvents(
         month,
         year,

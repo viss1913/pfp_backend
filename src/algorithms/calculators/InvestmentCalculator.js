@@ -7,7 +7,6 @@ class InvestmentCalculator extends BaseCalculator {
         const { portfolioRepository, productRepository } = repositories;
         // Рост расходов на инвестиции: в контексте уже месячная доля (из годовой или месячной настройки)
         const replenishmentIndexationDecimal = context.replenishmentIndexationRate ?? ((settings.investment_expense_growth_monthly || 0) / 100);
-        const db_inflation_year_percent = settings.inflation_rate_year || 4.0;
 
         // 0. Найти портфель
         const initialCapitalForSearch = (goal.smart_initial_capital !== undefined)
@@ -33,7 +32,8 @@ class InvestmentCalculator extends BaseCalculator {
         } = await this.calculateWeightedYield(portfolio, goal, productRepository, context.projectId, context);
 
         const portfolioYieldMonthly = this.getMonthlyYield(weightedYieldAnnual);
-        const inflationRate = goal.inflation_rate !== undefined ? Number(goal.inflation_rate) : db_inflation_year_percent;
+        const termMonths = Number(goal.term_months || 0);
+        const inflationRate = this.resolveAnnualInflationPercent(goal, context, Math.max(0, termMonths - 1));
 
         // 2. Симуляция (по месяцам как в Excel)
         const monthlyReplenishment = goal.monthly_replenishment || 0;

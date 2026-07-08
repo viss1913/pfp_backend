@@ -79,9 +79,19 @@ class PensionCalculator extends BaseCalculator {
             throw new Error('Client birth_date is required for pension calculation');
         }
 
-        const inflationRate = (goal.inflation_rate !== undefined && goal.inflation_rate !== null)
-            ? Number(goal.inflation_rate)
-            : (settings.inflation_rate_year || context.inflationYear || 4.0);
+        const birthDate = new Date(client.birth_date);
+        const birthYear = birthDate.getFullYear();
+        const currentYear = new Date().getFullYear();
+        const sex = client.gender || client.sex || '';
+        const isMale = sex === 'male' || sex === 'M' || sex === 'мужской';
+        const retirementAge = isMale ? 65 : 60;
+        const yearsToPensionEstimate = Math.max(birthYear + retirementAge - currentYear, 0);
+        const monthsToPensionEstimate = yearsToPensionEstimate * 12;
+        const inflationRate = this.resolveAnnualInflationPercent(
+            goal,
+            context,
+            Math.max(0, monthsToPensionEstimate - 1)
+        );
 
         const pensionSettings = {
             pension_pfr_contribution_rate_part1: settings.pension_pfr_contribution_rate_part1 || 22,
@@ -110,7 +120,6 @@ class PensionCalculator extends BaseCalculator {
         initialCapital += opsCapital;
 
         const inflationAnnualUsed = pensionSettings.inflation_rate;
-        const infl_month_decimal = (inflationAnnualUsed / 12) / 100; // Correct monthly decimal
         const monthsToPension = statePensionResult.years_to_pension * 12;
         const ageAtGoal = statePensionResult.age_at_goal;
 
@@ -241,7 +250,7 @@ class PensionCalculator extends BaseCalculator {
                 monthlyReplenishment: recommendedReplenishment,
                 termMonths: monthsToPension,
                 monthlyYieldRate: this.getMonthlyYield(weightedYieldAnnual),
-                indexationRate: infl_month_decimal,
+                indexationRate: indexationRateDecimal,
                 totalTargetAmount: desiredPensionMonthlyFuture, // Passed for logging/check, not used in direct flow
                 avgMonthlyIncome: clientWithIncome.avg_monthly_income,
                 pdsProductId: pdsProductId,
@@ -262,7 +271,7 @@ class PensionCalculator extends BaseCalculator {
                 initialCapital: initialCapital,
                 termMonths: monthsToPension,
                 monthlyYieldRate: this.getMonthlyYield(weightedYieldAnnual),
-                indexationRate: infl_month_decimal,
+                indexationRate: indexationRateDecimal,
                 pdsProductId: pdsProductId,
                 avgMonthlyIncome: clientWithIncome.avg_monthly_income
             }, context);
@@ -273,7 +282,7 @@ class PensionCalculator extends BaseCalculator {
                 monthlyReplenishment: recommendedReplenishment,
                 termMonths: monthsToPension,
                 monthlyYieldRate: this.getMonthlyYield(weightedYieldAnnual),
-                indexationRate: infl_month_decimal,
+                indexationRate: indexationRateDecimal,
                 totalTargetAmount: requiredCapitalFuture,
                 avgMonthlyIncome: clientWithIncome.avg_monthly_income,
                 pdsProductId: pdsProductId,
