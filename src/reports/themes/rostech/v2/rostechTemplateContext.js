@@ -132,11 +132,11 @@ function resolveInflationRatePercent(goal, s) {
 }
 
 function resolveIndexationRatePercent(s, options = {}) {
+    // «Индексировать пополнения на X%» — investment_expense_growth_annual из админки (через расчёт / overall_plan).
     const candidates = [
         options?.overallPlan?.investment_expense_growth_annual_percent,
         options?.overallPlan?.summary?.investment_expense_growth_annual_percent,
-        s.replenishment_indexation_percent,
-        s.indexation_rate,
+        options?.investmentExpenseGrowthAnnualPercent,
     ];
     for (const candidate of candidates) {
         const n = Number(candidate);

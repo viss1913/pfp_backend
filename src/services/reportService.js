@@ -1,6 +1,7 @@
 const clientService = require('./clientService');
 const aiService = require('./aiService');
 const calculationService = require('./calculationService');
+const settingsService = require('./settingsService');
 const { isReportPdfAiEnabled } = require('../utils/reportPdfAiEnv');
 const { comonShowcaseService } = require('./comonShowcaseService');
 const { shouldIncludeComonShowcaseInReport } = require('../utils/comonShowcaseGate');
@@ -16,6 +17,33 @@ class ReportService {
     _toFiniteNumber(value, fallback = 0) {
         const n = Number(value);
         return Number.isFinite(n) ? n : fallback;
+    }
+
+    /**
+     * Годовая индексация пополнений из админки (investment_expense_growth_annual),
+     * как в calculationService — для PDF совпадает с расчётом.
+     */
+    async _resolveInvestmentExpenseGrowthAnnualPercent(calcData, summary, projectId) {
+        const fromCalc =
+            summary?.investment_expense_growth_annual_percent ?? calcData?.investment_expense_growth_annual_percent;
+        if (fromCalc != null && fromCalc !== '' && Number.isFinite(Number(fromCalc))) {
+            return Math.round(Number(fromCalc) * 100) / 100;
+        }
+        if (projectId == null) return null;
+
+        try {
+            const annualGrowth = await settingsService.getValue('investment_expense_growth_annual', projectId);
+            if (annualGrowth != null && annualGrowth !== '' && Number.isFinite(Number(annualGrowth))) {
+                return Math.round(Number(annualGrowth) * 100) / 100;
+            }
+            const monthlyGrowth = await settingsService.getValue('investment_expense_growth_monthly', projectId);
+            if (monthlyGrowth != null && monthlyGrowth !== '' && Number.isFinite(Number(monthlyGrowth))) {
+                return Math.round((Math.pow(1 + Number(monthlyGrowth) / 100, 12) - 1) * 10000) / 100;
+            }
+        } catch (e) {
+            console.warn('[ReportService] investment_expense_growth settings lookup failed:', e.message);
+        }
+        return null;
     }
 
     _extractGoalMonthlyContributions(goal, maxRows = 6) {
@@ -290,6 +318,12 @@ class ReportService {
         // Fix negative income if projection is weirdly low (shouldn't happen with correct calc)
         const investmentIncome = Math.max(0, totalProjectedCapital - totalClientInvested - totalStateSupportNominal);
 
+        const investmentExpenseGrowthAnnualPercent = await this._resolveInvestmentExpenseGrowthAnnualPercent(
+            calcData,
+            summary,
+            projectId
+        );
+
         const overallPlan = {
             chart_waterfall: {
                 invested_by_client: Math.round(totalClientInvested),
@@ -299,8 +333,7 @@ class ReportService {
             },
             consolidated_portfolio: summary.consolidated_portfolio || {},
             tax_benefits: summary.tax_benefits_summary || {},
-            investment_expense_growth_annual_percent:
-                summary.investment_expense_growth_annual_percent ?? null,
+            investment_expense_growth_annual_percent: investmentExpenseGrowthAnnualPercent,
             pdf_metrics: {
                 portfolio: this._buildPortfolioPdfMetrics(summary, goalsReport),
             },

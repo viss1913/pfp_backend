@@ -538,6 +538,8 @@ class ReportPdfService {
                         backgroundOverlayOpacity: pdfSettings?.summary_background_overlay_opacity,
                         backgroundDarknessPercent: pdfSettings?.summary_background_darkness_percent,
                         overallPlan: report?.overall_plan || null,
+                        investmentExpenseGrowthAnnualPercent:
+                            report?.overall_plan?.investment_expense_growth_annual_percent ?? null,
                         comonShowcase: report?.comon_showcase || null,
                         clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
                         clientAge: report?.client_info?.age ?? null,
