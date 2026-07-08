@@ -299,6 +299,8 @@ class ReportService {
             },
             consolidated_portfolio: summary.consolidated_portfolio || {},
             tax_benefits: summary.tax_benefits_summary || {},
+            investment_expense_growth_annual_percent:
+                summary.investment_expense_growth_annual_percent ?? null,
             pdf_metrics: {
                 portfolio: this._buildPortfolioPdfMetrics(summary, goalsReport),
             },
@@ -562,7 +564,7 @@ class ReportService {
         const summaryModel =
             process.env.OPENROUTER_MODEL_SUMMARY ||
             process.env.OPENROUTER_MODEL ||
-            'google/gemma-3-27b-it';
+            'google/gemini-2.5-flash';
         let aiGeneratedSummary =
             'Резюме временно недоступно. Пересчитайте отчет чуть позже: данные по целям и стратегиям уже сформированы.';
         try {

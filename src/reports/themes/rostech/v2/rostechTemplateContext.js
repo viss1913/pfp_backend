@@ -1,7 +1,6 @@
 const {
     pickPositive,
     formatCoverDateRu,
-    calculateAugNextYearEffectivenessPercent,
     extractPensionPlanFacts,
     calculateOwnFundsFromSchedule,
     computeInvestmentEndContext,
@@ -107,17 +106,43 @@ function resolvePlanChartFacts(goal, s, totalCapital) {
     };
 }
 
-function resolveExpectedReturnRate(goal, s, totalCapital, ownFunds) {
+function resolvePlanYieldPercent(s, totalCapital, ownFunds) {
     const accumulationYieldPercent = Number(s.accumulation_yield_percent ?? 0);
-    const yearlyEffectiveness = calculateAugNextYearEffectivenessPercent(goal?.details?.monthly_schedule);
     const incomeAndBenefits = Math.max(totalCapital - ownFunds, 0);
     const totalYieldPercent = ownFunds > 0 ? Math.max((incomeAndBenefits / ownFunds) * 100, 0) : 0;
-    const highlighted = Number.isFinite(yearlyEffectiveness.percent)
-        ? yearlyEffectiveness.percent
-        : Number.isFinite(accumulationYieldPercent) && accumulationYieldPercent > 0
-          ? accumulationYieldPercent
-          : totalYieldPercent;
-    return percentRu(highlighted, 1);
+    const value =
+        Number.isFinite(accumulationYieldPercent) && accumulationYieldPercent > 0
+            ? accumulationYieldPercent
+            : totalYieldPercent;
+    return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function resolveExpectedReturnRate(s, totalCapital, ownFunds) {
+    const value = resolvePlanYieldPercent(s, totalCapital, ownFunds);
+    return value == null ? '—' : percentRu(value, 1);
+}
+
+function resolveInflationRatePercent(goal, s) {
+    const candidates = [s.inflation_rate, goal?.inflation_rate, goal?.details?.inflation_rate];
+    for (const candidate of candidates) {
+        const n = Number(candidate);
+        if (Number.isFinite(n) && n >= 0) return n;
+    }
+    return null;
+}
+
+function resolveIndexationRatePercent(s, options = {}) {
+    const candidates = [
+        options?.overallPlan?.investment_expense_growth_annual_percent,
+        options?.overallPlan?.summary?.investment_expense_growth_annual_percent,
+        s.replenishment_indexation_percent,
+        s.indexation_rate,
+    ];
+    for (const candidate of candidates) {
+        const n = Number(candidate);
+        if (Number.isFinite(n) && n >= 0) return n;
+    }
+    return null;
 }
 
 function buildCoverContext({ coverTitle, dateLine } = {}) {
@@ -143,7 +168,8 @@ function buildPensionContext({ goal, clientName, options = {} }) {
 
     const monthly = Number(s.monthly_replenishment ?? 0);
     const initial = Number(s.initial_capital ?? 0);
-    const inflationRate = Number(s.inflation_rate ?? 5.6);
+    const inflationRate = resolveInflationRatePercent(goal, s);
+    const indexationRate = resolveIndexationRatePercent(s, options);
     const targetPresent = Number(s.target_amount_initial ?? 0);
     const targetFuture = Number(s.target_amount_future ?? 0);
     const statePensionMonthlyToday = Number(s.state_pension_monthly_today ?? 0);
@@ -163,7 +189,7 @@ function buildPensionContext({ goal, clientName, options = {} }) {
         cofinancingYear: tax.nextCalendarYear,
     });
     const chart = resolvePlanChartFacts(goal, s, totalCapital);
-    const expectedReturnRate = resolveExpectedReturnRate(goal, s, totalCapital, chart.ownFunds);
+    const expectedReturnRate = resolveExpectedReturnRate(s, totalCapital, chart.ownFunds);
 
     const targetBarHeight = barHeightPx(targetPresent, Math.max(targetPresent, targetFuture, 1), 20, 88);
     const targetFutureBarHeight = barHeightPx(targetFuture, Math.max(targetPresent, targetFuture, 1), 20, 130);
@@ -188,7 +214,7 @@ function buildPensionContext({ goal, clientName, options = {} }) {
             state_pension_year: String(displayRetirementYear),
             target_pension_monthly: moneyRubPerMonthShort(targetPresent),
             target_pension_monthly_inflated: moneyRubPerMonthShort(targetFuture),
-            inflation_rate: percentRu(inflationRate, 1),
+            inflation_rate: inflationRate == null ? '—' : percentRu(inflationRate, 1),
             target_pension_year: `${displayRetirementYear} г.`,
             state_pension_today: moneyRubPerMonthShort(statePensionMonthlyToday),
             state_pension_inflated: moneyRubPerMonthShort(statePensionMonthlyFuture),
@@ -200,7 +226,8 @@ function buildPensionContext({ goal, clientName, options = {} }) {
             monthly_contribution: moneyRubPerMonthShort(planFacts.monthlyContribution || monthly),
             monthly_contribution_pct: pctOfIncome(planFacts.monthlyContribution || monthly, currentIncomeMonthly),
             deduction_next_year: moneyRub(planFacts.taxDeductionAmount || tax.deduction2026),
-            indexation_rate: percentRu(inflationRate, 0),
+            indexation_rate:
+                indexationRate == null ? '—' : percentRu(indexationRate, indexationRate % 1 === 0 ? 0 : 1),
             projected_capital_end: moneyRub(totalCapital),
             payout_years_min: '5 лет (60 мес.)',
             expected_return_rate: expectedReturnRate,
@@ -239,7 +266,9 @@ function buildInvestmentContext({ goal, clientName, options = {} }) {
         cofinancingYear: tax.nextCalendarYear,
     });
     const chart = resolvePlanChartFacts(goal, s, totalCapitalEnd);
-    const expectedReturnRate = resolveExpectedReturnRate(goal, s, totalCapitalEnd, chart.ownFunds);
+    const inflationRate = resolveInflationRatePercent(goal, s);
+    const indexationRate = resolveIndexationRatePercent(s, options);
+    const expectedReturnRate = resolveExpectedReturnRate(s, totalCapitalEnd, chart.ownFunds);
 
     const clientAge = Number(options?.clientAge ?? goal?.client?.age ?? NaN);
     const achieveAge =
@@ -260,7 +289,8 @@ function buildInvestmentContext({ goal, clientName, options = {} }) {
             goal_achieve_date: displayEndDateLong,
             cofinancing_next_year: moneyRub(planFacts.cofinancingAmount || tax.cofinancing2026),
             deduction_next_year: moneyRub(planFacts.taxDeductionAmount || tax.deduction2026),
-            indexation_rate: percentRu(Number(s.inflation_rate ?? 6), 0),
+            indexation_rate:
+                indexationRate == null ? '—' : percentRu(indexationRate, indexationRate % 1 === 0 ? 0 : 1),
             payout_years_min: '5 лет (60 мес.)',
             expected_return_rate: expectedReturnRate,
             chart_bar_1_value: chart.chartBar1Value,
