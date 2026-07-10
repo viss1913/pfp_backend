@@ -694,11 +694,33 @@ components:
         '200':
           description: SSE stream с ответом ИИ
 
+  /my/ai-b2c/chat/dynamic/stream:
+    post:
+      summary: B2C-оркестратор (SSE, 2 шага) — для /plan
+      tags: [AiB2C]
+      description: |
+        Оркестратор выбирает команду страницы, генератор отвечает в чат.
+        SSE: `classifier_command` → `text` → `done`. См. `docs/api/b2c_plan_orchestrator_frontend.md`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../docs/api/aiB2c.yaml#/components/schemas/AiB2cOrchestratorTurn'
+      responses:
+        '200':
+          description: SSE stream (PFP JSON events)
+
   /my/ai-b2c/history:
     get:
       summary: Получить историю чата
       tags: [AiB2C]
       parameters:
+        - name: flow_key
+          in: query
+          schema:
+            type: string
+            default: default
         - name: stage
           in: query
           description: Фильтр по этапу (опционально)
@@ -724,6 +746,11 @@ components:
       summary: Очистить историю чата
       tags: [AiB2C]
       parameters:
+        - name: flow_key
+          in: query
+          schema:
+            type: string
+            default: default
         - name: stage
           in: query
           description: Очистить только конкретный этап (опционально, без параметра очистит всё)
@@ -732,6 +759,20 @@ components:
       responses:
         '200':
           description: История очищена
+
+  /my/ai-b2c/stages:
+    get:
+      summary: Список активных стадий flow для клиента
+      tags: [AiB2C]
+      parameters:
+        - name: flow_key
+          in: query
+          schema:
+            type: string
+            default: default
+      responses:
+        '200':
+          description: stage_key + title
 
   /my/ai-b2c/settings:
     get:

@@ -23,8 +23,31 @@ const DOC_TOTAL_LIMIT_CHARS = 30000;
 const CONTEXT_ARCHITECT_MAX_CHARS = 12000;
 const DOC_CHUNK_SIZE = 1200;
 const DOC_CHUNK_OVERLAP = 200;
+const DEFAULT_FLOW_KEY = 'default';
 
 class AiB2cService {
+    _normalizeFlowKey(flowKey) {
+        const key = String(flowKey || DEFAULT_FLOW_KEY).trim().toLowerCase();
+        if (!/^[a-z0-9_-]{1,64}$/.test(key)) return DEFAULT_FLOW_KEY;
+        return key;
+    }
+
+    _buildOrchestratorUserMessage(turn = {}) {
+        const parts = [];
+
+        if (turn.event) parts.push(`СОБЫТИЕ UI: ${turn.event}`);
+        if (turn.page) parts.push(`ТЕКУЩАЯ СТРАНИЦА: ${turn.page}`);
+        if (turn.goal_type_id != null && turn.goal_type_id !== '') {
+            parts.push(`ВЫБРАННАЯ ЦЕЛЬ (goal_type_id): ${turn.goal_type_id}`);
+        }
+        if (turn.goal_name) parts.push(`НАЗВАНИЕ ЦЕЛИ: ${turn.goal_name}`);
+        if (turn.page_data && typeof turn.page_data === 'object') {
+            parts.push(`ДАННЫЕ СТРАНИЦЫ:\n${JSON.stringify(turn.page_data, null, 2)}`);
+        }
+        if (turn.message) parts.push(`СООБЩЕНИЕ КЛИЕНТА:\n${turn.message}`);
+
+        return parts.join('\n\n').trim();
+    }
     _isCalcRoutingCommand(command) {
         const k = String(command || '').trim().toLowerCase();
         return k === '/calc' || k === '/recalc' || k === '/recalculate';
@@ -38,6 +61,72 @@ class AiB2cService {
         res.write(`data: ${JSON.stringify({ type: 'text', content: text || '' })}\n\n`);
         res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
         res.end();
+    }
+
+    _writeClassifierCommandSse(res, { command, stageKey, classifierSkipped = false } = {}) {
+        if (!res || typeof res.write !== 'function' || res.writableEnded) return;
+        res.write(
+            `data: ${JSON.stringify({
+                type: 'classifier_command',
+                command: command ?? null,
+                stage_key: stageKey ?? null,
+                classifierSkipped: !!classifierSkipped,
+            })}\n\n`
+        );
+    }
+
+    _stageKeyCandidates(stageKey) {
+        const text = String(stageKey || '').trim();
+        if (!text) return [];
+        const withSlash = text.startsWith('/') ? text : `/${text}`;
+        const withoutSlash = text.startsWith('/') ? text.slice(1) : text;
+        return [...new Set([text, withSlash, withoutSlash].filter(Boolean))];
+    }
+
+    _normalizeCommandKey(command) {
+        const text = String(command || '').trim();
+        if (!text) return null;
+        return text.startsWith('/') ? text : `/${text}`;
+    }
+
+    _commandKeysMatch(a, b) {
+        const left = this._normalizeCommandKey(a);
+        const right = this._normalizeCommandKey(b);
+        if (!left || !right) return false;
+        return left.toLowerCase() === right.toLowerCase();
+    }
+
+    async _getActiveStageCommands(projectId, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
+        const rows = await knex('ai_b2c_stage_contexts')
+            .where({ is_active: true, flow_key: normalizedFlowKey })
+            .where(function () {
+                this.where('project_id', projectId).orWhereNull('project_id');
+            })
+            .select('stage_key');
+
+        return Array.from(
+            new Set(
+                rows
+                    .map((row) => this._normalizeCommandKey(row.stage_key))
+                    .filter(Boolean)
+            )
+        );
+    }
+
+    async _resolveStageContext(projectId, stageKey, { table = 'ai_b2c_stage_contexts', flowKey = DEFAULT_FLOW_KEY } = {}) {
+        const candidates = this._stageKeyCandidates(stageKey);
+        if (!candidates.length) return null;
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
+
+        return knex(table)
+            .where({ is_active: true, flow_key: normalizedFlowKey })
+            .whereIn('stage_key', candidates)
+            .where(function () {
+                this.where('project_id', projectId).orWhereNull('project_id');
+            })
+            .orderBy('priority', 'desc')
+            .first();
     }
 
 
@@ -78,46 +167,71 @@ class AiB2cService {
      * - 1-е сообщение: сразу отвечаем на стадии "start" (1-й ИИ не вызываем)
      * - следующие сообщения: 1-й ИИ выбирает команду маршрутизации => stageKey, 2-й ИИ генерит ответ на выбранной стадии
      */
-    async chatDynamicStartStream(clientId, projectId, userMessage, res) {
-        const assistantName = await this._getAssistantDisplayName(projectId);
+    async chatDynamicStartStream(clientId, projectId, turn, res) {
+        const flowKey = this._normalizeFlowKey(turn?.flowKey);
+        const userMessage = this._buildOrchestratorUserMessage(turn);
+        const assistantName = await this._getAssistantDisplayName(projectId, flowKey);
+        const projectModel = await this._getAiB2cProjectModel(projectId, flowKey);
+        const streamOptions = { sseFormat: 'pfp' };
+        const allowedStageCommands = await this._getActiveStageCommands(projectId, flowKey);
 
         // По твоей логике: если это первое сообщение в сессии/истории — пропускаем классификатор.
-        const hasAnyHistory = await this._hasAnyChatHistory(clientId);
+        const hasAnyHistory = await this._hasAnyChatHistory(clientId, flowKey);
         if (!hasAnyHistory) {
-            const stageKey = 'start';
-            const prompt = await this._buildPrompt(clientId, projectId, stageKey, userMessage, {
-                historyMode: 'global',
-                assistantName
+            const startContext = await this._resolveStageContext(projectId, 'start', { flowKey });
+            const nextStageKey = startContext?.stage_key || 'start';
+            const routingCommand = this._normalizeCommandKey(startContext?.stage_key) || '/start';
+
+            this._writeClassifierCommandSse(res, {
+                command: routingCommand,
+                stageKey: nextStageKey,
+                classifierSkipped: true,
             });
 
-            const fullText = await aiService.streamCompletion(prompt, null, res);
-            await this._saveMessagesWithStageKeys(clientId, stageKey, stageKey, userMessage, fullText);
+            const prompt = await this._buildPrompt(clientId, projectId, nextStageKey, userMessage, {
+                historyMode: 'global',
+                assistantName,
+                flowKey,
+            });
+
+            const fullText = await aiService.streamCompletion(prompt, projectModel, res, streamOptions);
+            await this._saveMessagesWithStageKeys(clientId, nextStageKey, nextStageKey, userMessage, fullText, flowKey);
             return fullText;
         }
 
         // Текущая стадия для классификатора = stage_key последнего assistant-сообщения.
-        const currentStageKey = await this._getLastAssistantStageKey(clientId) || 'start';
-        const historyGlobal = await this._getChatHistoryGlobal(clientId);
-        const currentStageContext = await this._getStageContext(projectId, currentStageKey);
+        const currentStageKey = await this._getLastAssistantStageKey(clientId, flowKey) || 'start';
+        const historyGlobal = await this._getChatHistoryGlobal(clientId, flowKey);
+        const currentStageContext = await this._resolveStageContext(projectId, currentStageKey, { flowKey });
 
         // 1-й ИИ: маршрутизация (команда) для следующей стадии.
         const routingCommand = await this._classifyDynamicCommand(projectId, userMessage, {
             historyMessages: historyGlobal,
             currentStageKey,
-            commandContextText: currentStageContext?.command_context_text || null
+            commandContextText: currentStageContext?.command_context_text || null,
+            allowedStageCommands,
+            flowKey,
         });
 
-        // Маппинг команды -> stage_key для 2-го ИИ.
-        const nextStageKey = this._commandToStageKey(routingCommand) || 'start';
+        const nextStageContext = await this._resolveStageContext(projectId, routingCommand, { flowKey });
+        const nextStageKey = nextStageContext?.stage_key || this._commandToStageKey(routingCommand) || 'start';
+
+        this._writeClassifierCommandSse(res, {
+            command: routingCommand,
+            stageKey: nextStageKey,
+            classifierSkipped: false,
+        });
 
         // 2-й ИИ: ответ на выбранной стадии, но с глобальной историей диалога.
         const prompt = await this._buildPrompt(clientId, projectId, nextStageKey, userMessage, {
             historyMode: 'global',
-            assistantName
+            assistantName,
+            routingCommand,
+            flowKey,
         });
 
-        const fullText = await aiService.streamCompletion(prompt, null, res);
-        await this._saveMessagesWithStageKeys(clientId, currentStageKey, nextStageKey, userMessage, fullText);
+        const fullText = await aiService.streamCompletion(prompt, projectModel, res, streamOptions);
+        await this._saveMessagesWithStageKeys(clientId, currentStageKey, nextStageKey, userMessage, fullText, flowKey);
         return fullText;
     }
 
@@ -147,7 +261,9 @@ class AiB2cService {
 
         const currentStageKey = await this._getLastChatAiAssistantStageKey(clientId) || 'start';
         const historyGlobal = await this._getChatAiHistoryGlobal(clientId);
-        const currentStageContext = await this._getChatAiStageContext(projectId, currentStageKey);
+        const currentStageContext = await this._resolveStageContext(projectId, currentStageKey, {
+            table: 'ai_b2c_chat_stage_contexts',
+        });
 
         // 1-й ИИ => команда маршрутизации для следующей стадии
         const routingCommand = await this._classifyDynamicCommand(projectId, userMessage, {
@@ -156,8 +272,11 @@ class AiB2cService {
             commandContextText: currentStageContext?.command_context_text || null
         });
 
-        const nextStageKey = this._commandToStageKey(routingCommand) || 'start';
-        const isCalcCommand = this._isCalcRoutingCommand(routingCommand) || nextStageKey === 'calc';
+        const nextStageContext = await this._resolveStageContext(projectId, routingCommand, {
+            table: 'ai_b2c_chat_stage_contexts',
+        });
+        const nextStageKey = nextStageContext?.stage_key || this._commandToStageKey(routingCommand) || 'start';
+        const isCalcCommand = this._isCalcRoutingCommand(routingCommand) || this._isCalcRoutingCommand(nextStageKey);
 
         if (isCalcCommand) {
             const historyRows = await this._getChatAiHistoryGlobal(clientId);
@@ -222,9 +341,10 @@ class AiB2cService {
     /**
      * Получить историю чата клиента по этапу
      */
-    async getHistory(clientId, stageKey) {
+    async getHistory(clientId, stageKey, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         const query = knex('ai_b2c_chat_messages')
-            .where('client_id', clientId)
+            .where({ client_id: clientId, flow_key: normalizedFlowKey })
             .orderBy('created_at', 'asc');
 
         if (stageKey) {
@@ -237,8 +357,9 @@ class AiB2cService {
     /**
      * Очистить историю чата (опционально по этапу)
      */
-    async clearHistory(clientId, stageKey) {
-        const query = knex('ai_b2c_chat_messages').where('client_id', clientId);
+    async clearHistory(clientId, stageKey, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
+        const query = knex('ai_b2c_chat_messages').where({ client_id: clientId, flow_key: normalizedFlowKey });
         if (stageKey) {
             query.where('stage_key', stageKey);
         }
@@ -252,18 +373,19 @@ class AiB2cService {
      */
     async _buildPrompt(clientId, projectId, stageKey, userMessage, options = {}) {
         const historyMode = options.historyMode || 'stage';
+        const flowKey = this._normalizeFlowKey(options.flowKey);
         const assistantNameSection = options.assistantName
             ? `ИМЯ АССИСТЕНТА: ${options.assistantName}\n`
             : '';
 
         // Параллельно загружаем все данные
         const [brainContexts, stageContext, clientData, history] = await Promise.all([
-            this._getBrainContexts(projectId),
-            this._getStageContext(projectId, stageKey),
+            this._getBrainContexts(projectId, flowKey),
+            this._resolveStageContext(projectId, stageKey, { flowKey }),
             this._getClientData(clientId),
             historyMode === 'global'
-                ? this._getChatHistoryGlobal(clientId)
-                : this._getChatHistory(clientId, stageKey),
+                ? this._getChatHistoryGlobal(clientId, flowKey)
+                : this._getChatHistory(clientId, stageKey, flowKey),
         ]);
 
         // Слой 1: Главный Мозг
@@ -419,16 +541,36 @@ ${clientSection}
         return messages;
     }
 
-    async _classifyDynamicCommand(projectId, userMessage, { historyMessages = [], currentStageKey = 'start', commandContextText = null } = {}) {
-        const dynamicContextText = commandContextText || await this._getDynamicContextText(projectId);
+    async _classifyDynamicCommand(
+        projectId,
+        userMessage,
+        {
+            historyMessages = [],
+            currentStageKey = 'start',
+            commandContextText = null,
+            allowedStageCommands = null,
+            flowKey = DEFAULT_FLOW_KEY,
+        } = {}
+    ) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
+        const dynamicContextText = commandContextText || await this._getDynamicContextText(projectId, normalizedFlowKey);
         const defaultCommand = '/start';
+        const stageCommands = Array.isArray(allowedStageCommands) && allowedStageCommands.length
+            ? allowedStageCommands
+            : await this._getActiveStageCommands(projectId, normalizedFlowKey);
 
-        if (!dynamicContextText) {
+        const foundCommands = String(dynamicContextText || '').match(/\/[a-zA-Z0-9_-]+/g) || [];
+        const allowedCommands = Array.from(
+            new Set(
+                [...stageCommands, ...foundCommands]
+                    .map((item) => this._normalizeCommandKey(item))
+                    .filter(Boolean)
+            )
+        );
+
+        if (!dynamicContextText && !allowedCommands.length) {
             return defaultCommand;
         }
-
-        const foundCommands = dynamicContextText.match(/\/[a-zA-Z0-9_-]+/g) || [];
-        const allowedCommands = Array.from(new Set(foundCommands.map(s => String(s).trim()).filter(Boolean)));
 
         const allowedCommandsText = allowedCommands.length
             ? `ВЫБЕРИ ОДНУ КОМАНДУ ТОЛЬКО ИЗ СПИСКА: ${allowedCommands.join(', ')}`
@@ -438,16 +580,20 @@ ${clientSection}
             {
                 role: 'system',
                 content: [
-                    'Ты управляющий динамическим контекстом ИИ.',
-                    'Твоя задача писать команды для другого ИИ для перехода на другие стадии.',
+                    'Ты оркестратор B2C-чата по финансовому планированию.',
+                    'Твоя задача — выбрать одну команду перехода на следующую страницу/стадию сценария.',
                     '',
                     `ТЕКУЩАЯ СТАДИЯ: ${currentStageKey}`,
                     '',
-                    'DYNAMIC CONTEXT (правила стадий и маршрутизации):',
-                    dynamicContextText,
-                    '',
+                    ...(dynamicContextText
+                        ? [
+                            'DYNAMIC CONTEXT (правила стадий и маршрутизации):',
+                            dynamicContextText,
+                            '',
+                        ]
+                        : []),
                     allowedCommandsText,
-                    'Возвращай строго одну команду (например: /startPFP).',
+                    'Возвращай строго одну команду (например: /vybor_celi2).',
                     'Никаких пояснений, только команда.'
                 ].join('\n')
             },
@@ -455,27 +601,50 @@ ${clientSection}
             { role: 'user', content: userMessage }
         ];
 
-        const rawResponse = await aiService.getCompletion(classifierPrompt);
-        return this._normalizeRoutingCommand(rawResponse, defaultCommand);
+        const projectModel = await this._getAiB2cProjectModel(projectId, normalizedFlowKey);
+        const rawResponse = await aiService.getCompletion(classifierPrompt, projectModel);
+        return this._normalizeRoutingCommand(rawResponse, allowedCommands, defaultCommand);
     }
 
-    _normalizeRoutingCommand(rawResponse, fallback = '/start') {
-        const text = String(rawResponse || '');
+    _findAllowedCommand(command, allowedCommands = []) {
+        const normalized = this._normalizeCommandKey(command);
+        if (!normalized) return null;
 
-        // Берём первое вхождение "/команда" из ответа.
-        const match = text.match(/\/[a-zA-Z0-9_-]+/);
-        if (match && match[0]) return match[0];
+        const exact = allowedCommands.find((item) => this._commandKeysMatch(item, normalized));
+        if (exact) return this._normalizeCommandKey(exact);
+
+        return null;
+    }
+
+    _normalizeRoutingCommand(rawResponse, allowedCommands = [], fallback = '/start') {
+        const text = String(rawResponse || '').trim();
+        if (!text) return this._findAllowedCommand(fallback, allowedCommands) || this._normalizeCommandKey(fallback);
+
+        const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean);
+        const firstLineMatch = this._findAllowedCommand(firstLine, allowedCommands);
+        if (firstLineMatch) return firstLineMatch;
+
+        const matches = [...text.matchAll(/\/[a-zA-Z0-9_-]+/g)].map((match) => match[0]);
+        for (let i = matches.length - 1; i >= 0; i--) {
+            const found = this._findAllowedCommand(matches[i], allowedCommands);
+            if (found) return found;
+        }
 
         const lowered = text.toLowerCase();
-        if (lowered.includes('consulting')) return '/consulting';
-        if (lowered.includes('startpfp')) return '/startPFP';
-        if (lowered.includes('start')) return '/start';
-        return fallback;
+        for (const command of allowedCommands) {
+            const key = this._normalizeCommandKey(command);
+            if (!key) continue;
+            const plain = key.slice(1).toLowerCase();
+            if (lowered.includes(plain)) return key;
+        }
+
+        return this._findAllowedCommand(fallback, allowedCommands) || this._normalizeCommandKey(fallback);
     }
 
-    async _getDynamicContextText(projectId) {
+    async _getDynamicContextText(projectId, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         const settings = await knex('ai_b2c_settings')
-            .where({ project_id: projectId })
+            .where({ project_id: projectId, flow_key: normalizedFlowKey })
             .first();
         return settings?.dynamic_context_text || null;
     }
@@ -498,9 +667,10 @@ ${clientSection}
         }
     }
 
-    async _getAiB2cProjectModel(projectId) {
+    async _getAiB2cProjectModel(projectId, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         const settings = await knex('ai_b2c_settings')
-            .where({ project_id: projectId })
+            .where({ project_id: projectId, flow_key: normalizedFlowKey })
             .first();
         const model = String(settings?.openrouter_model || '').trim();
         return model || null;
@@ -562,23 +732,26 @@ ${clientSection}
         }
     }
 
-    async _getAssistantDisplayName(projectId) {
+    async _getAssistantDisplayName(projectId, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         const settings = await knex('ai_b2c_settings')
-            .where({ project_id: projectId })
+            .where({ project_id: projectId, flow_key: normalizedFlowKey })
             .first();
         return settings?.display_name || 'AI-ассистент';
     }
 
-    async _hasAnyChatHistory(clientId) {
+    async _hasAnyChatHistory(clientId, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         const row = await knex('ai_b2c_chat_messages')
-            .where({ client_id: clientId })
+            .where({ client_id: clientId, flow_key: normalizedFlowKey })
             .first();
         return !!row;
     }
 
-    async _getLastAssistantStageKey(clientId) {
+    async _getLastAssistantStageKey(clientId, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         const last = await knex('ai_b2c_chat_messages')
-            .where({ client_id: clientId, role: 'assistant' })
+            .where({ client_id: clientId, role: 'assistant', flow_key: normalizedFlowKey })
             .orderBy('created_at', 'desc')
             .first();
         return last?.stage_key || null;
@@ -877,40 +1050,35 @@ ${clientSection}
     }
 
     async _getChatAiStageContext(projectId, stageKey) {
-        return knex('ai_b2c_chat_stage_contexts')
-            .where({ stage_key: stageKey, is_active: true })
-            .where(function () {
-                this.where('project_id', projectId).orWhereNull('project_id');
-            })
-            .orderBy('priority', 'desc')
-            .first();
+        return this._resolveStageContext(projectId, stageKey, { table: 'ai_b2c_chat_stage_contexts' });
     }
 
     /**
      * Глобальная история: последние 20 сообщений из разных stage_key.
      * Возвращаем их в хронологическом порядке.
      */
-    async _getChatHistoryGlobal(clientId) {
+    async _getChatHistoryGlobal(clientId, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         const rows = await knex('ai_b2c_chat_messages')
-            .where({ client_id: clientId })
+            .where({ client_id: clientId, flow_key: normalizedFlowKey })
             .orderBy('created_at', 'desc')
             .limit(20);
         return rows.reverse();
     }
 
     _commandToStageKey(command) {
-        const text = String(command || '').trim();
-        if (!text) return null;
-        const withoutSlash = text.startsWith('/') ? text.slice(1) : text;
-        return withoutSlash.trim();
+        const normalized = this._normalizeCommandKey(command);
+        if (!normalized) return null;
+        return normalized;
     }
 
     /**
      * Слой 1: Загрузить brain contexts
      */
-    async _getBrainContexts(projectId) {
+    async _getBrainContexts(projectId, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         return knex('ai_b2c_brain_contexts')
-            .where({ is_active: true })
+            .where({ is_active: true, flow_key: normalizedFlowKey })
             .where(function () {
                 this.where('project_id', projectId).orWhereNull('project_id');
             })
@@ -921,13 +1089,7 @@ ${clientSection}
      * Слой 2: Загрузить stage context
      */
     async _getStageContext(projectId, stageKey) {
-        return knex('ai_b2c_stage_contexts')
-            .where({ stage_key: stageKey, is_active: true })
-            .where(function () {
-                this.where('project_id', projectId).orWhereNull('project_id');
-            })
-            .orderBy('priority', 'desc')
-            .first();
+        return this._resolveStageContext(projectId, stageKey);
     }
 
     /**
@@ -946,9 +1108,10 @@ ${clientSection}
     /**
      * Слой 4: Загрузить историю чата (последние 10)
      */
-    async _getChatHistory(clientId, stageKey) {
+    async _getChatHistory(clientId, stageKey, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         return knex('ai_b2c_chat_messages')
-            .where({ client_id: clientId, stage_key: stageKey })
+            .where({ client_id: clientId, stage_key: stageKey, flow_key: normalizedFlowKey })
             .orderBy('created_at', 'desc')
             .limit(10)
             .then(rows => rows.reverse());
@@ -1031,18 +1194,125 @@ ${clientSection}
     /**
      * Сохранить пару сообщений в историю
      */
-    async _saveMessages(clientId, stageKey, userMessage, assistantMessage) {
+    async _saveMessages(clientId, stageKey, userMessage, assistantMessage, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         await knex('ai_b2c_chat_messages').insert([
-            { client_id: clientId, stage_key: stageKey, role: 'user', content: userMessage },
-            { client_id: clientId, stage_key: stageKey, role: 'assistant', content: assistantMessage || '' }
+            { client_id: clientId, stage_key: stageKey, flow_key: normalizedFlowKey, role: 'user', content: userMessage },
+            { client_id: clientId, stage_key: stageKey, flow_key: normalizedFlowKey, role: 'assistant', content: assistantMessage || '' }
         ]);
     }
 
-    async _saveMessagesWithStageKeys(clientId, userStageKey, assistantStageKey, userMessage, assistantMessage) {
+    async _saveMessagesWithStageKeys(clientId, userStageKey, assistantStageKey, userMessage, assistantMessage, flowKey = DEFAULT_FLOW_KEY) {
+        const normalizedFlowKey = this._normalizeFlowKey(flowKey);
         await knex('ai_b2c_chat_messages').insert([
-            { client_id: clientId, stage_key: userStageKey, role: 'user', content: userMessage },
-            { client_id: clientId, stage_key: assistantStageKey, role: 'assistant', content: assistantMessage || '' }
+            { client_id: clientId, stage_key: userStageKey, flow_key: normalizedFlowKey, role: 'user', content: userMessage },
+            { client_id: clientId, stage_key: assistantStageKey, flow_key: normalizedFlowKey, role: 'assistant', content: assistantMessage || '' }
         ]);
+    }
+
+    async _ensureDefaultFlow(projectId) {
+        if (!projectId) return;
+        const exists = await knex('ai_b2c_flows')
+            .where({ project_id: projectId, flow_key: DEFAULT_FLOW_KEY })
+            .first();
+        if (exists) return;
+
+        await knex('ai_b2c_flows').insert({
+            project_id: projectId,
+            flow_key: DEFAULT_FLOW_KEY,
+            title: 'Основной сценарий',
+            description: null,
+            is_active: true,
+        });
+    }
+
+    async listFlows(projectId) {
+        await this._ensureDefaultFlow(projectId);
+        return knex('ai_b2c_flows')
+            .where({ project_id: projectId })
+            .orderBy('id', 'asc');
+    }
+
+    async createFlow(projectId, payload = {}) {
+        const flowKey = this._normalizeFlowKey(payload.flow_key);
+        if (flowKey === DEFAULT_FLOW_KEY) {
+            const err = new Error('flow_key cannot be "default" when creating a new flow');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        const title = String(payload.title || '').trim();
+        if (!title) {
+            const err = new Error('title is required');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        await this._ensureDefaultFlow(projectId);
+
+        const duplicate = await knex('ai_b2c_flows')
+            .where({ project_id: projectId, flow_key: flowKey })
+            .first();
+        if (duplicate) {
+            const err = new Error(`flow_key "${flowKey}" already exists`);
+            err.statusCode = 400;
+            throw err;
+        }
+
+        const [id] = await knex('ai_b2c_flows').insert({
+            project_id: projectId,
+            flow_key: flowKey,
+            title,
+            description: payload.description || null,
+            is_active: payload.is_active !== undefined ? !!payload.is_active : true,
+        });
+
+        const cloneFrom = this._normalizeFlowKey(payload.clone_from || DEFAULT_FLOW_KEY);
+        if (cloneFrom) {
+            await this._cloneFlowData(projectId, cloneFrom, flowKey);
+        }
+
+        return knex('ai_b2c_flows').where({ id }).first();
+    }
+
+    async _cloneFlowData(projectId, sourceFlowKey, targetFlowKey) {
+        const source = this._normalizeFlowKey(sourceFlowKey);
+        const target = this._normalizeFlowKey(targetFlowKey);
+        if (source === target) return;
+
+        const brainRows = await knex('ai_b2c_brain_contexts')
+            .where({ project_id: projectId, flow_key: source });
+        if (brainRows.length) {
+            await knex('ai_b2c_brain_contexts').insert(
+                brainRows.map(({ id, created_at, updated_at, flow_key, ...rest }) => ({
+                    ...rest,
+                    flow_key: target,
+                }))
+            );
+        }
+
+        const stageRows = await knex('ai_b2c_stage_contexts')
+            .where({ project_id: projectId, flow_key: source });
+        if (stageRows.length) {
+            await knex('ai_b2c_stage_contexts').insert(
+                stageRows.map(({ id, created_at, updated_at, flow_key, ...rest }) => ({
+                    ...rest,
+                    flow_key: target,
+                }))
+            );
+        }
+
+        const settings = await knex('ai_b2c_settings')
+            .where({ project_id: projectId, flow_key: source })
+            .first();
+        if (settings) {
+            const { id, created_at, updated_at, flow_key, ...rest } = settings;
+            await knex('ai_b2c_settings').insert({
+                ...rest,
+                flow_key: target,
+                avatar_url: null,
+            });
+        }
     }
 }
 

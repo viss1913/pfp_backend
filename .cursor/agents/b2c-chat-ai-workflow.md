@@ -12,10 +12,20 @@ description: Алгоритм и архитектура AI B2C “chat_AI” (о
 
 | Зона | Brain | Stages | Кто жрёт на стороне клиента |
 |------|--------|--------|------------------------------|
-| **Site** (как было) | `GET/POST/PUT/DELETE /api/pfp/ai-b2c/brain-contexts` | `GET/POST/PUT/DELETE /api/pfp/ai-b2c/stages` | `…/chat/stream`, `…/chat/dynamic/stream` и т.д. |
+| **Site** (flows) | `GET/POST … /api/pfp/ai-b2c/flows`, `…/brain-contexts?flow_key=` | `…/stages?flow_key=` | `…/chat/stream` (фикс. stage), **`…/chat/dynamic/stream`** (оркестратор `/plan`) |
 | **chat_AI** | `GET/POST/PUT/DELETE /api/pfp/ai-b2c-chat/brain-contexts` | `GET/POST/PUT/DELETE /api/pfp/ai-b2c-chat/stages` | только `POST /api/my/ai-b2c/chat_AI/stream` |
 
-**Настройки ассистента** (имя, подпись, глобальный fallback для роутера): `GET/PUT /api/pfp/ai-b2c/settings` — поле `dynamic_context_text` общее на проект (и для site dynamic-flow, и для chat_AI).
+**Несколько site-flow на проект:** `flow_key` (`default`, `plan`, …). Таблица `ai_b2c_flows`. История `ai_b2c_chat_messages` изолирована по `flow_key`. Для `/plan` клиент шлёт `flow_key: plan`.
+
+**Оркестратор** (`POST /api/my/ai-b2c/chat/dynamic/stream`):
+- 1-й LLM → команда (`/test23_pensia`, …)
+- SSE `classifier_command` на фронт (переключение страницы)
+- 2-й LLM → стрим `text` в чат
+- Вход: `message` и/или UI `event` / `page` / `page_data` / `goal_type_id`
+- Контракт фронта: `docs/api/b2c_plan_orchestrator_frontend.md`
+- **Не путать** с `constructor/site-chat` и с `chat_AI/stream` (там команда на фронт пока не отдаётся)
+
+**Настройки ассистента** (имя, подпись, глобальный fallback для роутера): `GET/PUT /api/pfp/ai-b2c/settings?flow_key=` — `dynamic_context_text` **per flow** (site dynamic). chat_AI использует ту же таблицу settings только если не заведены отдельные — для chat_AI роутер в своих stage-таблицах.
 
 **У каждой стадии (site и chat_AI) два текстовых контекста — не путать с несуществующими `context_1` / `context_2`:**
 
@@ -27,8 +37,9 @@ description: Алгоритм и архитектура AI B2C “chat_AI” (о
 Спека для ЛК: `docs/api/agent_lk.yaml` (плюс схемы тел в `docs/api/aiB2c.yaml`: `AiB2cStageCreate` / `AiB2cStageUpdate` с полем `command_context_text`).
 
 ## Главный принцип безопасности
-- НИКОГДА не меняй поведение site-flow: `POST /api/my/ai-b2c/chat/stream`.
-- Любые изменения по алгоритму и промптам для динамики — делай только для `chat_AI` (отдельные таблицы/контекст/endpoint).
+- НИКОГДА не меняй поведение фиксированного site-flow: `POST /api/my/ai-b2c/chat/stream` (клиент сам передаёт `stage`).
+- Оркестратор `/plan` — только `POST /api/my/ai-b2c/chat/dynamic/stream` + `flow_key`.
+- Изменения chat_AI — только таблицы/endpoint `chat_AI`; не ломай dynamic site-flow.
 
 ## ЛК агента: клиенты и история chat_AI
 - Три канала в ЛК: **`chat_ai_messages`** (`ai_b2c_chat_ai_messages`, `…/chat_AI/stream`), **`b2c_site_chat_messages`** (`ai_b2c_chat_messages`, `…/chat/stream`), **`constructor_site_chat_messages`** (`constructor_logs`, `POST …/constructor/site-chat/stream`). Формат сообщений совместимый.

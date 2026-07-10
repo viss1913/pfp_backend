@@ -498,6 +498,29 @@ paths:
                 message: { type: string }
                 stage: { type: string }
 
+  /my/ai-b2c/chat/dynamic/stream:
+    post:
+      tags: [ "AI B2C" ]
+      summary: Оркестратор B2C — классификатор + ответ по стадии (SSE)
+      description: |
+        Двухшаговый поток для `/plan`: 1-й ИИ (оркестратор) выбирает команду из `ai_b2c_stage_contexts` выбранного `flow_key`,
+        2-й ИИ отвечает по `content` стадии + данные клиента.
+
+        Вход: текст чата **или** UI-событие (выбор цели, данные страницы).
+
+        **SSE-события (формат PFP):**
+        - `classifier_command` — `{ command, stage_key, classifierSkipped }` (фронт по `command`/`stage_key` переключает экран)
+        - `text` — чанки ответа ассистента
+        - `done` — конец потока
+
+        Whitelist команд: активные `stage_key` flow + команды из `dynamic_context_text` / `command_context_text`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cOrchestratorTurn'
+
   /my/ai-b2c/chat_AI/stream:
     post:
       tags: [ "AI B2C" ]
@@ -521,6 +544,7 @@ paths:
       tags: [ "AI B2C" ]
       summary: Получить историю чата
       parameters:
+        - $ref: './aiB2c.yaml#/components/parameters/flowKeyQuery'
         - in: query
           name: stage
           schema: { type: string }
@@ -528,6 +552,7 @@ paths:
       tags: [ "AI B2C" ]
       summary: Очистить историю чата
       parameters:
+        - $ref: './aiB2c.yaml#/components/parameters/flowKeyQuery'
         - in: query
           name: stage
           schema: { type: string }
@@ -536,6 +561,8 @@ paths:
     get:
       tags: [ "AI B2C" ]
       summary: Получить доступные Stages (Этапы) для клиента
+      parameters:
+        - $ref: './aiB2c.yaml#/components/parameters/flowKeyQuery'
 
   /my/ai-b2c/settings:
     get:

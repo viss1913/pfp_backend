@@ -33,6 +33,10 @@ router.post('/plan/first-run', clientCabinetController.createMyPlan.bind(clientC
 // POST /my/plan/:goalId/recalculate — одна цель; опционально в корне тела: risk_profile, risk_profile_extended (ручной риск, приоритет над анкетой)
 router.post('/plan/:goalId/recalculate', clientCabinetController.recalculateGoal.bind(clientCabinetController));
 
+// Plan assistant (guest_token или client JWT) — разбор финплана после first-run
+router.post('/plan-assistant/chat/stream', clientCabinetController.planAssistantChatStream.bind(clientCabinetController));
+router.get('/plan-assistant/history', clientCabinetController.getPlanAssistantHistory.bind(clientCabinetController));
+
 // ==================== AI B2C Chat ====================
 const aiB2cController = require('../controllers/aiB2cController');
 

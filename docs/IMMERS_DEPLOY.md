@@ -66,7 +66,15 @@ REPORT_PDF_GS_PDFSETTINGS=/screen
 
 Практический ориентир по Finam v2 на test-контуре: PDF порядка `10 MB` сжимается примерно до `1.9-2.1 MB`, но добавляет около `4s` на post-compress.
 
-## После первого старта (чеклист, 2026-05)
+## После деплоя B2C-оркестратора `/plan`
+
+1. Миграция: `npx knex migrate:latest` (файл `20260710140000_add_flow_key_to_ai_b2c_orchestrators.js`).
+2. Создать flow `plan` (на Immers project_id=2):
+   - API: `POST /api/pfp/ai-b2c/flows` с телом `{ "flow_key": "plan", "title": "Сценарий /plan", "clone_from": "default" }`
+   - или скрипт: `node scripts/seed_ai_b2c_plan_flow.js 2`
+3. Smoke: `GET /api/pfp/ai-b2c/flows`, `GET /api/pfp/ai-b2c/stages?flow_key=plan`
+4. Контракт фронта: `docs/api/b2c_plan_orchestrator_frontend.md`
+
 
 Выполнить **один раз** на живой БД (без полного `knex seed:run` — он удалит users).
 

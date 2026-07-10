@@ -42,7 +42,10 @@ const imageUpload = multer({
     }
 });
 
-// Brain Contexts (в скоупе проекта агента)
+// Stage Contexts (сценарии/этапы ИИ в проекте агента)
+router.get('/flows', agentAiMiddleware, aiB2cController.getAiB2cFlows.bind(aiB2cController));
+router.post('/flows', agentAiMiddleware, aiB2cController.createAiB2cFlow.bind(aiB2cController));
+
 router.get('/brain-contexts', agentAiMiddleware, aiB2cController.getAiB2cBrainContexts.bind(aiB2cController));
 router.post('/brain-contexts', agentAiMiddleware, aiB2cController.createAiB2cBrainContext.bind(aiB2cController));
 router.put('/brain-contexts/:id', agentAiMiddleware, aiB2cController.updateAiB2cBrainContext.bind(aiB2cController));

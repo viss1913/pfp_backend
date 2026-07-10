@@ -14,6 +14,10 @@ const {
 } = require('../services/documentTextExtractionService');
 
 class AiB2cController {
+    _resolveFlowKey(req) {
+        return aiB2cService._normalizeFlowKey(req.query?.flow_key || req.body?.flow_key);
+    }
+
     async _getChatAiBrainContextById(id, projectId) {
         return knex('ai_b2c_chat_brain_contexts')
             .where('id', id)
@@ -38,13 +42,45 @@ class AiB2cController {
         };
     }
 
+    // ==================== FLOWS (несколько B2C-оркестраторов на проект) ====================
+
+    /** GET /pfp/ai-b2c/flows */
+    async getAiB2cFlows(req, res) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            if (!projectId) return res.status(400).json({ error: 'projectId is required' });
+
+            const flows = await aiB2cService.listFlows(projectId);
+            res.json(flows);
+        } catch (error) {
+            console.error('[AiB2C] Error getting flows:', error);
+            res.status(500).json({ error: 'Failed to get AI B2C flows' });
+        }
+    }
+
+    /** POST /pfp/ai-b2c/flows */
+    async createAiB2cFlow(req, res) {
+        try {
+            const projectId = req.projectId || req.user?.projectId;
+            if (!projectId) return res.status(400).json({ error: 'projectId is required' });
+
+            const created = await aiB2cService.createFlow(projectId, req.body || {});
+            res.status(201).json(created);
+        } catch (error) {
+            const status = error.statusCode || 500;
+            if (status >= 500) console.error('[AiB2C] Error creating flow:', error);
+            res.status(status).json({ error: error.message || 'Failed to create AI B2C flow' });
+        }
+    }
+
     // ==================== ADMIN: Brain Contexts ====================
 
     /** GET /admin/ai-b2c/brain-contexts */
     async getAiB2cBrainContexts(req, res) {
         try {
             const projectId = req.projectId || req.user?.projectId;
-            const query = knex('ai_b2c_brain_contexts');
+            const flowKey = this._resolveFlowKey(req);
+            const query = knex('ai_b2c_brain_contexts').where({ flow_key: flowKey });
             if (projectId) query.where('project_id', projectId);
             const contexts = await query.orderBy('priority', 'desc');
             res.json(contexts);
@@ -64,12 +100,14 @@ class AiB2cController {
                 return res.status(400).json({ error: 'title and content are required' });
             }
 
+            const flowKey = this._resolveFlowKey(req);
             const [id] = await knex('ai_b2c_brain_contexts').insert({
                 title,
                 content,
                 is_active: is_active !== undefined ? is_active : true,
                 priority: priority || 0,
-                project_id: projectId || null
+                project_id: projectId || null,
+                flow_key: flowKey,
             });
 
             const created = await knex('ai_b2c_brain_contexts').where('id', id).first();
@@ -400,7 +438,8 @@ class AiB2cController {
     async getAiB2cStages(req, res) {
         try {
             const projectId = req.projectId || req.user?.projectId;
-            const query = knex('ai_b2c_stage_contexts');
+            const flowKey = this._resolveFlowKey(req);
+            const query = knex('ai_b2c_stage_contexts').where({ flow_key: flowKey });
             if (projectId) query.where('project_id', projectId);
             const stages = await query.orderBy('priority', 'desc');
             res.json(stages);
@@ -420,6 +459,7 @@ class AiB2cController {
                 return res.status(400).json({ error: 'stage_key, title and content are required' });
             }
 
+            const flowKey = this._resolveFlowKey(req);
             const [id] = await knex('ai_b2c_stage_contexts').insert({
                 stage_key,
                 title,
@@ -427,7 +467,8 @@ class AiB2cController {
                 command_context_text: command_context_text || null,
                 is_active: is_active !== undefined ? is_active : true,
                 priority: priority || 0,
-                project_id: projectId || null
+                project_id: projectId || null,
+                flow_key: flowKey,
             });
 
             const created = await knex('ai_b2c_stage_contexts').where('id', id).first();
@@ -584,8 +625,9 @@ class AiB2cController {
                 return res.status(400).json({ error: 'projectId is required' });
             }
 
+            const flowKey = this._resolveFlowKey(req);
             const settings = await knex('ai_b2c_settings')
-                .where({ project_id: projectId })
+                .where({ project_id: projectId, flow_key: flowKey })
                 .first();
 
             res.json(settings || null);
@@ -618,13 +660,15 @@ class AiB2cController {
                 });
             }
 
+            const flowKey = this._resolveFlowKey(req);
             const existing = await knex('ai_b2c_settings')
-                .where({ project_id: projectId })
+                .where({ project_id: projectId, flow_key: flowKey })
                 .first();
 
             if (!existing) {
                 const [id] = await knex('ai_b2c_settings').insert({
                     project_id: projectId,
+                    flow_key: flowKey,
                     display_name: display_name || 'AI-ассистент',
                     avatar_url: null, // аватар выставляется только через upload
                     tagline: tagline || null,
@@ -637,7 +681,7 @@ class AiB2cController {
             }
 
             await knex('ai_b2c_settings')
-                .where({ project_id: projectId })
+                .where({ project_id: projectId, flow_key: flowKey })
                 .update({
                     ...(display_name !== undefined && { display_name }),
                     ...(tagline !== undefined && { tagline }),
@@ -652,7 +696,7 @@ class AiB2cController {
                 });
 
             const updated = await knex('ai_b2c_settings')
-                .where({ project_id: projectId })
+                .where({ project_id: projectId, flow_key: flowKey })
                 .first();
 
             res.json(updated);
@@ -714,10 +758,18 @@ class AiB2cController {
         try {
             const clientId = req.user.clientId;
             const projectId = req.user.projectId;
-            const { message } = req.body;
+            const {
+                message,
+                flow_key,
+                event,
+                page,
+                page_data,
+                goal_type_id,
+                goal_name,
+            } = req.body;
 
-            if (!message) {
-                return res.status(400).json({ error: 'message is required' });
+            if (!message && !event) {
+                return res.status(400).json({ error: 'message or event is required' });
             }
 
             // SSE headers
@@ -726,7 +778,15 @@ class AiB2cController {
             res.setHeader('Connection', 'keep-alive');
             res.setHeader('X-Accel-Buffering', 'no');
 
-            await aiB2cService.chatDynamicStartStream(clientId, projectId, message, res);
+            await aiB2cService.chatDynamicStartStream(clientId, projectId, {
+                message,
+                flowKey: flow_key,
+                event,
+                page,
+                page_data,
+                goal_type_id,
+                goal_name,
+            }, res);
         } catch (error) {
             console.error('[AiB2C] Dynamic stream error:', error);
             if (!res.headersSent) {
@@ -765,9 +825,9 @@ class AiB2cController {
     async getAiB2cHistory(req, res) {
         try {
             const clientId = req.user.clientId;
-            const { stage } = req.query;
+            const { stage, flow_key } = req.query;
 
-            const history = await aiB2cService.getHistory(clientId, stage);
+            const history = await aiB2cService.getHistory(clientId, stage, flow_key);
             res.json(history);
         } catch (error) {
             console.error('[AiB2C] History error:', error);
@@ -779,9 +839,9 @@ class AiB2cController {
     async clearAiB2cHistory(req, res) {
         try {
             const clientId = req.user.clientId;
-            const { stage } = req.query;
+            const { stage, flow_key } = req.query;
 
-            await aiB2cService.clearHistory(clientId, stage);
+            await aiB2cService.clearHistory(clientId, stage, flow_key);
             res.json({ success: true });
         } catch (error) {
             console.error('[AiB2C] Clear history error:', error);
@@ -793,10 +853,11 @@ class AiB2cController {
     async getMyStages(req, res) {
         try {
             const projectId = req.user.projectId;
+            const flowKey = this._resolveFlowKey(req);
             const stages = await knex('ai_b2c_stage_contexts')
-                .where({ project_id: projectId, is_active: true })
-                .orWhere(function () {
-                    this.whereNull('project_id').andWhere('is_active', true);
+                .where({ flow_key: flowKey, is_active: true })
+                .andWhere(function () {
+                    this.where('project_id', projectId).orWhereNull('project_id');
                 })
                 .select('stage_key', 'title')
                 .orderBy('priority', 'desc');

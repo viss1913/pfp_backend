@@ -61,6 +61,8 @@ paths:
       description: Возвращает настройки AI B2C ассистента для текущего проекта (по projectId / токену).
       tags:
         - Admin AI B2C
+      parameters:
+        - $ref: '#/components/parameters/flowKeyQuery'
       responses:
         '200':
           description: Текущие настройки или null, если ещё не заданы
@@ -73,17 +75,14 @@ paths:
       description: Устанавливает имя, аватар и зелёное описание ассистента для проекта.
       tags:
         - Admin AI B2C
+      parameters:
+        - $ref: '#/components/parameters/flowKeyQuery'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                display_name: { type: string, description: "Имя ассистента (например, Виктория)" }
-                avatar_url:   { type: string, description: "URL аватара ассистента" }
-                tagline:      { type: string, description: "Короткое зелёное описание/подпись" }
-                dynamic_context_text: { type: string, description: "Текстовое поле для управления динамическим контекстом" }
+              $ref: '#/components/schemas/AiB2cSettingsUpdate'
       responses:
         '200':
           description: Обновлённые настройки
@@ -101,6 +100,41 @@ paths:
       summary: Удалить Stage
       tags:
         - Admin AI B2C
+
+  /pfp/ai-b2c/flows:
+    get:
+      summary: Список B2C-оркестраторов (flows) проекта
+      description: |
+        Несколько независимых сценариев site-flow на один проект.
+        `flow_key=default` — обратная совместимость; для `/plan` обычно `plan`.
+      tags:
+        - Agent AI B2C
+      responses:
+        '200':
+          description: Список flows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AiB2cFlow'
+    post:
+      summary: Создать новый flow (оркестратор)
+      tags:
+        - Agent AI B2C
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AiB2cFlowCreate'
+      responses:
+        '201':
+          description: Flow создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiB2cFlow'
 
   # ==================== CLIENT (B2C) ROUTES ====================
   /my/ai-b2c/chat:
@@ -135,21 +169,36 @@ paths:
 
   /my/ai-b2c/chat/dynamic/stream:
     post:
-      summary: Dynamic start чат ИИ (Стриминг SSE)
+      summary: B2C-оркестратор (Стриминг SSE, 2 шага)
       description: |
-        B2C AIchat-поток в 2 шага:
-        1) первый ИИ выбирает команду (`/consulting`, `/startPFP`, `/start`, …): сначала по **`command_context_text`** текущей стадии, иначе по глобальному **`dynamic_context_text`** из настроек проекта;
-        2) второй ИИ отвечает по полю **`content`** стадии, соответствующей команде (brain + история + SSE).
-        Команда пользователю не возвращается.
+        Поток для `/plan` и site dynamic-flow:
+        1) **Оркестратор** (1-й LLM) выбирает команду из whitelist `stage_key` flow + правил `command_context_text` / `dynamic_context_text`.
+        2) **Генератор** (2-й LLM) отвечает по `content` выбранной стадии + данные клиента.
+
+        **SSE (формат PFP):**
+        - `classifier_command` — `{ type, command, stage_key, classifierSkipped }` — фронт переключает экран
+        - `text` — `{ type, text }` — чанки ответа в чат
+        - `done` — `{ type: "done" }`
+
+        Вход: текст чата **или** UI-событие (`event`, выбор цели, данные страницы).
+        Не путать с `chat_AI/stream` и `constructor/site-chat`.
       tags:
         - Client AI B2C
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                message: { type: string, description: "Текст сообщения пользователя" }
+              $ref: '#/components/schemas/AiB2cOrchestratorTurn'
+      responses:
+        '200':
+          description: SSE stream (text/event-stream)
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Строки `data: {json}\n\n`. См. components/schemas/AiB2cSse*.
 
   /my/ai-b2c/chat_AI/stream:
     post:
@@ -170,21 +219,23 @@ paths:
   /my/ai-b2c/history:
     get:
       summary: Получить историю чата
-      description: Возвращает историю сообщений пользователя в рамках конкретного стейджа проекта.
+      description: Возвращает историю сообщений пользователя в рамках flow и опционально stage.
       tags:
         - Client AI B2C
       parameters:
+        - $ref: '#/components/parameters/flowKeyQuery'
         - in: query
           name: stage
           schema:
             type: string
-          description: Название стейджа (например, PFP1). Если не передано, вернет историю по дефолтному стейджу.
+          description: Фильтр по stage_key (опционально).
     delete:
       summary: Очистить историю чата
-      description: Удаляет историю сообщений между клиентом и ИИ в рамках определенного стейджа.
+      description: Удаляет историю сообщений между клиентом и ИИ в рамках flow.
       tags:
         - Client AI B2C
       parameters:
+        - $ref: '#/components/parameters/flowKeyQuery'
         - in: query
           name: stage
           schema:
@@ -193,9 +244,11 @@ paths:
   /my/ai-b2c/stages:
     get:
       summary: Получить доступные Stages (Этапы) для клиента
-      description: Возвращает список стейджей, доступных текущему клиенту в рамках его проекта.
+      description: Активные стадии текущего проекта в рамках выбранного flow.
       tags:
         - Client AI B2C
+      parameters:
+        - $ref: '#/components/parameters/flowKeyQuery'
 
   /my/ai-b2c/settings:
     get:
@@ -212,18 +265,136 @@ paths:
                 $ref: '#/components/schemas/AiB2cSettingsPublic'
 
 components:
+  parameters:
+    flowKeyQuery:
+      in: query
+      name: flow_key
+      schema:
+        type: string
+        default: default
+      description: Ключ B2C-оркестратора (flow). Для `/plan` — обычно `plan`.
+
   schemas:
+    AiB2cFlow:
+      type: object
+      properties:
+        id: { type: integer }
+        project_id: { type: integer }
+        flow_key:
+          type: string
+          description: Уникальный slug в рамках проекта (`default`, `plan`, …).
+        title: { type: string }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AiB2cFlowCreate:
+      type: object
+      required: [ flow_key, title ]
+      properties:
+        flow_key:
+          type: string
+          description: Новый ключ (не `default`). Латиница, цифры, `_`, `-`.
+        title: { type: string }
+        description: { type: string, nullable: true }
+        is_active: { type: boolean, default: true }
+        clone_from:
+          type: string
+          default: default
+          description: Скопировать brain/stages/settings из этого flow.
+
+    AiB2cOrchestratorTurn:
+      type: object
+      properties:
+        flow_key:
+          type: string
+          default: default
+          description: Оркестратор для `/plan` — `plan`.
+        message:
+          type: string
+          description: Текст из чата.
+        event:
+          type: string
+          description: UI-событие (`goal_selected`, `page_submit`, …).
+        page:
+          type: string
+          description: Текущий route (`/vybor_celi2`).
+        page_data:
+          type: object
+          additionalProperties: true
+          description: Данные формы/страницы.
+        goal_type_id:
+          type: integer
+          description: ID типа цели при выборе на витрине.
+        goal_name:
+          type: string
+      anyOf:
+        - required: [ message ]
+        - required: [ event ]
+
+    AiB2cSseClassifierCommand:
+      type: object
+      required: [ type, classifierSkipped ]
+      properties:
+        type:
+          type: string
+          enum: [ classifier_command ]
+        command:
+          type: string
+          nullable: true
+          description: Команда для навигации (`/test23_pensia`).
+        stage_key:
+          type: string
+          nullable: true
+          description: Канонический ключ стадии из БД (может совпадать с command).
+        classifierSkipped:
+          type: boolean
+          description: true на первом сообщении в истории flow (старт без роутера).
+
+    AiB2cSseText:
+      type: object
+      required: [ type, text ]
+      properties:
+        type:
+          type: string
+          enum: [ text ]
+        text:
+          type: string
+          description: Чанк ответа ассистента.
+
+    AiB2cSseDone:
+      type: object
+      required: [ type ]
+      properties:
+        type:
+          type: string
+          enum: [ done ]
+
     AiB2cSettings:
       type: object
       properties:
         id: { type: integer }
         project_id: { type: integer }
+        flow_key:
+          type: string
+          default: default
         display_name: { type: string }
         avatar_url: { type: string, nullable: true }
         tagline: { type: string, nullable: true }
         dynamic_context_text: { type: string, nullable: true }
+        openrouter_model: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    AiB2cSettingsUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        display_name: { type: string }
+        tagline: { type: string, nullable: true }
+        dynamic_context_text: { type: string, nullable: true }
+        openrouter_model: { type: string, nullable: true }
 
     AiB2cSettingsPublic:
       type: object
@@ -238,6 +409,10 @@ components:
       type: object
       required: [ title, content ]
       properties:
+        flow_key:
+          type: string
+          default: default
+          description: Flow, к которому относится контекст (query `flow_key` при GET).
         title:
           type: string
         content:
@@ -264,10 +439,14 @@ components:
       type: object
       required: [ stage_key, title, content ]
       properties:
+        flow_key:
+          type: string
+          default: default
+          description: Flow оркестратора (query `flow_key` при GET списка).
         stage_key:
           type: string
           description: |
-            Ключ стадии (например `start`, `startPFP`). Должен совпадать с именем команды роутера без ведущего `/`.
+            Ключ стадии = команда страницы (`/test23_pensia`, `/vybor_celi2`). Допустимы варианты со слэшем и без.
         title:
           type: string
           description: Человекочитаемое название для админки/ЛК.

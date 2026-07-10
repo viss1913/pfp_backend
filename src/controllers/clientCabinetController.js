@@ -13,6 +13,7 @@ const { syncCalculationGoalsWithDatabase } = require('../services/clientGoalSync
 const riskQuestionnaireService = require('../services/riskQuestionnaireService');
 const riskProfileExplanationService = require('../services/riskProfileExplanationService');
 const riskProfileService = require('../services/riskProfileService');
+const aiAgentClientService = require('../services/aiAgentClientService');
 const { mergeGoalsWithSnapshot } = require('../utils/mergeGoalsWithSnapshot');
 const { sortGoalsForCalculationOrder } = require('../utils/sortGoalsForCalculation');
 const { pickReferenceGoalForRiskProfile } = require('../utils/riskReferenceGoal');
@@ -980,6 +981,71 @@ class ClientCabinetController {
             res.json(calculationService.simplify(calculationResponse));
         } catch (err) {
             next(err);
+        }
+    }
+
+    /**
+     * POST /my/plan-assistant/chat/stream — SSE разбор плана для гостя (guest_token) или клиента ЛК.
+     */
+    async planAssistantChatStream(req, res, next) {
+        try {
+            const clientId = resolveCabinetClientId(req);
+            if (!clientId) {
+                return res.status(400).json({ error: 'client_id is required' });
+            }
+            const projectId = req.projectId || req.user?.projectId;
+            const { message, assistant_id } = req.body || {};
+            if (!message || !String(message).trim()) {
+                return res.status(400).json({ error: 'message is required' });
+            }
+
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+
+            await aiAgentClientService.chatStreamForCabinet({
+                user: req.user,
+                req,
+                projectId,
+                clientId,
+                message: String(message).trim(),
+                assistantId: assistant_id ? Number(assistant_id) : null,
+                res,
+            });
+        } catch (err) {
+            const status = err.statusCode || err.status || 500;
+            if (!res.headersSent) {
+                return res.status(status).json({ error: err.message || 'Plan assistant chat failed' });
+            }
+            res.write(`data: {"error": "${(err.message || 'Internal Error').replace(/"/g, '\\"')}"}\n\n`);
+            res.end();
+        }
+    }
+
+    /**
+     * GET /my/plan-assistant/history — история plan-assistant для гостя/клиента.
+     */
+    async getPlanAssistantHistory(req, res, next) {
+        try {
+            const clientId = resolveCabinetClientId(req);
+            if (!clientId) {
+                return res.status(400).json({ error: 'client_id is required' });
+            }
+            const projectId = req.projectId || req.user?.projectId;
+            const assistantId = req.query.assistant_id ? Number(req.query.assistant_id) : null;
+
+            const history = await aiAgentClientService.getHistoryForCabinet({
+                user: req.user,
+                req,
+                projectId,
+                clientId,
+                assistantId,
+            });
+            res.json(history);
+        } catch (err) {
+            const status = err.statusCode || err.status || 500;
+            res.status(status).json({ error: err.message || 'Failed to get plan assistant history' });
         }
     }
 }

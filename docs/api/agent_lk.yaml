@@ -15,9 +15,11 @@ info:
     **Resolut (AV Inform) для ЛК:** отдельная спека **`docs/api/pfp_resolut.yaml`** (прокси `products/quote/client/portfolio/link`, `plan-quotes` / `plan-publish-preview` / `publish-from-plan`, `suggest-quote-line`, `publish-preview` / `publish` / `publications`).
 
     **AI B2C в ЛК агента — два независимых набора контекстов:**
-    - **Site** — `/pfp/ai-b2c/brain-contexts`, `/pfp/ai-b2c/stages` (клиентский сайт: обычный чат и dynamic-flow).
+    - **Site** — `/pfp/ai-b2c/flows`, `/pfp/ai-b2c/brain-contexts`, `/pfp/ai-b2c/stages` (клиентский сайт и **оркестратор** `POST /my/ai-b2c/chat/dynamic/stream` для `/plan`).
     - **chat_AI** — `/pfp/ai-b2c-chat/brain-contexts`, `/pfp/ai-b2c-chat/stages` (отдельный endpoint клиента `POST /my/ai-b2c/chat_AI/stream`, своя история в БД).
-    У **каждой стадии** два поля: `content` (промпт второго ИИ — ответ пользователю) и `command_context_text` (правила первого ИИ — команды `/…` для перехода на другую стадию). Если `command_context_text` пустой, роутер использует глобальный `dynamic_context_text` из `GET/PUT /pfp/ai-b2c/settings`.
+    На проект может быть **несколько site-flow** (`flow_key`: `default`, `plan`, …). Клиент `/plan` передаёт `flow_key: plan`.
+    У **каждой стадии** два поля: `content` (промпт второго ИИ — ответ пользователю) и `command_context_text` (правила первого ИИ — команды `/…` для перехода на другую стадию). Если `command_context_text` пустой, роутер использует глобальный `dynamic_context_text` из `GET/PUT /pfp/ai-b2c/settings?flow_key=…`.
+    Оркестратор отдаёт на фронт SSE `classifier_command` (команда страницы) + стрим `text`. Не путать с **constructor** (`/pfp/constructor/site-chat`).
     Схемы тел запросов: **`docs/api/aiB2c.yaml`** (`AiB2cBrainContextCreate`, `AiB2cStageCreate`, …).
 
     **Конструктор ИИ (бот для клиентов, CJM-команды, brain-contexts):** префикс **`/pfp/constructor`**. Регистрация бота (Telegram / MAX и др.), шаблоны команд сценария (`GET/POST/PUT/DELETE …/commands`), дополнительные контексты (`…/brain-contexts`), клиенты и переписка. Алиасы путей для совместимости: `templates`, `constructor_commands`, `constructor_brain_contexts` — те же обработчики, что и у `commands` / `brain-contexts`. Вебхук MAX: `POST /api/pfp/constructor/webhook/max/{botId}` (без JWT, секрет в заголовке при настройке бота).
@@ -2084,6 +2086,42 @@ paths:
           description: Статус обновлён
 
   # ==================== AI B2C В ЛК АГЕНТА (УПРАВЛЕНИЕ НАСТРОЙКАМИ) ====================
+  /pfp/ai-b2c/flows:
+    get:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Список B2C-оркестраторов (flows) проекта
+      description: |
+        Несколько независимых site-сценариев на один проект.
+        `default` — обратная совместимость; для маршрута `/plan` создайте `plan` через POST.
+      responses:
+        '200':
+          description: Список flows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: './aiB2c.yaml#/components/schemas/AiB2cFlow'
+    post:
+      tags: [ "AI B2C (настройки Агента)" ]
+      summary: Создать новый flow (оркестратор)
+      description: |
+        Создаёт запись в `ai_b2c_flows`. Опционально `clone_from` копирует brain/stages/settings.
+        Пример для `/plan`: `{ "flow_key": "plan", "title": "Сценарий /plan", "clone_from": "default" }`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cFlowCreate'
+      responses:
+        '201':
+          description: Flow создан
+          content:
+            application/json:
+              schema:
+                $ref: './aiB2c.yaml#/components/schemas/AiB2cFlow'
+
   /pfp/ai-b2c/brain-contexts:
     get:
       tags: [ "AI B2C (настройки Агента)" ]
@@ -2091,6 +2129,8 @@ paths:
       description: |
         Возвращает список brain-contexts (инструкций/контекстов) B2C AI, доступных в проекте Агента.
         Это обёртка над административными методами `/admin/ai-b2c/brain-contexts`, но со скоупом конкретного проекта/агента.
+      parameters:
+        - $ref: './aiB2c.yaml#/components/parameters/flowKeyQuery'
       responses:
         '200':
           description: Успешно
@@ -2145,7 +2185,9 @@ paths:
       summary: Список стейджей (сценариев) B2C AI для проекта Агента (site)
       description: |
         Каждая запись: `stage_key`, `title`, **`content`** (промпт второго ИИ), **`command_context_text`** (промпт первого ИИ-роутера на этой стадии, опционально),
-        `is_active`, `priority`. Не смешивать с префиксом `/pfp/ai-b2c-chat/…` — там отдельная копия для chat_AI.
+        `is_active`, `priority`, `flow_key`. Не смешивать с префиксом `/pfp/ai-b2c-chat/…` — там отдельная копия для chat_AI.
+      parameters:
+        - $ref: './aiB2c.yaml#/components/parameters/flowKeyQuery'
       responses:
         '200':
           description: Успешно
@@ -2441,8 +2483,10 @@ paths:
       tags: [ "AI B2C (настройки Агента)" ]
       summary: Получить настройки B2C AI ассистента
       description: |
-        Возвращает настройки ассистента в рамках проекта агента:
-        `display_name`, `avatar_url`, `tagline` и **`dynamic_context_text`** — глобальный текст для первого ИИ (роутер), если у текущей стадии не задан свой `command_context_text` (см. stages site и chat_AI).
+        Возвращает настройки ассистента в рамках проекта агента и **flow**:
+        `display_name`, `avatar_url`, `tagline` и **`dynamic_context_text`** — глобальный текст для первого ИИ (роутер), если у текущей стадии не задан свой `command_context_text`.
+      parameters:
+        - $ref: './aiB2c.yaml#/components/parameters/flowKeyQuery'
       responses:
         '200':
           description: Настройки или null, если ещё не заданы
@@ -2454,21 +2498,16 @@ paths:
       tags: [ "AI B2C (настройки Агента)" ]
       summary: Обновить настройки B2C AI ассистента
       description: |
-        Обновляет бренд и глобальный fallback роутера: `display_name`, `tagline`, **`dynamic_context_text`** (общий для site dynamic-flow и chat_AI, когда у стадии пустой `command_context_text`).
+        Обновляет бренд и глобальный fallback роутера для выбранного **flow_key**.
         `avatar_url` контролируется отдельным эндпоинтом `POST /pfp/ai-b2c/avatar-upload`.
+      parameters:
+        - $ref: './aiB2c.yaml#/components/parameters/flowKeyQuery'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                display_name:
-                  type: string
-                tagline:
-                  type: string
-                dynamic_context_text:
-                  type: string
+              $ref: './aiB2c.yaml#/components/schemas/AiB2cSettingsUpdate'
       responses:
         '200':
           description: Настройки обновлены
