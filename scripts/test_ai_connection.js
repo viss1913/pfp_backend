@@ -1,5 +1,6 @@
 require('dotenv').config();
 const axios = require('axios');
+const { openrouterAxiosExtras } = require('../src/utils/openrouterProxy');
 
 async function testConnection() {
     const openRouterKey = process.env.OPENROUTER_API_KEY;
@@ -40,7 +41,8 @@ async function testConnection() {
                 headers: {
                     'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                ...openrouterAxiosExtras(),
             }
         );
         console.log('✅ Connection Successful!');

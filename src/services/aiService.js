@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { sanitizeLlmUserText } = require('../utils/sanitizeLlmUserText');
+const { openrouterAxiosExtras } = require('../utils/openrouterProxy');
 require('dotenv').config();
 
 class AiService {
@@ -83,7 +84,8 @@ class AiService {
                         'HTTP-Referer': this.siteUrl, // Required by OpenRouter
                         'X-Title': this.appName       // Required by OpenRouter
                     },
-                    responseType: 'stream'
+                    responseType: 'stream',
+                    ...openrouterAxiosExtras(),
                 }
             );
 
@@ -218,7 +220,7 @@ class AiService {
                             'HTTP-Referer': this.siteUrl,
                             'X-Title': this.appName
                         },
-                        timeout: 30000 // 30 seconds timeout
+                        ...openrouterAxiosExtras(),
                     }
                 );
                 return sanitizeLlmUserText(response.data.choices[0].message.content);
