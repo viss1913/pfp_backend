@@ -11,7 +11,7 @@ const {
 } = require('./finamV2AtbBranding');
 const { DEFAULT_SBER_LIFE_OFFER_URL } = require('../../utils/atbBankBranding');
 const { buildTrackedPartnerUrl } = require('../../utils/trackedPartnerUrl');
-const { isLifeSubscriptionLifePage } = require('./finamV2LifePageConfig');
+const { usesLifeSubscriptionTemplate } = require('./finamV2LifePageConfig');
 const {
     isSberProject,
     replaceSberEquitiesPage,
@@ -55,6 +55,20 @@ function maxGoalYears(goals) {
     if (months <= 0) return '20+ лет';
     const years = Math.max(1, Math.round(months / 12));
     return years >= 20 ? '20+ лет' : `${years} лет`;
+}
+
+const GOAL_PAGE_TYPES = new Set([
+    FINAM_REPORT_V2_PAGE_TYPES.GOAL_FIN_RESERVE,
+    FINAM_REPORT_V2_PAGE_TYPES.GOAL_LIFE,
+    FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION,
+    FINAM_REPORT_V2_PAGE_TYPES.GOAL_PASSIVE_INCOME,
+    FINAM_REPORT_V2_PAGE_TYPES.GOAL_SAVE_GROW,
+    FINAM_REPORT_V2_PAGE_TYPES.GOAL_INHERITANCE,
+    FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER,
+]);
+
+function isFinamV2GoalPageType(pageType) {
+    return GOAL_PAGE_TYPES.has(pageType);
 }
 
 function goalTarget(goal) {
@@ -3860,6 +3874,8 @@ function replaceGoalSamples(html, { pageType, goal, helpers }) {
     const monthlyNoCurrency = monthly.replace(/\s*₽$/, '');
     const term = escapeHtml(goalTerm(goal));
     const yieldValue = escapeHtml(goalYield(goal));
+    const monthlyHtml = moneyHtml(helpers, goalMonthly(goal));
+    const riskLabel = escapeHtml(riskProfileLabelForGoal(goal));
 
     let out = String(html || '');
     const titleByType = {
@@ -3893,6 +3909,9 @@ function replaceGoalSamples(html, { pageType, goal, helpers }) {
         [/(?<!\d)50 тыс ₽\/мес/g, `${monthly}/мес`],
         [/(?<!\d)50 тыс ₽/g, monthly],
         [/(?<!\d)50 тыс(?!\s*₽)/g, monthlyNoCurrency],
+        ['50&nbsp;000 ₽', monthlyHtml],
+        ['11%', yieldValue],
+        ['Сбалансированный', riskLabel],
         ['93&nbsp;408 ₽', initialFull],
         ['93 тыс', initialNoCurrency],
         ['6&nbsp;249 ₽', monthlyFull],
@@ -3913,7 +3932,8 @@ function applyTemplateData(html, context = {}) {
         FINAM_REPORT_V2_PAGE_TYPES.GOALS,
         FINAM_REPORT_V2_PAGE_TYPES.EXECUTIVE_SUMMARY,
     ].includes(context.pageType);
-    let out = isStructuredSummaryPage ? String(html || '') : replaceCommonSamples(html, context);
+    const skipCommonSamples = isStructuredSummaryPage || isFinamV2GoalPageType(context.pageType);
+    let out = skipCommonSamples ? String(html || '') : replaceCommonSamples(html, context);
     out = replaceGoalSamples(out, context);
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.CURRENT_STATE) {
         out = replaceCurrentStatePage(out, context);
@@ -3955,7 +3975,7 @@ function applyTemplateData(html, context = {}) {
         out = replaceFinReserveGoalPage(out, context);
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_LIFE) {
-        out = isLifeSubscriptionLifePage(context.model?.meta?.projectId)
+        out = usesLifeSubscriptionTemplate(context.model?.meta?.projectId)
             ? replaceLifeSubscriptionGoalPage(out, context)
             : replaceLifeGoalPage(out, context);
     }

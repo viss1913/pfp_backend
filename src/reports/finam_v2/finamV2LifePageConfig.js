@@ -19,10 +19,16 @@ function resolveLifeGoalTemplateFileName(projectId) {
     return isLifeSubscriptionLifePage(projectId) ? LIFE_SUBSCRIPTION_TEMPLATE : LIFE_DEFAULT_TEMPLATE;
 }
 
+/** Тот же критерий, что и выбор HTML-файла — applier не должен расходиться с шаблоном. */
+function usesLifeSubscriptionTemplate(projectId) {
+    return resolveLifeGoalTemplateFileName(projectId) === LIFE_SUBSCRIPTION_TEMPLATE;
+}
+
 module.exports = {
     IMMERS_TEST_FINAM_PROJECT_ID,
     LIFE_SUBSCRIPTION_TEMPLATE,
     LIFE_DEFAULT_TEMPLATE,
     isLifeSubscriptionLifePage,
+    usesLifeSubscriptionTemplate,
     resolveLifeGoalTemplateFileName,
 };

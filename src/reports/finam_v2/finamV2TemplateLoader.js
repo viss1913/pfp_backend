@@ -8,7 +8,16 @@ const templateRawCache = new Map();
 const templateInlinedCache = new Map();
 const OPTIMIZED_ASSET_ALIASES = Object.freeze({
     'assets/avatar-ai-finam-v2.png': 'assets/avatar-ai-finam-v2.svg',
+    // 7MB PNG убивал HTML-preview (base64 + iframe srcdoc). WebP ~15KB.
+    'assets/life-subscription-hero.png': 'assets/life-subscription-hero.webp',
+    'assets/goal-inheritance.webp': 'assets/goal-inheritance-opt.webp',
 });
+
+/** Не инлайнить сырые файлы больше лимита — иначе отчёт не отдаётся по таймауту. */
+const MAX_INLINE_ASSET_BYTES = Math.min(
+    Math.max(Number(process.env.FINAM_V2_MAX_INLINE_ASSET_BYTES) || 512 * 1024, 64 * 1024),
+    8 * 1024 * 1024
+);
 
 const PRODUCTION_PAGE_STYLE = `<style data-finam-v2-production="1">
 @page { size: A4; margin: 0; }
@@ -74,17 +83,35 @@ function mimeTypeForLocalFile(absPath) {
 
 function resolveOptimizedAssetPath(relativePath) {
     const cleaned = String(relativePath || '').split('?')[0].replace(/^\.?\//, '');
-    return OPTIMIZED_ASSET_ALIASES[cleaned] || cleaned;
+    const alias = OPTIMIZED_ASSET_ALIASES[cleaned];
+    if (!alias) return cleaned;
+    const aliasAbs = path.join(FINAM_V2_DIR, alias);
+    if (fs.existsSync(aliasAbs) && fs.statSync(aliasAbs).isFile()) return alias;
+    return cleaned;
 }
 
 function localFileDataUrl(relativePath) {
     const cleaned = String(relativePath || '').split('?')[0].replace(/^\.?\//, '');
     if (localFileDataUrlCache.has(cleaned)) return localFileDataUrlCache.get(cleaned);
     const resolvedPath = resolveOptimizedAssetPath(cleaned);
-    const abs = path.join(FINAM_V2_DIR, resolvedPath);
+    let abs = path.join(FINAM_V2_DIR, resolvedPath);
     if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) {
         localFileDataUrlCache.set(cleaned, null);
         return null;
+    }
+    let size = fs.statSync(abs).size;
+    if (size > MAX_INLINE_ASSET_BYTES) {
+        const webpCandidate = abs.replace(/\.(png|jpe?g)$/i, '.webp');
+        if (webpCandidate !== abs && fs.existsSync(webpCandidate)) {
+            abs = webpCandidate;
+            size = fs.statSync(abs).size;
+        } else {
+            console.warn(
+                `[finamV2TemplateLoader] skip inline asset (${size} bytes > ${MAX_INLINE_ASSET_BYTES}): ${cleaned}`
+            );
+            localFileDataUrlCache.set(cleaned, null);
+            return null;
+        }
     }
     const buf = fs.readFileSync(abs);
     const dataUrl = `data:${mimeTypeForLocalFile(abs)};base64,${buf.toString('base64')}`;
@@ -199,17 +226,34 @@ function injectProductionStyle(html, style = PRODUCTION_PAGE_STYLE) {
     return s;
 }
 
+function isTemplateCacheEnabled() {
+    return process.env.FINAM_V2_TEMPLATE_CACHE !== '0';
+}
+
+function getTemplateFileMtime(fileName) {
+    return fs.statSync(path.join(FINAM_V2_DIR, fileName)).mtimeMs;
+}
+
 function readTemplateRaw(fileName) {
-    if (templateRawCache.has(fileName)) return templateRawCache.get(fileName);
-    const raw = fs.readFileSync(path.join(FINAM_V2_DIR, fileName), 'utf8');
-    templateRawCache.set(fileName, raw);
+    const abs = path.join(FINAM_V2_DIR, fileName);
+    const mtime = getTemplateFileMtime(fileName);
+    if (isTemplateCacheEnabled()) {
+        const cached = templateRawCache.get(fileName);
+        if (cached && cached.mtime === mtime) return cached.content;
+    }
+    const raw = fs.readFileSync(abs, 'utf8');
+    templateRawCache.set(fileName, { content: raw, mtime });
     return raw;
 }
 
 function readTemplateInlined(fileName) {
-    if (templateInlinedCache.has(fileName)) return templateInlinedCache.get(fileName);
+    const mtime = getTemplateFileMtime(fileName);
+    if (isTemplateCacheEnabled()) {
+        const cached = templateInlinedCache.get(fileName);
+        if (cached && cached.mtime === mtime) return cached.content;
+    }
     const inlined = inlineLocalAssets(inlineCssLinks(readTemplateRaw(fileName)));
-    templateInlinedCache.set(fileName, inlined);
+    templateInlinedCache.set(fileName, { content: inlined, mtime });
     return inlined;
 }
 

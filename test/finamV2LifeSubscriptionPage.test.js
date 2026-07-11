@@ -17,6 +17,7 @@ const {
     replaceLifeSubscriptionGoalPage,
 } = require('../src/reports/finam_v2/finamV2TemplateAppliers');
 const { FINAM_REPORT_V2_PAGE_TYPES } = require('../src/reports/finam_v2/finamReportV2Contract');
+const { loadTemplateDocument } = require('../src/reports/finam_v2/finamV2TemplateLoader');
 const { DEFAULT_SBER_LIFE_OFFER_URL } = require('../src/utils/atbBankBranding');
 
 const TEMPLATE_PATH = path.join(
@@ -102,6 +103,10 @@ test('replaceLifeSubscriptionGoalPage substitutes actuarial premiums and limits'
     assert.match(out, /Преимущества продукта/);
     assert.match(out, /Оформить полис/);
     assert.match(out, new RegExp(escapeRegExp(DEFAULT_SBER_LIFE_OFFER_URL)));
+    assert.strictEqual((out.match(/<hr\b[^>]*\bfinam-v2-life-sub__divider\b/gi) || []).length, 4);
+    assert.match(out, /#1e6bb8/);
+    assert.doesNotMatch(out, /\.finam-v2-life-sub__cta\s*\{[^}]*width:\s*100%/);
+    assert.match(out, /max-width:\s*52%/);
 });
 
 test('applyTemplateData routes projectId=2 LIFE to subscription applier', () => {
@@ -115,6 +120,20 @@ test('applyTemplateData routes projectId=2 LIFE to subscription applier', () => 
     assert.match(out, /finam-v2-life-sub__hero-title/);
     assert.match(out, /14(?:&nbsp;|\s)700 рублей в год/);
     assert.doesNotMatch(out, /finam-v2-life__risk-grid/);
+});
+
+test('loadTemplateDocument: subscription page has 4 hr dividers and compact CTA', () => {
+    const prev = process.env.FINAM_V2_TEMPLATE_CACHE;
+    process.env.FINAM_V2_TEMPLATE_CACHE = '0';
+    try {
+        const html = loadTemplateDocument('page-goal-life-subscription-v2.html');
+        assert.strictEqual((html.match(/<hr\b[^>]*\bfinam-v2-life-sub__divider\b/gi) || []).length, 4);
+        assert.match(html, /max-width:\s*52%/);
+        assert.doesNotMatch(html, /\.finam-v2-life-sub__cta\s*\{[^}]*width:\s*100%/);
+    } finally {
+        if (prev === undefined) delete process.env.FINAM_V2_TEMPLATE_CACHE;
+        else process.env.FINAM_V2_TEMPLATE_CACHE = prev;
+    }
 });
 
 function escapeRegExp(value) {
