@@ -38,8 +38,6 @@ info:
     - **`POST /pfp/clients/{clientId}/life-insurance/send-email`** — отправить клиенту HTML-письмо по продукту «Подушка безопасности» с кнопкой **«Оформить НСЖ»**.
     - **`POST /pfp/clients/{clientId}/broker-account/send-email`** — письмо Финам (Resend); ссылки с UTM и `partner_agent_id`, если включён `partner_link_tracking` в settings проекта.
 
-    **Content Factory (материалы и презентации для клиента):** префикс **`/pfp/content-factory`**. Каталог опубликованных офферов, сборка презентации из 1+ страниц, PDF с **`utm_agent=`** на CTA, AI draft письма и send с вложением. Полная спека: **`openapi/content-factory.yaml`**, задачи для фронта: **`docs/FRONT_CONTENT_FACTORY_TASKS.md`**.
-
     **Макро и новости (два отдельных виджета в ЛК):**
     - **`GET /pfp/macro/latest`** — цифры (ставка ЦБ, курс, ИПЦ, индексы). Графики и плашки «как сейчас».
     - **`GET /pfp/news/feed`** — короткая лента важных событий (3–7 карточек), не агрегатор. При `quiet: true` — empty state, не ошибка.

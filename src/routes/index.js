@@ -109,12 +109,6 @@ router.use('/', pfpMiddleware, aiRoutes);
 const aiB2cRoutes = require('./aiB2cRoutes');
 router.use('/admin/ai-b2c', pfpMiddleware, aiB2cRoutes);
 
-// Content Factory (admin templates/offers + agent presentations) — no deploy required for local use
-const adminContentFactoryRoutes = require('./adminContentFactoryRoutes');
-const agentContentFactoryRoutes = require('./agentContentFactoryRoutes');
-router.use('/admin/content-factory', pfpMiddleware, adminContentFactoryRoutes);
-router.use('/pfp/content-factory', pfpMiddleware, agentContentFactoryRoutes);
-
 // Client Cabinet Routes (personal cabinet for self-registered clients)
 const clientCabinetRoutes = require('./clientCabinetRoutes');
 router.use('/my', pfpMiddleware, clientCabinetRoutes);
