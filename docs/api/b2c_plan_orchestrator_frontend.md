@@ -51,6 +51,42 @@ Content-Type: application/json
 }
 ```
 
+**С session_context (агент из `?ref=`)** — на **каждый** turn:
+
+```json
+{
+  "flow_key": "plan",
+  "message": "Хочу составить план",
+  "session_context": {
+    "ref": "ab2def5798ae",
+    "agent": {
+      "id": 123,
+      "first_name": "Иван",
+      "last_name": "Петров",
+      "full_name": "Иван Петров"
+    }
+  }
+}
+```
+
+## Плейсхолдеры в промптах ЛК (подстановка на бэке)
+
+В `dynamic_context_text`, `command_context_text`, stage `content`, brain `content`:
+
+| Placeholder | Значение |
+|-------------|----------|
+| `{{agent}}` | ФИО агента (короткий алиас) |
+| `{{agent_full_name}}` | то же |
+| `{{agent_first_name}}` | имя |
+| `{{agent_last_name}}` | фамилия |
+| `{{agent_display_name}}` | display_name |
+| `{{ref}}` | referral slug |
+| `{{assistant_name}}` | имя ассистента из settings flow |
+
+Пример в ЛК: `Клиента пригласил {{agent}}. Если пусто — не упоминай агента.`
+
+Бэк резолвит агента по `ref` server-side; `session_context` с фронта — fallback.
+
 ## SSE (формат PFP)
 
 Парсить строки `data: {...}\n\n`.

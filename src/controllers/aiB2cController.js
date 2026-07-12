@@ -766,6 +766,7 @@ class AiB2cController {
                 page_data,
                 goal_type_id,
                 goal_name,
+                session_context,
             } = req.body;
 
             if (!message && !event) {
@@ -786,6 +787,7 @@ class AiB2cController {
                 page_data,
                 goal_type_id,
                 goal_name,
+                sessionContext: session_context,
             }, res);
         } catch (error) {
             console.error('[AiB2C] Dynamic stream error:', error);

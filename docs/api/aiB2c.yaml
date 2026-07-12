@@ -329,9 +329,36 @@ components:
           description: ID типа цели при выборе на витрине.
         goal_name:
           type: string
+        session_context:
+          $ref: '#/components/schemas/AiB2cSessionContext'
+          description: |
+            Runtime: ref + agent FIO (referral /plan/?ref=). Front sends each turn.
+            Backend resolves agent by ref when possible; substitutes {{agent}}, {{agent_full_name}}, … in prompts.
       anyOf:
         - required: [ message ]
         - required: [ event ]
+
+    AiB2cSessionAgent:
+      type: object
+      properties:
+        id: { type: integer }
+        first_name: { type: string, nullable: true }
+        last_name: { type: string, nullable: true }
+        full_name:
+          type: string
+          description: ФИО для {{agent}} и {{agent_full_name}}
+        display_name: { type: string, nullable: true }
+
+    AiB2cSessionContext:
+      type: object
+      properties:
+        ref:
+          type: string
+          description: Referral slug из /plan/?ref=
+        agent:
+          allOf:
+            - $ref: '#/components/schemas/AiB2cSessionAgent'
+          nullable: true
 
     AiB2cSseClassifierCommand:
       type: object

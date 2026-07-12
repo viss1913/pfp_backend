@@ -11,6 +11,8 @@
 
 const knex = require('../config/database');
 const aiService = require('./aiService');
+const agentNetworkService = require('./agentNetworkService');
+const { buildPromptVarMap, substitutePromptVars } = require('../utils/aiB2cPromptVars');
 const { buildChatContext, formatChatContextForPrompt } = require('./chatContextService');
 const { formatExtractedDocumentSection } = require('./documentTextExtractionService');
 const {
@@ -32,8 +34,78 @@ class AiB2cService {
         return key;
     }
 
+    _normalizeSessionAgent(agent) {
+        if (!agent || typeof agent !== 'object') return null;
+        const fullName =
+            String(agent.full_name || '').trim() ||
+            [agent.first_name, agent.last_name]
+                .map((p) => String(p || '').trim())
+                .filter(Boolean)
+                .join(' ')
+                .trim() ||
+            String(agent.display_name || '').trim();
+        if (!fullName && agent.id == null) return null;
+        return {
+            id: agent.id,
+            first_name: agent.first_name ?? null,
+            last_name: agent.last_name ?? null,
+            full_name: fullName,
+            display_name: String(agent.display_name || '').trim() || fullName,
+        };
+    }
+
+    _agentRowToSessionAgent(row) {
+        if (!row) return null;
+        const fullName = [row.first_name, row.last_name]
+            .map((p) => String(p || '').trim())
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+        if (!fullName) return null;
+        return {
+            id: row.id,
+            first_name: row.first_name || null,
+            last_name: row.last_name || null,
+            full_name: fullName,
+            display_name: fullName,
+        };
+    }
+
+    /**
+     * Resolve referral session: server-side by ref (trusted), client session_context as fallback.
+     */
+    async _resolveOrchestratorSession(projectId, sessionContext) {
+        const ref = String(sessionContext?.ref || '').trim() || null;
+        let agent = this._normalizeSessionAgent(sessionContext?.agent);
+
+        if (ref && projectId) {
+            try {
+                const row = await agentNetworkService.resolveParentAgentFromRef(projectId, ref);
+                const resolved = this._agentRowToSessionAgent(row);
+                if (resolved) agent = resolved;
+            } catch (e) {
+                // Invalid ref on server — keep client-supplied agent if any.
+            }
+        }
+
+        if (!ref && !agent) return null;
+        return { ref, agent: agent ?? null };
+    }
+
+    _applyPromptVars(text, promptVars) {
+        if (!promptVars || text == null || text === '') return text;
+        return substitutePromptVars(text, promptVars);
+    }
+
     _buildOrchestratorUserMessage(turn = {}) {
         const parts = [];
+
+        if (turn.session?.agent?.full_name) {
+            const refPart = turn.session.ref ? ` (ref: ${turn.session.ref})` : '';
+            parts.push(`ПРИГЛАШЕНИЕ:\nАгент, пригласивший клиента: ${turn.session.agent.full_name}${refPart}`);
+        } else if (turn.session?.ref) {
+            parts.push(`ПРИГЛАШЕНИЕ:\nРеферальная ссылка: ${turn.session.ref}`);
+        }
 
         if (turn.event) parts.push(`СОБЫТИЕ UI: ${turn.event}`);
         if (turn.page) parts.push(`ТЕКУЩАЯ СТРАНИЦА: ${turn.page}`);
@@ -169,11 +241,14 @@ class AiB2cService {
      */
     async chatDynamicStartStream(clientId, projectId, turn, res) {
         const flowKey = this._normalizeFlowKey(turn?.flowKey);
-        const userMessage = this._buildOrchestratorUserMessage(turn);
+        const session = await this._resolveOrchestratorSession(projectId, turn?.sessionContext);
         const assistantName = await this._getAssistantDisplayName(projectId, flowKey);
+        const promptVars = buildPromptVarMap({ session, assistantName });
+        const userMessage = this._buildOrchestratorUserMessage({ ...turn, session });
         const projectModel = await this._getAiB2cProjectModel(projectId, flowKey);
         const streamOptions = { sseFormat: 'pfp' };
         const allowedStageCommands = await this._getActiveStageCommands(projectId, flowKey);
+        const promptOptions = { historyMode: 'global', assistantName, flowKey, promptVars };
 
         // По твоей логике: если это первое сообщение в сессии/истории — пропускаем классификатор.
         const hasAnyHistory = await this._hasAnyChatHistory(clientId, flowKey);
@@ -188,11 +263,7 @@ class AiB2cService {
                 classifierSkipped: true,
             });
 
-            const prompt = await this._buildPrompt(clientId, projectId, nextStageKey, userMessage, {
-                historyMode: 'global',
-                assistantName,
-                flowKey,
-            });
+            const prompt = await this._buildPrompt(clientId, projectId, nextStageKey, userMessage, promptOptions);
 
             const fullText = await aiService.streamCompletion(prompt, projectModel, res, streamOptions);
             await this._saveMessagesWithStageKeys(clientId, nextStageKey, nextStageKey, userMessage, fullText, flowKey);
@@ -211,6 +282,7 @@ class AiB2cService {
             commandContextText: currentStageContext?.command_context_text || null,
             allowedStageCommands,
             flowKey,
+            promptVars,
         });
 
         const nextStageContext = await this._resolveStageContext(projectId, routingCommand, { flowKey });
@@ -224,10 +296,8 @@ class AiB2cService {
 
         // 2-й ИИ: ответ на выбранной стадии, но с глобальной историей диалога.
         const prompt = await this._buildPrompt(clientId, projectId, nextStageKey, userMessage, {
-            historyMode: 'global',
-            assistantName,
+            ...promptOptions,
             routingCommand,
-            flowKey,
         });
 
         const fullText = await aiService.streamCompletion(prompt, projectModel, res, streamOptions);
@@ -374,6 +444,8 @@ class AiB2cService {
     async _buildPrompt(clientId, projectId, stageKey, userMessage, options = {}) {
         const historyMode = options.historyMode || 'stage';
         const flowKey = this._normalizeFlowKey(options.flowKey);
+        const promptVars = options.promptVars || null;
+        const applyVars = (text) => this._applyPromptVars(text, promptVars);
         const assistantNameSection = options.assistantName
             ? `ИМЯ АССИСТЕНТА: ${options.assistantName}\n`
             : '';
@@ -390,7 +462,7 @@ class AiB2cService {
 
         // Слой 1: Главный Мозг
         const brainSection = brainContexts
-            .map(ctx => `--- ${ctx.title}\n${ctx.content}`)
+            .map(ctx => `--- ${ctx.title}\n${applyVars(ctx.content)}`)
             .join('\n\n');
 
         const dynamicBrainSection = await this._buildDynamicChatAiMainContext({
@@ -399,10 +471,11 @@ class AiB2cService {
             history,
             brainSection
         });
+        const resolvedBrainSection = applyVars(dynamicBrainSection || brainSection);
 
         // Слой 2: Контекст этапа
         const stageSection = stageContext
-            ? `КОНТЕКСТ ТЕКУЩЕГО ЭТАПА "${stageContext.title}" (stage: ${stageKey}):\n${stageContext.content}`
+            ? `КОНТЕКСТ ТЕКУЩЕГО ЭТАПА "${stageContext.title}" (stage: ${stageKey}):\n${applyVars(stageContext.content)}`
             : `Этап: ${stageKey} (контекст не настроен)`;
 
         const routingSection = options.routingCommand
@@ -425,7 +498,7 @@ class AiB2cService {
 
 ${assistantNameSection}
 СЛОЙ 1 (ГЛАВНЫЙ МОЗГ — БАЗОВЫЕ ЗНАНИЯ И ИНСТРУКЦИИ):
-${dynamicBrainSection || brainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
+${resolvedBrainSection || 'Ты — опытный финансовый консультант. Помогай клиенту с финансовым планированием.'}
 
 СЛОЙ 2 (КОНТЕКСТ ТЕКУЩЕГО ЭТАПА):
 ${stageSection}${routingSection}
@@ -550,10 +623,12 @@ ${clientSection}
             commandContextText = null,
             allowedStageCommands = null,
             flowKey = DEFAULT_FLOW_KEY,
+            promptVars = null,
         } = {}
     ) {
         const normalizedFlowKey = this._normalizeFlowKey(flowKey);
-        const dynamicContextText = commandContextText || await this._getDynamicContextText(projectId, normalizedFlowKey);
+        let dynamicContextText = commandContextText || await this._getDynamicContextText(projectId, normalizedFlowKey);
+        dynamicContextText = this._applyPromptVars(dynamicContextText, promptVars);
         const defaultCommand = '/start';
         const stageCommands = Array.isArray(allowedStageCommands) && allowedStageCommands.length
             ? allowedStageCommands
@@ -672,8 +747,10 @@ ${clientSection}
         const settings = await knex('ai_b2c_settings')
             .where({ project_id: projectId, flow_key: normalizedFlowKey })
             .first();
-        const model = String(settings?.openrouter_model || '').trim();
-        return model || null;
+        const perProject = String(settings?.openrouter_model || '').trim();
+        if (perProject) return perProject;
+        const fromEnv = String(process.env.OPENROUTER_MODEL || '').trim();
+        return fromEnv || null;
     }
 
     async _buildDynamicChatAiMainContext({ projectId, userMessage, history, brainSection }) {

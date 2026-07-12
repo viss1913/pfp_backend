@@ -10,7 +10,7 @@
     "seed": "knex seed:run",
     "setup": "npm run migrate && npm run seed",
     "fix-migrations": "node scripts/fix_migrations.js",
-    "test": "node --test test/resolutPortfolioQuoteYieldService.test.js test/resolutPortfolioPublishHelpers.test.js test/resolutPlanQuotesService.test.js test/riskProfileSlice.test.js test/mergeLiabilitiesAndGoalSort.test.js test/goalManualRisk.test.js test/riskReferenceGoal.test.js test/mortgageLeverageRisk.test.js test/ifusExecutiveModel.test.js test/executiveScenarioCatalog.test.js test/iszhSurvivalYield.test.js test/smartAllocationInheritance.test.js test/aiB2cOrchestrator.test.js test/aiB2cOrchestratorDbSmoke.test.js",
+    "test": "node --test test/resolutPortfolioQuoteYieldService.test.js test/resolutPortfolioPublishHelpers.test.js test/resolutPlanQuotesService.test.js test/riskProfileSlice.test.js test/mergeLiabilitiesAndGoalSort.test.js test/goalManualRisk.test.js test/riskReferenceGoal.test.js test/mortgageLeverageRisk.test.js test/ifusExecutiveModel.test.js test/executiveScenarioCatalog.test.js test/iszhSurvivalYield.test.js test/smartAllocationInheritance.test.js test/aiB2cOrchestrator.test.js test/aiB2cOrchestratorDbSmoke.test.js test/aiB2cPromptVars.test.js",
     "smoke:resolut-pfp": "node scripts/smoke_resolut_pfp_api.js",
     "smoke:agent-client-patch": "node scripts/smoke_agent_client_patch.js",
     "test:monthly-schedule-pds": "node scripts/test_monthly_schedule_pds.js",
