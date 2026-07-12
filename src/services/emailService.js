@@ -1278,6 +1278,67 @@ class EmailService {
             throw { status: 500, message: 'Email service unavailable' };
         }
     }
+
+    /**
+     * Content Factory: письмо агента клиенту с PDF-презентацией во вложении.
+     * @param {{ to: string, subject: string, html: string, pdfBase64: string, filename?: string }} opts
+     */
+    async sendContentFactoryPdfEmail({ to, subject, html, pdfBase64, filename = 'presentation.pdf' }) {
+        const recipient = String(to || '').trim();
+        if (!recipient) {
+            const err = new Error('Recipient email is required');
+            err.statusCode = 400;
+            throw err;
+        }
+        const safeName = String(filename || 'presentation.pdf').replace(/[^\w.\-]+/g, '_');
+        const pdfB64 = String(pdfBase64 || '').trim();
+        if (!pdfB64) {
+            const err = new Error('PDF attachment is required');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        const attachAttempts = Math.min(
+            Math.max(Number(process.env.RESEND_ATTACH_ATTEMPTS) || 10, 5),
+            15,
+        );
+
+        try {
+            const { data, error } = await sendViaResend(
+                {
+                    from: getVerificationFrom(),
+                    to: recipient,
+                    subject: String(subject || 'Материалы'),
+                    html: String(html || ''),
+                    attachments: [{ filename: safeName, content: pdfB64 }],
+                },
+                { attempts: attachAttempts },
+            );
+
+            if (error) {
+                console.error('[EmailService] Content Factory PDF email error:', JSON.stringify(error));
+                if (process.env.NODE_ENV !== 'production') {
+                    console.warn(`[EmailService] DEV: content factory PDF → ${recipient}`);
+                    return { id: 'dev-mode-content-factory-pdf', to: recipient };
+                }
+                const err = new Error(error.message || 'Не удалось отправить письмо с презентацией');
+                err.statusCode = 502;
+                throw err;
+            }
+
+            console.log(`[EmailService] Content Factory PDF sent to ${recipient}, messageId: ${data?.id}`);
+            return data;
+        } catch (err) {
+            if (err.statusCode) throw err;
+            console.error('[EmailService] Content Factory PDF send error:', err.message || err);
+            if (process.env.NODE_ENV !== 'production') {
+                return { id: 'dev-mode-content-factory-pdf-fallback', to: recipient };
+            }
+            const wrap = new Error('Email service unavailable');
+            wrap.statusCode = 500;
+            throw wrap;
+        }
+    }
 }
 
 module.exports = new EmailService();
