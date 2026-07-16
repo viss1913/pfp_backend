@@ -49,6 +49,44 @@ async function resolveParentAgentFromRef(projectId, ref, trx = knex) {
 }
 
 /**
+ * Резолв агента по ref без project_key (короткая B2C-ссылка ?ref=slug).
+ * referral_slug уникален внутри project_id; глобально коллизия маловероятна, но при дубле — 400.
+ * @param {string} ref — referral_slug или uuid агента
+ */
+async function resolveAgentFromRefGlobally(ref, trx = knex) {
+    const token = String(ref || '').trim();
+    if (!token) return null;
+
+    const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
+
+    let query = trx('agents').where((qb) => {
+        qb.where('is_active', true).orWhereNull('is_active');
+    });
+    if (isUuid) {
+        query = query.where({ uuid: token });
+    } else {
+        query = query.where({ referral_slug: token });
+    }
+
+    const rows = await query.select('*');
+    if (!rows.length) {
+        throw { status: 400, message: 'Недействительная реферальная ссылка' };
+    }
+    if (rows.length > 1) {
+        throw {
+            status: 400,
+            message: 'Реферальная ссылка неоднозначна для нескольких проектов. Используйте полную ссылку с project_key.',
+        };
+    }
+    const parent = rows[0];
+    if (parent.is_active === false) {
+        throw { status: 400, message: 'Недействительная реферальная ссылка' };
+    }
+    return parent;
+}
+
+/**
  * Tree depth: 0 = root (no parent_agent_id), 1 = direct subagent, etc.
  * @param {number} parentDepth
  * @param {number} maxDepth
@@ -230,6 +268,7 @@ module.exports = {
     generateReferralSlug,
     ensureReferralSlug,
     resolveParentAgentFromRef,
+    resolveAgentFromRefGlobally,
     canParentInviteSubagent,
     getAgentTreeDepth,
     assertValidParentAssignment,

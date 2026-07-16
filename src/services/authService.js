@@ -954,20 +954,36 @@ class AuthService {
     }
 
     /**
-     * @param {{ ref: string, project_key: string }} params
+     * @param {{ ref: string, project_key?: string|null }} params
      */
     async previewClientReferral({ ref, project_key }) {
-        const project = await projectService.getProjectByPublicKey(project_key);
-        if (!project) {
-            throw { status: 400, message: 'Неверный ключ проекта' };
+        const refToken = String(ref || '').trim();
+        const projectKeyRaw =
+            project_key != null && String(project_key).trim() !== '' ? String(project_key).trim() : null;
+
+        let project;
+        let agent;
+        if (projectKeyRaw) {
+            project = await projectService.getProjectByPublicKey(projectKeyRaw);
+            if (!project) {
+                throw { status: 400, message: 'Неверный ключ проекта' };
+            }
+            agent = await agentNetworkService.resolveParentAgentFromRef(project.id, refToken);
+        } else {
+            agent = await agentNetworkService.resolveAgentFromRefGlobally(refToken);
+            project = await projectService.getProjectById(agent.project_id);
+            if (!project?.public_key) {
+                throw { status: 400, message: 'Проект агента не настроен' };
+            }
         }
 
-        const agent = await agentNetworkService.resolveParentAgentFromRef(project.id, ref);
         const displayName =
             [agent.first_name, agent.last_name].filter(Boolean).join(' ').trim() || 'Агент';
 
         return {
             valid: true,
+            project_key: project.public_key,
+            project_id: project.id,
             agent: {
                 id: agent.id,
                 first_name: agent.first_name || null,

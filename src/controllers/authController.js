@@ -320,12 +320,11 @@ class AuthController {
             if (!ref || String(ref).trim() === '') {
                 return res.status(400).json({ error: 'ref is required' });
             }
-            if (!projectKey || String(projectKey).trim() === '') {
-                return res.status(400).json({ error: 'project_key is required' });
-            }
             const preview = await authService.previewClientReferral({
                 ref: String(ref).trim(),
-                project_key: String(projectKey).trim(),
+                project_key: projectKey != null && String(projectKey).trim() !== ''
+                    ? String(projectKey).trim()
+                    : null,
             });
             res.json(preview);
         } catch (err) {
