@@ -412,14 +412,21 @@ class ClientController {
             normalizeCalculationRequestBody(req.body);
             const validation = calculationRequestSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
             if (validation.error) {
+                const details = validation.error.details.map(d => ({
+                    field: d.path.join('.'),
+                    message: d.message,
+                }));
+                console.warn(
+                    '[ClientController] calculateFirstRun validation failed',
+                    JSON.stringify(details),
+                    JSON.stringify(req.body).slice(0, 2500)
+                );
                 return res.status(400).json({
                     error: 'Validation error',
-                    details: validation.error.details.map(d => ({
-                        field: d.path.join('.'),
-                        message: d.message
-                    }))
+                    details,
                 });
             }
+            req.body = validation.value;
 
             if (!req.body.client) req.body.client = {};
             req.body.client.project_id = req.projectId || req.user?.projectId;

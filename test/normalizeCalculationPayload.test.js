@@ -9,6 +9,8 @@ const {
 test('parseMoneyishNumber handles spaced RU amounts', () => {
     assert.equal(parseMoneyishNumber('150 000'), 150000);
     assert.equal(parseMoneyishNumber('100\u00a0000'), 100000);
+    assert.equal(parseMoneyishNumber('150\u202f000'), 150000);
+    assert.equal(parseMoneyishNumber('150 000 ₽'), 150000);
     assert.equal(parseMoneyishNumber('1 234,56'), 1234.56);
 });
 
