@@ -1,5 +1,6 @@
 /**
  * B2C client invite URL — landing root (not agent /register/).
+ * Короткая ссылка: только ?ref={referral_slug}. project_key и UTM — через preview/регистрацию.
  */
 
 const DEFAULT_CLIENT_LANDING_BASE = 'https://family-office.bank-future.com/';
@@ -12,8 +13,14 @@ function getClientLandingBaseUrl() {
     ).trim();
 }
 
+function getClientInviteLandingPath() {
+    const raw = String(process.env.CLIENT_INVITE_LANDING_PATH || '/plan').trim();
+    if (!raw || raw === '/') return '/plan';
+    return raw.startsWith('/') ? raw.replace(/\/+$/, '') || '/plan' : `/${raw.replace(/\/+$/, '')}`;
+}
+
 /**
- * @param {{ baseUrl?: string, projectPublicKey: string, referralRef: string, inviterPartnerAgentId?: string|null, paramOverrides?: object }} opts
+ * @param {{ baseUrl?: string, referralRef: string, landingPath?: string }} opts
  * @returns {string}
  */
 function buildClientLandingInviteUrl(opts = {}) {
@@ -27,34 +34,15 @@ function buildClientLandingInviteUrl(opts = {}) {
         return baseRaw;
     }
 
-    const projectKey = String(opts.projectPublicKey || '').trim();
-    if (projectKey) {
-        url.searchParams.set('project_key', projectKey);
+    const landingPath = opts.landingPath != null ? opts.landingPath : getClientInviteLandingPath();
+    if (landingPath) {
+        url.pathname = landingPath;
     }
 
     const ref = String(opts.referralRef || '').trim();
+    url.search = '';
     if (ref) {
         url.searchParams.set('ref', ref);
-    }
-
-    const params = {
-        utm_source: 'pfp',
-        utm_medium: 'agent_client_invite',
-        utm_campaign: 'b2c_register',
-        ...(opts.paramOverrides && typeof opts.paramOverrides === 'object' ? opts.paramOverrides : {}),
-    };
-
-    const inviterId =
-        opts.inviterPartnerAgentId != null && String(opts.inviterPartnerAgentId).trim() !== ''
-            ? String(opts.inviterPartnerAgentId).trim()
-            : null;
-    if (inviterId) {
-        params.utm_partner_finam = inviterId;
-    }
-
-    for (const [key, value] of Object.entries(params)) {
-        if (value == null || value === '') continue;
-        url.searchParams.set(key, String(value));
     }
 
     return url.toString();
@@ -63,5 +51,6 @@ function buildClientLandingInviteUrl(opts = {}) {
 module.exports = {
     DEFAULT_CLIENT_LANDING_BASE,
     getClientLandingBaseUrl,
+    getClientInviteLandingPath,
     buildClientLandingInviteUrl,
 };

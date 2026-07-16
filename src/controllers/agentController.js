@@ -328,19 +328,9 @@ class AgentController {
         return { url, referral_slug: slug, ref: slug };
     }
 
-    async _buildClientInviteLinkPayload(agentId, projectId, inviterRow = null) {
+    async _buildClientInviteLinkPayload(agentId, projectId) {
         const slug = await agentNetworkService.ensureReferralSlug(agentId);
-        const project = await projectService.getProjectById(projectId);
-        if (!project?.public_key) {
-            throw { status: 500, message: 'У проекта не задан public_key' };
-        }
-
-        const inviter = inviterRow || (await agentService.getAgentById(agentId, projectId));
-        const url = buildClientLandingInviteUrl({
-            projectPublicKey: project.public_key,
-            referralRef: slug,
-            inviterPartnerAgentId: inviter?.partner_agent_id || null,
-        });
+        const url = buildClientLandingInviteUrl({ referralRef: slug });
 
         return { url, referral_slug: slug, ref: slug };
     }

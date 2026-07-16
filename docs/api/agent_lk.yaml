@@ -383,7 +383,8 @@ paths:
       tags: [ "Регистрация и профиль агента" ]
       summary: Реферальная ссылка для приглашения B2C-клиента
       description: |
-        Возвращает `url` на B2C-лендинг с `project_key`, `ref={referral_slug}` и UTM (`utm_source`, `utm_medium=agent_client_invite`, `utm_campaign=b2c_register`, `utm_partner_finam` пригласившего).
+        Возвращает короткий `url` на B2C-лендинг: только `ref={referral_slug}` (путь по умолчанию `/plan`).
+        `project_key` и атрибуция — через `GET /auth/client-referral/preview?ref=…` и регистрацию клиента, не в query ссылки.
         База URL: env `CLIENT_LANDING_BASE_URL` или `FRONTEND_CLIENT_LANDING_URL` (по умолчанию `https://family-office.bank-future.com/`).
 
         **Привязка клиента:** параметр `ref` в ссылке → поле `ref` в `POST /auth/register-client` → `clients.agent_id` и `clients.referred_by_agent_id`.
