@@ -60,6 +60,16 @@ const riskProfileAnswersSchema = Joi.object().pattern(
     )
 ).optional();
 
+const calcAssetItemSchema = Joi.object({
+    type: Joi.string().required(),
+    amount: Joi.number().min(0).optional(),
+    current_value: Joi.number().min(0).optional(),
+    unlock_month: Joi.number().integer().min(0).optional(),
+    sell_month: Joi.number().integer().min(0).optional(),
+    name: Joi.string().optional(),
+    goal_id: Joi.string().allow(null).optional(),
+});
+
 // Схема валидации для запроса расчета
 const calculationRequestSchema = Joi.object({
     goals: Joi.array().items(Joi.object({
@@ -101,6 +111,10 @@ const calculationRequestSchema = Joi.object({
             .description('Приоритет цели (1 - самый высокий). Если не указан, определяется по типу цели')
     })).min(1).required()
         .description('Массив целей для расчета'),
+    assets: Joi.array().items(calcAssetItemSchema).optional()
+        .description('Активы в корне тела (альтернатива client.assets; фронт часто шлёт сюда)'),
+    ref: Joi.string().max(128).allow('').optional()
+        .description('referral_slug или UUID агента — для привязки лида в CRM'),
     client: Joi.object({
         birth_date: Joi.string().optional()
             .description('Дата рождения клиента (формат: YYYY-MM-DD или ISO 8601). Требуется для расчета НСЖ и Пенсии'),
@@ -122,15 +136,7 @@ const calculationRequestSchema = Joi.object({
             .description('Текущий ИПК (индивидуальный пенсионный коэффициент) клиента. Если не указан, будет оценен на основе дохода'),
         total_liquid_capital: Joi.number().min(0).optional().default(0)
             .description('Общий ликвидный капитал клиента (Бассейн)'),
-        assets: Joi.array().items(Joi.object({
-            type: Joi.string().required(),
-            amount: Joi.number().min(0).optional(),
-            current_value: Joi.number().min(0).optional(),
-            unlock_month: Joi.number().integer().min(0).optional(),
-            sell_month: Joi.number().integer().min(0).optional(),
-            name: Joi.string().optional(),
-            goal_id: Joi.string().allow(null).optional()
-        })).optional().default([])
+        assets: Joi.array().items(calcAssetItemSchema).optional().default([])
             .description('Список активов клиента (депозиты, недвижимость и т.д.)'),
         insured_person: Joi.object({
             is_policy_holder: Joi.boolean().optional()
@@ -162,6 +168,10 @@ const calculationRequestSchema = Joi.object({
     })).optional()
         .description('Алиас для liabilities: кредиты клиента (будут сохранены как liabilities)')
 });
+const clientPatchRequestSchema = calculationRequestSchema
+    .fork(['goals'], (schema) => schema.optional())
+    .or('client', 'assets', 'liabilities', 'credits', 'expenses', 'goals');
+
 const taxPlanningRequestSchema = Joi.object({
     client: Joi.object({
         avg_monthly_income: Joi.number().min(0).required(),
@@ -194,6 +204,100 @@ const sendBrokerOfferSchema = Joi.object({
     short_description: Joi.string().trim().max(2000).optional(),
 });
 
+const guestRiskEvaluateSchema = Joi.object({
+    risk_profile_answers: riskProfileAnswersSchema.required(),
+    goal: Joi.object({
+        goal_type_id: Joi.number().integer().positive().optional(),
+        term_months: Joi.number().integer().min(0).optional(),
+        name: Joi.string().optional(),
+    }).optional().default({}),
+    client: Joi.object({
+        avg_monthly_income: Joi.number().min(0).optional(),
+        assets_total: Joi.number().min(0).optional(),
+        liabilities_total: Joi.number().min(0).optional(),
+        net_worth: Joi.number().min(0).optional(),
+        dependents_count: Joi.number().integer().min(0).optional(),
+        family_profile: familyProfileSchema,
+    }).optional().default({}),
+});
+
+const guestPlanSaveSchema = calculationRequestSchema;
+
+function normalizeGuestCalculationPayload(body) {
+    normalizeCalculationRequestBody(body);
+}
+
+/**
+ * Подготовка гостевого лида: email + ref → agent_id. Без email — null (только расчёт).
+ * @returns {Promise<{ projectId: number, normalizedEmail: string }|null>}
+ */
+async function prepareGuestLeadPersistence(req) {
+    const projectId = req.projectId || req.body.client?.project_id;
+    if (!projectId) return null;
+
+    normalizeGuestCalculationPayload(req.body);
+
+    const normalizedEmail = normalizeRegistrationEmail(req.body.client?.email);
+    if (!normalizedEmail) return null;
+
+    req.body.client.email = normalizedEmail;
+    req.body.client.project_id = projectId;
+
+    const existingUser = await db('users')
+        .where({ email: normalizedEmail, project_id: projectId, is_active: true })
+        .first();
+    if (existingUser) {
+        throw {
+            status: 400,
+            message: 'Email уже зарегистрирован. Войдите в аккаунт или используйте другой email.',
+        };
+    }
+
+    const existingClient = await clientRepository.findByEmail(normalizedEmail, projectId);
+    if (existingClient?.user_id) {
+        throw {
+            status: 400,
+            message: 'Клиент с этим email уже привязан к аккаунту. Войдите в личный кабинет.',
+        };
+    }
+
+    const ref = req.body.ref;
+    if (ref != null && String(ref).trim() !== '') {
+        const parentAgent = await agentNetworkService.resolveParentAgentFromRef(projectId, ref);
+        if (parentAgent) {
+            req.body.client.agent_id = parentAgent.id;
+        }
+    }
+
+    return { projectId, normalizedEmail };
+}
+
+async function finishGuestLeadPersistence(req, calculationResponse, persistCtx) {
+    if (!persistCtx) return null;
+
+    const { projectId, normalizedEmail } = persistCtx;
+    const { clientId } = await persistCalculatedPlan(req.body, calculationResponse, projectId);
+    const guestToken = authService.signGuestClientToken({
+        clientId,
+        projectId,
+        email: normalizedEmail,
+    });
+
+    calculationResponse.client_id = clientId;
+    warmupClientPdfInBackground({
+        clientId,
+        projectId,
+        agentId: req.body.client?.agent_id || null,
+        forceRegenerate: true,
+    });
+
+    return {
+        client_id: clientId,
+        guest_token: guestToken,
+        plan_saved: true,
+    };
+}
+
 const clientService = require('../services/clientService');
 const aiB2cService = require('../services/aiB2cService');
 const constructorSiteChatAgentService = require('../services/constructorSiteChatAgentService');
@@ -208,6 +312,16 @@ const emailService = require('../services/emailService');
 const commissionService = require('../services/commissionService');
 const { buildTrackedPartnerUrl } = require('../utils/trackedPartnerUrl');
 const { resolveLastRebalanceAt, hasPlan } = require('../utils/goalsSummaryMetrics');
+const { resolveLifeOfferEmailPayload } = require('../utils/atbBankBranding');
+const riskQuestionnaireService = require('../services/riskQuestionnaireService');
+const riskProfileService = require('../services/riskProfileService');
+const riskProfileExplanationService = require('../services/riskProfileExplanationService');
+const authService = require('../services/authService');
+const agentNetworkService = require('../services/agentNetworkService');
+const db = require('../config/database');
+const clientRepository = require('../repositories/clientRepository');
+const { normalizeRegistrationEmail } = require('../utils/userEmailRegistration');
+const { normalizeCalculationRequestBody } = require('../utils/normalizeCalculationPayload');
 
 function attachCrmClientDates(clientRow) {
     const createdAt = clientRow.created_at;
@@ -223,9 +337,11 @@ function attachCrmClientDates(clientRow) {
         created_at: created_at_iso,
         last_rebalance_at: resolveLastRebalanceAt(clientRow.goals_summary, clientRow.updated_at),
         has_plan: hasPlan(clientRow.goals_summary),
+        registration_status: clientRow.user_id ? 'registered' : 'lead',
     };
 }
 const { parseProjectSettings } = require('../utils/projectSettings');
+const { assertAgentCanMutateClient } = require('../utils/agentClientAccess');
 const { ensureClientReportPdfReady } = require('../services/reportPdfStorageService');
 const pdfWarmupScheduleByClient = new Map();
 
@@ -254,6 +370,14 @@ function normalizeClientGender(raw) {
 function buildAgentDisplayFullName(agent) {
     const parts = [agent?.last_name, agent?.first_name, agent?.middle_name].filter(Boolean);
     return parts.length ? parts.join(' ') : '—';
+}
+
+async function persistCalculatedPlan(body, calculationResponse, projectId) {
+    const calculation = calculationResponse.calculation || calculationResponse;
+    const clientId = await clientService.createFullClient(body);
+    await syncCalculationGoalsWithDatabase(clientId, calculation);
+    await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
+    return { clientId, calculation };
 }
 
 async function warmupClientPdfInBackground({ clientId, projectId, agentId, forceRegenerate = false }) {
@@ -285,8 +409,8 @@ class ClientController {
     // --- Existing Calculator ---
     async calculateFirstRun(req, res, next) {
         try {
-            // Валидация входных данных
-            const validation = calculationRequestSchema.validate(req.body, { abortEarly: false });
+            normalizeCalculationRequestBody(req.body);
+            const validation = calculationRequestSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
             if (validation.error) {
                 return res.status(400).json({
                     error: 'Validation error',
@@ -298,19 +422,136 @@ class ClientController {
             }
 
             if (!req.body.client) req.body.client = {};
-            // Strict scoping: priority to validated projectId from context/token
             req.body.client.project_id = req.projectId || req.user?.projectId;
 
             if (!req.body.client.project_id) {
                 return res.status(400).json({ error: 'Project context is missing' });
             }
 
+            normalizeGuestCalculationPayload(req.body);
+
+            const hasAssets = (req.body.client.assets?.length || req.body.assets?.length) > 0;
+            const hasPool = Number(req.body.client.total_liquid_capital || 0) > 0;
+            if (!hasAssets && !hasPool) {
+                console.warn(
+                    `[ClientController] calculateFirstRun: no client.assets/total_liquid_capital in request (project ${req.body.client.project_id})`
+                );
+            }
+
             console.log(`[ClientController] calculateFirstRun for project: ${req.body.client.project_id}`);
 
+            let persistCtx = null;
+            try {
+                persistCtx = await prepareGuestLeadPersistence(req);
+            } catch (persistErr) {
+                if (persistErr?.status) {
+                    return res.status(persistErr.status).json({ error: persistErr.message });
+                }
+                throw persistErr;
+            }
+
             const result = await calculationService.calculateFirstRun(req.body, null, null, {
-                agentUserId: req.user?.id
+                isFirstRun: true,
+                usePool: true,
+                agentUserId: req.user?.id,
             });
-            res.json(calculationService.simplify(result));
+
+            const persistMeta = await finishGuestLeadPersistence(req, result, persistCtx);
+            const simplified = calculationService.simplify(result);
+            if (persistMeta) {
+                Object.assign(simplified, persistMeta);
+                console.log(
+                    `[ClientController] calculateFirstRun auto-saved lead client_id=${persistMeta.client_id}, ref=${req.body.ref || 'none'}`
+                );
+            }
+
+            res.json(simplified);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * GET /client/risk-profile/questionnaire-v2 — guest-friendly questionnaire (public)
+     */
+    async getGuestRiskProfileQuestionnaireV2(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user?.projectId || null;
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context is missing (x-project-key required)' });
+            }
+            const questionnaire = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId);
+            if (!questionnaire) {
+                return res.status(404).json({ error: 'Risk questionnaire is not configured' });
+            }
+            res.json({ questionnaire });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /client/risk-profile/evaluate — stateless risk scoring for guest CJM
+     */
+    async evaluateGuestRiskProfile(req, res, next) {
+        try {
+            const projectId = req.projectId || req.user?.projectId || null;
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context is missing (x-project-key required)' });
+            }
+
+            const validation = guestRiskEvaluateSchema.validate(req.body, {
+                abortEarly: false,
+                allowUnknown: true,
+            });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map((d) => ({
+                        field: d.path.join('.'),
+                        message: d.message,
+                    })),
+                });
+            }
+
+            const questionnaire = await riskQuestionnaireService.getActiveQuestionnaire(projectId);
+            if (!questionnaire) {
+                return res.status(404).json({ error: 'Risk questionnaire is not configured' });
+            }
+
+            const normalizedAnswers = riskQuestionnaireService.normalizeAnswerMap(
+                validation.value.risk_profile_answers,
+                questionnaire
+            );
+
+            const goal = validation.value.goal || {};
+            const clientData = validation.value.client || {};
+            const riskProfileResult = await riskProfileService.calculateGoalProfile({
+                answers: normalizedAnswers,
+                goal,
+                client: clientData,
+                projectId,
+            });
+
+            let riskProfileExplanation = null;
+            if (riskProfileResult) {
+                const questionnaireV2 = await riskQuestionnaireService.getActiveQuestionnaireV2(projectId);
+                riskProfileExplanation = await riskProfileExplanationService.build({
+                    riskProfileResult,
+                    answerMap: normalizedAnswers,
+                    questionnaire: questionnaireV2,
+                    projectId,
+                    goalsPortfolioRisk: [],
+                });
+            }
+
+            res.json({
+                risk_profile_answers: normalizedAnswers,
+                risk_questionnaire_version_id:
+                    riskProfileResult?.questionnaire_version_id || questionnaire.id,
+                risk_profile_result: riskProfileResult,
+                risk_profile_explanation: riskProfileExplanation,
+            });
         } catch (err) {
             next(err);
         }
@@ -347,7 +588,6 @@ class ClientController {
                 usePool: true,
                 agentUserId: req.user?.id
             });
-            const calculation = calculationResponse.calculation || calculationResponse;
 
             // 3. Inject Agent ID
             if (req.user && req.user.agentId) {
@@ -355,16 +595,8 @@ class ClientController {
                 req.body.client.agent_id = req.user.agentId;
             }
 
-            // 4. Save/Update Profile
-            const clientId = await clientService.createFullClient(req.body);
-
-            // 5. SYNC IDs: Update calculation goals with real DB IDs
-            await syncCalculationGoalsWithDatabase(clientId, calculation);
-
             const projectId = req.projectId || req.user?.projectId || req.body.client.project_id;
-
-            // Save Calculation Snapshot to Client record (with real IDs)
-            await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
+            const { clientId } = await persistCalculatedPlan(req.body, calculationResponse, projectId);
 
             calculationResponse.client_id = clientId;
             warmupClientPdfInBackground({
@@ -374,6 +606,56 @@ class ClientController {
                 forceRegenerate: true,
             });
             res.json(calculationService.simplify(calculationResponse));
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * Guest B2C: сохранить план без пароля, вернуть guest_token для отчётов.
+     * POST /api/client/plan/save — публичный, x-project-key + ref.
+     */
+    async saveGuestPlan(req, res, next) {
+        try {
+            normalizeCalculationRequestBody(req.body);
+            const validation = guestPlanSaveSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map((d) => ({
+                        field: d.path.join('.'),
+                        message: d.message,
+                    })),
+                });
+            }
+
+            if (!req.projectId) {
+                return res.status(400).json({ error: 'Project context is missing (x-project-key)' });
+            }
+
+            let persistCtx;
+            try {
+                persistCtx = await prepareGuestLeadPersistence(req);
+            } catch (persistErr) {
+                if (persistErr?.status) {
+                    return res.status(persistErr.status).json({ error: persistErr.message });
+                }
+                throw persistErr;
+            }
+            if (!persistCtx) {
+                return res.status(400).json({ error: 'client.email is required for guest plan save' });
+            }
+
+            console.log(`[ClientController] saveGuestPlan for project: ${persistCtx.projectId}, ref: ${req.body.ref || 'none'}`);
+
+            const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, {
+                isFirstRun: true,
+                usePool: true,
+            });
+
+            const persistMeta = await finishGuestLeadPersistence(req, calculationResponse, persistCtx);
+            const simplified = calculationService.simplify(calculationResponse);
+            res.json({ ...simplified, ...persistMeta });
         } catch (err) {
             next(err);
         }
@@ -515,39 +797,85 @@ class ClientController {
         }
     }
 
-    async update(req, res, next) {
+    /**
+     * PUT /api/pfp/clients/:id — редактирование карточки клиента в ЛК агента.
+     * PUT /api/client/:id — тот же handler (обратная совместимость).
+     */
+    async updateAgentClient(req, res, next) {
         try {
-            const { id } = req.params;
-            const agentId = req.user.agentId;
-            const projectId = req.projectId || req.user?.projectId;
-
-            const existing = await clientService.getFullClient(id, projectId);
-            if (!existing || (existing.agent_id && existing.agent_id != agentId)) {
-                return res.status(404).json({ error: 'Client not found or access denied' });
+            const clientId = Number(req.params.id);
+            if (!Number.isFinite(clientId) || clientId <= 0) {
+                return res.status(400).json({ error: 'Invalid client id' });
             }
 
-            await clientService.updateFullClient(id, req.body);
-            const updated = await clientService.getFullClient(id, projectId);
-            res.json(calculationService.simplify(updated));
+            const projectId = req.projectId || req.user?.projectId;
+            const existing = await clientService.getFullClient(clientId, projectId);
+            if (!existing) {
+                return res.status(404).json({ error: 'Client not found' });
+            }
+
+            await assertAgentCanMutateClient({ req, client: existing, projectId });
+
+            const validation = clientPatchRequestSchema.validate(req.body || {}, {
+                abortEarly: false,
+                stripUnknown: true,
+            });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map((d) => ({
+                        field: d.path.join('.'),
+                        message: d.message,
+                    })),
+                });
+            }
+
+            await clientService.patchFullClient(clientId, validation.value, {
+                existingClient: existing,
+                projectId,
+            });
+
+            const wantRecalculate =
+                req.query.recalculate === 'true' || req.query.recalculate === '1';
+            if (wantRecalculate) {
+                const calculationResponse = await this.runClientRecalculate(
+                    clientId,
+                    projectId,
+                    req,
+                    validation.value
+                );
+                return res.json(calculationService.simplify(calculationResponse));
+            }
+
+            const updated = await clientService.getFullClient(clientId, projectId);
+            return res.json(calculationService.simplify(updated));
         } catch (err) {
+            if (err.status) {
+                return res.status(err.status).json({ error: err.message });
+            }
             next(err);
         }
     }
 
-    async recalculate(req, res, next) {
-        try {
-            const { id } = req.params;
-            const agentId = req.user.agentId;
-            const projectId = req.projectId || req.user?.projectId;
+    async update(req, res, next) {
+        return this.updateAgentClient(req, res, next);
+    }
 
-            // 1. Fetch Existing Client Data
-            const existingClient = await clientService.getFullClient(id, projectId);
-            if (!existingClient) {
-                return res.status(404).json({ error: 'Client not found' });
-            }
-            if (existingClient.agent_id && existingClient.agent_id != agentId) {
-                return res.status(403).json({ error: 'Access denied' });
-            }
+    /**
+     * Пересчёт финплана клиента (ядро для POST …/recalculate и PUT …?recalculate=true).
+     * @returns {Promise<object>} calculationResponse
+     */
+    async runClientRecalculate(clientId, projectId, req, body = {}) {
+        const existingClient = await clientService.getFullClient(clientId, projectId);
+        if (!existingClient) {
+            const err = new Error('Client not found');
+            err.status = 404;
+            throw err;
+        }
+
+        await assertAgentCanMutateClient({ req, client: existingClient, projectId });
+
+        const reqBody = body && typeof body === 'object' ? body : {};
 
             // 2. Prepare goals map from DB
             const existingGoals = (existingClient.goals || []).map(g => {
@@ -588,14 +916,14 @@ class ClientController {
             let explicitManualRiskForTarget = false;
 
             // 3. Handle Updates (Bulk or Single)
-            if (!req.body.goals || req.body.goals.length === 0) {
+            if (!reqBody.goals || reqBody.goals.length === 0) {
                 // Check for single goal update format: { goal_id: "...", target_amount: 100, ... }
-                const singleGoalId = req.body.goal_id || req.body.id;
+                const singleGoalId = reqBody.goal_id || reqBody.id;
 
                 if (singleGoalId && goalsMap.has(String(singleGoalId))) {
                     console.log(`[ClientController] Using GoalRecalculator for single goal: ${singleGoalId}`);
                     const existing = goalsMap.get(String(singleGoalId));
-                    const preparedPatch = { ...req.body };
+                    const preparedPatch = { ...reqBody };
                     if (shouldForceReverseModeForPatch(existing, preparedPatch)) {
                         preparedPatch.monthly_replenishment = null;
                     }
@@ -611,7 +939,7 @@ class ClientController {
                 goalsToCalculate = Array.from(goalsMap.values());
             } else {
                 // Bulk updates in goals array
-                req.body.goals.forEach(patch => {
+                reqBody.goals.forEach(patch => {
                     const incomingId = patch.id || patch.goal_id;
                     let matchKey = incomingId ? String(incomingId) : null;
 
@@ -622,17 +950,17 @@ class ClientController {
                             preparedPatch.monthly_replenishment = null;
                         }
                         const updated = goalRecalculator.prepare(existing, preparedPatch);
-                        if (req.body.goals.length === 1) {
+                        if (reqBody.goals.length === 1) {
                             explicitManualRiskForTarget = patchHasExplicitManualGoalRisk(preparedPatch);
                         }
                         applyManualGoalRiskSanitize(updated, preparedPatch);
                         goalsMap.set(matchKey, updated);
-                        if (req.body.goals.length === 1) identifiedTargetId = matchKey;
+                        if (reqBody.goals.length === 1) identifiedTargetId = matchKey;
                     } else {
                         // For new goals in the array, use default preparation if possible
                         const key = matchKey || `temp_${Date.now()}_${Math.random()}`;
                         goalsMap.set(key, patch);
-                        if (req.body.goals.length === 1) identifiedTargetId = key;
+                        if (reqBody.goals.length === 1) identifiedTargetId = key;
                     }
                 });
                 goalsToCalculate = Array.from(goalsMap.values());
@@ -641,19 +969,21 @@ class ClientController {
             // 4. Merge Client Data
             const clientForCalc = {
                 ...existingClient,
-                ...req.body.client,
-                assets: req.body.client?.assets || existingClient.assets || [],
-                total_liquid_capital: req.body.client?.total_liquid_capital !== undefined
-                    ? req.body.client.total_liquid_capital
+                ...reqBody.client,
+                assets: reqBody.client?.assets || existingClient.assets || [],
+                total_liquid_capital: reqBody.client?.total_liquid_capital !== undefined
+                    ? reqBody.client.total_liquid_capital
                     : (existingClient.total_liquid_capital !== undefined ? Number(existingClient.total_liquid_capital) : (existingClient.assets_total || 0))
             };
 
             // 4.5 Inject Project ID (Strict enforcement)
             clientForCalc.project_id = projectId;
-            if (req.body.client) req.body.client.project_id = projectId;
+            if (reqBody.client) reqBody.client.project_id = projectId;
 
             if (!projectId) {
-                return res.status(400).json({ error: 'Project context missing during recalculation' });
+                const err = new Error('Project context missing during recalculation');
+                err.status = 400;
+                throw err;
             }
 
             // 5. Run Calculation
@@ -678,7 +1008,7 @@ class ClientController {
             );
 
             // 6. Persistence
-            const clientId = existingClient.id;
+            const numericClientId = Number(existingClient.id);
             const calculation = calculationResponse.calculation || calculationResponse;
 
             if (identifiedTargetId && !identifiedTargetId.startsWith('temp_')) {
@@ -705,31 +1035,47 @@ class ClientController {
                     }
                 }
 
-                await clientService.updateGoal(clientId, identifiedTargetId, updatedGoalData);
+                await clientService.updateGoal(numericClientId, identifiedTargetId, updatedGoalData);
                 console.log(`[ClientController] Persisted changes to goal ${identifiedTargetId}`);
-            } else if (!req.body.goals || req.body.goals.length > 0) {
+            } else if (!reqBody.goals || reqBody.goals.length > 0) {
                 // Bulk update / new goals
-                await clientService.updateFullClient(clientId, { client: clientForCalc, goals: goalsToCalculate });
+                await clientService.updateFullClient(numericClientId, { client: clientForCalc, goals: goalsToCalculate });
             }
 
             // 7. SYNC IDs (especially for new goals with temp IDs)
-            await syncCalculationGoalsWithDatabase(clientId, calculation);
+            await syncCalculationGoalsWithDatabase(numericClientId, calculation);
 
             // Save Snapshot
-            await clientService.persistGoalsSummary(clientId, calculationResponse, projectId);
+            await clientService.persistGoalsSummary(numericClientId, calculationResponse, projectId);
 
             // Recalculate changes goal numbers used by PDF pages.
             // Force background regeneration to avoid returning stale cached PDF URL/content.
             warmupClientPdfInBackground({
-                clientId,
+                clientId: numericClientId,
                 projectId,
                 agentId: req.user?.agentId || existingClient.agent_id || null,
                 forceRegenerate: true,
             });
 
-            res.json(calculationService.simplify(calculationResponse));
+            calculationResponse.client_id = numericClientId;
+            return calculationResponse;
+    }
 
+    async recalculate(req, res, next) {
+        try {
+            const clientId = Number(req.params.id);
+            const projectId = req.projectId || req.user?.projectId;
+            const calculationResponse = await this.runClientRecalculate(
+                clientId,
+                projectId,
+                req,
+                req.body || {}
+            );
+            res.json(calculationService.simplify(calculationResponse));
         } catch (err) {
+            if (err.status) {
+                return res.status(err.status).json({ error: err.message });
+            }
             next(err);
         }
     }
@@ -739,7 +1085,7 @@ class ClientController {
             const { id } = req.params;
             await clientService.addGoal(id, req.body);
             if (!req.body) req.body = {};
-            req.body.goals = null;
+            req.body.goals = [];
             return this.recalculate(req, res, next);
         } catch (err) {
             next(err);
@@ -749,9 +1095,15 @@ class ClientController {
     async deleteGoal(req, res, next) {
         try {
             const { id, goalId } = req.params;
+            const projectId = req.projectId != null ? req.projectId : req.user?.projectId;
+            const existingClient = await clientService.getFullClient(id, projectId);
+            if (!existingClient) {
+                return res.status(404).json({ error: 'Client not found' });
+            }
+            await assertAgentCanMutateClient({ req, client: existingClient, projectId });
             await clientService.deleteGoal(id, goalId);
             if (!req.body) req.body = {};
-            req.body.goals = null;
+            req.body.goals = [];
             return this.recalculate(req, res, next);
         } catch (err) {
             next(err);
@@ -763,6 +1115,7 @@ class ClientController {
      */
     async sendNdaStandalone(req, res, next) {
         try {
+            console.log('[clientController] POST /pfp/clients/nda/send');
             const validation = sendNdaSchema.validate(req.body || {}, { stripUnknown: true });
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
@@ -797,6 +1150,7 @@ class ClientController {
      */
     async sendNda(req, res, next) {
         try {
+            console.log(`[clientController] POST /pfp/clients/${req.params.id}/nda/send`);
             const validation = sendNdaSchema.validate(req.body || {}, { stripUnknown: true });
             if (validation.error) {
                 return res.status(400).json({ error: validation.error.details[0].message });
@@ -883,7 +1237,10 @@ class ClientController {
                 return res.status(404).json({ error: 'Agent not found' });
             }
 
-            const offerUrl = validation.value.offer_url || 'https://sberbank-insurance.ru/podushka-bezopasnosti';
+            const lifeOfferPayload = resolveLifeOfferEmailPayload(projectId, {
+                offerUrl: validation.value.offer_url,
+                shortDescription: validation.value.short_description,
+            });
             const emailResult = await emailService.sendSberLifeOfferEmail({
                 to: recipient,
                 clientFullName: String(client.fio || '').trim() || 'клиент',
@@ -892,15 +1249,15 @@ class ClientController {
                 agentEmail: (agent.email && String(agent.email).trim()) || '—',
                 agentPhone: (agent.phone && String(agent.phone).trim()) || '—',
                 reportAgent: { id: agent.id, email: agent.email, email_corp: agent.email_corp },
-                offerUrl,
-                shortDescription: validation.value.short_description,
+                offerUrl: lifeOfferPayload.offerUrl,
+                shortDescription: lifeOfferPayload.shortDescription,
             });
 
             return res.json({
                 ok: true,
                 message_id: emailResult?.id || null,
                 client_email: recipient,
-                offer_url: offerUrl,
+                offer_url: lifeOfferPayload.offerUrl,
             });
         } catch (err) {
             next(err);
