@@ -298,6 +298,28 @@ class AuthController {
         }
     }
 
+    async previewClientReferral(req, res, next) {
+        try {
+            const ref = req.query.ref;
+            const projectKey =
+                req.query.project_key ||
+                req.headers['x-project-key'] ||
+                req.body?.project_key;
+            if (!ref || String(ref).trim() === '') {
+                return res.status(400).json({ error: 'ref is required' });
+            }
+            const preview = await authService.previewClientReferral({
+                ref: String(ref).trim(),
+                project_key: projectKey != null && String(projectKey).trim() !== ''
+                    ? String(projectKey).trim()
+                    : null,
+            });
+            res.json(preview);
+        } catch (err) {
+            next(err);
+        }
+    }
+
     async activateAgentInvite(req, res, next) {
         try {
             const validation = activateAgentInviteSchema.validate(req.body);
