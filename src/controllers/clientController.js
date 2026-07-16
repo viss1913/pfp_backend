@@ -224,12 +224,7 @@ const guestRiskEvaluateSchema = Joi.object({
 const guestPlanSaveSchema = calculationRequestSchema;
 
 function normalizeGuestCalculationPayload(body) {
-    if (!body.client) body.client = {};
-    const rootAssets = Array.isArray(body.assets) ? body.assets : [];
-    const clientAssets = Array.isArray(body.client.assets) ? body.client.assets : [];
-    if (rootAssets.length > 0 && clientAssets.length === 0) {
-        body.client.assets = rootAssets;
-    }
+    normalizeCalculationRequestBody(body);
 }
 
 /**
@@ -326,6 +321,7 @@ const agentNetworkService = require('../services/agentNetworkService');
 const db = require('../config/database');
 const clientRepository = require('../repositories/clientRepository');
 const { normalizeRegistrationEmail } = require('../utils/userEmailRegistration');
+const { normalizeCalculationRequestBody } = require('../utils/normalizeCalculationPayload');
 
 function attachCrmClientDates(clientRow) {
     const createdAt = clientRow.created_at;
@@ -413,6 +409,7 @@ class ClientController {
     // --- Existing Calculator ---
     async calculateFirstRun(req, res, next) {
         try {
+            normalizeCalculationRequestBody(req.body);
             const validation = calculationRequestSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
             if (validation.error) {
                 return res.status(400).json({
@@ -620,6 +617,7 @@ class ClientController {
      */
     async saveGuestPlan(req, res, next) {
         try {
+            normalizeCalculationRequestBody(req.body);
             const validation = guestPlanSaveSchema.validate(req.body, { abortEarly: false, allowUnknown: true });
             if (validation.error) {
                 return res.status(400).json({
