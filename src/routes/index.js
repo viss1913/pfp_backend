@@ -100,6 +100,12 @@ router.use('/admin/users', pfpMiddleware, adminUserRoutes);
 const adminCommissionRoutes = require('./adminCommissionRoutes');
 router.use('/admin/commission', pfpMiddleware, adminCommissionRoutes);
 
+const adminContentFactoryRoutes = require('./adminContentFactoryRoutes');
+router.use('/admin/content-factory', pfpMiddleware, adminContentFactoryRoutes);
+
+const agentContentFactoryRoutes = require('./agentContentFactoryRoutes');
+router.use('/pfp/content-factory', pfpMiddleware, agentContentFactoryRoutes);
+
 // Alias for potentially mismatched frontend path:
 router.use('/ai', pfpMiddleware, aiRoutes);
 // Alias for direct /chat/stream path (mapping /api/chat/stream):

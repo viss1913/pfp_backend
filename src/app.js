@@ -61,7 +61,10 @@ app.use(helmet({
     }
 }));
 
-app.use(express.json());
+// Content Factory media (base64) + IDE proxy: до 32 MB как у ide-api; дефолт Express 100kb ломает загрузку логотипов.
+const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || '32mb';
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
 
 // Static files (uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "brand": "finam",
+  "templates": [
+    {
+      "id": "finam-a4-portrait-light",
+      "file": "finam-a4-portrait-light.html",
+      "orientation": "portrait",
+      "theme": "light",
+      "format": "a4",
+      "page_size": "210x297mm"
+    },
+    {
+      "id": "finam-a4-portrait-dark",
+      "file": "finam-a4-portrait-dark.html",
+      "orientation": "portrait",
+      "theme": "dark",
+      "format": "a4",
+      "page_size": "210x297mm"
+    },
+    {
+      "id": "finam-a4-landscape-light",
+      "file": "finam-a4-landscape-light.html",
+      "orientation": "landscape",
+      "theme": "light",
+      "format": "a4",
+      "page_size": "297x210mm"
+    },
+    {
+      "id": "finam-a4-landscape-dark",
+      "file": "finam-a4-landscape-dark.html",
+      "orientation": "landscape",
+      "theme": "dark",
+      "format": "a4",
+      "page_size": "297x210mm"
+    }
+  ]
+}

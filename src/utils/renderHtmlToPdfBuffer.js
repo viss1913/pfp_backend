@@ -157,13 +157,14 @@ async function renderHtmlToPdfBuffer(html, options = {}) {
         if (postLoadDelayMs > 0) {
             await new Promise((resolve) => setTimeout(resolve, postLoadDelayMs));
         }
-        return await page.pdf({
+        const pdfBytes = await page.pdf({
             printBackground: true,
             format: 'A4',
             margin: { top: '0', right: '0', bottom: '0', left: '0' },
             preferCSSPageSize: preferCssPageSize,
             scale: pdfScale,
         });
+        return Buffer.from(pdfBytes);
     } finally {
         await page.close().catch(() => {});
     }
