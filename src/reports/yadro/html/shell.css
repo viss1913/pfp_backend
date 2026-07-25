@@ -1,0 +1,282 @@
+/* ==========================================================================
+   Общий каркас страниц PDF-отчёта YADRO ПДС / Ренессанс Накопления
+   Холст: 595x842px (как в Figma), печать A4 через scale(4/3)
+   ========================================================================== */
+
+@page { size: A4; margin: 0; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 210mm;
+  height: 297mm;
+  overflow: hidden;
+  background: #fff;
+}
+
+body {
+  font-family: 'Open Sans', sans-serif;
+  color: #212121;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page {
+  position: relative;
+  width: 595px;
+  height: 842px;
+  overflow: hidden;
+  background: #fff;
+  transform: scale(1.3333333333);
+  transform-origin: top left;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---------- Цвета бренда ---------- */
+:root {
+  --brand-blue: #1E22AA;
+  --brand-violet: #AE2ADE;
+  --brand-light-blue: #1AB2FB;
+  --text-main: #212121;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --bg-soft: #F2F6FA;
+  --border-soft: #E4E9F2;
+}
+
+/* ---------- Оболочка контента (paddings) ---------- */
+.content {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  right: 30px;
+  bottom: 30px;
+}
+
+.content--tight {
+  top: 14px;
+}
+
+/* ---------- Верхний хедер (title [+ subtitle] + лого) ---------- */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.page-header .subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.page-header .logo {
+  height: 28px;
+  flex-shrink: 0;
+}
+
+/* ---------- Футер ---------- */
+.page-footer {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  bottom: 14px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.page-footer .disclaimer {
+  max-width: 480px;
+}
+
+.page-footer .page-num {
+  white-space: nowrap;
+  padding-left: 12px;
+}
+
+/* ---------- Типографика общего назначения ---------- */
+.text-sm { font-size: 12px; }
+.text-base { font-size: 13px; }
+.text-secondary { color: var(--text-secondary); }
+.bold { font-weight: 700; }
+.semibold { font-weight: 600; }
+
+/* ---------- Аватар-интро блок ---------- */
+.avatar-intro {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.avatar-intro img.avatar {
+  width: 60px;
+  height: 67px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatar-intro .avatar-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+/* ---------- Карточка цели (иконка + текст) ---------- */
+.goal-card {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.goal-card img.goal-photo {
+  width: 120px;
+  height: 70px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.goal-card .goal-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.goal-card .goal-details {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-main);
+}
+
+/* ---------- Параметры плана ---------- */
+.plan-params-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.plan-params {
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+/* ---------- Заголовок графика ---------- */
+.chart-title {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  margin: 12px 0 8px;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.chart-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-legend .legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.chart-legend .legend-value {
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+/* ---------- Risk-badge (декларация о рисках) ---------- */
+.risk-badge {
+  background: var(--brand-blue);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.risk-box {
+  border: 1px solid var(--brand-blue);
+  border-radius: 8px;
+  padding: 16px 18px;
+  margin-top: 14px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.risk-box h3 {
+  font-size: 13px;
+  margin: 12px 0 6px;
+}
+
+.risk-box h3:first-child { margin-top: 0; }
+
+.risk-box ul {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+}
+
+/* ---------- Таблицы ---------- */
+table.info-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+table.info-table th,
+table.info-table td {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+table.info-table thead th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-main);
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-soft);
+}
+
+table.info-table tbody td {
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+/* ---------- Кнопки / CTA ---------- */
+.btn-primary {
+  display: block;
+  text-align: center;
+  background: var(--brand-blue);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px;
+  border-radius: 24px;
+}

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<!--
+  Файл: capital-01-intro.html
+  Отчёт: Capital accumulation («Накопление капитала»)
+  Figma node-id: 55:122 (фрейм "Capital accumulation_1")
+  Верхний хедер: да ("Ваш финансовый план")
+  Индивидуальная страница 1 (аналог pension-01-intro.html, но с одной целью вместо двух).
+  Плейсхолдеры:
+    {{client_income_monthly}} -> 123 400 ₽ по НДФЛ
+    {{inflation_rate}}        -> 5% в год (оптимистичный прогноз)
+    {{goal_title}}            -> 1. Накопление капитала
+    {{goal_target_year}}      -> 2045 г.
+    {{goal_forecast}}         -> 123 345 ₽
+    {{plan_initial_contribution}} -> 50 000 ₽
+    {{plan_monthly_contribution}} -> 11 324 ₽/мес.
+    {{plan_cofinancing_year}}     -> 36 тыс. ₽
+    {{plan_tax_deduction_year}}   -> 24 165 ₽
+    {{chart_own_funds}}       -> 5 453 324 ₽
+    {{chart_projected_income}}-> 4 095 659 ₽
+  Ассеты: assets/Avatar.png, assets/goal-capital-accumulation.png
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Ваш финансовый план — Накопление капитала</title>
+<link rel="stylesheet" href="shell.css">
+</head>
+<body>
+<div class="page">
+  <div class="content">
+    <div class="page-header">
+      <h1>Ваш финансовый план</h1>
+    </div>
+
+    <div class="avatar-intro">
+      <img class="avatar" src="assets/Avatar.png" alt="">
+      <div class="avatar-text">
+        Я подготовила детальный план для достижения вашей финансовой цели.<br><br>
+        Ваш доход - {{client_income_monthly}}<br>
+        Инфляция - {{inflation_rate}}
+      </div>
+    </div>
+
+    <div class="bold text-base" style="margin-top:14px;">Ваши финансовые цели:</div>
+
+    <div class="goal-card">
+      <img class="goal-photo" src="assets/goal-capital-accumulation.png" alt="">
+      <div>
+        <div class="goal-title">{{goal_title}}</div>
+        <div class="goal-details">
+          Срок достижения - {{goal_target_year}}<br>
+          Прогноз капитала - {{goal_forecast}}
+        </div>
+      </div>
+    </div>
+
+    <div class="plan-params-title">Параметры вашего финансового плана:</div>
+    <div class="plan-params">
+      Первоначальный взнос - {{plan_initial_contribution}}<br>
+      Последующие взносы - {{plan_monthly_contribution}}<br>
+      Софинансирование от государства за 2025 г. - {{plan_cofinancing_year}}<br>
+      Налоговые вычеты за 2025 г. - {{plan_tax_deduction_year}}
+    </div>
+
+    <div class="chart-title">График роста капитала<br>в финансовом плане на все цели</div>
+
+    <svg viewBox="0 0 535 210" width="535" height="210">
+      <defs>
+        <linearGradient id="areaBlue1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1AB2FB" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#1AB2FB" stop-opacity="0.5"/>
+        </linearGradient>
+      </defs>
+      <line x1="40" y1="10" x2="40" y2="170" stroke="#E4E9F2" stroke-width="1"/>
+      <line x1="40" y1="170" x2="525" y2="170" stroke="#E4E9F2" stroke-width="1"/>
+      <line x1="40" y1="10" x2="525" y2="10" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <line x1="40" y1="105" x2="525" y2="105" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <line x1="40" y1="138" x2="525" y2="138" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <path d="M40,150 C150,140 300,90 525,20 L525,170 L40,170 Z" fill="#AE2ADE" fill-opacity="0.85"/>
+      <path d="M40,150 C150,148 300,120 525,60 L525,170 L40,170 Z" fill="url(#areaBlue1)"/>
+      <text x="8" y="14" font-size="9" fill="#6b7280">9 323 476 ₽</text>
+      <text x="8" y="109" font-size="9" fill="#6b7280">2 000 000 ₽</text>
+      <text x="8" y="142" font-size="9" fill="#6b7280">1 000 000 ₽</text>
+      <text x="40" y="184" font-size="9" fill="#6b7280">18.02.2025</text>
+      <text x="480" y="184" font-size="9" fill="#6b7280">18.02.2025</text>
+    </svg>
+
+    <div class="chart-legend">
+      <div>
+        <div class="legend-item"><span class="legend-dot" style="background:#1AB2FB;"></span>Собственные средства</div>
+        <div class="legend-value">{{chart_own_funds}}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="legend-item"><span class="legend-dot" style="background:#AE2ADE;"></span>Прогнозируемый % доход</div>
+        <div class="legend-value">{{chart_projected_income}}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="disclaimer">Финансовый план не является коммерческим предложением или договором, носит исключительно информационный характер.</div>
+  </div>
+</div>
+</body>
+</html>

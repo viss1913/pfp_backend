@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<!--
+  Файл: moon-02-achieve.html
+  Отчёт: Miscellaneous – Flight to the Moon («Разное - Полет на луну»)
+  Figma node-id: "Miscellaneous – Flight to the Moon_2"
+  Верхний хедер: нет
+  Плейсхолдеры:
+    {{goal_title_full}}       -> Цель 5. Разное - Полет на луну
+    {{goal_target_date}}      -> 19 октября 2032г.
+    {{step1}}                 -> Открыть портфель на сумму 800 000₽, представленный ниже.
+    {{step2}}                 -> Пополнять на 123 672₽ ежемесячно
+    {{step3}}                 -> Раз в полгода актуализировать финансовый план
+    {{result_year}}           -> 2045
+    {{result_total}}          -> 37 123 564₽
+    {{own_savings}}           -> 1200000 ₽
+    {{gov_cofinancing}}       -> 360 000 ₽
+    {{extra_income}}          -> 300000 ₽
+    {{tax_deduction}}         -> 50000 ₽
+    {{pds_yield_rate}}        -> 8,3% годовых
+    {{chart_own_funds}}       -> 5 453 324 ₽
+    {{chart_projected_income}}-> 4 095 659 ₽
+  Ассеты: assets/Avatar.png, assets/goal-miscellaneous-moon.png
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Цель 5. Разное - Полет на луну</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .body-text { font-size: 12.5px; line-height: 1.6; }
+  .steps { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; line-height: 1.6; }
+  .result-box { border: 1px solid var(--brand-blue); border-radius: 8px; padding: 14px 18px; margin-top: 18px; }
+  .result-box .headline { font-size: 15px; font-weight: 700; }
+  .result-box .breakdown { margin-top: 10px; font-size: 12.5px; line-height: 1.8; display: flex; justify-content: space-between; }
+  .yield-note { font-size: 11.5px; color: var(--text-secondary); margin-top: 10px; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+
+    <div class="avatar-intro">
+      <img class="avatar" src="assets/Avatar.png" alt="">
+      <div>
+        <div class="bold text-base">{{goal_title_full}}</div>
+        <div class="text-secondary" style="font-size:12px; margin-top:4px;">Дата достижения — {{goal_target_date}}</div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:16px; margin-top:16px; align-items:flex-start;">
+      <div style="flex:1;">
+        <div class="bold text-base">Для достижения цели необходимо:</div>
+        <ol class="steps">
+          <li>{{step1}}</li>
+          <li>{{step2}}</li>
+          <li>{{step3}}</li>
+        </ol>
+      </div>
+      <img src="assets/goal-miscellaneous-moon.png" alt="" style="width:200px; height:130px; object-fit:cover; border-radius:8px; flex-shrink:0;">
+    </div>
+
+    <div class="result-box">
+      <div class="headline">В {{result_year}} году ты получишь — {{result_total}}</div>
+      <div class="text-secondary" style="font-size:12px; margin-top:8px;">Из них:</div>
+      <div class="breakdown">
+        <div>
+          Собственные накопления —<br>
+          Софинансирование от государства —<br>
+          Дополнительный доход* —<br>
+          Налоговый вычет —
+        </div>
+        <div style="text-align:right;">
+          {{own_savings}}<br>
+          {{gov_cofinancing}}<br>
+          {{extra_income}}<br>
+          {{tax_deduction}}
+        </div>
+      </div>
+    </div>
+
+    <div class="yield-note">
+      <div>Прогнозное значение доходности<br>Программы долгосрочных сбережений</div>
+      <div>{{pds_yield_rate}}</div>
+    </div>
+
+    <div class="chart-title">График достижения цели с учетом пополнения</div>
+
+    <svg viewBox="0 0 535 190" width="535" height="190">
+      <defs>
+        <linearGradient id="areaBlueM2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1AB2FB" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#1AB2FB" stop-opacity="0.5"/>
+        </linearGradient>
+      </defs>
+      <line x1="40" y1="10" x2="40" y2="150" stroke="#E4E9F2" stroke-width="1"/>
+      <line x1="40" y1="150" x2="525" y2="150" stroke="#E4E9F2" stroke-width="1"/>
+      <line x1="40" y1="10" x2="525" y2="10" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <line x1="40" y1="90" x2="525" y2="90" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <line x1="40" y1="118" x2="525" y2="118" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <path d="M40,130 C150,122 300,80 525,15 L525,150 L40,150 Z" fill="#AE2ADE" fill-opacity="0.85"/>
+      <path d="M40,130 C150,128 300,105 525,55 L525,150 L40,150 Z" fill="url(#areaBlueM2)"/>
+      <text x="8" y="14" font-size="9" fill="#6b7280">9 323 476 ₽</text>
+      <text x="8" y="94" font-size="9" fill="#6b7280">2 000 000 ₽</text>
+      <text x="8" y="122" font-size="9" fill="#6b7280">1 000 000 ₽</text>
+      <text x="40" y="164" font-size="9" fill="#6b7280">18.02.2025</text>
+      <text x="480" y="164" font-size="9" fill="#6b7280">18.02.2025</text>
+    </svg>
+
+    <div class="chart-legend">
+      <div>
+        <div class="legend-item"><span class="legend-dot" style="background:#1AB2FB;"></span>Собственные средства</div>
+        <div class="legend-value">{{chart_own_funds}}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="legend-item"><span class="legend-dot" style="background:#AE2ADE;"></span>Прогнозируемый % доход</div>
+        <div class="legend-value">{{chart_projected_income}}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="disclaimer">*- Дисклеймер</div>
+  </div>
+</div>
+</body>
+</html>

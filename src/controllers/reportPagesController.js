@@ -9,7 +9,7 @@ const macroService = require('../services/macroService');
 
 const { buildReportSummaryOverviewHtml } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildGoalPageHtmlByTheme } = require('../reports/themes/reportRenderers');
-const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
+const { resolveReportThemeKeyAsync } = require('../reports/themes/themeResolver');
 const { resolveReportRasterRef } = require('../utils/reportRasterSrc');
 const {
     FINAM_REPO_ROOT,
@@ -211,9 +211,53 @@ class ReportPagesController {
             await ensureClientReportAccess({ user: req.user, clientId, projectId });
             const report = await reportService.getClientReportData(clientId, projectId);
             const clientName = report?.client_info?.first_name || report?.client_info?.full_name || '—';
-            const themeKey = resolveReportThemeKey(projectId);
-            const isFinamProject = themeKey !== 'rostech' && isFinamTemplateProject(projectId);
+            const themeKey = await resolveReportThemeKeyAsync(projectId);
+            const isYadroProject = themeKey === 'yadro';
+            const isFinamProject =
+                themeKey !== 'rostech' && themeKey !== 'yadro' && isFinamTemplateProject(projectId);
             const finamReportVersion = await resolveFinamReportVersion({ projectId, themeKey });
+
+            if (isYadroProject) {
+                const { buildYadroReportHtmlPackage } = require('../reports/yadro/buildYadroReportHtml');
+                const { injectYadroReportFonts } = require('../utils/yadroReportFonts');
+                const yadroPkg = await buildYadroReportHtmlPackage({
+                    report,
+                    includeCover: true,
+                    includeSummary: true,
+                    goalTypes: req.query.goalTypes || null,
+                    clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
+                });
+                const pages = yadroPkg.pageHtmlList || [];
+                let html = null;
+                const pt = String(pageType || '').toUpperCase();
+                if (pt === 'COVER' || pt === 'SUMMARY') {
+                    html = pages[0] || null;
+                } else {
+                    const goal = (report.goals_detailed || []).find(
+                        (g) => String(g?.goal_type || '').toUpperCase() === pt
+                    );
+                    if (goal) {
+                        const { buildYadroGoalPageHtmlList } = require('../reports/yadro/buildYadroReportHtml');
+                        const { commonContextFromReport } = require('../reports/yadro/yadroDataMapper');
+                        const common = commonContextFromReport(report, {
+                            clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
+                        });
+                        const goalPages = buildYadroGoalPageHtmlList({ goal, goalIndex: 1, common });
+                        html = goalPages[0] || null;
+                    } else {
+                        html = pages[0] || null;
+                    }
+                }
+                if (!html) {
+                    res.status(404).json({ error: `No Yadro page for pageType ${pageType}` });
+                    return;
+                }
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.setHeader('Cache-Control', 'private, no-store');
+                res.setHeader('X-PFP-Report-Theme', 'yadro');
+                res.send(injectYadroReportFonts(html));
+                return;
+            }
 
             if (isFinamProject && finamReportVersion === FINAM_REPORT_VERSION_V2) {
                 const macroData = pageType === 'inflation' ? await loadFinamInflationMacroData() : null;

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!--
+  Файл: pension-09-inflation.html
+  Figma node-id: 55:674 (фрейм "Pension_9")
+  Верхний хедер: нет
+  Универсальная страница (общая для всех 6 отчётов).
+  Плейсхолдеры:
+    {{inflation_intro_text}} -> Как можете видеть на графике ниже, ставка по депозитам коррелирует с наблюдаемой инфляцией Росстата. Мы считаем, что в ближайшем будущем тренд сменится на снижение инфляции, а значит и начнут снижаться ставки по депозитам. Поэтому в расчетах мы учитываем разную инфляцию (в зависимости от срока цели), так и разную доходность в зависимости от срока достижения цели
+    {{infl_row1_period}} -> До 1 года            {{infl_row1_inflation}} -> 10%     {{infl_row1_yield}} -> 16%
+    {{infl_row2_period}} -> От 1 года до 2 лет   {{infl_row2_inflation}} -> 9,5%    {{infl_row2_yield}} -> 14%
+    {{infl_row3_period}} -> От 2 лет до 3 лет    {{infl_row3_inflation}} -> 8,5%    {{infl_row3_yield}} -> 14%
+    {{infl_row4_period}} -> От 3 лет до 5 лет    {{infl_row4_inflation}} -> 7,4%    {{infl_row4_yield}} -> 12%
+    {{infl_row5_period}} -> От 5 лет до 10 лет   {{infl_row5_inflation}} -> 5,7%    {{infl_row5_yield}} -> 10%
+    {{infl_row6_period}} -> От 10 лет            {{infl_row6_inflation}} -> 5,7%    {{infl_row6_yield}} -> 10%
+  Ассеты: assets/Avatar.png
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Важная информация. Инфляция</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .body-text { font-size: 12px; line-height: 1.55; }
+  .chart-legend-line { display:flex; gap:24px; font-size:9.5px; color:var(--text-secondary); margin-top:6px; }
+  .chart-legend-line .li { display:flex; align-items:center; gap:5px; }
+  .reco-text { font-size: 12.5px; font-weight: 700; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+    <h1 style="font-size:18px; font-weight:700; margin:0 0 10px;">Важная Информация. Инфляция</h1>
+
+    <div class="avatar-intro">
+      <img class="avatar" src="assets/Avatar.png" alt="">
+      <div class="avatar-text body-text">{{inflation_intro_text}}</div>
+    </div>
+
+    <div class="chart-title" style="margin-top:16px;">Годовая инфляция</div>
+    <svg viewBox="0 0 505 150" width="505" height="150">
+      <line x1="30" y1="5" x2="30" y2="130" stroke="#E4E9F2" stroke-width="1"/>
+      <line x1="30" y1="130" x2="500" y2="130" stroke="#E4E9F2" stroke-width="1"/>
+      <path d="M30,95 L60,90 L90,80 L120,60 L150,25 L180,35 L210,55 L240,60 L270,105 L300,115 L330,90 L360,75 L390,65 L420,80 L450,95 L480,100 L500,105"
+            fill="none" stroke="#5B5FE0" stroke-width="1.6"/>
+      <path d="M300,115 L330,100 L360,90 L390,85 L420,95 L450,100 L480,102 L500,104"
+            fill="none" stroke="#5B5FE0" stroke-width="1.2" stroke-dasharray="3 3"/>
+      <text x="4" y="10" font-size="8" fill="#6b7280">18,00</text>
+      <text x="4" y="132" font-size="8" fill="#6b7280">0,00</text>
+    </svg>
+    <div class="chart-legend-line">
+      <div class="li"><span style="width:12px; height:1.5px; background:#5B5FE0; display:inline-block;"></span>Годовая инфляция в зависимости от времени</div>
+      <div class="li"><span style="width:12px; height:1.5px; background:#5B5FE0; display:inline-block; border-top:1.5px dashed #5B5FE0;"></span>Прогноз годовой инфляции</div>
+    </div>
+    <div class="chart-legend-line">
+      <div class="li">Средняя максимальная ставка по вкладам</div>
+      <div class="li">Прогноз доходности депозитов</div>
+    </div>
+
+    <div class="reco-text">Поэтому мы рекомендуем использовать следующие значения инфляции:</div>
+
+    <table class="info-table" style="margin-top:8px;">
+      <thead>
+        <tr><th>Срок цели</th><th>Прогнозное значение инфляции</th><th>Доходность капитала</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>{{infl_row1_period}}</td><td>{{infl_row1_inflation}}</td><td>{{infl_row1_yield}}</td></tr>
+        <tr><td>{{infl_row2_period}}</td><td>{{infl_row2_inflation}}</td><td>{{infl_row2_yield}}</td></tr>
+        <tr><td>{{infl_row3_period}}</td><td>{{infl_row3_inflation}}</td><td>{{infl_row3_yield}}</td></tr>
+        <tr><td>{{infl_row4_period}}</td><td>{{infl_row4_inflation}}</td><td>{{infl_row4_yield}}</td></tr>
+        <tr><td>{{infl_row5_period}}</td><td>{{infl_row5_inflation}}</td><td>{{infl_row5_yield}}</td></tr>
+        <tr><td>{{infl_row6_period}}</td><td>{{infl_row6_inflation}}</td><td>{{infl_row6_yield}}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

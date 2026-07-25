@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<!--
+  Файл: cover.html
+  Figma node-id: 55:1492 (фрейм "Cover")
+  Верхний хедер: нет (обложка)
+  Плейсхолдеры:
+    {{cover_title}}   -> ПЕРСОНАЛЬНОЕ ФИНАНСОВОЕ РЕШЕНИЕ   (заголовок плашки; в Figma текст фиксированный, но вынесен как плейсхолдер на случай другой формулировки)
+    {{report_date}}   -> 15 мая 2025г.                     (дата формирования отчёта)
+  Ассеты: assets/Cover_sea.png (фоновая фотография), assets/yadro_logo_blue_rgb 1.svg (лого YADRO)
+  Общая для всех 6 отчётов (Pension/Capital accumulation/Flat/Passive income/Child capital/Miscellaneous), без привязки к цели.
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Обложка отчёта</title>
+<style>
+  @page { size: A4; margin: 0; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 210mm; height: 297mm;
+    overflow: hidden;
+    background: #fff;
+  }
+  body { font-family: 'Open Sans', sans-serif; color: #212121; }
+  .page {
+    position: relative;
+    width: 595px;
+    height: 842px;
+    overflow: hidden;
+    background: #fff;
+    transform: scale(1.3333333333);
+    transform-origin: top left;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .cover-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .cover-bg-tint {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0) 40%);
+  }
+  .cover-logo {
+    position: absolute;
+    top: 40px;
+    left: 30px;
+    height: 63px;
+  }
+  .cover-banner {
+    position: absolute;
+    left: 0;
+    top: 464px;
+    width: 427px;
+    height: 135px;
+    background: #1E22AA;
+    clip-path: polygon(0 0, 100% 0, 88% 100%, 0% 100%);
+    display: flex;
+    align-items: center;
+  }
+  .cover-banner span {
+    color: #fff;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0 40px;
+  }
+  .cover-date {
+    position: absolute;
+    left: 30px;
+    top: 620px;
+    font-size: 16px;
+    color: #212121;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <img class="cover-bg" src="assets/Cover_sea.png" alt="">
+  <div class="cover-bg-tint"></div>
+  <img class="cover-logo" src="assets/yadro_logo_blue_rgb 1.svg" alt="YADRO">
+  <div class="cover-banner"><span>{{cover_title}}</span></div>
+  <div class="cover-date">{{report_date}}</div>
+</div>
+</body>
+</html>

@@ -15,7 +15,7 @@ const {
     sanitizeSummaryChartColor,
 } = require('../reports/summary/buildSummaryOverviewHtml');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPageHtmlByTheme } = require('../reports/themes/reportRenderers');
-const { resolveReportThemeKey, isRostechReportV2Project } = require('../reports/themes/themeResolver');
+const { resolveReportThemeKeyAsync, isRostechReportV2Project } = require('../reports/themes/themeResolver');
 const reportService = require('./reportService');
 const previewMockPayload = require('../reports/summary/previewMockPayload.json');
 const {
@@ -489,7 +489,7 @@ class PdfSettingsService {
      */
     async buildSummaryPreviewHtml(agentId, projectId) {
         await this.assertAgentInProject(agentId, projectId);
-        const themeKey = resolveReportThemeKey(projectId);
+        const themeKey = await resolveReportThemeKeyAsync(projectId);
         const s = await this.getByAgentId(agentId, projectId);
         return await buildSummaryOverviewHtmlByTheme({
             themeKey,
@@ -518,7 +518,7 @@ class PdfSettingsService {
      */
     async buildPagePreviewHtml(agentId, projectId, pageTypeRaw) {
         await this.assertAgentInProject(agentId, projectId);
-        const themeKey = resolveReportThemeKey(projectId);
+        const themeKey = await resolveReportThemeKeyAsync(projectId);
         const pageType = normalizePreviewPageType(pageTypeRaw);
         if (!pageType) {
             const err = new Error('Unknown pageType');
@@ -569,7 +569,7 @@ class PdfSettingsService {
     }
 
     async buildSummaryOverviewHtmlForClient(agentId, projectId, clientId, extra = {}) {
-        const themeKey = resolveReportThemeKey(projectId);
+        const themeKey = await resolveReportThemeKeyAsync(projectId);
         const report = await reportService.getClientReportData(clientId, projectId);
         const s = await this.getByAgentId(agentId, projectId);
         const net = report.current_situation?.net_worth;

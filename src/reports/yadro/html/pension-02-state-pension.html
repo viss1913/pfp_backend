@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<!--
+  Файл: pension-02-state-pension.html
+  Figma node-id: 55:379 (фрейм "Pension_2")
+  Верхний хедер: нет (страница начинается сразу с блока цели, без общего H1)
+  Плейсхолдеры:
+    {{goal1_title_full}}        -> Цель 1. Государственная пенсия
+    {{goal1_start_year}}        -> 2045г.
+    {{goal1_forecast_inflation}}-> 63 098 ₽/мес.
+    {{goal1_forecast_today}}    -> 23 810 ₽/мес.
+    {{base_part_today}}         -> 8 907 ₽
+    {{base_part_future}}        -> 23 632 ₽/мес.
+    {{salary_monthly}}          -> 123 400 ₽/мес.
+    {{points_per_year}}         -> 4,2 балла
+    {{points_total}}            -> 102,1 балла
+    {{point_cost_today}}        -> 145 ₽
+    {{point_cost_future}}       -> 387 ₽
+    {{final_pension_future}}    -> 63 098 ₽/мес.
+    {{final_pension_today}}     -> 23 810 ₽ сегодня
+    {{replacement_rate}}        -> 24%
+    {{chart_salary}}            -> 123 400 ₽/мес.
+    {{chart_pension}}           -> 23 810 ₽/мес.
+  Ассеты: assets/Avatar.png, assets/Rectangle 582.png
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Цель 1. Государственная пенсия</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .formula-banner {
+    background: var(--brand-blue);
+    color: #fff;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 16px 0;
+  }
+  .section-title { font-size: 13.5px; font-weight: 700; margin-top: 14px; }
+  .body-text { font-size: 12.5px; line-height: 1.6; margin-top: 6px; }
+  .bar-chart-box {
+    border: 1px solid var(--brand-blue);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+
+    <div class="avatar-intro">
+      <img class="avatar" src="assets/Avatar.png" alt="">
+      <div>
+        <div class="bold text-base">{{goal1_title_full}}</div>
+      </div>
+    </div>
+
+    <div class="goal-card" style="margin-top:8px;">
+      <img class="goal-photo" src="assets/Rectangle 582.png" alt="">
+      <div class="goal-details">
+        Дата выхода — {{goal1_start_year}}<br><br>
+        Прогноз с учетом инфляции - {{goal1_forecast_inflation}}<br>
+        Пенсия в сегодняшних рублях - {{goal1_forecast_today}}
+      </div>
+    </div>
+
+    <div class="formula-banner">Формула пенсии = фикс. выплата + (ИПК × стоимость балла)</div>
+
+    <div class="bold text-base">Как рассчитывается ваша будущая пенсия?</div>
+
+    <div class="section-title">1. Фиксированная часть (база)</div>
+    <div class="body-text">
+      Сейчас это {{base_part_today}} в месяц. Её каждый год увеличивают на уровень инфляции.
+      Если инфляция будет в среднем 5% в год, то через 20 лет эта часть вырастет до {{base_part_future}}.
+    </div>
+
+    <div class="section-title">2. Пенсионные баллы (ИПК)</div>
+    <div class="body-text">
+      Чем больше стаж и зарплата — тем больше баллов.
+      <ul style="margin:4px 0 0; padding-left:18px;">
+        <li>При зарплате {{salary_monthly}} за год начисляется ~{{points_per_year}}.</li>
+        <li>К пенсии у вас может накопиться {{points_total}}.</li>
+      </ul>
+      (методика расчета во вложении)<br>
+      Сколько стоит балл?<br>
+      Сейчас 1 балл = {{point_cost_today}}, но каждый год его тоже индексируют.
+      Если инфляция 5% в год, то через 20 лет 1 балл = {{point_cost_future}}.
+    </div>
+
+    <div class="section-title">Итоговая пенсия:</div>
+    <div class="body-text">
+      (102,1 балла × 387 ₽) + 23 632 ₽ = {{final_pension_future}}<br>
+      Но! Из-за инфляции 63 098 ₽ через 20 лет — это как ~{{final_pension_today}}.
+    </div>
+
+    <div class="bar-chart-box">
+      <div class="chart-title" style="margin:0 0 12px;">Коэффициент замещения пенсии - {{replacement_rate}}</div>
+      <svg viewBox="0 0 500 150" width="500" height="150">
+        <text x="120" y="14" font-size="11" fill="#212121" text-anchor="middle">{{chart_salary}}</text>
+        <rect x="90" y="20" width="60" height="100" fill="#AE2ADE"/>
+        <text x="120" y="136" font-size="10.5" fill="#212121" text-anchor="middle">Ваша ЗП</text>
+
+        <text x="360" y="90" font-size="11" fill="#212121" text-anchor="middle">{{chart_pension}}</text>
+        <rect x="330" y="96" width="60" height="24" fill="#1E22AA"/>
+        <text x="360" y="136" font-size="10.5" fill="#212121" text-anchor="middle">Ваша пенсия</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="disclaimer">Финансовый план не является коммерческим предложением или договором, носит исключительно информационный характер.</div>
+  </div>
+</div>
+</body>
+</html>
