@@ -46,7 +46,7 @@ function resolveFinamReportVersionFromEnv(projectId) {
 }
 
 async function resolveFinamReportVersion({ projectId, themeKey } = {}) {
-    if (themeKey === 'rostech' || !isFinamTemplateProject(projectId)) {
+    if (themeKey === 'rostech' || themeKey === 'yadro' || !isFinamTemplateProject(projectId)) {
         return FINAM_REPORT_VERSION_V1;
     }
 

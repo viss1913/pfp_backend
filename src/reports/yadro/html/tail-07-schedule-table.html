@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--
+  Файл: pension-10-schedule-table.html
+  Figma node-id: 55:805 (фрейм "Pension_10")
+  Верхний хедер: нет
+  Универсальная страница (общая для всех 6 отчётов).
+  ВАЖНО: в макете Figma поверх части таблицы наложен серый круг (декоративный артефакт, не часть дизайна) - в вёрстку не перенесён (согласовано с заказчиком).
+  Также в Figma колонки "Пополнение" и "Капитал с учетом % дохода" визуально выглядят так, будто их данные-примеры перепутаны местами (см. README) - скопированы как есть.
+  Плейсхолдеры:
+    {{schedule_intro_text}} -> Это ваш график достижения целей. Обратите внимание, что в реальности цифры будут отличаться от тех, что вы видите в таблице. Точно посчитать будущее очень и очень сложно. Но если делать финансовый план хотя бы раз в год, менять его с учетом новых данных по доходностям, инфляции, стоимости цели, то достижение целей становится гораздо более вероятным!
+    Таблица (шапка + пример 7 строк, остальное дорисует код):
+    № | Дата | Пополнение | Капитал с учетом % дохода
+    0 | 25.02 | 2 100 000₽ | 0₽
+    1 | 25.03 | (закрыто кружком в Figma) | 75 234₽
+    2 | 25.04 | (закрыто кружком в Figma) | 75 736₽
+    3 | 25.05 | (закрыто кружком в Figma) | 76 240₽
+    4 | 25.06 | (закрыто кружком в Figma) | 76 749₽
+    5 | 25.07 | 3 223 815₽ | 77 260₽
+    6 | 25.08 | 3 448 578₽ | 77 775₽
+  Ассеты: assets/Avatar.png
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>График достижения целей</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .body-text { font-size: 12px; line-height: 1.55; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+    <h1 style="font-size:18px; font-weight:700; margin:0 0 10px;">График достижения целей</h1>
+
+    <div class="avatar-intro">
+      <img class="avatar" src="assets/Avatar.png" alt="">
+      <div class="avatar-text body-text">{{schedule_intro_text}}</div>
+    </div>
+
+    <table class="info-table" style="margin-top:16px;">
+      <thead>
+        <tr><th>№</th><th>Дата</th><th>Пополнение</th><th>Капитал с учетом % дохода</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>0</td><td>25.02</td><td>2 100 000₽</td><td>0₽</td></tr>
+        <tr><td>1</td><td>25.03</td><td>{{schedule_row1_contribution}}</td><td>75 234₽</td></tr>
+        <tr><td>2</td><td>25.04</td><td>{{schedule_row2_contribution}}</td><td>75 736₽</td></tr>
+        <tr><td>3</td><td>25.05</td><td>{{schedule_row3_contribution}}</td><td>76 240₽</td></tr>
+        <tr><td>4</td><td>25.06</td><td>{{schedule_row4_contribution}}</td><td>76 749₽</td></tr>
+        <tr><td>5</td><td>25.07</td><td>3 223 815₽</td><td>77 260₽</td></tr>
+        <tr><td>6</td><td>25.08</td><td>3 448 578₽</td><td>77 775₽</td></tr>
+        <!-- Остальные строки графика добавляются кодом бэкенда -->
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

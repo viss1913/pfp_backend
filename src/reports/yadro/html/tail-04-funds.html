@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!--
+  Файл: pension-07-funds.html
+  Figma node-id: 55:1117 (фрейм "Pension_7")
+  Верхний хедер: нет
+  Универсальная страница (общая для всех 6 отчётов).
+  Плейсхолдеры:
+    {{fund1_name}}             -> «Ренессанс Накопления»
+    {{fund1_description}}      -> — дочерняя компания ООО «СК «Ренессанс Жизнь»» (рейтинг АА от Эксперт РА), входит в страховую группу Ренессанс Страхование, занимающую 6 место по страховому бизнесу в России.
+    {{fund1_stat1}}             -> Более 5 млн. чел
+    {{fund1_stat2}}             -> 290 млрд. ₽
+    {{fund1_stat3}}             -> Более 25 лет
+    {{fund1_ipo_text}}          -> Первая российская страховая компания, вышедшая на IPO в 2021 г., акции компании торгуются на московской бирже, входит в состав Индекса компаний широкого рынка, а также в первый (высший) котировальный список.
+    {{fund1_yield_year}}        -> 2024 г.
+    {{fund1_yield_value}}       -> 38%
+    {{fund2_name}}              -> НПФ «БУДУЩЕЕ»
+    {{fund2_description}}       -> — фонд с максимальным рейтингом надёжности по версии НРА и большим опытом на рынке пенсионных услуг, предоставляющий сберегательный продукт с государственной поддержкой
+    {{fund2_yield_value}}       -> 22%
+    {{fund2_yield_year}}        -> за 2024 год
+    {{fund2_history_years}}     -> 31 год истории
+    {{fund2_benefit_pct}}       -> До 135%
+    {{fund2_license}}           -> АО «НПФ «БУДУЩЕЕ» лицензия ЦБ РФ № 431 ОТ 30.04.2014 г. без ограничения срока действия.
+    {{fund2_insurance_cap}}     -> 2,8 млн рублей
+  Ассеты: assets/renessans-nakopleniya-logo.svg, assets/pension7-fund-partners.png, assets/22% 1.png
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>О фондах</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .fund-card { border: 1px solid var(--border-soft); border-radius: 8px; padding: 10px 12px; margin-top: 6px; }
+  .fund-logo { height: 16px; display: block; margin-bottom: 2px; }
+  .fund-desc { font-size: 10px; line-height: 1.35; margin-top: 5px; }
+  .stat-row { display: flex; gap: 6px; margin-top: 6px; }
+  .stat-pill { flex: 1; background: var(--brand-blue); color: #fff; border-radius: 6px; padding: 5px 4px; text-align: center; font-size: 9px; font-weight: 700; line-height: 1.2; }
+  .info-row { display: flex; gap: 6px; margin-top: 6px; }
+  .info-box { flex: 1; border: 1px solid #7CD9A5; border-radius: 6px; padding: 5px 8px; font-size: 8.5px; line-height: 1.3; color: var(--text-secondary); }
+  .yield-box { border: 1px solid #7CD9A5; border-radius: 6px; padding: 5px 8px; text-align: center; }
+  .yield-box .val { font-size: 15px; font-weight: 700; color: var(--text-main); }
+  .partners-caption { text-align: center; font-size: 9px; color: var(--text-secondary); margin: 6px 0 3px; }
+  .cta { background: var(--brand-blue); color: #fff; text-align: center; font-size: 11px; font-weight: 700; padding: 7px; border-radius: 18px; margin-top: 6px; }
+
+  .fund2-section { background: #eaf4fc; border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+  .fund2-header { display: flex; align-items: center; gap: 10px; }
+  .fund2-desc { font-size: 9.5px; line-height: 1.35; }
+  .fund2-stats { display: flex; gap: 6px; margin-top: 6px; }
+  .fund2-stat-box { flex: 1; background: #fff; border-radius: 6px; padding: 5px 8px; }
+  .fund2-stat-box .title { font-size: 11px; font-weight: 700; }
+  .fund2-stat-box .desc { font-size: 8px; color: var(--text-secondary); margin-top: 2px; }
+  .fund2-yield-num { font-size: 34px; font-weight: 800; color: var(--brand-blue); }
+  .fund2-license { font-size: 7.5px; color: var(--text-secondary); margin-top: 4px; line-height: 1.3; }
+  .fund2-insurance-title { font-size: 10.5px; font-weight: 700; }
+  .fund2-insurance-desc { font-size: 8.5px; color: var(--text-secondary); margin-top: 3px; line-height: 1.3; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+    <h1 style="font-size:18px; font-weight:700; margin:0 0 8px;">О фондах</h1>
+
+    <div class="fund-card">
+      <img class="fund-logo" src="assets/renessans-nakopleniya-logo.svg" alt="">
+      <div class="fund-desc">«{{fund1_name}}» {{fund1_description}}</div>
+
+      <div class="stat-row">
+        <div class="stat-pill">{{fund1_stat1}}<br><span style="font-weight:400;">клиенты группы</span></div>
+        <div class="stat-pill">{{fund1_stat2}}<br><span style="font-weight:400;">активы группы</span></div>
+        <div class="stat-pill">{{fund1_stat3}}<br><span style="font-weight:400;">на рынке страхования</span></div>
+      </div>
+
+      <div class="info-row">
+        <div class="info-box">{{fund1_ipo_text}}</div>
+        <div class="yield-box">
+          <div>Доходность за {{fund1_yield_year}}</div>
+          <div class="val">{{fund1_yield_value}}</div>
+        </div>
+      </div>
+
+      <div class="partners-caption">Диверсифицированный игрок на финансовом рынке</div>
+      <img src="assets/pension7-fund-partners.png" alt="" style="width:100%; display:block;">
+
+      <div class="cta">Открыть ПДС</div>
+    </div>
+
+    <div class="fund2-section">
+      <div class="fund2-header">
+        <div class="bold" style="font-size:13px;">{{fund2_name}}</div>
+      </div>
+      <div class="fund2-desc">{{fund2_description}}</div>
+
+      <div class="fund2-stats">
+        <div class="fund2-stat-box" style="text-align:center;">
+          <div style="font-size:11px; color:var(--text-secondary);">Доходность ПДС<br>{{fund2_yield_year}}</div>
+          <img src="assets/fund2-yield-badge.png" alt="" style="width:70px; margin-top:4px;">
+        </div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+          <div class="fund2-stat-box">
+            <div class="title">{{fund2_history_years}}</div>
+            <div class="desc">на рынке пенсионных услуг</div>
+          </div>
+          <div class="fund2-stat-box">
+            <div class="title">{{fund2_benefit_pct}}</div>
+            <div class="desc">совокупной выгоды по ПДС получили наши клиенты за 2024 год</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fund2-license">{{fund2_license}}<br>С правилами формирования долгосрочных сбережений вы можете ознакомиться на сайте npff.ru</div>
+
+      <div class="fund2-stat-box" style="margin-top:8px;">
+        <div class="fund2-insurance-title">Сбережения застрахованы</div>
+        <div class="fund2-insurance-desc">Агентство по страхованию вкладов гарантирует сохранность сбережений до {{fund2_insurance_cap}}, кроме того без ограничения защищены все средства переведённые из ОПС, средства гос. поддержки и начисленный на них доход</div>
+      </div>
+
+      <div class="cta">Открыть ПДС</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

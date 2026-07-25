@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  Файл: pension-05-summary-lumpsum.html
+  Figma node-id: 55:626 (фрейм "Pension_5" - "Резюме" №1, единоразовый взнос)
+  Верхний хедер: нет
+  Универсальная страница (общая для всех 6 отчётов).
+  Кнопка "Далее" оставлена как в макете (статично, без функциональности - см. README).
+  Плейсхолдеры:
+    {{allocation_share_pct}}   -> 100%
+    {{allocation_instrument}}  -> ПДС
+    {{allocation_sum}}         -> 20 000₽
+    {{allocation_rate}}        -> 8,5%
+    {{allocation_donut_total}} -> 200 00₽  [ТАК В FIGMA — расходится с суммой в таблице (20 000₽), см. README]
+  Ассеты: нет
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Резюме — распределение капитала</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .donut-row { display: flex; align-items: center; gap: 24px; margin-top: 40px; }
+  .donut-wrap { position: relative; width: 130px; height: 130px; flex-shrink: 0; }
+  .donut-wrap svg { width: 100%; height: 100%; }
+  .donut-total {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 600; text-align: center; padding: 0 8px;
+  }
+  .donut-legend { font-size: 11px; display: flex; align-items: center; gap: 6px; }
+  .cta-wrap { margin-top: 70px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+    <h1 style="font-size:20px; font-weight:700; margin:0;">Резюме</h1>
+    <div class="text-secondary" style="font-size:11.5px; margin-top:10px;">Распределение текущего капитала</div>
+
+    <table class="info-table" style="margin-top:10px;">
+      <thead>
+        <tr><th>Доля</th><th>Наименование инструмента</th><th>Сумма инвестиций</th><th>Расчётная доходность/ставка</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="legend-dot" style="background:#1AB2FB; margin-right:6px;"></span>{{allocation_share_pct}}</td>
+          <td>{{allocation_instrument}}</td>
+          <td>{{allocation_sum}}</td>
+          <td>{{allocation_rate}}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="donut-row">
+      <div class="donut-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle r="34" cx="50" cy="50" fill="transparent" stroke="#1AB2FB" stroke-width="16" stroke-dasharray="213 0"/>
+        </svg>
+        <div class="donut-total">{{allocation_donut_total}}</div>
+      </div>
+      <div class="donut-legend"><span class="legend-dot" style="background:#1AB2FB;"></span>{{allocation_share_pct}} {{allocation_instrument}}</div>
+    </div>
+
+    <div class="cta-wrap">
+      <div class="btn-primary" style="border-radius:24px; max-width:240px; margin:0 auto;">Далее</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<!--
+  Файл: passive-02-pds-steps.html
+  Отчёт: Passive income («Пассивный доход»)
+  Figma node-id: "Passive income_2" (аналог структуры Pension_3, тип B)
+  Верхний хедер: нет
+  Плейсхолдеры:
+    {{goal_title_full}}        -> Цель 2. Пассивный доход в сегодняшних деньгах - 50 000 ₽/мес.
+    {{goal_target_date}}       -> 20 марта 2045г.
+    {{goal_forecast_inflation}}-> 132 665 ₽/мес.
+    {{goal_inflation_rate}}    -> 5,9%
+    {{pds_gov_addon_year}}     -> 36 000 ₽/год
+    {{pds_tax_deduction_pct}}  -> 22%
+    {{pds_tax_deduction_cap}}  -> 400 000 ₽
+    {{pds_insurance_cap}}      -> 2,8 млн ₽
+    {{next_months_contribution}} -> 12 342 ₽
+    {{gov_cofinancing_2025}}   -> 36 000 ₽
+    {{tax_deduction_2026}}     -> 37 123 ₽
+    {{ndfl_rate}}              -> 13%
+    {{plan_review_months}}     -> 6 мес.
+    {{capital_growth_total}}   -> 123 млн ₽  [ТАК В FIGMA, см. README]
+    {{chart_own_funds}}        -> 5 453 324 ₽
+    {{chart_projected_income}} -> 4 095 659 ₽
+  Ассеты: assets/Avatar.png
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Цель 2. Пассивный доход</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .section-title { font-size: 13.5px; font-weight: 700; margin-top: 14px; }
+  .body-text { font-size: 12.5px; line-height: 1.6; margin-top: 4px; }
+  ul.plain { margin: 4px 0; padding-left: 18px; }
+  ul.plain ul { padding-left: 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+
+    <div class="avatar-intro">
+      <img class="avatar" src="assets/Avatar.png" alt="">
+      <div class="bold text-base">{{goal_title_full}}</div>
+    </div>
+
+    <div class="goal-details" style="margin-top:8px; font-size:12.5px;">
+      Дата достижения — {{goal_target_date}}<br><br>
+      Пассивный доход с учетом инфляции ({{goal_inflation_rate}}) - {{goal_forecast_inflation}}
+    </div>
+
+    <div class="bold text-base" style="margin-top:14px;">Что нужно сделать?</div>
+
+    <div class="section-title">1. Открыть Программу долгосрочных сбережений (ПДС)</div>
+    <ul class="plain body-text">
+      <li>Плюсы:
+        <ul>
+          <li>Государство добавит до {{pds_gov_addon_year}}.</li>
+          <li>Налоговые вычеты (до {{pds_tax_deduction_pct}} в год со взносов в пределах {{pds_tax_deduction_cap}}).</li>
+          <li>Капитал застрахован (до {{pds_insurance_cap}}).</li>
+        </ul>
+      </li>
+    </ul>
+
+    <div class="section-title">2. Дальнейшие шаги</div>
+    <ul class="plain body-text">
+      <li>В следующие месяцы пополнять по {{next_months_contribution}}.</li>
+      <li>Получить {{gov_cofinancing_2025}} в 2025 году от государства</li>
+      <li>В 2026г. подать на налоговый вычет {{tax_deduction_2026}} (рассчитан по ставке {{ndfl_rate}} НДФЛ)</li>
+      <li>Актуализировать финансовый план через {{plan_review_months}}</li>
+    </ul>
+
+    <div class="section-title">3. Как растёт капитал?</div>
+    <div class="body-text">За счет пополнения, софинансирования, инвест. дохода вы накопите {{capital_growth_total}}</div>
+
+    <div class="chart-title">График формирования пенсионного капитала с учетом пополнения:</div>
+
+    <svg viewBox="0 0 535 190" width="535" height="190">
+      <defs>
+        <linearGradient id="areaBlueP2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1AB2FB" stop-opacity="0.9"/>
+          <stop offset="100%" stop-color="#1AB2FB" stop-opacity="0.5"/>
+        </linearGradient>
+      </defs>
+      <line x1="40" y1="10" x2="40" y2="150" stroke="#E4E9F2" stroke-width="1"/>
+      <line x1="40" y1="150" x2="525" y2="150" stroke="#E4E9F2" stroke-width="1"/>
+      <line x1="40" y1="10" x2="525" y2="10" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <line x1="40" y1="90" x2="525" y2="90" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <line x1="40" y1="118" x2="525" y2="118" stroke="#E4E9F2" stroke-dasharray="2 2" stroke-width="1"/>
+      <line x1="150" y1="10" x2="150" y2="150" stroke="#212121" stroke-dasharray="2 2" stroke-width="0.7"/>
+      <path d="M40,130 C150,122 300,80 525,15 L525,150 L40,150 Z" fill="#AE2ADE" fill-opacity="0.85"/>
+      <path d="M40,130 C150,128 300,105 525,55 L525,150 L40,150 Z" fill="url(#areaBlueP2)"/>
+      <text x="8" y="14" font-size="9" fill="#6b7280">9 323 476 ₽</text>
+      <text x="8" y="94" font-size="9" fill="#6b7280">2 000 000 ₽</text>
+      <text x="8" y="122" font-size="9" fill="#6b7280">1 000 000 ₽</text>
+      <text x="40" y="164" font-size="9" fill="#6b7280">18.02.2025</text>
+      <text x="480" y="164" font-size="9" fill="#6b7280">18.02.2025</text>
+    </svg>
+
+    <div class="chart-legend">
+      <div>
+        <div class="legend-item"><span class="legend-dot" style="background:#1AB2FB;"></span>Собственные средства</div>
+        <div class="legend-value">{{chart_own_funds}}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="legend-item"><span class="legend-dot" style="background:#AE2ADE;"></span>Прогнозируемый % доход</div>
+        <div class="legend-value">{{chart_projected_income}}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div class="disclaimer">Финансовый план не является коммерческим предложением или договором, носит исключительно информационный характер.</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!--
+  Файл: pension-04-portfolio.html
+  Figma node-id: 55:450 (фрейм "Pension_4")
+  Верхний хедер: нет
+  Универсальная страница (общая для всех 6 отчётов, начиная со страницы 4).
+  Плейсхолдеры:
+    {{portfolio_intro_text}}     -> Хотела бы отметить, что государство следит за структурой инвестирования Ваших средств. Вот усредненный портфель, куда НПФ может вкладывать ваши деньги:
+    {{portfolio_yield}}          -> 12%
+    {{risk_share_pct}}           -> 7%
+    {{npf_yield_last_year}}      -> 22%
+    {{npf_yield_year}}           -> 2024
+    {{next_contribution}}        -> 12 234 ₽
+    {{projected_total}}          -> 123 638 323 ₽
+    {{projected_year}}           -> 2040
+    {{withdrawal_age_f}}         -> 55 (Ж)
+    {{withdrawal_age_m}}         -> 60 (М)
+    {{withdrawal_years}}         -> 15 лет
+    {{passive_income_inflation}} -> 199 187 ₽/мес.
+    {{passive_income_today}}     -> 62 185 ₽/мес.
+    {{passive_income_rate}}      -> 10%
+  Ассеты: assets/Avatar.png, assets/Rectangle 365.png
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Структура портфеля НПФ</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .body-text { font-size: 12.5px; line-height: 1.6; margin-top: 10px; }
+  .pie-box {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border: 1px solid var(--brand-blue);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-top: 6px;
+  }
+  .pie-legend { font-size: 11px; line-height: 1.9; }
+  .pie-legend .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .yield-caption { font-size: 13px; font-weight: 700; margin-top: 10px; }
+  .rooftop-photo { width: 100%; height: 130px; object-fit: cover; border-radius: 8px; margin-top: 12px; }
+  .callout-box {
+    border: 1px solid var(--brand-blue);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 10px;
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+
+    <div class="avatar-intro">
+      <img class="avatar" src="assets/Avatar.png" alt="">
+      <div class="avatar-text">{{portfolio_intro_text}}</div>
+    </div>
+
+    <div class="pie-box">
+      <svg viewBox="0 0 100 100" width="90" height="90">
+        <circle r="16" cx="50" cy="50" fill="transparent" stroke="#AE2ADE" stroke-width="32" stroke-dasharray="35 65" stroke-dashoffset="25"/>
+        <circle r="16" cx="50" cy="50" fill="transparent" stroke="#1AB2FB" stroke-width="32" stroke-dasharray="25 75" stroke-dashoffset="-10"/>
+        <circle r="16" cx="50" cy="50" fill="transparent" stroke="#1E22AA" stroke-width="32" stroke-dasharray="18 82" stroke-dashoffset="-35"/>
+        <circle r="16" cx="50" cy="50" fill="transparent" stroke="#4CAF50" stroke-width="32" stroke-dasharray="12 88" stroke-dashoffset="-53"/>
+        <circle r="16" cx="50" cy="50" fill="transparent" stroke="#F5A623" stroke-width="32" stroke-dasharray="7 93" stroke-dashoffset="-65"/>
+        <circle r="16" cx="50" cy="50" fill="transparent" stroke="#F5D423" stroke-width="32" stroke-dasharray="3 97" stroke-dashoffset="-72"/>
+      </svg>
+      <div class="pie-legend">
+        <div><span class="dot" style="background:#AE2ADE"></span>Банковские депозиты</div>
+        <div><span class="dot" style="background:#1AB2FB"></span>Корпоративные облигации А+</div>
+        <div><span class="dot" style="background:#1E22AA"></span>Акции</div>
+        <div><span class="dot" style="background:#4CAF50"></span>ОФЗ</div>
+        <div><span class="dot" style="background:#F5A623"></span>Муниципальные облигации Ф+</div>
+        <div><span class="dot" style="background:#F5D423"></span>Наличные</div>
+      </div>
+    </div>
+    <div class="yield-caption">Прогнозируемый доход - {{portfolio_yield}}</div>
+
+    <div class="body-text">
+      Как видите, доля рисковых активов (акций) не более {{risk_share_pct}}. Это позволяет снизить риски потерь при инвестировании.
+      В {{npf_yield_year}} год НПФ заработали своим клиентам на ПДС в среднем {{npf_yield_last_year}} годовых.
+    </div>
+
+    <div class="body-text">
+      Итак, если вы начнете пополнять капитал на {{next_contribution}} в этом году, будете индексировать пополнение на величину инфляции,
+      то за счет процентов вы накопите {{projected_total}} к {{projected_year}} г.
+    </div>
+
+    <img class="rooftop-photo" src="assets/Rectangle 365.png" alt="">
+
+    <div class="body-text">
+      Что будет, когда выйдете на пенсию. По закону вы сможете забрать весь капитал, если срок накоплений составил {{withdrawal_years}} или вы достигли {{withdrawal_age_f}} {{withdrawal_age_m}}, в зависимости от того, что наступило раньше
+    </div>
+
+    <div class="callout-box">
+      Забрав капитал, вы можете вложить в депозиты, облигации, недвижимость и получать проценты как пассивный доход
+      <ul style="margin:4px 0 0; padding-left:18px;">
+        <li>{{passive_income_inflation}} ({{passive_income_today}} в сегодняшних деньгах)</li>
+      </ul>
+    </div>
+
+    <div class="body-text">
+      Решить сможете, когда наступит пенсия, но мне кажется выгоднее забрать капитал и жить на проценты.
+      Расчетная доходность вложений составляет {{passive_income_rate}} годовых (с выплатой ежемесячно)
+    </div>
+  </div>
+</div>
+</body>
+</html>

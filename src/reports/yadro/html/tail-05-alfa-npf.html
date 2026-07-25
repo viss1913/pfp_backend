@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!--
+  Файл: pension-08-alfa-npf.html
+  Figma node-id: 55:1254 (фрейм "Pension_8")
+  Верхний хедер: нет
+  Универсальная страница (общая для всех 6 отчётов). Контент занимает только верхнюю часть листа - так в макете (см. README).
+  Плейсхолдеры:
+    {{fund3_name}}         -> Альфа НПФ
+    {{fund3_description}}  -> АО «НПФ Альфа». Команда Фонда состоит из экспертов финансового рынка и обладает большим опытом в обслуживании клиентов
+    {{fund3_group}}        -> Входит в Альфа-Групп
+    {{fund3_point1}}        -> Фонд получил лицензию в ноябре 2024 года. Сегодня у нас уже более 80 тыс. клиентов и 6 млрд руб. активов
+    {{fund3_point2}}        -> Фонд проводит лектории по вопросам пенсионного обеспечения и долгосрочных сбережений
+    {{fund3_point3}}        -> Продуктовая фабрика Фонда обладает большим опытом создания и запуска продуктов с дополнительной ценностью для клиента
+    {{fund3_point4}}        -> Клиентский сервис строится с учетом лучших практик рынка на основе технологичных решений для дистанционного обслуживания
+    {{fund3_point5}}        -> Фонд входит в ТОП-4 по новым взносам в Программу долгосрочных сбережений
+    {{fund3_point6}}        -> Доходность: 2024 г. 21,56%, 1 полугодие 2025 г. – 21,57% годовых
+  Ассеты: нет
+-->
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Альфа НПФ</title>
+<link rel="stylesheet" href="shell.css">
+<style>
+  .alfa-card { border: 1px solid #F3B5B5; border-radius: 8px; padding: 14px 16px; margin-top: 8px; }
+  .alfa-desc { font-size: 12px; line-height: 1.5; }
+  .alfa-group { font-size: 12px; margin-top: 8px; }
+  .alfa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .alfa-point { border-left: 3px solid #E5484D; background: #FAFAFA; padding: 6px 10px; font-size: 10.5px; line-height: 1.4; }
+  .alfa-cta { background: #E5484D; color: #fff; text-align: center; font-size: 13px; font-weight: 700; padding: 9px; border-radius: 20px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="content content--tight">
+    <h1 style="font-size:18px; font-weight:700; margin:0 0 8px;">{{fund3_name}}</h1>
+
+    <div class="alfa-card">
+      <div class="alfa-desc">{{fund3_description}}</div>
+      <div class="alfa-group">{{fund3_group}}</div>
+
+      <div class="alfa-grid">
+        <div class="alfa-point">{{fund3_point1}}</div>
+        <div class="alfa-point">{{fund3_point2}}</div>
+        <div class="alfa-point">{{fund3_point3}}</div>
+        <div class="alfa-point">{{fund3_point4}}</div>
+        <div class="alfa-point">{{fund3_point5}}</div>
+        <div class="alfa-point">{{fund3_point6}}</div>
+      </div>
+
+      <div class="alfa-cta">Открыть ПДС</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

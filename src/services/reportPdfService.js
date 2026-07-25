@@ -17,7 +17,9 @@ const {
 } = require('../reports/finam/reportVersionResolver');
 const { buildFinamReportV2HtmlPackage } = require('../reports/finam_v2/buildFinamReportV2HtmlPackage');
 const { buildSummaryOverviewHtmlByTheme, buildGoalPagesHtmlByTheme } = require('../reports/themes/reportRenderers');
-const { resolveReportThemeKey } = require('../reports/themes/themeResolver');
+const { resolveReportThemeKeyAsync } = require('../reports/themes/themeResolver');
+const { buildYadroReportHtmlPackage } = require('../reports/yadro/buildYadroReportHtml');
+const { injectYadroReportFonts } = require('../utils/yadroReportFonts');
 const projectService = require('./projectService');
 const { parseProjectSettings, getPartnerLinkTrackingSettings } = require('../utils/projectSettings');
 const { applyTrackedPartnerUrlsToHtml } = require('../utils/trackedPartnerUrl');
@@ -347,8 +349,10 @@ class ReportPdfService {
             preloadedReport != null
                 ? preloadedReport
                 : await reportService.getClientReportData(clientId, projectId);
-        const themeKey = resolveReportThemeKey(projectId);
-        const isFinamProject = themeKey !== 'rostech' && isFinamTemplateProject(projectId);
+        const themeKey = await resolveReportThemeKeyAsync(projectId);
+        const isYadroProject = themeKey === 'yadro';
+        const isFinamProject =
+            themeKey !== 'rostech' && themeKey !== 'yadro' && isFinamTemplateProject(projectId);
         const finamReportVersion = await resolveFinamReportVersion({ projectId, themeKey });
         const isFinamReportV2 = isFinamProject && finamReportVersion === FINAM_REPORT_VERSION_V2;
 
@@ -371,6 +375,31 @@ class ReportPdfService {
         let pageHtmlList = [];
         let toc = null;
         let reportSchemaVersion = null;
+
+        // YADRO: отдельный пайплайн (своя обложка + goal pages + shared tail).
+        // Не используем injectReportPdfPageFillA4 (заточен под article.page) и PdfSubset-шрифт (кракозябры).
+        if (isYadroProject) {
+            const yadroPkg = await buildYadroReportHtmlPackage({
+                report,
+                includeCover,
+                includeSummary,
+                goalTypes,
+                coverTitle: pdfSettings?.cover_title || undefined,
+                clientAvgMonthlyIncome: report?.client_info?.avg_monthly_income ?? null,
+            });
+            pageHtmlList = yadroPkg.pageHtmlList || [];
+            toc = yadroPkg.toc || null;
+            reportSchemaVersion = yadroPkg.reportSchemaVersion || 'yadro-html-v1';
+
+            if (pageHtmlList.length === 0) {
+                throw new Error('No pages selected for PDF generation');
+            }
+
+            const pageHtmlListForPdf = pageHtmlList.map((h) => injectYadroReportFonts(h));
+            const mergedHtml = buildFramesContainerHtml(pageHtmlListForPdf, { isFinamV2: false });
+            return { mergedHtml, toc, pageHtmlList: pageHtmlListForPdf, reportSchemaVersion };
+        }
+
         if (includeCover && !isFinamReportV2) {
             pageHtmlList.push(
                 await buildReportCoverHtml({
