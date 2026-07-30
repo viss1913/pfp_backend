@@ -1,4 +1,5 @@
 const productRepository = require('../repositories/productRepository');
+const { normalizeSberLifeProgramLabel } = require('./calculators/sberLifeProgramLabel');
 
 class PortfolioAggregator {
     /**
@@ -18,7 +19,10 @@ class PortfolioAggregator {
 
             // Специальная обработка для целей LIFE (НСЖ/ИСЖ)
             if (res.goal_type === 'LIFE' || res.goal_id === 5) {
-                const programName = res.details.program_name || res.goal_name || 'Страхование жизни';
+                const rawName = res.details.program_name || res.goal_name || 'Страхование жизни';
+                const programName = /подушка|подписке|сбер\s*страхование/i.test(String(rawName))
+                    ? normalizeSberLifeProgramLabel(rawName)
+                    : rawName;
                 const yieldP = res.summary?.investment_yield_percent || 0;
 
                 // Активы (Первоначальный капитал)
@@ -30,10 +34,16 @@ class PortfolioAggregator {
                     totalInitial += initialCap;
                 }
 
-                // Потоки (Регулярные взносы)
-                const annualPrem = res.details?.annual_premium || 0;
-                if (annualPrem > 0) {
-                    const monthlyAmount = annualPrem / 12;
+                // Потоки (Регулярные взносы) — актуарный месяц, не year/12
+                const monthlyFromSummary = Number(res.summary?.monthly_replenishment);
+                const monthlyFromNsj = Number(res.details?.monthly_premium);
+                const annualPrem = Number(res.details?.annual_premium) || 0;
+                const monthlyAmount = Number.isFinite(monthlyFromSummary) && monthlyFromSummary > 0
+                    ? monthlyFromSummary
+                    : (Number.isFinite(monthlyFromNsj) && monthlyFromNsj > 0
+                        ? monthlyFromNsj
+                        : (annualPrem > 0 ? annualPrem / 12 : 0));
+                if (monthlyAmount > 0) {
                     const freq = res.summary?.premium_frequency || 'monthly';
                     if (!flowsMap[programName]) flowsMap[programName] = { amount: 0, weightedYieldSum: 0, payment_frequency: freq };
                     flowsMap[programName].amount += monthlyAmount;

@@ -4,6 +4,7 @@ const { buildRepleneshmentRows } = require('../finam/buildFinamReportHtml');
 const { calculateOwnFundsFromSchedule, sumReplenishmentsFromSchedule } = require('../shared/ownFundsFromSchedule');
 const { FINAM_REPORT_V2_PAGE_TYPES } = require('./finamReportV2Contract');
 const { isAtbBankProject, applyAtbLifeGoalDisplay, atbBrandingRiskDeclarationHtml } = require('./finamV2AtbBranding');
+const { normalizeSberLifeProgramLabel } = require('../../algorithms/calculators/sberLifeProgramLabel');
 const {
     isSberProject,
     replaceSberEquitiesPage,
@@ -612,7 +613,10 @@ function normalizeLifeGoal(goal, helpers) {
         summary.annual_tariff_percent
     );
     const tariff = explicitTariff ?? (coverage > 0 && annualPremium > 0 ? (annualPremium / coverage) * 100 : null);
-    const programName = details.program_name || instrument.name || goalName(goal, helpers);
+    const rawProgramName = details.program_name || instrument.name || goalName(goal, helpers);
+    const programName = /подушка|подписке|сбер\s*страхование/i.test(String(rawProgramName))
+        ? normalizeSberLifeProgramLabel(rawProgramName)
+        : rawProgramName;
     const provider = details.company_name || details.insurer_name || details.provider_name || instrument.provider || '';
     const share = maybeFinite(instrument.share);
 
@@ -1285,12 +1289,18 @@ function instrumentRows(goal, amountFallback) {
 function allocationRows(items, totalValue) {
     const colors = ['#002a4a', '#1e6bb8', '#7dd3fc', '#94a3b8', '#d97706'];
     const rows = (Array.isArray(items) ? items : [])
-        .map((item, idx) => ({
-            label: item?.label || item?.name || item?.assetClass || 'Инструмент',
+        .map((item, idx) => {
+            const rawLabel = item?.label || item?.name || item?.assetClass || 'Инструмент';
+            const label = /подушка|подписке|сбер\s*страхование/i.test(String(rawLabel))
+                ? normalizeSberLifeProgramLabel(rawLabel)
+                : rawLabel;
+            return {
+            label,
             percent: finite(item?.percent ?? item?.share ?? item?.value ?? item?.share_percent, 0),
             amount: finite(item?.amount ?? item?.value, 0),
             color: safeCssColor(item?.color, colors[idx % colors.length]),
-        }))
+        };
+        })
         .filter((item) => item.percent > 0 || item.amount > 0)
         .slice(0, 5);
     const percentSum = rows.reduce((sum, item) => sum + item.percent, 0);
@@ -2282,14 +2292,20 @@ function replaceExecutiveSummaryPage(html, { model }) {
 function normalizePortfolioRows(items, totalValue, maxRows = 6) {
     const colors = ['#002a4a', '#1e6bb8', '#7aa6d6', '#9fb7ca', '#cbd5e1', '#0f766e'];
     const rows = (Array.isArray(items) ? items : [])
-        .map((item, idx) => ({
-            label: item?.label || item?.name || item?.assetClass || 'Инструмент',
+        .map((item, idx) => {
+            const rawLabel = item?.label || item?.name || item?.assetClass || 'Инструмент';
+            const label = /подушка|подписке|сбер\s*страхование/i.test(String(rawLabel))
+                ? normalizeSberLifeProgramLabel(rawLabel)
+                : rawLabel;
+            return {
+            label,
             percent: finite(item?.percent ?? item?.share ?? item?.share_percent, 0),
             amount: finite(item?.value ?? item?.amount, 0),
             role: item?.role || 'диверсификация портфеля',
             yieldPercent: maybeFinite(item?.yieldPercent ?? item?.yield_percent ?? item?.yield),
             color: safeCssColor(item?.color, colors[idx % colors.length]),
-        }))
+        };
+        })
         .filter((item) => item.percent > 0 || item.amount > 0);
     const amountSum = rows.reduce((sum, item) => sum + item.amount, 0);
     const percentSum = rows.reduce((sum, item) => sum + item.percent, 0);
@@ -2329,7 +2345,7 @@ function isLifeInsuranceInstrument(nameRaw, productTypeRaw) {
     const pt = String(productTypeRaw || '').toUpperCase().trim();
     if (pt && /NSJ|ИСЖ|НСЖ|INSURANCE|LIFE_INSURANCE/i.test(pt)) return true;
     const text = `${nameRaw || ''}`.toLowerCase();
-    return /нсж|исж|страхован|страховка|подушка безопасности|(\s|^)жизн(и|ь)(\s|,|$)/i.test(text)
+    return /нсж|исж|страхован|страховка|подушка безопасности|страхование по подписке|(\s|^)жизн(и|ь)(\s|,|$)/i.test(text)
         || /\blife insurance\b/i.test(text);
 }
 

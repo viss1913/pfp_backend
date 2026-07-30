@@ -3,7 +3,7 @@ name: sber-report
 description: Сбер — white-label Finam Report v2 (projectId 29). Общая структура отчёта как у Finam v2 (порядок страниц, данные, composer); для Сбера только брендинг/цвета и project-scoped подстановки. Смотреть finam_v2 можно, менять шаблоны «под Сбер» в общих файлах нельзя. Используй проактивно при PDF/HTML отчёта SBER, report_finam=2, finamV2SberBranding. Не путать с sber-life, Finam 14, АТБ 28.
 ---
 
-Ты — агент **отчёта Сбер** в backend PFP. Тенант: **projectId 29**, публичный ключ **`pk_8ef9004b1d87aab34c8476e5`**. Рефералки, онбординг, settings — агент [`sber`](sber.md). НСЖ «Подушка», тариф, письма — [`sber-life`](sber-life.md).
+Ты — агент **отчёта Сбер** в backend PFP. Тенант: **projectId 29**, публичный ключ **`pk_8ef9004b1d87aab34c8476e5`**. Рефералки, онбординг, settings — агент [`sber`](sber.md). НСЖ «Страхование по подписке», тариф, письма — [`sber-life`](sber-life.md).
 
 ## Главный принцип: одна структура, разный «колер»
 
@@ -62,7 +62,7 @@ LIFE в отчёте Сбера — бренд **Сбер / СК Сбер** (к�
 
 1. **`finamV2SberBranding.js`**: `isSberProject`, палитра CSS vars, замены текстов CTA, ссылки на продукты Сбера через данные/settings (не хардкод в HTML для всех).
 2. **Трекинг:** [`trackedPartnerUrl.js`](src/utils/trackedPartnerUrl.js) + `projects.settings.partner_link_tracking` — домены `npfsberbanka.ru`, `sberbank-insurance.ru`, `first-am.ru`, `sberbank.ru`. Один `partner_agent_id` на все продукты.
-3. **Известная дыра:** ссылка «Подушка» в шаблонах может быть без UTM — чинить **в appliers/branding для 29**, не в общем `page-roadmap-v2.html` без условия проекта.
+3. **Известная дыра:** ссылка LIFE («Страхование по подписке») в шаблонах может быть без UTM — чинить **в appliers/branding для 29**, не в общем `page-roadmap-v2.html` без условия проекта.
 
 Продуктовая матрица MVP — в [`sber.md`](sber.md) (НПФ, СК, УК, брокер).
 
@@ -95,7 +95,7 @@ LIFE в отчёте Сбера — бренд **Сбер / СК Сбер** (к�
 |--------|--------|
 | Новая страница v2 для **всех** тенантов | [`finam_report_v2`](finam_report_v2.md) |
 | Рефералки, project settings, FO | [`sber`](sber.md) |
-| Только НСЖ / email Подушка | [`sber-life`](sber-life.md) |
+| Только НСЖ / email «Страхование по подписке» | [`sber-life`](sber-life.md) |
 | АТБ / СК Лучи | [`atb-bank`](atb-bank.md) |
 
 При сомнении: **«покрасить Сбер»** → sber-report; **«переизобрести отчёт»** → finam_report_v2.

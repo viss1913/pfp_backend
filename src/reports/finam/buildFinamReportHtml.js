@@ -1683,21 +1683,30 @@ function applyGoalFactsToTemplate(html, goal) {
         const risks = buildLifeRiskModel(goal);
         const maxRisk = Math.max(1, ...risks.map((r) => toNum(r.limit_amount)));
         const annualPremium = toNum(details.annual_premium ?? summary.annual_premium ?? facts.initial);
-        const monthlyPremium = annualPremium > 0 ? annualPremium / 12 : facts.monthly;
+        const monthlyFromDetails = toNum(summary.monthly_replenishment ?? details.monthly_premium);
+        const monthlyPremium = monthlyFromDetails > 0
+            ? monthlyFromDetails
+            : (annualPremium > 0 ? annualPremium / 12 : facts.monthly);
         const yearTaxLife = toNum(summary.tax_deduction_2026 ?? details.tax_deduction_2026 ?? facts.taxYearAmount);
         const totalTaxLife = toNum(summary.total_tax_deductions ?? details.total_tax_deductions ?? facts.totalTax);
         const inst = resolvePrimaryGoalInstrument(goal);
-        // В карточке LIFE показываем именно тариф страхового продукта (а не доходность портфеля).
-        // Если тариф не пришел из данных, используем согласованный дефолт 1,44% в год.
+        const coverage = toNum(
+            summary.target_coverage ?? details.total_limit ?? summary.expected_cash_value ?? goal?.target_amount
+        );
+        // В карточке LIFE показываем тариф из актуарного расчёта (или annual/coverage).
         const lifeTariff = toNum(
             details.tariff_percent ??
                 details.annual_tariff_percent ??
                 details.rate_percent ??
                 summary.tariff_percent ??
                 summary.annual_tariff_percent
-        ) || 1.44;
+        ) || (annualPremium > 0 && coverage > 0 ? (annualPremium / coverage) * 100 : null);
         const lifeShare = inst.share > 0 ? `${Math.round(inst.share)}%` : '100%';
-        const programName = details.program_name || inst.name || 'Подушка безопасности';
+        const programNameRaw = details.program_name || inst.name || 'Страхование по подписке. Сбер Страхование Жизни';
+        const { normalizeSberLifeProgramLabel } = require('../../algorithms/calculators/sberLifeProgramLabel');
+        const programName = /подушка|подписке|сбер\s*страхование/i.test(String(programNameRaw))
+            ? normalizeSberLifeProgramLabel(programNameRaw)
+            : programNameRaw;
         const productTypeLabel = 'Страхование жизни';
 
         if (risks.length > 0) {
@@ -1746,8 +1755,12 @@ function applyGoalFactsToTemplate(html, goal) {
             `<div class="life-yield-big">${formatPercentValue(lifeTariff)}</div>`
         );
         out = out.replace(
-            /<p>Подушка безопасности — это понятный страховой продукт:[\s\S]*?<\/p>/,
-            '<p>Подушка безопасности — это понятный страховой продукт: фиксируете защиту семьи от ключевых рисков и заранее знаете размер ежегодного и ежемесячного платежа.</p>'
+            /<div class="life-hero-sub">[\s\S]*?<\/div>/,
+            `<div class="life-hero-sub">Программа «${escapeHtml(programName)}» с фиксированным тарифом и расширенным покрытием рисков</div>`
+        );
+        out = out.replace(
+            /<p>(?:Подушка безопасности|Страхование по подписке) — это понятный страховой продукт:[\s\S]*?<\/p>/,
+            '<p>Страхование по подписке — это понятный страховой продукт: фиксируете защиту семьи от ключевых рисков и заранее знаете размер ежегодного и ежемесячного платежа.</p>'
         );
 
         out = out.replace(

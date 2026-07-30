@@ -3,9 +3,12 @@
  * Не трогает шаблоны для проектов 14/23 — подстановка только при сборке HTML для meta.projectId === 28.
  */
 
-const ATB_BANK_PROJECT_ID = 28;
+const {
+    ATB_LIFE_PROGRAM_LABEL,
+    normalizeSberLifeProgramLabel,
+} = require('../../algorithms/calculators/sberLifeProgramLabel');
 
-const ATB_LIFE_PROGRAM_LABEL = 'Подушка безопасности · СК Лучи';
+const ATB_BANK_PROJECT_ID = 28;
 const ATB_LIFE_PROVIDER_LABEL = 'СК Лучи';
 
 function isAtbBankProject(projectId) {
@@ -16,7 +19,7 @@ function isAtbBankProject(projectId) {
 function looksSberLifeBranding(text) {
     const t = String(text || '').toLowerCase();
     if (!t.trim()) return false;
-    return /сбер/.test(t) && (/страхован|жизн|подушк|ск\s*сбер/.test(t) || t.includes('life'));
+    return /сбер/.test(t) && (/страхован|жизн|подушк|подписк|ск\s*сбер/.test(t) || t.includes('life'));
 }
 
 /**
@@ -25,19 +28,15 @@ function looksSberLifeBranding(text) {
  */
 function applyAtbLifeGoalDisplay(life, projectId) {
     if (!isAtbBankProject(projectId) || !life || typeof life !== 'object') return life;
-    let programName = life.programName;
+    let programName = normalizeSberLifeProgramLabel(life.programName, { atb: true });
     let provider = life.provider;
     const pn = String(programName || '');
     const pv = String(provider || '').trim();
     if (!pv || looksSberLifeBranding(pv) || /^сбер$/i.test(pv)) {
         provider = ATB_LIFE_PROVIDER_LABEL;
     }
-    if (!pn.trim() || looksSberLifeBranding(pn) || /подушка\s+безопасности\s*[·•]?\s*сбер/i.test(pn)) {
+    if (/сбер/i.test(pn) && !/ск\s*лучи/i.test(pn)) {
         programName = ATB_LIFE_PROGRAM_LABEL;
-    } else if (/сбер/i.test(pn)) {
-        programName = pn
-            .replace(/сбер[\s\u00a0]*страхование[\s\u00a0]*жизни/gi, 'СК Лучи')
-            .replace(/ск[\s\u00a0]*сбер[\s\u00a0]*страхование/gi, 'СК Лучи');
     }
     return { ...life, programName, provider };
 }

@@ -4,12 +4,9 @@
  */
 
 const nsjApiServiceSingleton = require('../../services/nsjApiService');
-const {
-    fixedLifeTermMonthsForProject,
-    fixedLifeTermYearsForProject,
-} = require('./lifeTermDefaults');
+const { resolveLifeTermMonths } = require('./lifeTermDefaults');
 const { isSberLifeCalcProject } = require('./sberLifeProjectIds');
-const SBER_LIFE_TARIFF = 0.0144;
+const { buildSberPodushkaNsjResult } = require('./sberPodushkaActuarial');
 
 /**
  * @param {Object} goal
@@ -38,28 +35,11 @@ async function fetchLifeNsjResult(goal, context) {
     const agentUserId = context?.agentUserId != null ? Number(context.agentUserId) : null;
 
     if (ctxProjectId != null && isSberLifeCalcProject(ctxProjectId)) {
-        const annualPremium = Math.round(targetAmount * SBER_LIFE_TARIFF * 100) / 100;
-        const termYears =
-            fixedLifeTermYearsForProject(ctxProjectId) ?? Math.ceil(termMonths / 12);
+        const resolvedTermMonths = resolveLifeTermMonths(ctxProjectId, goal.term_months);
+        const goalWithTerm = { ...goal, term_months: resolvedTermMonths, target_amount: targetAmount };
         return {
-            nsjResult: {
-                success: true,
-                total_premium: annualPremium,
-                term_years: termYears,
-                total_limit: targetAmount,
-                program: 'Подушка безопасности',
-                risks: [
-                    { risk_name: 'Травмы', limit_amount: Math.round(targetAmount * 0.3) },
-                    {
-                        risk_name: 'Инвалидность I-II группы в результате несчастного случая или болезни',
-                        limit_amount: Math.round(targetAmount)
-                    },
-                    { risk_name: 'Уход из жизни по любой причине', limit_amount: Math.round(targetAmount) },
-                    { risk_name: 'Уход из жизни в результате несчастного случая', limit_amount: Math.round(targetAmount) },
-                    { risk_name: 'Уход из жизни в результате ДТП', limit_amount: Math.round(targetAmount) }
-                ]
-            },
-            apiError: null
+            nsjResult: buildSberPodushkaNsjResult(goalWithTerm, context?.client || {}),
+            apiError: null,
         };
     }
 

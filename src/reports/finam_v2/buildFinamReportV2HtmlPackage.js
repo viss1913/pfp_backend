@@ -522,7 +522,7 @@ function isLifeInsuranceProduct(nameRaw, productTypeRaw) {
     const pt = String(productTypeRaw || '').toUpperCase().trim();
     if (pt && /NSJ|ИСЖ|НСЖ|INSURANCE|LIFE_INSURANCE/i.test(pt)) return true;
     const text = `${nameRaw || ''}`.toLowerCase();
-    return /нсж|исж|страхован|страховка|подушка безопасности|(\s|^)жизн(и|ь)(\s|,|$)/i.test(text)
+    return /нсж|исж|страхован|страховка|подушка безопасности|страхование по подписке|(\s|^)жизн(и|ь)(\s|,|$)/i.test(text)
         || /\blife insurance\b/i.test(text);
 }
 

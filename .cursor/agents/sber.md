@@ -9,7 +9,7 @@ description: Сбер white-label PFP (projectId 29, pk_8ef9004b1d87aab34c8476e5
 
 | Агент | Когда он, а не ты |
 |--------|-------------------|
-| [`sber-life`](sber-life.md) | Только **Сбер Страхование жизни**, «Подушка безопасности», тариф 1,44%, `sendSberLifeOfferEmail`, техстек страховщика |
+| [`sber-life`](sber-life.md) | Только **Сбер Страхование жизни**, «Страхование по подписке», актуарный тариф (Podushka final.py), `sendSberLifeOfferEmail`, техстек страховщика |
 | [`atb-bank`](atb-bank.md) | **projectId 28**, бренд **СК Лучи** вместо Сбера в v2 |
 | [`finam_report_v2`](finam_report_v2.md) | Архитектура v2 в целом, composer, типографика, изоляция от v1 |
 | [`finam_report`](finam_report.md) | Продовый Finam v1, project **14** |
@@ -76,7 +76,7 @@ description: Сбер white-label PFP (projectId 29, pk_8ef9004b1d87aab34c8476e5
 | Продукт | Базовый URL | Цель PFP |
 |---------|-------------|----------|
 | НПФ Сбера | `https://npfsberbanka.ru/` | PENSION |
-| СК Сбер Жизнь («Подушка») | `https://sberbank-insurance.ru/podushka-bezopasnosti` | LIFE |
+| СК Сбер Жизнь («Страхование по подписке») | `https://sberbank-insurance.ru/podushka-bezopasnosti` | LIFE |
 | УК «Первая» | `https://first-am.ru/fund` | INVESTMENT (витрина фондов) |
 | Брокер Сбер | `https://www.sberbank.ru/ru/person/investments` | INVESTMENT (открытие счёта) |
 
@@ -88,7 +88,7 @@ Whitelist доменов для трекинга: `npfsberbanka.ru`, `sberbank-i
 
 ### Известные дыры (чинить в рамках задач Сбера)
 
-- Ссылка «Подушка» в HTML отчёта **захардкожена** без трекинга: `https://sberbank-insurance.ru/podushka-bezopasnosti` — прогнать через `buildTrackedPartnerUrl` и добавить домен в whitelist.
+- Ссылка LIFE в HTML отчёта **захардкожена** без трекинга: `https://sberbank-insurance.ru/podushka-bezopasnosti` — прогнать через `buildTrackedPartnerUrl` и добавить домен в whitelist.
 - `inferLinkTypeFromUrl` и `per_link_type` заточены под Finam — для Сбера добавить типы ссылок или `paramOverrides` по продукту.
 - Базовые URL продуктов — хранить в settings (паттерн [`finamAgentLandingUrl.js`](src/utils/finamAgentLandingUrl.js)), не размазывать по `page-*.html`.
 
@@ -140,7 +140,7 @@ MVP — четыре продукта (таблица выше в блоке р�
 | Задача | Куда |
 |--------|------|
 | PDF/HTML отчёт v2: брендинг, цвета, скрыть Finam-only листы, **не меняя общие шаблоны** | [`sber-report`](sber-report.md) |
-| Только НСЖ, email «Подушка», тариф 1,44% | [`sber-life`](sber-life.md) |
+| Только НСЖ, email «Страхование по подписке», актуарный тариф | [`sber-life`](sber-life.md) |
 | Архитектура v2, новые типы страниц, правки **общего** composer/manifest | [`finam_report_v2`](finam_report_v2.md) |
 | АТБ / СК Лучи | [`atb-bank`](atb-bank.md) |
 | Двусторонний API Сбера | отдельное ТЗ, ИБ/юристы |

@@ -33,7 +33,7 @@ info:
     **NDA (соглашение о неразглашении):** тело `NdaSendRequestBody` — обязательны `client_email`, `client_full_name`, `client_phone`, `client_birth_date`, `client_gender` (`male`/`female`, только для текста письма).
     - **`POST /pfp/clients/nda/send`** — клиента в БД ещё нет (до first-run), только JWT агента.
     - **`POST /pfp/clients/{clientId}/nda/send`** — клиент уже есть; проверяется привязка к агенту.
-    - **`POST /pfp/clients/{clientId}/life-insurance/send-email`** — отправить клиенту HTML-письмо по продукту «Подушка безопасности» с кнопкой **«Оформить НСЖ»**.
+    - **`POST /pfp/clients/{clientId}/life-insurance/send-email`** — отправить клиенту HTML-письмо по продукту «Страхование по подписке» с кнопкой **«Оформить НСЖ»**.
     - **`POST /pfp/clients/{clientId}/broker-account/send-email`** — письмо Финам (Resend); ссылки с UTM и `partner_agent_id`, если включён `partner_link_tracking` в settings проекта.
 
     **Макро и новости (два отдельных виджета в ЛК):**
@@ -1226,7 +1226,7 @@ paths:
   /pfp/clients/{clientId}/life-insurance/send-email:
     post:
       tags: [ "Клиенты B2C в ЛК Агента" ]
-      summary: Отправить клиенту письмо по продукту «Подушка безопасности»
+      summary: Отправить клиенту письмо по продукту «Страхование по подписке»
       description: |
         Отправляет клиенту из карточки (`clients.email`) HTML-письмо через Resend:
         логотип Сбер Страхование Жизни, короткое описание и кнопка **«Оформить НСЖ»**.

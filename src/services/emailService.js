@@ -537,7 +537,7 @@ class EmailService {
     }
 
     /**
-     * Письмо клиенту с открытием LIFE-продукта «Подушка безопасности».
+     * Письмо клиенту с открытием LIFE-продукта «Страхование по подписке».
      * @param {{ to: string, clientFullName: string, clientGender: 'male'|'female', agentFullName: string, agentEmail: string, agentPhone: string, reportAgent: { id: number, email?: string|null, email_corp?: string|null }, offerUrl: string, shortDescription?: string }} opts
      */
     async sendSberLifeOfferEmail({
@@ -556,7 +556,7 @@ class EmailService {
         const subject = buildSberLifeOfferEmailSubject();
         const safeOfferUrl = String(offerUrl || 'https://sberbank-insurance.ru/podushka-bezopasnosti').trim();
         const description = String(shortDescription || '').trim() ||
-            'Подушка безопасности от Сбер Страхование Жизни — страховая защита с фиксированным тарифом 1,44% в год. Продукт покрывает риски травм, инвалидности I-II группы и ухода из жизни по ключевым сценариям.';
+            'Страхование по подписке от Сбер Страхование Жизни — страховая защита с тарифом по возрасту, полу и сроку (актуарный расчёт Сбера). Продукт покрывает риски травм, инвалидности I-II группы и ухода из жизни по ключевым сценариям.';
 
         const html = `
 <!DOCTYPE html>

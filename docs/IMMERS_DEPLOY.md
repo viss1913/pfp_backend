@@ -1,7 +1,7 @@
 # Immers: деплой backend PFP (test)
 
 Публичный API: **https://pfp-api.bank-future.com/api**  
-VM: `195.209.218.118`, код: `/opt/pfp/app`, Docker `mysql` + `backend`.
+VM: `bankfuturebackend`, публичный IP **`81.94.159.209`** (westcall; ранее `195.209.218.118`), код: `/opt/pfp/app`, Docker `mysql` + `backend` (+ `qdrant` для RAG).
 
 Подробный runbook агента: [`.cursor/agents/immers-deploy.md`](../.cursor/agents/immers-deploy.md).
 
@@ -82,7 +82,7 @@ docker compose exec backend node scripts/import_macro_data_dump.js macro_data.js
 
 ### 3b. LIFE — Сбер, не «НСЖ Династия»
 
-Для **project_id=2** (Immers test Finam) расчёт LIFE — «Подушка безопасности · Сбер» (`SBER_LIFE_CALC_PROJECT_IDS`, по умолчанию `2,14,28,29`). Иначе в диаграммах и PDF fallback **НСЖ Династия**. После деплоя — **пересчёт** клиента.
+Для **project_id=2** (Immers test Finam) расчёт LIFE — «Страхование по подписке · Сбер» (`SBER_LIFE_CALC_PROJECT_IDS`, по умолчанию `2,14,28,29`). Иначе в диаграммах и PDF fallback **НСЖ Династия**. После деплоя — **пересчёт** клиента.
 
 Пустой `macro_data` → фронт **0** и **01.01.1970**. Синк на VM:
 
@@ -96,7 +96,7 @@ docker compose exec backend node scripts/run_macro_sync.js
 ### 4. Приёмка в ЛК (ручная)
 
 1. Пересчитать клиента с целью **PENSION** — в `goals_summary` есть цифры, без `Pension portfolio not found`.
-2. Цель **LIFE** — в PDF v2 лист «Подушка безопасности · Сбер Страхование Жизни».
+2. Цель **LIFE** — в PDF v2 лист «Страхование по подписке · Сбер Страхование Жизни».
 3. Сгенерировать PDF — оглавление v2, пенсия ~3 страницы.
 4. Дашборд макро — даты не 1970, ключевая/ИПЦ/USD/EUR заполнены.
 5. Продукты: системный «ПДС НПФ» (`includeDefaults=true`) + свой ПДС в портфеле пенсии — норма.
