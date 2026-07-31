@@ -123,8 +123,15 @@ function buildFramesContainerHtml(pageHtmlList, { isFinamV2 = false } = {}) {
         .map((html, idx) => {
             const srcDoc = escapeAttr(html);
             const isLast = idx === pageHtmlList.length - 1;
+            const isYadroPage = String(html).includes('data-report-theme="yadro"');
+            const useNativeA4 = isFinamV2 || isYadroPage;
+            const iframeW = useNativeA4 ? 794 : 595;
+            const iframeH = useNativeA4 ? 1123 : 842;
+            const iframeTransform = useNativeA4
+                ? ''
+                : 'transform:scale(1.3333333333);transform-origin:top left;';
             return `<section class="pdf-page${isLast ? ' pdf-page--last' : ''}">
-  <iframe srcdoc="${srcDoc}" loading="eager"></iframe>
+  <iframe srcdoc="${srcDoc}" loading="eager" style="width:${iframeW}px;height:${iframeH}px;${iframeTransform}border:0;display:block;"></iframe>
 </section>`;
         })
         .join('\n');
@@ -148,14 +155,6 @@ function buildFramesContainerHtml(pageHtmlList, { isFinamV2 = false } = {}) {
     .pdf-page--last {
       page-break-after: auto;
       break-after: auto;
-    }
-    .pdf-page > iframe {
-      width: ${isFinamV2 ? 794 : 595}px;
-      height: ${isFinamV2 ? 1123 : 842}px;
-      ${isFinamV2 ? '' : 'transform: scale(1.3333333333);'}
-      ${isFinamV2 ? '' : 'transform-origin: top left;'}
-      border: 0;
-      display: block;
     }
   </style>
 </head>

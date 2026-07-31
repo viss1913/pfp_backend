@@ -29,8 +29,32 @@ body {
   background: #fff;
   transform: scale(1.3333333333);
   transform-origin: top left;
+  box-sizing: border-box;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+
+/* Flex-колонки с текстом: без min-width:0 длинные суммы вылезают за 595px и режутся overflow .page */
+.avatar-intro > div,
+.goal-card > .goal-details,
+.goal-card > div:not(.goal-photo) {
+  flex: 1;
+  min-width: 0;
+}
+
+.goal-card .goal-details,
+.formula-banner,
+.body-text,
+.plan-params {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.content svg,
+.bar-chart-box svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 /* ---------- Цвета бренда ---------- */
@@ -161,6 +185,8 @@ body {
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-main);
+  flex: 1;
+  min-width: 0;
 }
 
 /* ---------- Параметры плана ---------- */
@@ -267,6 +293,20 @@ table.info-table thead th {
 table.info-table tbody td {
   padding: 7px 6px;
   border-bottom: 1px solid var(--border-soft);
+}
+
+/* ---------- CTA / formula banner ---------- */
+.formula-banner {
+  box-sizing: border-box;
+  width: 100%;
+  background: var(--brand-blue);
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 16px 0;
 }
 
 /* ---------- Кнопки / CTA ---------- */
