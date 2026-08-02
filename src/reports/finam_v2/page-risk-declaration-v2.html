@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Декларация о рисках — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <link rel="stylesheet" href="page-wow-shared.css?v=finam-v2-tail" />
+  <style>
+    body {
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        gap: 0;
+      }
+
+      article.finam-v2-page {
+        page-break-after: always;
+      }
+
+      article.finam-v2-page:last-child {
+        page-break-after: auto;
+      }
+    }
+
+    @page {
+      size: 595px 842px;
+      margin: 0;
+    }
+
+    .finam-v2-risk-declaration__hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 154px;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: stretch;
+    }
+
+    .finam-v2-risk-declaration__hero-card,
+    .finam-v2-risk-declaration__section,
+    .finam-v2-risk-declaration__summary-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: var(--finam-v2-shadow-card);
+    }
+
+    .finam-v2-risk-declaration__hero-card {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .finam-v2-risk-declaration__hero-card--note {
+      background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+      border-color: #dbeafe;
+      justify-content: center;
+    }
+
+    .finam-v2-risk-declaration__hero-note {
+      font-size: 10px;
+      line-height: 1.38;
+      color: #334155;
+    }
+
+    .finam-v2-risk-declaration__hero-note strong {
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-risk-declaration__summary-grid,
+    .finam-v2-risk-declaration__two-col {
+      display: grid;
+      gap: 10px;
+    }
+
+    .finam-v2-risk-declaration__summary-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 12px;
+    }
+
+    .finam-v2-risk-declaration__summary-card {
+      padding: 10px 11px;
+    }
+
+    .finam-v2-risk-declaration__summary-card-title,
+    .finam-v2-risk-declaration__subhead {
+      font-size: 8.6px;
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-risk-declaration__summary-card-title {
+      margin-bottom: 7px;
+    }
+
+    .finam-v2-risk-declaration__summary-card-text,
+    .finam-v2-risk-declaration__text {
+      font-size: 9.1px;
+      line-height: 1.36;
+      color: #334155;
+    }
+
+    .finam-v2-risk-declaration__section {
+      padding: 11px 13px 12px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-risk-declaration__section:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .finam-v2-risk-declaration__section-title {
+      font-size: 13px;
+      line-height: 1.18;
+      color: var(--finam-v2-color-navy-deep);
+      margin: 0 0 8px;
+    }
+
+    .finam-v2-risk-declaration__section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-risk-declaration__badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: var(--finam-v2-color-navy-deep);
+      color: #f8fafc;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .finam-v2-risk-declaration__subhead {
+      margin: 8px 0 5px;
+    }
+
+    .finam-v2-risk-declaration__list {
+      margin: 0;
+      padding-left: 16px;
+      color: #334155;
+      font-size: 9px;
+      line-height: 1.34;
+    }
+
+    .finam-v2-risk-declaration__list li {
+      margin-bottom: 3px;
+    }
+
+    .finam-v2-risk-declaration__list li:last-child {
+      margin-bottom: 0;
+    }
+
+    .finam-v2-risk-declaration__two-col {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+
+    .finam-v2-risk-declaration__section--compact {
+      padding: 10px 11px 11px;
+    }
+
+    .finam-v2-risk-declaration__section--compact .finam-v2-risk-declaration__section-title {
+      font-size: 11.6px;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-risk-declaration__section--compact .finam-v2-risk-declaration__text,
+    .finam-v2-risk-declaration__section--compact .finam-v2-risk-declaration__list {
+      font-size: 8.8px;
+      line-height: 1.31;
+    }
+
+    .finam-v2-risk-declaration__section--compact .finam-v2-risk-declaration__subhead {
+      margin-top: 7px;
+      margin-bottom: 4px;
+      font-size: 8.2px;
+    }
+
+    .finam-v2-risk-declaration__aside {
+      border-left: 3px solid var(--finam-v2-color-accent-blue);
+      background: #f8fafc;
+      border-radius: 0 12px 12px 0;
+      padding: 9px 11px;
+      font-size: 9px;
+      line-height: 1.34;
+      color: #334155;
+      margin-top: 8px;
+    }
+
+    .finam-v2-risk-declaration__aside strong {
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-risk-declaration__conclusion {
+      background: #ecfdf5;
+      border-color: #d1fae5;
+    }
+
+    .finam-v2-risk-declaration__conclusion .finam-v2-risk-declaration__section-title {
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-tail__disclaimer {
+      margin-top: 10px;
+      font-size: 8.4px;
+      line-height: 1.35;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <article class="finam-v2-page">
+    <header class="finam-v2-wow__header">
+      <div class="finam-v2-wow__header-left">
+        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-wow__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-wow__pill">Риски плана · 1/5</span>
+    </header>
+    <hr class="finam-v2-wow__rule" />
+
+    <p class="finam-v2-wow__eyebrow">Декларация о рисках</p>
+    <h1 class="finam-v2-wow__headline">Информация для клиента по финансовому плану</h1>
+
+    <section class="finam-v2-risk-declaration__hero">
+      <div class="finam-v2-risk-declaration__hero-card">
+        <p class="finam-v2-wow__lead" style="margin-bottom: 0;">
+          Настоящая декларация подготовлена с целью объяснить ключевые риски, связанные с финансовым
+          планом, инвестиционными решениями и страховыми продуктами.
+        </p>
+        <p class="finam-v2-risk-declaration__text">
+          Любые инвестиции и финансовые инструменты предполагают возможность как получения дохода,
+          так и возникновения убытков.
+        </p>
+      </div>
+      <aside class="finam-v2-risk-declaration__hero-card finam-v2-risk-declaration__hero-card--note">
+        <p class="finam-v2-risk-declaration__hero-note">
+          <strong>Важно понимать:</strong> хранение капитала исключительно в денежной форме также несет
+          риски, прежде всего риск инфляции и постепенного снижения покупательной способности денежных средств.
+        </p>
+      </aside>
+    </section>
+
+    <section class="finam-v2-risk-declaration__summary-grid">
+      <div class="finam-v2-risk-declaration__summary-card">
+        <p class="finam-v2-risk-declaration__summary-card-title">Доход и убыток</p>
+        <p class="finam-v2-risk-declaration__summary-card-text">
+          Доходность не гарантирована, а финансовый результат зависит от горизонта, структуры и рыночной среды.
+        </p>
+      </div>
+      <div class="finam-v2-risk-declaration__summary-card">
+        <p class="finam-v2-risk-declaration__summary-card-title">Реальная стоимость капитала</p>
+        <p class="finam-v2-risk-declaration__summary-card-text">
+          Даже при сохранении номинальной суммы денег капитал может терять покупательную способность.
+        </p>
+      </div>
+      <div class="finam-v2-risk-declaration__summary-card">
+        <p class="finam-v2-risk-declaration__summary-card-title">Контроль плана</p>
+        <p class="finam-v2-risk-declaration__summary-card-text">
+          Финансовый план требует регулярного пересмотра, ребалансировки и сверки рисков с целями клиента.
+        </p>
+      </div>
+    </section>
+
+    <section class="finam-v2-risk-declaration__section" aria-labelledby="risk-1-title">
+      <div class="finam-v2-risk-declaration__section-header">
+        <h2 class="finam-v2-risk-declaration__section-title" id="risk-1-title">1. Инфляционный риск</h2>
+        <span class="finam-v2-risk-declaration__badge">Долгий горизонт</span>
+      </div>
+      <p class="finam-v2-risk-declaration__subhead">Суть риска</p>
+      <p class="finam-v2-risk-declaration__text">
+        Инфляция — это постепенное снижение покупательной способности денежных средств. Даже при
+        сохранении номинальной суммы капитала его реальная стоимость со временем уменьшается.
+      </p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>накопления теряют свою покупательную способность;</li>
+        <li>доходность консервативных инструментов оказывается ниже инфляции;</li>
+        <li>для достижения финансовых целей в будущем потребуется существенно больший капитал.</li>
+      </ul>
+      <p class="finam-v2-risk-declaration__aside">
+        <strong>Почему это важно:</strong> особенно значим данный риск при долгосрочном финансовом
+        планировании, когда срок реализации цели составляет годы, а иногда и десятилетия.
+      </p>
+      <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>распределение капитала между различными финансовыми инструментами;</li>
+        <li>использование инвестиционных решений с потенциальной доходностью выше инфляции;</li>
+        <li>регулярный пересмотр финансового плана;</li>
+        <li>долгосрочный инвестиционный подход, поэтапное инвестирование и ребалансировка портфеля.</li>
+      </ul>
+    </section>
+
+    <hr class="finam-v2-wow__footer-rule" />
+    <footer class="finam-v2-wow__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-wow__footer-right">Инфляция и горизонт планирования</span>
+    </footer>
+  </article>
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-wow__header">
+      <div class="finam-v2-wow__header-left">
+        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-wow__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-wow__pill">Риски плана · 2/5</span>
+    </header>
+    <hr class="finam-v2-wow__rule" />
+
+    <p class="finam-v2-wow__eyebrow">Инвестиционный контур</p>
+    <h1 class="finam-v2-wow__headline">Рыночный риск и риск повышенной волатильности</h1>
+
+    <section class="finam-v2-risk-declaration__section" aria-labelledby="risk-2-title">
+      <div class="finam-v2-risk-declaration__section-header">
+        <h2 class="finam-v2-risk-declaration__section-title" id="risk-2-title">2. Рыночный риск</h2>
+        <span class="finam-v2-risk-declaration__badge">Рынок</span>
+      </div>
+      <p class="finam-v2-risk-declaration__subhead">Суть риска</p>
+      <p class="finam-v2-risk-declaration__text">
+        Стоимость инвестиционных активов может как расти, так и снижаться под влиянием экономической
+        ситуации, процентных ставок, действий Центрального Банка, геополитических факторов, корпоративных
+        событий и изменений настроений участников рынка.
+      </p>
+      <p class="finam-v2-risk-declaration__text">
+        Инвестиционные продукты, включая автоследование, доверительное управление и стратегии с акциями
+        и производными инструментами, могут показывать временные или существенные просадки. Прошлая
+        доходность не гарантирует результатов в будущем.
+      </p>
+      <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>диверсификация между различными инструментами;</li>
+        <li>ограничение доли высокорисковых активов;</li>
+        <li>долгосрочный горизонт инвестирования;</li>
+        <li>регулярный контроль структуры портфеля и использование риск-менеджмента.</li>
+      </ul>
+    </section>
+
+    <section class="finam-v2-risk-declaration__section" aria-labelledby="risk-3-title">
+      <div class="finam-v2-risk-declaration__section-header">
+        <h2 class="finam-v2-risk-declaration__section-title" id="risk-3-title">
+          3. Риск повышенной волатильности и убытков по стратегиям автоследования
+        </h2>
+        <span class="finam-v2-risk-declaration__badge">Автоследование</span>
+      </div>
+      <p class="finam-v2-risk-declaration__subhead">Суть риска</p>
+      <p class="finam-v2-risk-declaration__text">
+        Стратегии автоследования могут использовать акции, фьючерсы, производные финансовые инструменты
+        и активные торговые стратегии.
+      </p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>высокая волатильность и резкие колебания стоимости;</li>
+        <li>возможность временных и существенных убытков;</li>
+        <li>повышенная чувствительность к рыночным движениям;</li>
+        <li>доходность стратегии может существенно отличаться от ожиданий клиента.</li>
+      </ul>
+      <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>ограничение доли капитала в агрессивных стратегиях;</li>
+        <li>распределение активов между разными уровнями риска;</li>
+        <li>соблюдение инвестиционного горизонта;</li>
+        <li>регулярный мониторинг стратегии и использование только приемлемого уровня риска.</li>
+      </ul>
+    </section>
+
+    <hr class="finam-v2-wow__footer-rule" />
+    <footer class="finam-v2-wow__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-wow__footer-right">Рынок, волатильность и ожидания доходности</span>
+    </footer>
+  </article>
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-wow__header">
+      <div class="finam-v2-wow__header-left">
+        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-wow__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-wow__pill">Риски плана · 3/5</span>
+    </header>
+    <hr class="finam-v2-wow__rule" />
+
+    <p class="finam-v2-wow__eyebrow">Контрагент и ликвидность</p>
+    <h1 class="finam-v2-wow__headline">Кредитный, корпоративный, ликвидный и регуляторный контур</h1>
+
+    <section class="finam-v2-risk-declaration__section finam-v2-risk-declaration__section--compact" aria-labelledby="risk-4-title">
+      <h2 class="finam-v2-risk-declaration__section-title" id="risk-4-title">4. Кредитный и корпоративный риск</h2>
+      <p class="finam-v2-risk-declaration__subhead">Суть риска</p>
+      <p class="finam-v2-risk-declaration__text">
+        Финансовые организации, эмитенты ценных бумаг и иные контрагенты могут столкнуться с ухудшением
+        финансового положения, ограничением операций, дефолтом, изменением условий обслуживания и снижением надежности.
+      </p>
+      <p class="finam-v2-risk-declaration__text">
+        Это может повлиять на стоимость активов и исполнение обязательств.
+      </p>
+      <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>использование регулируемых финансовых организаций;</li>
+        <li>распределение капитала между несколькими инструментами;</li>
+        <li>регулярный пересмотр структуры активов и ограничение концентрации.</li>
+      </ul>
+    </section>
+
+    <section class="finam-v2-risk-declaration__section finam-v2-risk-declaration__section--compact" aria-labelledby="risk-5-title">
+      <h2 class="finam-v2-risk-declaration__section-title" id="risk-5-title">5. Риск ликвидности</h2>
+      <p class="finam-v2-risk-declaration__subhead">Суть риска</p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>отдельные инструменты могут иметь ограниченную ликвидность;</li>
+        <li>временно быть недоступны для продажи;</li>
+        <li>реализовываться только с дисконтом к рыночной стоимости.</li>
+      </ul>
+      <p class="finam-v2-risk-declaration__text">
+        Особенно данный риск возрастает в периоды нестабильности на финансовых рынках.
+      </p>
+      <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>формирование резервного капитала;</li>
+        <li>распределение средств между инструментами с различной ликвидностью;</li>
+        <li>отказ от чрезмерной концентрации активов и планирование инвестиционного горизонта.</li>
+      </ul>
+    </section>
+
+    <section class="finam-v2-risk-declaration__section finam-v2-risk-declaration__section--compact" aria-labelledby="risk-6-title">
+      <h2 class="finam-v2-risk-declaration__section-title" id="risk-6-title">6. Регуляторный и налоговый риск</h2>
+      <p class="finam-v2-risk-declaration__subhead">Суть риска</p>
+      <p class="finam-v2-risk-declaration__text">
+        Законодательство, налоговые правила и регулирование финансового рынка могут изменяться. Это способно
+        повлиять на налогообложение, условия финансовых продуктов, порядок обслуживания и итоговую доходность инвестиций.
+      </p>
+      <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+      <ul class="finam-v2-risk-declaration__list">
+        <li>регулярный пересмотр финансового плана;</li>
+        <li>адаптация структуры активов к изменениям законодательства;</li>
+        <li>использование официально регулируемых финансовых инструментов и организаций.</li>
+      </ul>
+    </section>
+
+    <hr class="finam-v2-wow__footer-rule" />
+    <footer class="finam-v2-wow__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-wow__footer-right">Контрагент, ликвидность и регулирование</span>
+    </footer>
+  </article>
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-wow__header">
+      <div class="finam-v2-wow__header-left">
+        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-wow__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-wow__pill">Риски плана · 4/5</span>
+    </header>
+    <hr class="finam-v2-wow__rule" />
+
+    <p class="finam-v2-wow__eyebrow">Страховая защита</p>
+    <h1 class="finam-v2-wow__headline">7. Риски страховых продуктов</h1>
+
+    <section class="finam-v2-risk-declaration__section" aria-labelledby="risk-7-title">
+      <div class="finam-v2-risk-declaration__section-header">
+        <h2 class="finam-v2-risk-declaration__section-title" id="risk-7-title">Суть риска</h2>
+        <span class="finam-v2-risk-declaration__badge">Страхование</span>
+      </div>
+      <p class="finam-v2-risk-declaration__text">
+        Программы страхования жизни и страховой защиты имеют условия действия, ограничения, исключения,
+        сроки ожидания и установленный перечень страховых случаев.
+      </p>
+      <p class="finam-v2-risk-declaration__text">
+        Страховая выплата осуществляется исключительно в соответствии с условиями договора страхования.
+      </p>
+
+      <div class="finam-v2-risk-declaration__two-col">
+        <div>
+          <p class="finam-v2-risk-declaration__subhead">Когда выплата может быть ограничена или невозможна</p>
+          <ul class="finam-v2-risk-declaration__list">
+            <li>если событие не признается страховым случаем;</li>
+            <li>при предоставлении недостоверной информации;</li>
+            <li>при наличии заболеваний или травм, существовавших до заключения договора;</li>
+            <li>при умышленных действиях застрахованного лица;</li>
+            <li>в случаях алкогольного или наркотического опьянения;</li>
+            <li>при участии в противоправных действиях, военных действиях, массовых беспорядках или террористической деятельности;</li>
+            <li>в иных случаях, предусмотренных правилами страхования.</li>
+          </ul>
+        </div>
+        <div>
+          <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+          <ul class="finam-v2-risk-declaration__list">
+            <li>внимательное ознакомление с условиями договора страхования;</li>
+            <li>корректное и полное раскрытие информации при оформлении полиса;</li>
+            <li>соблюдение условий страхования;</li>
+            <li>подбор страховой программы под цели клиента;</li>
+            <li>регулярный пересмотр страхового покрытия.</li>
+          </ul>
+          <p class="finam-v2-risk-declaration__aside">
+            <strong>Дополнительно:</strong> досрочное прекращение договора также может привести к финансовым потерям.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="finam-v2-wow__footer-rule" />
+    <footer class="finam-v2-wow__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-wow__footer-right">Страховые условия и ограничения</span>
+    </footer>
+  </article>
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-wow__header">
+      <div class="finam-v2-wow__header-left">
+        <span class="finam-v2-wow__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-wow__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-wow__pill">Риски плана · 5/5</span>
+    </header>
+    <hr class="finam-v2-wow__rule" />
+
+    <p class="finam-v2-wow__eyebrow">Финансовая устойчивость и ожидания</p>
+    <h1 class="finam-v2-wow__headline">Организации, ожидания клиента и итоговый вывод</h1>
+
+    <section class="finam-v2-risk-declaration__section finam-v2-risk-declaration__section--compact" aria-labelledby="risk-8-title">
+      <h2 class="finam-v2-risk-declaration__section-title" id="risk-8-title">
+        8. Риск финансовой устойчивости финансовых организаций
+      </h2>
+      <p class="finam-v2-risk-declaration__text">
+        Несмотря на государственное регулирование и контроль со стороны Банка России, финансовые организации
+        могут столкнуться с ухудшением финансового положения, ограничением деятельности, отзывом лицензии,
+        санацией или банкротством.
+      </p>
+      <p class="finam-v2-risk-declaration__text">
+        Данный риск относится к НПФ, брокерским компаниям, страховым организациям, управляющим компаниям
+        и иным финансовым посредникам.
+      </p>
+      <div class="finam-v2-risk-declaration__two-col">
+        <div>
+          <p class="finam-v2-risk-declaration__subhead">Возможные последствия</p>
+          <ul class="finam-v2-risk-declaration__list">
+            <li>временные ограничения доступа к активам;</li>
+            <li>задержки операций и выплат;</li>
+            <li>необходимость перевода активов к другому участнику рынка;</li>
+            <li>финансовые потери по отдельным продуктам и услугам.</li>
+          </ul>
+        </div>
+        <div>
+          <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+          <ul class="finam-v2-risk-declaration__list">
+            <li>использование регулируемых финансовых организаций;</li>
+            <li>диверсификация капитала между различными организациями и инструментами;</li>
+            <li>ограничение концентрации средств в одной компании;</li>
+            <li>регулярный пересмотр структуры финансового плана и используемых продуктов.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="finam-v2-risk-declaration__aside">
+        <strong>Важно:</strong> активы на брокерском счете учитываются отдельно от имущества брокера и
+        регистрируются в депозитарной системе на имя клиента. Ценные бумаги не являются собственностью
+        брокера и не включаются в конкурсную массу при его банкротстве. Средства ПДС, размещенные через НПФ,
+        подлежат государственной системе гарантирования в пределах, установленных законодательством РФ
+        (на текущий момент — до 2,8 млн рублей).
+      </p>
+    </section>
+
+    <section class="finam-v2-risk-declaration__two-col" style="margin-top: 10px;">
+      <div class="finam-v2-risk-declaration__section finam-v2-risk-declaration__section--compact" aria-labelledby="risk-9-title" style="margin-bottom: 0;">
+        <h2 class="finam-v2-risk-declaration__section-title" id="risk-9-title">9. Риск несоответствия ожиданий</h2>
+        <p class="finam-v2-risk-declaration__subhead">Суть риска</p>
+        <p class="finam-v2-risk-declaration__text">
+          Фактическая доходность инвестиций может отличаться от прогнозируемой или ожидаемой.
+          Финансовый план строится на предположениях, сценариях и расчетах, которые не гарантируют конкретный результат.
+        </p>
+        <p class="finam-v2-risk-declaration__subhead">Меры снижения риска</p>
+        <ul class="finam-v2-risk-declaration__list">
+          <li>формирование реалистичных ожиданий;</li>
+          <li>долгосрочный подход к инвестированию;</li>
+          <li>регулярная корректировка финансового плана;</li>
+          <li>контроль рисков и диверсификация.</li>
+        </ul>
+      </div>
+
+      <div class="finam-v2-risk-declaration__section finam-v2-risk-declaration__section--compact finam-v2-risk-declaration__conclusion" aria-labelledby="risk-conclusion-title" style="margin-bottom: 0;">
+        <h2 class="finam-v2-risk-declaration__section-title" id="risk-conclusion-title">Важное заключение</h2>
+        <p class="finam-v2-risk-declaration__text">
+          Финансовый план направлен не на полное исключение рисков, а на их разумное управление.
+        </p>
+        <p class="finam-v2-risk-declaration__text">
+          Основная задача стратегии — создать устойчивую систему управления капиталом, которая:
+        </p>
+        <ul class="finam-v2-risk-declaration__list">
+          <li>учитывает цели клиента;</li>
+          <li>помогает снижать влияние инфляции;</li>
+          <li>распределяет риски;</li>
+          <li>формирует долгосрочную финансовую устойчивость;</li>
+          <li>обеспечивает финансовую защиту семьи и капитала.</li>
+        </ul>
+      </div>
+    </section>
+
+    <p class="finam-v2-tail__disclaimer">
+      Материалы декларации носят информационный характер и не являются индивидуальной инвестиционной
+      рекомендацией (ИИР). Прошлая доходность не гарантирует будущие результаты. Финансовые, пенсионные,
+      брокерские и страховые условия, порядок гарантий, комиссии, ограничения и выплаты определяются
+      действующим законодательством РФ, правилами провайдеров и документами конкретных продуктов.
+    </p>
+
+    <hr class="finam-v2-wow__footer-rule" />
+    <footer class="finam-v2-wow__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-wow__footer-right">Устойчивость организаций и реалистичные ожидания</span>
+    </footer>
+  </article>
+</body>
+</html>
+

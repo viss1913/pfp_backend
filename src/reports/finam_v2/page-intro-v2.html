@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Введение — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: var(--finam-v2-color-surface);
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 22px 34px 20px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .finam-v2-intro__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-intro__header-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-text-muted);
+      font-weight: 600;
+    }
+
+    .finam-v2-intro__pill {
+      background: var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: var(--finam-v2-radius-pill);
+    }
+
+    .finam-v2-intro__rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 14px;
+    }
+
+    .finam-v2-intro__kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-intro__hero-title {
+      font-family: var(--finam-v2-font-display);
+      font-weight: 700;
+      font-optical-sizing: auto;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+      color: var(--finam-v2-color-navy-deep);
+      max-width: 100%;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-intro__hero-title-lead {
+      display: block;
+      font-size: 25px;
+      line-height: 1.12;
+      letter-spacing: -0.04em;
+    }
+
+    .finam-v2-intro__hero-title-tail {
+      display: block;
+      font-size: 19px;
+      line-height: 1.2;
+      margin-top: 4px;
+      letter-spacing: -0.02em;
+    }
+
+    .finam-v2-intro__hero-text {
+      font-size: 11px;
+      line-height: 1.52;
+      font-weight: 400;
+      color: #334155;
+      max-width: none;
+      width: 100%;
+      margin-bottom: 14px;
+      text-align: justify;
+      text-align-last: left;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+    }
+
+    .finam-v2-intro__cards {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: flex-start;
+    }
+
+    /* Квадрат без cqw/aspect-ratio: padding-bottom % считается от ширины — стабильно в iframe/PDF */
+    .finam-v2-intro__card-outer {
+      flex: 1 1 0;
+      min-width: 0;
+      position: relative;
+    }
+
+    .finam-v2-intro__card-outer::before {
+      content: '';
+      display: block;
+      padding-bottom: 100%;
+    }
+
+    .finam-v2-intro__card {
+      position: absolute;
+      inset: 0;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: var(--finam-v2-radius-card);
+      padding: 6px 8px;
+      background: var(--finam-v2-color-surface);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .finam-v2-intro__card-icon-img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+      object-position: center top;
+      display: block;
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+
+    .finam-v2-intro__card-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--finam-v2-color-navy-deep);
+      margin: 0;
+      padding-top: 1px;
+      line-height: 1.2;
+      width: 100%;
+    }
+
+    .finam-v2-intro__card-rule {
+      border: none;
+      width: 72%;
+      max-width: 120px;
+      margin: 4px auto 3px;
+      flex-shrink: 0;
+      border-top: 1px dotted #cbd5e1;
+    }
+
+    .finam-v2-intro__card-text {
+      font-size: 10px;
+      line-height: 1.34;
+      font-weight: 400;
+      color: #475569;
+      margin: 0;
+      width: 100%;
+      max-width: none;
+      flex: 0 1 auto;
+      min-height: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .finam-v2-intro__consult {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 12px;
+      align-items: flex-start;
+    }
+
+    .finam-v2-intro__consult-left {
+      flex: 1.15;
+    }
+
+    .finam-v2-intro__consult-kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-intro__consult-text {
+      font-size: 10.5px;
+      line-height: 1.44;
+      color: var(--finam-v2-color-text);
+    }
+
+    .finam-v2-intro__consult-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .finam-v2-intro__chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--finam-v2-color-accent-soft);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 10px;
+      line-height: 1.32;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 500;
+    }
+
+    .finam-v2-intro__chip svg {
+      flex-shrink: 0;
+      width: 19px;
+      height: 19px;
+      color: var(--finam-v2-color-check);
+    }
+
+    .finam-v2-intro__section-kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-intro__check-grid {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 12px;
+    }
+
+    .finam-v2-intro__check-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .finam-v2-intro__check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 10.5px;
+      line-height: 1.36;
+      color: var(--finam-v2-color-text);
+    }
+
+    .finam-v2-intro__check-row svg {
+      flex-shrink: 0;
+      width: 15px;
+      height: 15px;
+      margin-top: 2px;
+      color: var(--finam-v2-color-check);
+    }
+
+    .finam-v2-intro__partners-kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-intro__logos {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-intro__logo-cell {
+      flex: 1;
+      height: 38px;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--finam-v2-color-text-muted);
+      background: #fafbfc;
+    }
+
+    .finam-v2-intro__footer-rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: auto 0 8px;
+    }
+
+    .finam-v2-intro__footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5px;
+      color: var(--finam-v2-color-text-muted);
+      line-height: 1.35;
+    }
+
+    .finam-v2-intro__footer-right {
+      text-align: right;
+      max-width: 220px;
+    }
+
+    .finam-v2-intro__grow {
+      flex: 1;
+      min-height: 4px;
+    }
+  </style>
+</head>
+<body>
+  <article class="finam-v2-page">
+    <header class="finam-v2-intro__header">
+      <span class="finam-v2-intro__header-label">Финансовый план</span>
+      <span class="finam-v2-intro__pill">Введение</span>
+    </header>
+    <hr class="finam-v2-intro__rule" />
+
+    <p class="finam-v2-intro__kicker">Почему это важно</p>
+    <h1 class="finam-v2-intro__hero-title">
+      <span class="finam-v2-intro__hero-title-lead">Жизнь без финансовых сюрпризов</span>
+      <span class="finam-v2-intro__hero-title-tail">начинается с плана</span>
+    </h1>
+    <p class="finam-v2-intro__hero-text">
+      Финансовое планирование важно не потому, что нужно считать каждый цент, а потому, что без плана жизнь
+      превращается в череду сюрпризов — а сюрпризы редко бывают приятными. У большинства людей проблема не в том,
+      что они «мало зарабатывают», а в том, что непонятно, куда уходят деньги. Без ясной картины решения
+      принимаются на эмоциях: кредиты, импульсивные покупки и вложения без стратегии.
+    </p>
+
+    <div class="finam-v2-intro__cards">
+      <div class="finam-v2-intro__card-outer">
+        <div class="finam-v2-intro__card">
+          <img
+            class="finam-v2-intro__card-icon-img"
+            src="assets/icon-roadmap.png"
+            width="52"
+            height="52"
+            alt=""
+            decoding="async"
+          />
+          <p class="finam-v2-intro__card-title">Дорожная карта от А до Б</p>
+          <hr class="finam-v2-intro__card-rule" />
+          <p class="finam-v2-intro__card-text">
+            Превратите желания в понятный маршрут: суммы, сроки и инструменты.
+          </p>
+        </div>
+      </div>
+      <div class="finam-v2-intro__card-outer">
+        <div class="finam-v2-intro__card">
+          <img
+            class="finam-v2-intro__card-icon-img"
+            src="assets/icon-control.png"
+            width="52"
+            height="52"
+            alt=""
+            decoding="async"
+          />
+          <p class="finam-v2-intro__card-title">Контроль вместо хаоса</p>
+          <hr class="finam-v2-intro__card-rule" />
+          <p class="finam-v2-intro__card-text">
+            Заранее понимайте, что и когда будет потрачено. Без паники и долговой спирали.
+          </p>
+        </div>
+      </div>
+      <div class="finam-v2-intro__card-outer">
+        <div class="finam-v2-intro__card">
+          <img
+            class="finam-v2-intro__card-icon-img"
+            src="assets/icon-freedom.png"
+            width="52"
+            height="52"
+            alt=""
+            decoding="async"
+          />
+          <p class="finam-v2-intro__card-title">Свобода выбора</p>
+          <hr class="finam-v2-intro__card-rule" />
+          <p class="finam-v2-intro__card-text">
+            Меняйте работу, переезжайте или запускайте проект, зная, что ваша система это выдержит.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="finam-v2-intro__consult">
+      <div class="finam-v2-intro__consult-left">
+        <p class="finam-v2-intro__consult-kicker">Почему нужен консультант</p>
+        <p class="finam-v2-intro__consult-text">
+          Речь не об экономии на каждой мелочи, а о грамотном распределении ресурсов. Самому управлять целями,
+          доходами, расходами, рисками и налогами сложно, и при этом трудно оставаться эмоционально нейтральным.
+          Консультант превращает хаос в план, которому можно следовать годами.
+        </p>
+      </div>
+      <div class="finam-v2-intro__consult-right">
+        <div class="finam-v2-intro__chip">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 18V6M4 18h16M8 14l3-3 3 2 4-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Инфляция — учтена в прогнозах</span>
+        </div>
+        <div class="finam-v2-intro__chip">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 5l7 4v6c0 5-7 8-7 8s-7-3-7-8V9l7-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          </svg>
+          <span>Финансовая подушка — 6–12 месяцев расходов</span>
+        </div>
+        <div class="finam-v2-intro__chip">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7 10h10M7 14h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+          </svg>
+          <span>Налоги — оптимизация и планирование</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="finam-v2-intro__section-kicker">Что вы получите в результате</p>
+    <div class="finam-v2-intro__check-grid">
+      <div class="finam-v2-intro__check-col">
+        <div class="finam-v2-intro__check-row">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 10l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Анализ вашего текущего финансового положения</span>
+        </div>
+        <div class="finam-v2-intro__check-row">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 10l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>План накоплений по каждой цели</span>
+        </div>
+        <div class="finam-v2-intro__check-row">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 10l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Защита от рисков: страхование и финансовая подушка безопасности</span>
+        </div>
+      </div>
+      <div class="finam-v2-intro__check-col">
+        <div class="finam-v2-intro__check-row">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 10l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Структурированный личный бюджет и аудит расходов</span>
+        </div>
+        <div class="finam-v2-intro__check-row">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 10l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Подбор инвестиционных инструментов в соответствии с вашими целями</span>
+        </div>
+        <div class="finam-v2-intro__check-row">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 10l4 4 6-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>Дорожная карта с понятными этапами и прогнозными датами</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="finam-v2-intro__partners-kicker">Проект реализован в партнёрстве с</p>
+    <div class="finam-v2-intro__logos">
+      <div class="finam-v2-intro__logo-cell">BankFuture</div>
+      <div class="finam-v2-intro__logo-cell">Finam Advisory</div>
+      <div class="finam-v2-intro__logo-cell">Pension Plus Fund</div>
+      <div class="finam-v2-intro__logo-cell">Secure Insurance</div>
+    </div>
+
+    <div class="finam-v2-intro__grow"></div>
+    <hr class="finam-v2-intro__footer-rule" />
+    <footer class="finam-v2-intro__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-intro__footer-right">Информация не является инвестиционной рекомендацией</span>
+    </footer>
+  </article>
+</body>
+</html>

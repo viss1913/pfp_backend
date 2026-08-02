@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Цели — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: var(--finam-v2-color-surface);
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 18px 32px 14px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .finam-v2-goals__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-goals__header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .finam-v2-goals__header-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 1px;
+      background: var(--finam-v2-color-navy-deep);
+      flex-shrink: 0;
+    }
+
+    .finam-v2-goals__header-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-goals__pill {
+      background: var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 8.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border-radius: var(--finam-v2-radius-pill);
+    }
+
+    .finam-v2-goals__rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 8px;
+    }
+
+    .finam-v2-goals__hero {
+      font-family: var(--finam-v2-font-display);
+      font-optical-sizing: auto;
+      font-weight: 700;
+      font-size: 19px;
+      line-height: 1.18;
+      letter-spacing: -0.02em;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-goals__sub {
+      font-size: 10.5px;
+      color: #64748b;
+      margin-bottom: 10px;
+      line-height: 1.3;
+    }
+
+    .finam-v2-goals__section-kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-goals__section-note {
+      font-size: 8px;
+      line-height: 1.35;
+      color: #64748b;
+      margin: -2px 0 8px;
+      max-width: 520px;
+    }
+
+    /* —— три столпа: отдельные карточки, между ними «воздух» —— */
+    .finam-v2-goals__pillars {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-goals__pillar {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 10px 10px;
+      background: #fff;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .finam-v2-goals__pillar-head {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-goals__pillar-head svg {
+      color: var(--finam-v2-color-accent-blue);
+    }
+
+    .finam-v2-goals__pillar-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-goals__pillar-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 4px;
+      font-size: 9px;
+      line-height: 1.28;
+      margin-bottom: 3px;
+    }
+
+    .finam-v2-goals__pillar-line span:first-child {
+      color: #64748b;
+      min-width: 0;
+    }
+
+    .finam-v2-goals__pillar-line span:last-child {
+      font-weight: 600;
+      color: var(--finam-v2-color-text);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-goals__pillar-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed #cbd5e1;
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-goals__pillar-total span:last-child {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* —— распределение —— */
+    .finam-v2-goals__dist {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+
+    .finam-v2-goals__dist-left {
+      flex: 1.15;
+      min-width: 0;
+    }
+
+    .finam-v2-goals__stack-wrap {
+      height: 14px;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      border: 1px solid #cbd5e1;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-goals__stack-seg {
+      height: 100%;
+    }
+
+    .finam-v2-goals__legend {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .finam-v2-goals__legend-row {
+      font-size: 8.5px;
+      line-height: 1.25;
+      color: #475569;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-goals__legend-row strong {
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-goals__insights {
+      flex: 1;
+      min-width: 0;
+      background: #f8fafc;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+
+    .finam-v2-goals__insights-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-goals__insights ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .finam-v2-goals__insights li {
+      display: flex;
+      gap: 6px;
+      font-size: 9px;
+      line-height: 1.28;
+      color: #334155;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-goals__insights li:last-child {
+      margin-bottom: 0;
+    }
+
+    .finam-v2-goals__insights li svg {
+      flex-shrink: 0;
+      margin-top: 1px;
+      color: var(--finam-v2-color-accent-blue);
+    }
+
+    /* —— таблица —— */
+    .finam-v2-goals__table-wrap {
+      margin-bottom: 8px;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .finam-v2-goals__table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.4px;
+    }
+
+    .finam-v2-goals__table th {
+      text-align: left;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      background: #f1f5f9;
+      padding: 5px 4px;
+      border-bottom: 1px solid var(--finam-v2-color-border);
+      letter-spacing: 0.02em;
+      vertical-align: bottom;
+      line-height: 1.2;
+    }
+
+    .finam-v2-goals__table th:nth-child(n + 3),
+    .finam-v2-goals__table td:nth-child(n + 3) {
+      text-align: right;
+    }
+
+    .finam-v2-goals__table td {
+      padding: 4px 4px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+      color: #334155;
+      line-height: 1.25;
+    }
+
+    .finam-v2-goals__table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .finam-v2-goals__table .finam-v2-goals__cell-goal {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      text-align: left;
+    }
+
+    .finam-v2-goals__table .finam-v2-goals__cell-goal svg {
+      flex-shrink: 0;
+      color: var(--finam-v2-color-accent-blue);
+    }
+
+    .finam-v2-goals__table strong {
+      font-weight: 600;
+      color: var(--finam-v2-color-text);
+    }
+
+    .finam-v2-goals__table .num {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* —— что важно —— */
+    .finam-v2-goals__takeaways {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-goals__takeaway {
+      flex: 1;
+      min-width: 0;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 8px;
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .finam-v2-goals__takeaway svg {
+      flex-shrink: 0;
+      color: var(--finam-v2-color-accent-blue);
+      margin-top: 1px;
+    }
+
+    .finam-v2-goals__takeaway p {
+      font-size: 8.8px;
+      line-height: 1.28;
+      color: #334155;
+    }
+
+    .finam-v2-goals__grow {
+      flex: 1;
+      min-height: 2px;
+    }
+
+    .finam-v2-goals__footer-rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 6px;
+    }
+
+    .finam-v2-goals__footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      color: var(--finam-v2-color-text-muted);
+      line-height: 1.35;
+    }
+
+    .finam-v2-goals__footer-right {
+      text-align: right;
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Маппинг (см. buildFinamReportHtml.js → computeGoalFacts):
+    • Столпы: goals[] → группы Защита | Накопления | Пенсия; в строках только monthly_replenishment (₽/мес), без стартового капитала.
+    • Таблица: goal_name, срок, monthly_replenishment, capital/target; колонки «Сейчас» = target_amount_initial;
+      «С инфляцией» = target_amount_future (или эквивалент из summary).
+    • Полоса распределения: доли от суммарного ежемесячного взноса по целям/категориям.
+    • Подвал статичный; номер страницы «ЦЕЛИ · СТР. X ИЗ Y» — подстановка при сборке PDF.
+  -->
+  <article class="finam-v2-page">
+    <header class="finam-v2-goals__header">
+      <div class="finam-v2-goals__header-left">
+        <span class="finam-v2-goals__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-goals__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-goals__pill">Портфель целей</span>
+    </header>
+    <hr class="finam-v2-goals__rule" />
+
+    <h1 class="finam-v2-goals__hero">Портфель целей перегружен долгосрочными взносами</h1>
+    <p class="finam-v2-goals__sub">Критичный вывод: без приоритизации долгосрочные цели забирают около 65% ежемесячного ресурса.</p>
+
+    <p class="finam-v2-goals__section-kicker">Структура целей</p>
+    <div class="finam-v2-goals__pillars">
+      <div class="finam-v2-goals__pillar">
+        <div class="finam-v2-goals__pillar-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 3l7 4v5c0 5-3 9-7 11-4-2-7-6-7-11V7l7-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          </svg>
+          <span class="finam-v2-goals__pillar-title">Защита</span>
+        </div>
+        <div class="finam-v2-goals__pillar-line">
+          <span>Финансовая подушка</span>
+          <span>12&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-goals__pillar-line">
+          <span>Страхование жизни</span>
+          <span>9&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-goals__pillar-total">
+          <span>Итого</span>
+          <span>21&nbsp;000&nbsp;₽/мес</span>
+        </div>
+      </div>
+      <div class="finam-v2-goals__pillar">
+        <div class="finam-v2-goals__pillar-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5" />
+            <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+          <span class="finam-v2-goals__pillar-title">Накопления</span>
+        </div>
+        <div class="finam-v2-goals__pillar-line">
+          <span>Образование детей</span>
+          <span>28&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-goals__pillar-line">
+          <span>Крупные покупки</span>
+          <span>15&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-goals__pillar-total">
+          <span>Итого</span>
+          <span>43&nbsp;000&nbsp;₽/мес</span>
+        </div>
+      </div>
+      <div class="finam-v2-goals__pillar">
+        <div class="finam-v2-goals__pillar-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 19V5M4 19h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+            <path d="M7 15l4-5 3 3 5-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span class="finam-v2-goals__pillar-title">Пенсия</span>
+        </div>
+        <div class="finam-v2-goals__pillar-line">
+          <span>Госпенсия</span>
+          <span>180&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-goals__pillar-line">
+          <span>Пассивный доход</span>
+          <span>45&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-goals__pillar-line">
+          <span>Рента</span>
+          <span>23&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-goals__pillar-total">
+          <span>Итого</span>
+          <span>248&nbsp;000&nbsp;₽/мес</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="finam-v2-goals__section-kicker">Распределение ежемесячного ресурса</p>
+    <div class="finam-v2-goals__dist">
+      <div class="finam-v2-goals__dist-left">
+        <div class="finam-v2-goals__stack-wrap" aria-hidden="true">
+          <div class="finam-v2-goals__stack-seg" style="width: 48.1%; background: #002a4a;"></div>
+          <div class="finam-v2-goals__stack-seg" style="width: 25.6%; background: #1e6bb8;"></div>
+          <div class="finam-v2-goals__stack-seg" style="width: 13.8%; background: #4f8fd9;"></div>
+          <div class="finam-v2-goals__stack-seg" style="width: 12.5%; background: #93c5fd;"></div>
+        </div>
+        <div class="finam-v2-goals__legend">
+          <div class="finam-v2-goals__legend-row"><strong>48,1%</strong> Недвижимость — 150&nbsp;000&nbsp;₽/мес</div>
+          <div class="finam-v2-goals__legend-row"><strong>25,6%</strong> Пенсия и капитал — 80&nbsp;000&nbsp;₽/мес</div>
+          <div class="finam-v2-goals__legend-row"><strong>13,8%</strong> Накопления — 43&nbsp;000&nbsp;₽/мес</div>
+          <div class="finam-v2-goals__legend-row"><strong>12,5%</strong> Прочее — 39&nbsp;000&nbsp;₽/мес</div>
+        </div>
+      </div>
+      <div class="finam-v2-goals__insights">
+        <div class="finam-v2-goals__insights-title">Что меняет решение</div>
+        <ul>
+          <li>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3a9 9 0 1 0 9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>Недвижимость формирует основной ежемесячный отток — контроль срока и ставки критичен.</span>
+          </li>
+          <li>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            </svg>
+            <span>Без строки «недвижимость» нагрузка по целям падает более чем наполовину.</span>
+          </li>
+          <li>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 19V5M4 19h16M8 17l3-6 4 3 5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>Пенсионный блок концентрирует долгосрочный капитал — проверьте сценарии доходности.</span>
+          </li>
+          <li>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 18h4l10-10M9 5h4v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span>Защита и накопления дают устойчивость; их долю проще масштабировать при изменении дохода.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="finam-v2-goals__section-kicker">Ключевые цели (детализация)</p>
+    <div class="finam-v2-goals__table-wrap">
+      <table class="finam-v2-goals__table">
+        <thead>
+          <tr>
+            <th>Цель</th>
+            <th>Срок</th>
+            <th>Пополнение<br />в мес</th>
+            <th>Капитал</th>
+            <th>Стоимость<br />сейчас</th>
+            <th>С учётом<br />инфляции</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="finam-v2-goals__cell-goal">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 3l8 4v6c0 5-8 8-8 8s-8-3-8-8V7l8-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+                </svg>
+                <strong>Фин. подушка</strong>
+              </div>
+            </td>
+            <td class="num">12 мес</td>
+            <td class="num">12&nbsp;000</td>
+            <td class="num">1,5 млн</td>
+            <td class="num">1,5 млн</td>
+            <td class="num">1,62 млн</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="finam-v2-goals__cell-goal">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+                </svg>
+                <strong>Страхование жизни</strong>
+              </div>
+            </td>
+            <td class="num">20 лет</td>
+            <td class="num">9&nbsp;000</td>
+            <td class="num">—</td>
+            <td class="num">4,0 млн</td>
+            <td class="num">4,35 млн</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="finam-v2-goals__cell-goal">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+                </svg>
+                <strong>Образование</strong>
+              </div>
+            </td>
+            <td class="num">8 лет</td>
+            <td class="num">28&nbsp;000</td>
+            <td class="num">3,2 млн</td>
+            <td class="num">2,1 млн</td>
+            <td class="num">2,85 млн</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="finam-v2-goals__cell-goal">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+                </svg>
+                <strong>Квартира (ипотека)</strong>
+              </div>
+            </td>
+            <td class="num">15 лет</td>
+            <td class="num">150&nbsp;000</td>
+            <td class="num">18 млн</td>
+            <td class="num">15 млн</td>
+            <td class="num">19,8 млн</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="finam-v2-goals__cell-goal">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 8v8M8 12h8M4 19h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+                <strong>Госпенсия</strong>
+              </div>
+            </td>
+            <td class="num">22 года</td>
+            <td class="num">180&nbsp;000</td>
+            <td class="num">42 млн</td>
+            <td class="num">120&nbsp;тыс.&nbsp;₽/мес</td>
+            <td class="num">244&nbsp;тыс.&nbsp;₽/мес</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="finam-v2-goals__section-kicker">Управленческие выводы</p>
+    <div class="finam-v2-goals__takeaways">
+      <div class="finam-v2-goals__takeaway">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+          <path d="M12 8v4l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <p>Основная нагрузка сосредоточена в 1–2 целях — их параметры стоит пересматривать в первую очередь.</p>
+      </div>
+      <div class="finam-v2-goals__takeaway">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M7 10h10M7 14h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+        <p>Без учёта недвижимости совокупный взнос по целям падает более чем на 50%.</p>
+      </div>
+      <div class="finam-v2-goals__takeaway">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 12a4 4 0 1 0-4-4M6 20v-1a4 4 0 0 1 4-4h0a4 4 0 0 1 4 4v1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <p>Пенсионный блок — основной носитель долгосрочного капитала в этом плане.</p>
+      </div>
+    </div>
+
+    <div class="finam-v2-goals__grow"></div>
+    <hr class="finam-v2-goals__footer-rule" />
+    <footer class="finam-v2-goals__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-goals__footer-right">Информация не является инвестиционной рекомендацией</span>
+    </footer>
+  </article>
+</body>
+</html>

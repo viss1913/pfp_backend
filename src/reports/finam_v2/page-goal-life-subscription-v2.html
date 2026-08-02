@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Страхование по подписке — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: var(--finam-v2-color-surface);
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 32px 36px 28px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .finam-v2-life-sub__hero-title {
+      font-family: var(--finam-v2-font-display);
+      font-size: 34px;
+      line-height: 1.1;
+      font-weight: 700;
+      color: #002b49;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-life-sub__tagline {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #334155;
+      margin-bottom: 18px;
+      max-width: 420px;
+    }
+
+    .finam-v2-life-sub__pitch {
+      display: grid;
+      grid-template-columns: 1fr 188px;
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 22px;
+    }
+
+    .finam-v2-life-sub__pitch-copy {
+      min-width: 0;
+    }
+
+    .finam-v2-life-sub__kicker {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #1e6bb8;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-life-sub__offer {
+      font-size: 14px;
+      line-height: 1.45;
+      color: #002b49;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .finam-v2-life-sub__product-name {
+      font-size: 12px;
+      line-height: 1.45;
+      color: #002b49;
+      word-break: break-word;
+    }
+
+    .finam-v2-life-sub__hero-image {
+      width: 188px;
+      height: 148px;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #e2e8f0;
+      flex-shrink: 0;
+    }
+
+    .finam-v2-life-sub__hero-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .finam-v2-life-sub__section-title {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: #002b49;
+      margin-bottom: 12px;
+    }
+
+    .finam-v2-life-sub__benefits {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .finam-v2-life-sub__benefit {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid #e3ecef;
+      border-radius: 16px;
+      padding: 12px 10px 14px;
+      text-align: center;
+      min-height: 132px;
+      background:
+        radial-gradient(ellipse 88px 88px at 0% 0%, rgba(29, 185, 164, 0.24) 0%, rgba(29, 185, 164, 0.08) 38%, rgba(255, 255, 255, 0) 68%),
+        #ffffff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .finam-v2-life-sub__benefit > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .finam-v2-life-sub__benefit-icon {
+      width: 45px;
+      height: 45px;
+      margin: 0 auto 8px;
+      display: block;
+    }
+
+    .finam-v2-life-sub__benefit-title {
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: #002b49;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-life-sub__benefit-text {
+      font-size: 8px;
+      line-height: 1.35;
+      color: #64748b;
+    }
+
+    .finam-v2-life-sub__scenarios {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .finam-v2-life-sub__scenario {
+      background: #f2f5f7;
+      border-radius: 12px;
+      padding: 12px 10px 11px;
+      min-height: 150px;
+    }
+
+    .finam-v2-life-sub__scenario-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      color: #1db9a4;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    }
+
+    .finam-v2-life-sub__scenario-icon svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+
+    .finam-v2-life-sub__scenario-name {
+      font-size: 9.5px;
+      font-weight: 700;
+      line-height: 1.25;
+      color: #002b49;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-life-sub__scenario-text {
+      font-size: 8px;
+      line-height: 1.4;
+      color: #475569;
+    }
+
+    .finam-v2-life-sub__footnote {
+      font-size: 7.5px;
+      line-height: 1.35;
+      color: #94a3b8;
+      margin-bottom: 18px;
+    }
+
+    .finam-v2-life-sub__cta-wrap {
+      margin-top: auto;
+      display: flex;
+      justify-content: center;
+      padding-top: 6px;
+      width: 100%;
+    }
+
+    .finam-v2-life-sub__cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 523px;
+      min-height: 52px;
+      padding: 14px 24px;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.2;
+      color: #fff;
+      text-decoration: none;
+      background: linear-gradient(180deg, #2cc8b2 0%, #1db9a4 52%, #17a992 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        0 8px 18px rgba(29, 185, 164, 0.24);
+    }
+  </style>
+</head>
+<body>
+  <article class="finam-v2-page finam-v2-life-sub">
+    <h1 class="finam-v2-life-sub__hero-title" data-finam-v2-field="life-sub-page-title">Цель – Защита жизни</h1>
+    <p class="finam-v2-life-sub__tagline" data-finam-v2-field="life-sub-tagline">
+      Надежная защита жизни и здоровья <strong>по всему миру</strong>
+    </p>
+
+    <section class="finam-v2-life-sub__pitch">
+      <div class="finam-v2-life-sub__pitch-copy">
+        <div class="finam-v2-life-sub__kicker" data-finam-v2-field="life-sub-kicker">LIFE</div>
+        <p class="finam-v2-life-sub__offer" data-finam-v2-field="life-sub-offer">
+          Подписка от <strong>14&nbsp;700 рублей в год</strong> с защитой <strong>до 0,7 млн.руб.</strong>
+        </p>
+        <p class="finam-v2-life-sub__product-name" data-finam-v2-field="life-sub-product-name">
+          Продукт: <strong>Подушка безопасности · Сбер Страхование Жизни</strong>
+        </p>
+      </div>
+      <div class="finam-v2-life-sub__hero-image">
+        <img src="assets/life-subscription-hero.png" width="188" height="148" alt="" decoding="async" />
+      </div>
+    </section>
+
+    <h2 class="finam-v2-life-sub__section-title">Преимущества продукта</h2>
+    <section class="finam-v2-life-sub__benefits">
+      <div class="finam-v2-life-sub__benefit">
+        <img class="finam-v2-life-sub__benefit-icon" src="assets/life-sub-icon-clock.png" width="45" height="45" alt="" />
+        <div class="finam-v2-life-sub__benefit-title">Гибкий срок полиса</div>
+        <div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-term-years">от 5 до 30 лет</div>
+      </div>
+      <div class="finam-v2-life-sub__benefit">
+        <img class="finam-v2-life-sub__benefit-icon" src="assets/life-sub-icon-wallet.png" width="45" height="45" alt="" />
+        <div class="finam-v2-life-sub__benefit-title">Цена фиксируется</div>
+        <div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-price">на весь срок действия полиса</div>
+      </div>
+      <div class="finam-v2-life-sub__benefit">
+        <img class="finam-v2-life-sub__benefit-icon" src="assets/life-sub-icon-map.png" width="45" height="45" alt="" />
+        <div class="finam-v2-life-sub__benefit-title">Действие</div>
+        <div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-world">весь мир</div>
+      </div>
+      <div class="finam-v2-life-sub__benefit">
+        <img class="finam-v2-life-sub__benefit-icon" src="assets/life-sub-icon-security.png" width="45" height="45" alt="" />
+        <div class="finam-v2-life-sub__benefit-title">Подходит</div>
+        <div class="finam-v2-life-sub__benefit-text" data-finam-v2-field="life-sub-benefit-sport">для занятий спортом</div>
+      </div>
+    </section>
+
+    <h2 class="finam-v2-life-sub__section-title">Как поможет полис</h2>
+    <section class="finam-v2-life-sub__scenarios">
+      <div class="finam-v2-life-sub__scenario">
+        <div class="finam-v2-life-sub__scenario-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="6" cy="15" r="3" stroke="currentColor" stroke-width="1.5" />
+            <circle cx="18" cy="15" r="3" stroke="currentColor" stroke-width="1.5" />
+            <path d="M9 15h6M12 6v4M10 8l2-2 2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <div class="finam-v2-life-sub__scenario-name">При травмах</div>
+        <p class="finam-v2-life-sub__scenario-text" data-finam-v2-field="life-sub-scenario-trauma">
+          Выплата при травме дома, в дороге, на прогулке или во время спорта <strong>до 0,2 млн руб.</strong>
+        </p>
+      </div>
+      <div class="finam-v2-life-sub__scenario">
+        <div class="finam-v2-life-sub__scenario-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+            <path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="finam-v2-life-sub__scenario-name">При инвалидности</div>
+        <p class="finam-v2-life-sub__scenario-text" data-finam-v2-field="life-sub-scenario-disability">
+          Выплата при страховых случаях по инвалидности I, II группы из-за болезни или несчастного случая <strong>до 0,7 млн руб.</strong>
+        </p>
+      </div>
+      <div class="finam-v2-life-sub__scenario">
+        <div class="finam-v2-life-sub__scenario-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M7 10c0-2.8 2.2-5 5-5s5 2.2 5 5v1.5c1.7.5 3 2 3 3.9V18H4v-2.6c0-1.9 1.3-3.4 3-3.9V10z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+            <path d="M9 18v1.5a3 3 0 0 0 6 0V18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="finam-v2-life-sub__scenario-name">При уходе из жизни</div>
+        <p class="finam-v2-life-sub__scenario-text" data-finam-v2-field="life-sub-scenario-death">
+          Выплата близким <strong>до 0,7 млн. руб.</strong>
+        </p>
+      </div>
+    </section>
+
+    <p class="finam-v2-life-sub__footnote">
+      *выплаты в зависимости от выбранной суммы страховой защиты
+    </p>
+
+    <div class="finam-v2-life-sub__cta-wrap">
+      <a
+        class="finam-v2-life-sub__cta"
+        data-finam-v2-field="life-sub-cta-href"
+        href="https://sberbank-insurance.ru/podushka-bezopasnosti"
+        target="_blank"
+        rel="noopener"
+      ><span data-finam-v2-field="life-sub-cta-label">Оформить полис</span></a>
+    </div>
+  </article>
+</body>
+</html>

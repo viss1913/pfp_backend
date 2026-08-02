@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Итоговый портфель — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: var(--finam-v2-color-surface);
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 32px 10px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .finam-v2-portfolio__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-portfolio__header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .finam-v2-portfolio__header-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 1px;
+      background: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-portfolio__header-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-portfolio__pill {
+      background: var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 8.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border-radius: var(--finam-v2-radius-pill);
+    }
+
+    .finam-v2-portfolio__rule,
+    .finam-v2-portfolio__footer-rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+    }
+
+    .finam-v2-portfolio__rule {
+      margin: 0 0 8px;
+    }
+
+    .finam-v2-portfolio__eyebrow,
+    .finam-v2-portfolio__section-kicker {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-accent-blue);
+    }
+
+    .finam-v2-portfolio__eyebrow {
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-portfolio__headline {
+      font-family: var(--finam-v2-font-display);
+      font-weight: 700;
+      font-size: 23px;
+      line-height: 1.08;
+      letter-spacing: -0.025em;
+      color: var(--finam-v2-color-navy-deep);
+      max-width: 470px;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-portfolio__lead {
+      font-size: 10.5px;
+      line-height: 1.34;
+      color: #475569;
+      max-width: 510px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-portfolio__kpi {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fff;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-portfolio__kpi-item {
+      min-width: 0;
+      padding: 8px 9px;
+      border-right: 1px solid #e2e8f0;
+    }
+
+    .finam-v2-portfolio__kpi-item:last-child {
+      border-right: 0;
+    }
+
+    .finam-v2-portfolio__kpi-label {
+      font-size: 8px;
+      line-height: 1.2;
+      color: #64748b;
+      margin-bottom: 3px;
+    }
+
+    .finam-v2-portfolio__kpi-value {
+      font-size: 12px;
+      line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--finam-v2-color-navy-deep);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-portfolio__kpi-note {
+      font-size: 8px;
+      color: #94a3b8;
+      margin-top: 3px;
+      line-height: 1.15;
+    }
+
+    .finam-v2-portfolio__structure {
+      margin-bottom: 10px;
+    }
+
+    /* Слева столбик диаграмм, справа таблица (явные области). */
+    .finam-v2-portfolio__structure--split {
+      display: grid;
+      grid-template-columns: minmax(132px, 148px) minmax(0, 1fr);
+      grid-template-areas: "pf-charts pf-table";
+      gap: 8px;
+      align-items: start;
+      direction: ltr;
+    }
+
+    .finam-v2-portfolio__table-card--unified {
+      width: 100%;
+      min-width: 0;
+    }
+
+    .finam-v2-portfolio__structure--split > .finam-v2-portfolio__table-card--unified {
+      grid-area: pf-table;
+    }
+
+    .finam-v2-portfolio__donut-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 132px;
+      width: 100%;
+      align-self: start;
+    }
+
+    .finam-v2-portfolio__structure--split > .finam-v2-portfolio__donut-stack {
+      grid-area: pf-charts;
+    }
+
+    .finam-v2-portfolio__donut-card--split {
+      padding: 7px 5px;
+      align-items: center;
+      text-align: center;
+    }
+
+    .finam-v2-portfolio__donut-card--split .finam-v2-portfolio__donut-title {
+      font-size: 8.4px;
+      line-height: 1.15;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto;
+    }
+
+    .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut-center {
+      inset: 12px;
+      font-size: 7.8px;
+    }
+
+    .finam-v2-portfolio__structure--split .finam-v2-portfolio__donut-center small {
+      margin-top: 1px;
+      font-size: 7px;
+    }
+
+    .finam-v2-portfolio__donut--dynamic {
+      background: transparent !important;
+    }
+
+    .finam-v2-portfolio__donut--dynamic svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .finam-v2-portfolio__donut-card,
+    .finam-v2-portfolio__table-card,
+    .finam-v2-portfolio__card,
+    .finam-v2-portfolio__panel {
+      background: #fff;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .finam-v2-portfolio__donut-card {
+      padding: 9px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: center;
+    }
+
+    .finam-v2-portfolio__donut-row {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    .finam-v2-portfolio__donut {
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      background:
+        conic-gradient(
+          #002a4a 0 30%,
+          #1e6bb8 30% 56%,
+          #7aa6d6 56% 74%,
+          #9fb7ca 74% 86%,
+          #cbd5e1 86% 100%
+        );
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .finam-v2-portfolio__donut svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .finam-v2-portfolio__donut::after {
+      content: none;
+    }
+
+    .finam-v2-portfolio__donut--monthly {
+      background:
+        conic-gradient(
+          #1e6bb8 0 34%,
+          #002a4a 34% 58%,
+          #7aa6d6 58% 78%,
+          #9fb7ca 78% 90%,
+          #cbd5e1 90% 100%
+        );
+    }
+
+    .finam-v2-portfolio__donut-center {
+      position: absolute;
+      inset: 18px;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+      font-size: 9.5px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+    }
+
+    .finam-v2-portfolio__donut-center small {
+      font-size: 8px;
+      line-height: 1.15;
+      color: #64748b;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .finam-v2-portfolio__donut-title {
+      font-size: 9.2px;
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-portfolio__donut-note {
+      font-size: 8.5px;
+      line-height: 1.25;
+      color: #64748b;
+    }
+
+    .finam-v2-portfolio__table-card {
+      padding: 10px 12px;
+      min-width: 0;
+    }
+
+    .finam-v2-portfolio__table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-top: 6px;
+    }
+
+    .finam-v2-portfolio__table--unified th:nth-child(1),
+    .finam-v2-portfolio__table--unified td:nth-child(1) {
+      width: 34%;
+      text-align: left;
+    }
+
+    .finam-v2-portfolio__table--unified th:nth-child(2),
+    .finam-v2-portfolio__table--unified td:nth-child(2),
+    .finam-v2-portfolio__table--unified th:nth-child(3),
+    .finam-v2-portfolio__table--unified td:nth-child(3),
+    .finam-v2-portfolio__table--unified th:nth-child(4),
+    .finam-v2-portfolio__table--unified td:nth-child(4) {
+      width: 22%;
+      text-align: right;
+    }
+
+    .finam-v2-portfolio__table th {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #64748b;
+      font-weight: 700;
+      padding: 0 5px 5px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .finam-v2-portfolio__table td {
+      font-size: 8.7px;
+      line-height: 1.24;
+      padding: 6px 5px;
+      border-bottom: 1px solid #eef2f7;
+      color: #334155;
+      vertical-align: middle;
+    }
+
+    .finam-v2-portfolio__table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .finam-v2-portfolio__table tfoot td {
+      font-weight: 700;
+      padding-top: 7px;
+      border-top: 1px solid #e2e8f0;
+      border-bottom: 0;
+    }
+
+    .finam-v2-portfolio__asset {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-portfolio__dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .finam-v2-portfolio__num {
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-portfolio__num-main,
+    .finam-v2-portfolio__pct {
+      white-space: nowrap;
+    }
+
+    .finam-v2-portfolio__pct {
+      font-weight: 500;
+      color: #64748b;
+    }
+
+    .finam-v2-portfolio__num--total,
+    .finam-v2-portfolio__table tfoot .finam-v2-portfolio__pct {
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-portfolio__why {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-portfolio__card {
+      padding: 9px 10px;
+      min-width: 0;
+    }
+
+    .finam-v2-portfolio__icon {
+      width: 20px;
+      height: 20px;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-portfolio__card-title {
+      font-size: 9.2px;
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-portfolio__card-text {
+      font-size: 8.5px;
+      line-height: 1.28;
+      color: #475569;
+    }
+
+    .finam-v2-portfolio__projection {
+      padding: 10px 12px 8px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-portfolio__projection-head,
+    .finam-v2-portfolio__panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-portfolio__projection-note,
+    .finam-v2-portfolio__panel-note {
+      font-size: 8.5px;
+      color: #64748b;
+      line-height: 1.2;
+    }
+
+    .finam-v2-portfolio__chart {
+      width: 100%;
+      height: 148px;
+      display: block;
+    }
+
+    .finam-v2-portfolio__grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-portfolio__panel {
+      padding: 10px 12px;
+      min-width: 0;
+    }
+
+    .finam-v2-portfolio__ladder {
+      display: grid;
+      gap: 7px;
+      margin-top: 7px;
+    }
+
+    .finam-v2-portfolio__ladder-row {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr) 74px;
+      gap: 8px;
+      align-items: center;
+      padding-bottom: 7px;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .finam-v2-portfolio__ladder-row:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .finam-v2-portfolio__round-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid #dbeafe;
+      background: #eff6ff;
+      color: var(--finam-v2-color-accent-blue);
+      display: grid;
+      place-items: center;
+    }
+
+    .finam-v2-portfolio__round-icon svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .finam-v2-portfolio__row-title {
+      font-size: 9.2px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      line-height: 1.15;
+    }
+
+    .finam-v2-portfolio__row-sub {
+      font-size: 8px;
+      color: #64748b;
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+
+    .finam-v2-portfolio__row-value {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-portfolio__flow {
+      display: grid;
+      grid-template-columns: 1fr 18px 1fr 18px 1fr;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .finam-v2-portfolio__flow-step {
+      text-align: center;
+      min-width: 0;
+    }
+
+    .finam-v2-portfolio__flow-step svg {
+      width: 22px;
+      height: 22px;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-portfolio__flow-title {
+      font-size: 8.8px;
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-portfolio__flow-sub {
+      font-size: 8px;
+      line-height: 1.2;
+      color: #64748b;
+      margin-top: 3px;
+    }
+
+    .finam-v2-portfolio__arrow {
+      color: #94a3b8;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .finam-v2-portfolio__risk {
+      display: grid;
+      grid-template-columns: 96px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .finam-v2-portfolio__risk-score {
+      border-radius: 12px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      padding: 9px 8px;
+      text-align: center;
+    }
+
+    .finam-v2-portfolio__risk-score strong {
+      display: block;
+      font-size: 21px;
+      line-height: 1;
+      color: var(--finam-v2-color-navy-deep);
+      letter-spacing: -0.04em;
+    }
+
+    .finam-v2-portfolio__risk-score span {
+      display: block;
+      font-size: 8px;
+      color: #64748b;
+      margin-top: 4px;
+      line-height: 1.2;
+    }
+
+    .finam-v2-portfolio__risk-bars {
+      display: grid;
+      gap: 6px;
+    }
+
+    .finam-v2-portfolio__risk-row {
+      display: grid;
+      grid-template-columns: 82px 1fr 38px;
+      gap: 8px;
+      align-items: center;
+      font-size: 8.5px;
+      color: #475569;
+    }
+
+    .finam-v2-portfolio__risk-track {
+      height: 7px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+
+    .finam-v2-portfolio__risk-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: var(--finam-v2-color-accent-blue);
+    }
+
+    .finam-v2-portfolio__map {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 7px;
+    }
+
+    .finam-v2-portfolio__map td {
+      font-size: 8.5px;
+      line-height: 1.25;
+      color: #475569;
+      padding: 5px 0;
+      border-bottom: 1px solid #eef2f7;
+      vertical-align: top;
+    }
+
+    .finam-v2-portfolio__map tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .finam-v2-portfolio__map td:first-child {
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      width: 35%;
+    }
+
+    .finam-v2-portfolio__principles {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-portfolio__principle {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 9px;
+    }
+
+    .finam-v2-portfolio__principle-num {
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--finam-v2-color-accent-blue);
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-portfolio__principle-title {
+      font-size: 8.8px;
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 3px;
+    }
+
+    .finam-v2-portfolio__principle-text {
+      font-size: 8px;
+      line-height: 1.25;
+      color: #64748b;
+    }
+
+    .finam-v2-portfolio__insight {
+      border: 1px solid #d1fae5;
+      background: #ecfdf5;
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-size: 9.5px;
+      line-height: 1.3;
+      color: #166534;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-portfolio__insight strong {
+      color: #064e3b;
+    }
+
+    .finam-v2-portfolio__grow {
+      flex: 1;
+      min-height: 2px;
+    }
+
+    .finam-v2-portfolio__footer-rule {
+      margin: 0 0 6px;
+    }
+
+    .finam-v2-portfolio__footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 8px;
+      color: var(--finam-v2-color-text-muted);
+      line-height: 1.35;
+    }
+
+    .finam-v2-portfolio__footer-right {
+      text-align: right;
+      max-width: 230px;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Маппинг PORTFOLIO_SUMMARY:
+    Лист 1: KPI, единая таблица структуры (первоначальный капитал %, пополнение %,
+    доходность по инструменту), projection[].
+    Лист 2: liquidityBuckets[], contributionFlow[], riskControls[],
+    objectiveMapping[], principles[].
+  -->
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-portfolio__header">
+      <div class="finam-v2-portfolio__header-left">
+        <span class="finam-v2-portfolio__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-portfolio__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-portfolio__pill">Итоговый портфель · 1/2</span>
+    </header>
+    <hr class="finam-v2-portfolio__rule" />
+
+    <p class="finam-v2-portfolio__eyebrow">Сводка по портфелю</p>
+    <h1 class="finam-v2-portfolio__headline">Итоговый портфель: рост капитала без потери ликвидности</h1>
+    <p class="finam-v2-portfolio__lead">
+      Структура портфеля связывает цели клиента в одну систему: ликвидность закрывает короткий риск,
+      облигационная часть стабилизирует поток, а доля роста работает на долгий горизонт.
+    </p>
+
+    <section class="finam-v2-portfolio__kpi">
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Итоговый капитал</div>
+        <div class="finam-v2-portfolio__kpi-value">24,7 млн ₽</div>
+        <div class="finam-v2-portfolio__kpi-note">на горизонте плана</div>
+      </div>
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Горизонт</div>
+        <div class="finam-v2-portfolio__kpi-value">10 лет</div>
+        <div class="finam-v2-portfolio__kpi-note">с ежегодной сверкой</div>
+      </div>
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Пополнение</div>
+        <div class="finam-v2-portfolio__kpi-value">50 тыс ₽</div>
+        <div class="finam-v2-portfolio__kpi-note">ежемесячно</div>
+      </div>
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Доходность</div>
+        <div class="finam-v2-portfolio__kpi-value">11,0%</div>
+        <div class="finam-v2-portfolio__kpi-note">ожидаемая годовая</div>
+      </div>
+      <div class="finam-v2-portfolio__kpi-item">
+        <div class="finam-v2-portfolio__kpi-label">Риск-профиль</div>
+        <div class="finam-v2-portfolio__kpi-value">Сбалансированный</div>
+        <div class="finam-v2-portfolio__kpi-note">без агрессивного перекоса</div>
+      </div>
+    </section>
+
+    <section class="finam-v2-portfolio__structure finam-v2-portfolio__structure--split">
+      <div class="finam-v2-portfolio__table-card finam-v2-portfolio__table-card--unified">
+        <p class="finam-v2-portfolio__section-kicker">Структура портфеля</p>
+        <table class="finam-v2-portfolio__table finam-v2-portfolio__table--unified">
+          <thead>
+            <tr>
+              <th>Инструмент</th>
+              <th>Первоначальный капитал</th>
+              <th>Пополнение</th>
+              <th>Доходность</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#002a4a;"></span>Облигации</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">12,0 млн ₽</span> <span class="finam-v2-portfolio__pct">(36%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">19,6 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(38,4%)</span></td>
+              <td class="finam-v2-portfolio__num">8,5%</td>
+            </tr>
+            <tr>
+              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#1e6bb8;"></span>Акции / фонды</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">12,0 млн ₽</span> <span class="finam-v2-portfolio__pct">(36%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">19,6 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(38,4%)</span></td>
+              <td class="finam-v2-portfolio__num">12,0%</td>
+            </tr>
+            <tr>
+              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#7aa6d6;"></span>Ликвидность</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">6,7 млн ₽</span> <span class="finam-v2-portfolio__pct">(20%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">5,2 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(10,1%)</span></td>
+              <td class="finam-v2-portfolio__num">7,0%</td>
+            </tr>
+            <tr>
+              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#9fb7ca;"></span>Защита</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">2,0 млн ₽</span> <span class="finam-v2-portfolio__pct">(6%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">3,1 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(6,1%)</span></td>
+              <td class="finam-v2-portfolio__num">—</td>
+            </tr>
+            <tr>
+              <td><span class="finam-v2-portfolio__asset"><span class="finam-v2-portfolio__dot" style="background:#cbd5e1;"></span>Подушка безопасности · Сбер Страхование Жизни</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">0,7 млн ₽</span> <span class="finam-v2-portfolio__pct">(2%)</span></td>
+              <td class="finam-v2-portfolio__num"><span class="finam-v2-portfolio__num-main">3,6 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(7,1%)</span></td>
+              <td class="finam-v2-portfolio__num">—</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total">Итого</td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total"><span class="finam-v2-portfolio__num-main">33,3 млн ₽</span> <span class="finam-v2-portfolio__pct">(100%)</span></td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total"><span class="finam-v2-portfolio__num-main">51 тыс ₽/мес</span> <span class="finam-v2-portfolio__pct">(100%)</span></td>
+              <td class="finam-v2-portfolio__num finam-v2-portfolio__num--total">17,7%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="finam-v2-portfolio__donut-stack" aria-label="Доли по таблице структуры">
+        <div class="finam-v2-portfolio__donut-card finam-v2-portfolio__donut-card--split">
+          <div class="finam-v2-portfolio__donut-title">Первоначальный капитал</div>
+          <div class="finam-v2-portfolio__donut">
+            <div class="finam-v2-portfolio__donut-center"><span>Старт</span><small>доля</small></div>
+          </div>
+        </div>
+        <div class="finam-v2-portfolio__donut-card finam-v2-portfolio__donut-card--split">
+          <div class="finam-v2-portfolio__donut-title">Пополнение</div>
+          <div class="finam-v2-portfolio__donut finam-v2-portfolio__donut--monthly">
+            <div class="finam-v2-portfolio__donut-center"><span>Поток</span><small>доля</small></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="finam-v2-portfolio__why">
+      <div class="finam-v2-portfolio__card">
+        <svg class="finam-v2-portfolio__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3l7 3v5c0 4.2-2.7 7.8-7 10-4.3-2.2-7-5.8-7-10V6l7-3z" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+        <div class="finam-v2-portfolio__card-title">Защита от плохого момента</div>
+        <p class="finam-v2-portfolio__card-text">Резерв и облигации снижают риск продавать активы во время просадки.</p>
+      </div>
+      <div class="finam-v2-portfolio__card">
+        <svg class="finam-v2-portfolio__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 19V5M4 19h16M8 17l3-6 4 3 5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <div class="finam-v2-portfolio__card-title">Двигатель роста</div>
+        <p class="finam-v2-portfolio__card-text">Доля акций и фондов работает на долгий горизонт, а не на короткий шум рынка.</p>
+      </div>
+      <div class="finam-v2-portfolio__card">
+        <svg class="finam-v2-portfolio__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3c3 4 5 7 5 10a5 5 0 0 1-10 0c0-3 2-6 5-10z" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+        <div class="finam-v2-portfolio__card-title">Ликвидность до доходности</div>
+        <p class="finam-v2-portfolio__card-text">Часть капитала держится доступной для резерва, целей и ребалансировки.</p>
+      </div>
+    </section>
+
+    <section class="finam-v2-portfolio__panel finam-v2-portfolio__projection">
+      <div class="finam-v2-portfolio__projection-head">
+        <p class="finam-v2-portfolio__section-kicker">Прогноз капитала</p>
+        <span class="finam-v2-portfolio__projection-note">база 11,0% годовых · стресс 7,0% · рост 13,0%</span>
+      </div>
+      <svg class="finam-v2-portfolio__chart" viewBox="0 0 500 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="finamV2PortfolioChartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1e6bb8" stop-opacity="0.14"/>
+            <stop offset="100%" stop-color="#1e6bb8" stop-opacity="0.01"/>
+          </linearGradient>
+        </defs>
+        <line x1="38" y1="120" x2="486" y2="120" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="38" y1="90" x2="486" y2="90" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="38" y1="60" x2="486" y2="60" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="38" y1="30" x2="486" y2="30" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="32" y="123" font-size="8" fill="#64748b" text-anchor="end">0</text>
+        <text x="32" y="93" font-size="8" fill="#64748b" text-anchor="end">10м</text>
+        <text x="32" y="63" font-size="8" fill="#64748b" text-anchor="end">20м</text>
+        <text x="32" y="33" font-size="8" fill="#64748b" text-anchor="end">30м</text>
+        <path d="M38,72 L126,67 L214,59 L302,49 L390,36 L486,22 L486,120 L38,120 Z" fill="url(#finamV2PortfolioChartGrad)"/>
+        <polyline points="38,72 126,67 214,59 302,49 390,36 486,22" fill="none" stroke="#1e6bb8" stroke-width="2" stroke-linecap="round"/>
+        <polyline points="38,72 126,70 214,66 302,60 390,52 486,43" fill="none" stroke="#64748b" stroke-width="1.4" stroke-dasharray="4 4" stroke-linecap="round"/>
+        <polyline points="38,72 126,64 214,53 302,39 390,23 486,12" fill="none" stroke="#002a4a" stroke-width="1.4" stroke-dasharray="5 3" stroke-linecap="round"/>
+        <text x="38" y="140" font-size="8" fill="#64748b" text-anchor="middle">сейчас</text>
+        <text x="214" y="140" font-size="8" fill="#64748b" text-anchor="middle">5 лет</text>
+        <text x="390" y="140" font-size="8" fill="#64748b" text-anchor="middle">7 лет</text>
+        <text x="486" y="140" font-size="8" fill="#64748b" text-anchor="end">10 лет</text>
+      </svg>
+    </section>
+
+    <div class="finam-v2-portfolio__grow"></div>
+    <hr class="finam-v2-portfolio__footer-rule" />
+    <footer class="finam-v2-portfolio__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-portfolio__footer-right">Итоговый портфель агрегирует инвестиционные цели клиента</span>
+    </footer>
+  </article>
+
+  <article class="finam-v2-page">
+    <header class="finam-v2-portfolio__header">
+      <div class="finam-v2-portfolio__header-left">
+        <span class="finam-v2-portfolio__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-portfolio__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-portfolio__pill">Итоговый портфель · 2/2</span>
+    </header>
+    <hr class="finam-v2-portfolio__rule" />
+
+    <p class="finam-v2-portfolio__eyebrow">Операционная логика портфеля</p>
+    <h1 class="finam-v2-portfolio__headline">Как портфель ведёт себя в жизни, а не только в расчёте</h1>
+    <p class="finam-v2-portfolio__lead">
+      Второй лист показывает, как портфель обслуживает цели: где лежит ликвидность, как распределяются
+      новые взносы, какие риски контролируются и когда нужен пересмотр.
+    </p>
+
+    <section class="finam-v2-portfolio__grid-2">
+      <div class="finam-v2-portfolio__panel">
+        <div class="finam-v2-portfolio__panel-head">
+          <p class="finam-v2-portfolio__section-kicker">Лестница ликвидности</p>
+          <span class="finam-v2-portfolio__panel-note">3 горизонта</span>
+        </div>
+        <div class="finam-v2-portfolio__ladder">
+          <div class="finam-v2-portfolio__ladder-row">
+            <div class="finam-v2-portfolio__round-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l7 3v5c0 4-2.7 7.7-7 10-4.3-2.3-7-6-7-10V6l7-3z" stroke="currentColor" stroke-width="1.5"/></svg>
+            </div>
+            <div>
+              <div class="finam-v2-portfolio__row-title">Резерв</div>
+              <div class="finam-v2-portfolio__row-sub">0-6 месяцев · доступность важнее доходности</div>
+            </div>
+            <div class="finam-v2-portfolio__row-value">1,8 млн ₽</div>
+          </div>
+          <div class="finam-v2-portfolio__ladder-row">
+            <div class="finam-v2-portfolio__round-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 6v6l4 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div class="finam-v2-portfolio__row-title">Средний горизонт</div>
+              <div class="finam-v2-portfolio__row-sub">1-3 года · цели и плановые расходы</div>
+            </div>
+            <div class="finam-v2-portfolio__row-value">3,4 млн ₽</div>
+          </div>
+          <div class="finam-v2-portfolio__ladder-row">
+            <div class="finam-v2-portfolio__round-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19h16M6 16l4-5 3 3 5-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div class="finam-v2-portfolio__row-title">Долгий капитал</div>
+              <div class="finam-v2-portfolio__row-sub">3+ года · рост и защита от инфляции</div>
+            </div>
+            <div class="finam-v2-portfolio__row-value">7,7 млн ₽</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="finam-v2-portfolio__panel">
+        <div class="finam-v2-portfolio__panel-head">
+          <p class="finam-v2-portfolio__section-kicker">Поток пополнений</p>
+          <span class="finam-v2-portfolio__panel-note">50 тыс ₽/мес</span>
+        </div>
+        <div class="finam-v2-portfolio__flow">
+          <div class="finam-v2-portfolio__flow-step">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <div class="finam-v2-portfolio__flow-title">Доход</div>
+            <div class="finam-v2-portfolio__flow-sub">свободный поток</div>
+          </div>
+          <div class="finam-v2-portfolio__arrow">→</div>
+          <div class="finam-v2-portfolio__flow-step">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <div class="finam-v2-portfolio__flow-title">Автоматизация</div>
+            <div class="finam-v2-portfolio__flow-sub">без ручных решений</div>
+          </div>
+          <div class="finam-v2-portfolio__arrow">→</div>
+          <div class="finam-v2-portfolio__flow-step">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 13a8 8 0 1 1 8 8M4 13h8V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <div class="finam-v2-portfolio__flow-title">Ребалансировка</div>
+            <div class="finam-v2-portfolio__flow-sub">по целевой структуре</div>
+          </div>
+        </div>
+        <div class="finam-v2-portfolio__insight" style="margin: 11px 0 0;">
+          <strong>Правило:</strong> новый взнос сначала закрывает отклонение портфеля от целевой структуры,
+          а не покупает «самую горячую» идею месяца.
+        </div>
+      </div>
+    </section>
+
+    <section class="finam-v2-portfolio__grid-2">
+      <div class="finam-v2-portfolio__panel">
+        <div class="finam-v2-portfolio__panel-head">
+          <p class="finam-v2-portfolio__section-kicker">Риск-контур</p>
+          <span class="finam-v2-portfolio__panel-note">умеренный профиль</span>
+        </div>
+        <div class="finam-v2-portfolio__risk">
+          <div class="finam-v2-portfolio__risk-score">
+            <strong>7,4</strong>
+            <span>защита от инфляции из 10</span>
+          </div>
+          <div class="finam-v2-portfolio__risk-bars">
+            <div class="finam-v2-portfolio__risk-row">
+              <span>Рынок</span>
+              <div class="finam-v2-portfolio__risk-track"><div class="finam-v2-portfolio__risk-fill" style="width: 64%;"></div></div>
+              <strong>средн.</strong>
+            </div>
+            <div class="finam-v2-portfolio__risk-row">
+              <span>Ликвидность</span>
+              <div class="finam-v2-portfolio__risk-track"><div class="finam-v2-portfolio__risk-fill" style="width: 34%;"></div></div>
+              <strong>низк.</strong>
+            </div>
+            <div class="finam-v2-portfolio__risk-row">
+              <span>Валюта</span>
+              <div class="finam-v2-portfolio__risk-track"><div class="finam-v2-portfolio__risk-fill" style="width: 46%;"></div></div>
+              <strong>средн.</strong>
+            </div>
+            <div class="finam-v2-portfolio__risk-row">
+              <span>Стресс</span>
+              <div class="finam-v2-portfolio__risk-track"><div class="finam-v2-portfolio__risk-fill" style="width: 58%;"></div></div>
+              <strong>контр.</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="finam-v2-portfolio__panel">
+        <div class="finam-v2-portfolio__panel-head">
+          <p class="finam-v2-portfolio__section-kicker">Связь с целями</p>
+          <span class="finam-v2-portfolio__panel-note">что поддерживает портфель</span>
+        </div>
+        <table class="finam-v2-portfolio__map">
+          <tbody>
+            <tr>
+              <td>Финрезерв</td>
+              <td>ликвидность и короткие облигации, доступность 0-6 месяцев</td>
+            </tr>
+            <tr>
+              <td>Пассивный доход</td>
+              <td>купонный поток, фонды облигаций, часть дивидендной стратегии</td>
+            </tr>
+            <tr>
+              <td>Крупные цели</td>
+              <td>средний горизонт, снижение риска по мере приближения даты</td>
+            </tr>
+            <tr>
+              <td>Рост капитала</td>
+              <td>длинная доля акций/фондов и регулярная ребалансировка</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="finam-v2-portfolio__principles">
+      <div class="finam-v2-portfolio__principle">
+        <div class="finam-v2-portfolio__principle-num">01</div>
+        <div class="finam-v2-portfolio__principle-title">Сначала ликвидность</div>
+        <p class="finam-v2-portfolio__principle-text">Резерв защищает план от вынужденных продаж.</p>
+      </div>
+      <div class="finam-v2-portfolio__principle">
+        <div class="finam-v2-portfolio__principle-num">02</div>
+        <div class="finam-v2-portfolio__principle-title">Доходность через дисциплину</div>
+        <p class="finam-v2-portfolio__principle-text">Пополнения важнее попыток угадать точку входа.</p>
+      </div>
+      <div class="finam-v2-portfolio__principle">
+        <div class="finam-v2-portfolio__principle-num">03</div>
+        <div class="finam-v2-portfolio__principle-title">Риск снижается к цели</div>
+        <p class="finam-v2-portfolio__principle-text">Чем ближе платеж, тем больше защитных активов.</p>
+      </div>
+      <div class="finam-v2-portfolio__principle">
+        <div class="finam-v2-portfolio__principle-num">04</div>
+        <div class="finam-v2-portfolio__principle-title">Квартальный контроль</div>
+        <p class="finam-v2-portfolio__principle-text">Портфель живёт через пересчёт и ребалансировку.</p>
+      </div>
+    </section>
+
+    <div class="finam-v2-portfolio__insight">
+      <strong>Итог:</strong> портфель не просто распределяет деньги по продуктам. Он задаёт правила:
+      сколько держим в доступе, где берём рост и когда меняем риск без эмоциональных решений.
+    </div>
+
+    <div class="finam-v2-portfolio__grow"></div>
+    <hr class="finam-v2-portfolio__footer-rule" />
+    <footer class="finam-v2-portfolio__footer">
+      <span>Персональный финансовый план · Конфиденциально</span>
+      <span class="finam-v2-portfolio__footer-right">Не является индивидуальной инвестиционной рекомендацией</span>
+    </footer>
+  </article>
+</body>
+</html>

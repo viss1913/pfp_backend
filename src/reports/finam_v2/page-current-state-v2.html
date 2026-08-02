@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Текущее состояние — финансовый план (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: var(--finam-v2-color-surface);
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 34px 16px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* —— шапка (как intro v2) —— */
+    .finam-v2-cs__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-cs__header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .finam-v2-cs__header-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 1px;
+      background: var(--finam-v2-color-navy-deep);
+      flex-shrink: 0;
+    }
+
+    .finam-v2-cs__header-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+      font-weight: 700;
+    }
+
+    .finam-v2-cs__pill {
+      background: var(--finam-v2-color-navy);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: var(--finam-v2-radius-pill);
+    }
+
+    .finam-v2-cs__rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 8px;
+    }
+
+    .finam-v2-cs__hero-title {
+      font-family: var(--finam-v2-font-display);
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.12;
+      letter-spacing: -0.035em;
+      color: var(--finam-v2-color-navy-deep);
+      max-width: 480px;
+      margin: 0 0 8px;
+    }
+
+    /* —— ИИ: вводная —— */
+    .finam-v2-cs__insight-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-cs__avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
+      background: #e2e8f0;
+    }
+
+    .finam-v2-cs__avatar img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    /* Первый ИИ — нейтральный слегка серый */
+    .finam-v2-cs__bubble {
+      flex: 1;
+      min-width: 0;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 8px 12px;
+      position: relative;
+    }
+
+    .finam-v2-cs__bubble::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 14px;
+      width: 10px;
+      height: 10px;
+      background: #f1f5f9;
+      border-left: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+      transform: rotate(45deg);
+    }
+
+    .finam-v2-cs__bubble p {
+      font-size: 10.5px;
+      line-height: 1.4;
+      color: #334155;
+      position: relative;
+      z-index: 1;
+    }
+
+    .finam-v2-cs__bubble strong {
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    /* —— секции —— */
+    .finam-v2-cs__section-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .finam-v2-cs__section-head svg {
+      flex-shrink: 0;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-cs__section-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-cs__section-head-right {
+      margin-left: auto;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--finam-v2-color-accent-blue);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-cs__grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-cs__card {
+      background: #f8fafc;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    /* Семья — слегка зелёный фон */
+    .finam-v2-cs__card--family {
+      background: #f0fdf4;
+      border-color: #d1fae5;
+    }
+
+    .finam-v2-cs__card--family .finam-v2-cs__card-hr {
+      border-top-color: #d1fae5;
+    }
+
+    /* Активы — нейтрально, как было */
+    .finam-v2-cs__card--assets {
+      background: #f8fafc;
+      border-color: var(--finam-v2-color-border);
+    }
+
+    .finam-v2-cs__card-title {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .finam-v2-cs__card-title svg {
+      color: var(--finam-v2-color-accent-blue);
+      flex-shrink: 0;
+    }
+
+    .finam-v2-cs__row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 7.2rem;
+      gap: 6px;
+      align-items: start;
+      margin-bottom: 3px;
+    }
+
+    .finam-v2-cs__row-label {
+      font-size: 9.5px;
+      color: #64748b;
+      line-height: 1.3;
+    }
+
+    .finam-v2-cs__row-value {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--finam-v2-color-text);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.3;
+    }
+
+    .finam-v2-cs__card-hr {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 5px 0;
+    }
+
+    /* —— обязательства —— */
+    .finam-v2-cs__obligations {
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-cs__obligations-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .finam-v2-cs__bar-card {
+      background: #f8fafc;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    .finam-v2-cs__bar-card--dense {
+      padding: 6px 8px 5px;
+    }
+
+    .finam-v2-cs__bar-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .finam-v2-cs__bar-card--dense .finam-v2-cs__bar-row {
+      margin-bottom: 2px;
+    }
+
+    .finam-v2-cs__bar-card--dense .finam-v2-cs__bar-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .finam-v2-cs__bar-label {
+      flex: 0 0 5.1rem;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--finam-v2-color-text);
+      text-align: right;
+    }
+
+    .finam-v2-cs__bar-track {
+      flex: 1;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+    }
+
+    .finam-v2-cs__bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--finam-v2-color-accent-blue), #4f8fd9);
+    }
+
+    .finam-v2-cs__bar-val {
+      flex: 0 0 4.25rem;
+      font-size: 9px;
+      font-weight: 700;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .finam-v2-cs__bar-card--dense .finam-v2-cs__bar-track {
+      height: 10px;
+    }
+
+    /* —— баланс —— */
+    .finam-v2-cs__balance {
+      background: #fff;
+      border: 1px solid var(--finam-v2-color-border);
+      border-radius: 10px;
+      padding: 8px 10px 10px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .finam-v2-cs__balance-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-cs__balance-head svg {
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-cs__balance-title {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-cs__balance-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-cs__balance-label {
+      flex: 0 0 6.8rem;
+      font-size: 9.5px;
+      font-weight: 600;
+      color: #475569;
+      line-height: 1.2;
+    }
+
+    .finam-v2-cs__balance-track {
+      flex: 1;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #cbd5e1;
+    }
+
+    .finam-v2-cs__balance-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+
+    .finam-v2-cs__balance-fill--income {
+      background: linear-gradient(90deg, var(--finam-v2-color-navy-deep), var(--finam-v2-color-accent-blue));
+    }
+
+    .finam-v2-cs__balance-fill--obl {
+      background: linear-gradient(90deg, #94a3b8, #cbd5e1);
+    }
+
+    .finam-v2-cs__balance-fill--pfp {
+      background: linear-gradient(90deg, #ea580c, #fb923c);
+    }
+
+    .finam-v2-cs__balance-fill--free {
+      background: linear-gradient(90deg, #0284c7, #38bdf8);
+    }
+
+    .finam-v2-cs__balance-val {
+      flex: 0 0 5rem;
+      font-size: 9.5px;
+      font-weight: 700;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: var(--finam-v2-color-text);
+    }
+
+    .finam-v2-cs__balance-val--accent {
+      color: #0284c7;
+    }
+
+    .finam-v2-cs__balance-sep {
+      border: none;
+      border-top: 1px dashed #cbd5e1;
+      margin: 4px 0 6px 7.4rem;
+    }
+
+    .finam-v2-cs__balance-label--emph {
+      font-weight: 800;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    /* Второй ИИ — слегка зелёный */
+    .finam-v2-cs__expert-bubble {
+      flex: 1;
+      min-width: 0;
+      background: #ecfdf5;
+      border: 1px solid #d1fae5;
+      border-radius: 12px;
+      padding: 8px 12px 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .finam-v2-cs__expert-bubble::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 14px;
+      width: 10px;
+      height: 10px;
+      background: #ecfdf5;
+      border-left: 1px solid #d1fae5;
+      border-bottom: 1px solid #d1fae5;
+      transform: rotate(45deg);
+    }
+
+    .finam-v2-cs__expert-bubble p {
+      font-size: 10px;
+      line-height: 1.38;
+      color: #334155;
+      position: relative;
+      z-index: 1;
+    }
+
+    .finam-v2-cs__expert-bubble strong {
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+    }
+
+    .finam-v2-cs__quote-deco {
+      position: absolute;
+      right: 8px;
+      bottom: -2px;
+      font-family: var(--finam-v2-font-display);
+      font-size: 40px;
+      line-height: 1;
+      color: rgba(16, 185, 129, 0.14);
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    .finam-v2-cs__footer-rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: auto 0 6px;
+    }
+
+    .finam-v2-cs__footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      font-size: 8px;
+      color: var(--finam-v2-color-text-muted);
+      line-height: 1.35;
+    }
+
+    .finam-v2-cs__footer-icons {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .finam-v2-cs__footer-icons svg {
+      flex-shrink: 0;
+      color: #94a3b8;
+      margin-top: 1px;
+    }
+
+    .finam-v2-cs__footer-right {
+      text-align: right;
+      max-width: 220px;
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .finam-v2-cs__grow {
+      flex: 1;
+      min-height: 2px;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Подстановка данных (ориентир — см. prod src/reports/finam/page-3-family-finam.html):
+    • Верхний/нижний блоки ИИ: data-finam-ai-page3="1|2", экранирование HTML обязательно.
+    • Семья / активы: строки карточек; дети — опциональный повтор блоков (в макете v2 не развёрнуто).
+    • Обязательства: итого справа; строки баров; width % = amount / max(amount).
+    • Баланс: доход = 100% шкалы; доли полос от дохода; «Свободно» = доход − обязательства − ПФП.
+  -->
+  <article class="finam-v2-page">
+    <header class="finam-v2-cs__header">
+      <div class="finam-v2-cs__header-left">
+        <span class="finam-v2-cs__header-dot" aria-hidden="true"></span>
+        <span class="finam-v2-cs__header-label">Финансовый план</span>
+      </div>
+      <span class="finam-v2-cs__pill">Текущее состояние</span>
+    </header>
+    <hr class="finam-v2-cs__rule" />
+
+    <h1 class="finam-v2-cs__hero-title">Исходная точка: ваш финансовый профиль</h1>
+
+    <div class="finam-v2-cs__insight-row">
+      <div class="finam-v2-cs__avatar" role="img" aria-label="ИИ-ассистент">
+        <img src="assets/avatar-ai-finam-v2.png" width="44" height="44" alt="" decoding="async" />
+      </div>
+      <div class="finam-v2-cs__bubble" data-finam-ai-page3="1">
+        <p>
+          Главный вывод: после обязательств и ПФП остаётся <strong>20&nbsp;892&nbsp;₽</strong>. Это рабочий,
+          но тонкий запас прочности — сначала стабилизируем свободный поток, потом масштабируем цели.
+        </p>
+      </div>
+    </div>
+
+    <div class="finam-v2-cs__section-head">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      <span class="finam-v2-cs__section-title">База плана: семья и активы</span>
+    </div>
+    <div class="finam-v2-cs__grid-2">
+      <div class="finam-v2-cs__card finam-v2-cs__card--family">
+        <div class="finam-v2-cs__card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Семья
+        </div>
+        <div class="finam-v2-cs__row">
+          <span class="finam-v2-cs__row-label">Семейное положение</span>
+          <span class="finam-v2-cs__row-value">В браке</span>
+        </div>
+        <div class="finam-v2-cs__row">
+          <span class="finam-v2-cs__row-label">Занятость</span>
+          <span class="finam-v2-cs__row-value">Наёмный сотрудник</span>
+        </div>
+        <div class="finam-v2-cs__row">
+          <span class="finam-v2-cs__row-label">Возраст</span>
+          <span class="finam-v2-cs__row-value">35 лет</span>
+        </div>
+      </div>
+      <div class="finam-v2-cs__card finam-v2-cs__card--assets">
+        <div class="finam-v2-cs__card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9zM9 22V12h6v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Активы
+        </div>
+        <div class="finam-v2-cs__row">
+          <span class="finam-v2-cs__row-label">Ликвидные средства</span>
+          <span class="finam-v2-cs__row-value">1&nbsp;200&nbsp;000&nbsp;₽</span>
+        </div>
+        <hr class="finam-v2-cs__card-hr" />
+        <div class="finam-v2-cs__row">
+          <span class="finam-v2-cs__row-label">Итого активы</span>
+          <span class="finam-v2-cs__row-value">1&nbsp;200&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-cs__row">
+          <span class="finam-v2-cs__row-label">Долги</span>
+          <span class="finam-v2-cs__row-value">0&nbsp;₽</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="finam-v2-cs__obligations">
+      <div class="finam-v2-cs__obligations-top">
+        <div class="finam-v2-cs__section-head" style="margin-bottom: 0;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5" />
+            <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+          <span class="finam-v2-cs__section-title">Главная нагрузка бюджета</span>
+        </div>
+        <span class="finam-v2-cs__section-head-right">Итого: 118&nbsp;000&nbsp;₽/мес</span>
+      </div>
+      <!-- Ширина полосы = сумма / max(статьи); демо max = ипотека 35 000 ₽ -->
+      <div class="finam-v2-cs__bar-card finam-v2-cs__bar-card--dense">
+        <div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">Кредиты</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: 45.714%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">16&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">Ипотека</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: 100%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">35&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">Аренда</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: 51.429%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">18&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">Алименты</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: 28.571%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">10&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">Образование</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: 34.286%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">12&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">Родители</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: 34.286%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">12&nbsp;000&nbsp;₽</span>
+        </div>
+        <div class="finam-v2-cs__bar-row">
+          <span class="finam-v2-cs__bar-label">Прочее</span>
+          <div class="finam-v2-cs__bar-track">
+            <div class="finam-v2-cs__bar-fill" style="width: 42.857%;"></div>
+          </div>
+          <span class="finam-v2-cs__bar-val">15&nbsp;000&nbsp;₽</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="finam-v2-cs__balance">
+      <div class="finam-v2-cs__balance-head">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+          <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span class="finam-v2-cs__balance-title">Свободный поток определяет скорость целей</span>
+      </div>
+      <div class="finam-v2-cs__balance-row">
+        <span class="finam-v2-cs__balance-label">Доходы</span>
+        <div class="finam-v2-cs__balance-track">
+          <div class="finam-v2-cs__balance-fill finam-v2-cs__balance-fill--income" style="width: 100%;"></div>
+        </div>
+        <span class="finam-v2-cs__balance-val">150&nbsp;000&nbsp;₽</span>
+      </div>
+      <div class="finam-v2-cs__balance-row">
+        <span class="finam-v2-cs__balance-label">Обязательства</span>
+        <div class="finam-v2-cs__balance-track">
+          <div class="finam-v2-cs__balance-fill finam-v2-cs__balance-fill--obl" style="width: 78.667%;"></div>
+        </div>
+        <span class="finam-v2-cs__balance-val">118&nbsp;000&nbsp;₽</span>
+      </div>
+      <div class="finam-v2-cs__balance-row">
+        <span class="finam-v2-cs__balance-label">Пополнение ПФП</span>
+        <div class="finam-v2-cs__balance-track">
+          <div class="finam-v2-cs__balance-fill finam-v2-cs__balance-fill--pfp" style="width: 7.405%;"></div>
+        </div>
+        <span class="finam-v2-cs__balance-val">11&nbsp;108&nbsp;₽</span>
+      </div>
+      <hr class="finam-v2-cs__balance-sep" />
+      <div class="finam-v2-cs__balance-row">
+        <span class="finam-v2-cs__balance-label finam-v2-cs__balance-label--emph">Свободно</span>
+        <div class="finam-v2-cs__balance-track">
+          <div class="finam-v2-cs__balance-fill finam-v2-cs__balance-fill--free" style="width: 13.928%;"></div>
+        </div>
+        <span class="finam-v2-cs__balance-val finam-v2-cs__balance-val--accent">20&nbsp;892&nbsp;₽</span>
+      </div>
+    </div>
+
+    <div class="finam-v2-cs__insight-row">
+      <div class="finam-v2-cs__avatar" role="img" aria-label="ИИ-ассистент">
+        <img src="assets/avatar-ai-finam-v2.png" width="44" height="44" alt="" decoding="async" />
+      </div>
+      <div class="finam-v2-cs__expert-bubble" data-finam-ai-page3="2">
+        <p>
+          Коротко по рискам. <strong>Ипотека 35 000 ₽</strong> — крупнейшая статья, а «прочее»
+          на 15 000 ₽ лучше разложить на подкатегории. При <strong>свободных ~20 900 ₽</strong>
+          приоритет — резерв и правила трата/инвестиций до запуска новых целей.
+        </p>
+        <span class="finam-v2-cs__quote-deco" aria-hidden="true">”</span>
+      </div>
+    </div>
+
+    <div class="finam-v2-cs__grow"></div>
+    <hr class="finam-v2-cs__footer-rule" />
+    <footer class="finam-v2-cs__footer">
+      <div class="finam-v2-cs__footer-icons">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3l8 4v6c0 5-8 9-8 9S4 18 4 13V7l8-4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <span>
+          Персональный финансовый план · Конфиденциально<br />
+          Партнёры работают на основании лицензий Банка России
+        </span>
+      </div>
+      <div class="finam-v2-cs__footer-right">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" />
+          <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <span>Информация не является индивидуальной инвестиционной рекомендацией</span>
+      </div>
+    </footer>
+  </article>
+</body>
+</html>

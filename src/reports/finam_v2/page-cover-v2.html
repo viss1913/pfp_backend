@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Персональный финансовый план — обложка (v2)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap"
+  />
+  <link rel="stylesheet" href="tokens.css?v=finam-v2-fonts" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--finam-v2-font-stack);
+      background: #f1f5f9;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      padding: 24px 0;
+    }
+
+    .finam-v2-page {
+      font-family: var(--finam-v2-font-stack);
+      width: 595px;
+      height: 842px;
+      background: #f8fafc;
+      color: var(--finam-v2-color-text);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: var(--finam-v2-page-pad-y) var(--finam-v2-page-pad-x) 28px;
+      flex-shrink: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .finam-v2-page__bg-photo {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      height: 100%;
+      background-image: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.86) 0%,
+          rgba(255, 255, 255, 0.70) 34%,
+          rgba(255, 255, 255, 0.42) 56%,
+          rgba(255, 255, 255, 0.12) 78%,
+          rgba(255, 255, 255, 0) 100%
+        ),
+        linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.68) 0%,
+          rgba(255, 255, 255, 0.40) 30%,
+          rgba(255, 255, 255, 0.08) 66%,
+          rgba(255, 255, 255, 0) 100%
+        ),
+        url('assets/cover-bg.png');
+      background-repeat: no-repeat, no-repeat, no-repeat;
+      background-size: 100% 100%, 100% 100%, cover;
+      background-position: center center, center center, center center;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .finam-v2-page__geom {
+      position: absolute;
+      left: -20px;
+      bottom: 120px;
+      width: 180px;
+      height: 200px;
+      opacity: 0.22;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .finam-v2-page__inner {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .finam-v2-cover__rule {
+      border: none;
+      border-top: 1px solid var(--finam-v2-color-border);
+      margin: 0 0 20px;
+    }
+
+    .finam-v2-cover__top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--finam-v2-color-text-muted);
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-cover__top-right {
+      text-transform: none;
+      letter-spacing: normal;
+      font-size: 10px;
+    }
+
+    .finam-v2-cover__main {
+      margin-top: 42px;
+      max-width: 486px;
+    }
+
+    .finam-v2-cover__title {
+      font-family: var(--finam-v2-font-display);
+      font-size: 28px;
+      font-weight: 700;
+      font-optical-sizing: auto;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: var(--finam-v2-color-navy-deep);
+      max-width: 420px;
+      margin-bottom: 10px;
+    }
+
+    .finam-v2-cover__meta {
+      font-size: 11px;
+      line-height: 1.85;
+      color: var(--finam-v2-color-text);
+      margin-top: 14px;
+    }
+
+    .finam-v2-cover__meta dt {
+      display: inline;
+      font-weight: 500;
+      color: var(--finam-v2-color-text-muted);
+    }
+
+    .finam-v2-cover__meta dd {
+      display: inline;
+      margin: 0;
+    }
+
+    .finam-v2-cover__meta dd strong {
+      font-weight: 700;
+      color: var(--finam-v2-color-text);
+    }
+
+    .finam-v2-cover__meta-row {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .finam-v2-cover__agent-card {
+      width: fit-content;
+      min-width: 260px;
+      max-width: 430px;
+      border: 1px solid rgba(226, 232, 240, 0.56);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.68);
+      box-shadow: 0 10px 32px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(6px);
+      padding: 12px 14px;
+    }
+
+    .finam-v2-cover__agent-title {
+      font-size: 8.5px;
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--finam-v2-color-accent-blue);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .finam-v2-cover__agent-grid {
+      display: grid;
+      grid-template-columns: max-content minmax(0, max-content);
+      gap: 5px 10px;
+      font-size: 10px;
+      line-height: 1.3;
+      color: var(--finam-v2-color-text);
+    }
+
+    .finam-v2-cover__agent-label {
+      color: var(--finam-v2-color-text-muted);
+    }
+
+    .finam-v2-cover__agent-value {
+      font-weight: 700;
+      color: var(--finam-v2-color-navy-deep);
+      max-width: 300px;
+      overflow-wrap: anywhere;
+    }
+
+    .finam-v2-cover__spacer {
+      flex: 1;
+      min-height: 24px;
+    }
+
+  </style>
+</head>
+<body>
+  <article class="finam-v2-page">
+    <div class="finam-v2-page__bg-photo" aria-hidden="true"></div>
+    <svg class="finam-v2-page__geom" viewBox="0 0 120 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M10 120 L60 20 L110 120 Z" stroke="#94a3b8" stroke-width="0.8" />
+      <path d="M30 130 L75 45 L115 130 Z" stroke="#cbd5e1" stroke-width="0.6" />
+      <path d="M0 100 L45 30 L90 100 Z" stroke="#e2e8f0" stroke-width="0.5" />
+    </svg>
+    <div class="finam-v2-page__inner">
+      <hr class="finam-v2-cover__rule" />
+      <header class="finam-v2-cover__top">
+        <span>Финансовый план</span>
+        <span class="finam-v2-cover__top-right">Конфиденциально</span>
+      </header>
+
+      <main class="finam-v2-cover__main">
+        <h1 class="finam-v2-cover__title">Персональный финансовый план</h1>
+
+        <dl class="finam-v2-cover__meta">
+          <div class="finam-v2-cover__meta-row">
+            <dt>Клиент: </dt>
+            <dd><strong>Иван Иванов</strong></dd>
+          </div>
+          <div class="finam-v2-cover__meta-row">
+            <dt>Дата: </dt>
+            <dd>10 мая 2026</dd>
+          </div>
+          <div class="finam-v2-cover__meta-row">
+            <dt>Горизонт планирования: </dt>
+            <dd><strong>20+ лет</strong></dd>
+          </div>
+        </dl>
+
+      </main>
+
+      <div class="finam-v2-cover__spacer"></div>
+
+      <section class="finam-v2-cover__agent-card" aria-label="Данные финансового консультанта">
+        <p class="finam-v2-cover__agent-title">Финансовый консультант</p>
+        <div class="finam-v2-cover__agent-grid">
+          <span class="finam-v2-cover__agent-label">ФИО</span>
+          <span class="finam-v2-cover__agent-value">Анна Смирнова</span>
+          <span class="finam-v2-cover__agent-label">Почта</span>
+          <span class="finam-v2-cover__agent-value">advisor@finam.ru</span>
+          <span class="finam-v2-cover__agent-label">Телефон</span>
+          <span class="finam-v2-cover__agent-value">+7 999 000-00-00</span>
+        </div>
+      </section>
+    </div>
+  </article>
+</body>
+</html>
