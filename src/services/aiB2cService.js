@@ -748,9 +748,8 @@ ${clientSection}
             .where({ project_id: projectId, flow_key: normalizedFlowKey })
             .first();
         const perProject = String(settings?.openrouter_model || '').trim();
-        if (perProject) return perProject;
-        const fromEnv = String(process.env.OPENROUTER_MODEL || '').trim();
-        return fromEnv || null;
+        const { resolveProjectLlmModel } = require('../utils/projectLlmModel');
+        return resolveProjectLlmModel(projectId, perProject || null);
     }
 
     async _buildDynamicChatAiMainContext({ projectId, userMessage, history, brainSection }) {

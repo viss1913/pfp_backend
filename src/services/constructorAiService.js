@@ -38,6 +38,16 @@ function isConstructorDocDebugOn() {
 
 const TRACE_MAX_CONTENT = 6000;
 
+/** Модель LLM проекта (ai_b2c_settings + force GigaChat для НПФ Ростех). */
+async function getConstructorProjectLlmModel(projectId) {
+    const pid = Number(projectId);
+    if (!Number.isFinite(pid) || pid <= 0) return null;
+    const { resolveProjectLlmModel } = require('../utils/projectLlmModel');
+    const row = await knex('ai_b2c_settings').where({ project_id: pid, flow_key: 'default' }).first();
+    const model = String(row?.openrouter_model || '').trim();
+    return resolveProjectLlmModel(pid, model || null);
+}
+
 function truncateTraceText(str, max = TRACE_MAX_CONTENT) {
     if (str == null) return '';
     const s = typeof str === 'string' ? str : String(str);
@@ -1742,7 +1752,8 @@ class ConstructorAiService {
         ];
 
         try {
-            const raw = await aiService.getCompletion(architectMessages);
+            const projectModel = await getConstructorProjectLlmModel(projectId);
+            const raw = await aiService.getCompletion(architectMessages, projectModel);
             const jsonMatch = String(raw || '').match(/\{[\s\S]*\}/);
             const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
             const dynamic = String(parsed?.dynamic_context || '').trim();
@@ -2049,8 +2060,9 @@ class ConstructorAiService {
             console.log(`[AI Step 1] System Prompt Instructions: ${classifierInstructions}`);
 
             const fallbackCmd = currentCommand || findCommandByKey(commands, '/start');
+            const projectModel = await getConstructorProjectLlmModel(bot.project_id);
 
-            let rawTrimmed = (await aiService.getCompletion(prompt)).trim();
+            let rawTrimmed = (await aiService.getCompletion(prompt, projectModel)).trim();
             let nextCommandFromLlm = parseStrictClassifierCommandFromLlm(rawTrimmed, commands);
 
             console.log(`[ConstructorAI Step1] ОТВЕТ роутера LLM (raw): ${JSON.stringify(rawTrimmed)}`);
@@ -2079,7 +2091,7 @@ class ConstructorAiService {
                 ];
                 traceConstructorMessages('step1_classifier_llm_retry_request', retryPrompt);
 
-                rawTrimmed = (await aiService.getCompletion(retryPrompt)).trim();
+                rawTrimmed = (await aiService.getCompletion(retryPrompt, projectModel)).trim();
                 nextCommandFromLlm = parseStrictClassifierCommandFromLlm(rawTrimmed, commands);
 
                 console.log(`[ConstructorAI Step1] ОТВЕТ роутера LLM (retry raw): ${JSON.stringify(rawTrimmed)}`);
@@ -2220,7 +2232,18 @@ class ConstructorAiService {
 
         try {
             console.log(`[AI Extraction] Context for extraction: ${fullContext}`);
-            const result = await aiService.getCompletion(prompt);
+            let projectModel = null;
+            if (session?.client_id) {
+                const sessionClient = await knex('constructor_clients').where('id', session.client_id).first();
+                if (sessionClient?.bot_id) {
+                    const sessionBot = await knex('constructor_bots')
+                        .where('id', sessionClient.bot_id)
+                        .select('project_id')
+                        .first();
+                    projectModel = await getConstructorProjectLlmModel(sessionBot?.project_id);
+                }
+            }
+            const result = await aiService.getCompletion(prompt, projectModel);
             console.log(`[AI Extraction] Raw AI result: ${result}`);
             const cleanResult = result.replace(/```json|```/g, '').trim();
             const extracted = JSON.parse(cleanResult);
@@ -2275,7 +2298,15 @@ class ConstructorAiService {
         let result;
         try {
             console.log(`[AI Extraction] Extracting Financial Params...`);
-            result = await aiService.getCompletion(prompt);
+            let projectModel = null;
+            if (sessionClient?.bot_id) {
+                const sessionBot = await knex('constructor_bots')
+                    .where('id', sessionClient.bot_id)
+                    .select('project_id')
+                    .first();
+                projectModel = await getConstructorProjectLlmModel(sessionBot?.project_id);
+            }
+            result = await aiService.getCompletion(prompt, projectModel);
         } catch (error) {
             console.error('[AI] Error extracting financial params (LLM):', error);
             return { client: {}, goals: [] };
@@ -2450,7 +2481,8 @@ class ConstructorAiService {
                 console.log(`[AI Step 2] FirstRun: calculation JSON in trailing user turn (${trailingUserCalculationJson.length} chars)`);
             }
 
-            const responseText = await aiService.getCompletion(layeredPrompt);
+            const projectModel = await getConstructorProjectLlmModel(bot.project_id);
+            const responseText = await aiService.getCompletion(layeredPrompt, projectModel);
 
             console.log(`[AI Step 2] AI Response: "${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}"`);
 
@@ -2564,11 +2596,13 @@ class ConstructorAiService {
         if (suffix) {
             streamOpts.appendTextBeforeDone = suffix;
         }
-        const fullText = await aiService.streamCompletion(layeredPrompt, null, res, streamOpts);
+        const projectModel = await getConstructorProjectLlmModel(bot.project_id);
+        const fullText = await aiService.streamCompletion(layeredPrompt, projectModel, res, streamOpts);
 
         traceConstructorMeta('step2_generator_llm_response_stream_done', {
             fullTextChars: (fullText || '').length,
             fullTextPreview: truncateTraceText(fullText || '', 1200),
+            projectModel: projectModel || null,
         });
 
         return fullText || '';
