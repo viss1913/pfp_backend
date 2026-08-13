@@ -1,0 +1,20 @@
+{
+  "id": 25,
+  "media": [
+    {
+      "id": "74bec387-45a0-4378-85f3-e1e1b57207b2",
+      "key": "constructor-commands/2/platform_4/platform_4_1__1782131994178.webp",
+      "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_4/platform_4_1__1782131994178.webp",
+      "mime": "image/webp",
+      "sort": 0,
+      "type": "image",
+      "caption": "",
+      "filename": "platform 4 (1).webp"
+    }
+  ],
+  "bot_id": null,
+  "command": "/platform_4",
+  "section": null,
+  "project_id": 2,
+  "is_template": 1
+}

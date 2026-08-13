@@ -1,0 +1,569 @@
+{
+  "exported_at": "2026-08-10T15:55:32.593247Z",
+  "source": "immers:/opt/pfp/app mysql pfp",
+  "important": "Immers Finam Telegram AI = project_id 2. project_id 6 on Immers is ROSTECH.",
+  "storage_model": {
+    "contexts": "MySQL constructor_commands.classifier + constructor_commands.response (NOT files in git)",
+    "images": "Cloudflare R2 via constructor_commands.media JSON; key pattern constructor-commands/{projectId}/{commandSlug}/...",
+    "repo_code": "src/services/constructorAiService.js, src/controllers/constructorController.js, src/utils/constructorCommandMedia.js"
+  },
+  "project": {
+    "id": 2,
+    "name": "Finam",
+    "slug": "finam",
+    "public_key": "pk_7f1ccfe5b2598134a575320d",
+    "settings": {
+      "agent_network": {
+        "enabled": true,
+        "max_depth": 2,
+        "allow_self_invite": false,
+        "require_invite_ref": false,
+        "parent_can_list_subagents": true,
+        "parent_can_see_subagent_clients": false
+      },
+      "partner_agent_id": {
+        "label": "Finam ID",
+        "require_on_admin_create": false,
+        "require_on_registration": false
+      },
+      "partner_link_tracking": {
+        "enabled": true,
+        "defaults": {
+          "utm_medium": "report_pdf",
+          "utm_source": "pfp"
+        },
+        "agent_id_in": "query",
+        "agent_id_param": "utm_partner_finam",
+        "domain_whitelist": [
+          "finam.ru",
+          "broker.finam.ru",
+          "bonus.finam.ru",
+          "funds.finam.ru",
+          "comon.ru"
+        ]
+      }
+    }
+  },
+  "bots": [
+    {
+      "id": 1,
+      "link": null,
+      "name": "BankFuture Bot",
+      "agent_id": 2,
+      "bot_type": "telegram",
+      "is_active": 1,
+      "base_brain_context": "Ты — AI-помощник BankFuture PFP по финансовому планированию и целям клиента.",
+      "communication_style": "Дружелюбный и понятный финансовый помощник."
+    }
+  ],
+  "commands": [
+    {
+      "id": 17,
+      "command": "/family_office_1",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_1/classifier.txt",
+      "response_path": "commands/family_office_1/response.txt",
+      "meta_path": "commands/family_office_1/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_1/family_office_1_1__1782116928733.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/family_office_1/family_office_1_1__1782116928733.webp"
+      ],
+      "media_filenames": [
+        "family_office_1 (1).webp"
+      ]
+    },
+    {
+      "id": 18,
+      "command": "/family_office_2",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_2/classifier.txt",
+      "response_path": "commands/family_office_2/response.txt",
+      "meta_path": "commands/family_office_2/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_2/1782107930307_5d119664-bead-4c49-a57f-2c91ee38d1ec.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/family_office_2/1782107930307_5d119664-bead-4c49-a57f-2c91ee38d1ec.webp"
+      ],
+      "media_filenames": [
+        "family_office_2 (1).webp"
+      ]
+    },
+    {
+      "id": 19,
+      "command": "/family_office_3",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_3/classifier.txt",
+      "response_path": "commands/family_office_3/response.txt",
+      "meta_path": "commands/family_office_3/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_3/1782107956621_487f012c-f31b-4ef6-93a6-7b18a90ec00c.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/family_office_3/1782107956621_487f012c-f31b-4ef6-93a6-7b18a90ec00c.webp"
+      ],
+      "media_filenames": [
+        "family_office_3 (1).webp"
+      ]
+    },
+    {
+      "id": 20,
+      "command": "/family_office_4",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_4/classifier.txt",
+      "response_path": "commands/family_office_4/response.txt",
+      "meta_path": "commands/family_office_4/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_4/1782107977449_95cbaf0f-9e2f-48b0-806a-0c0fcccc0457.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/family_office_4/1782107977449_95cbaf0f-9e2f-48b0-806a-0c0fcccc0457.webp"
+      ],
+      "media_filenames": [
+        "family_office_4 (1).webp"
+      ]
+    },
+    {
+      "id": 21,
+      "command": "/family_office_5",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_5/classifier.txt",
+      "response_path": "commands/family_office_5/response.txt",
+      "meta_path": "commands/family_office_5/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_5/1782108001520_c8173372-777a-47ed-822e-2003ca719138.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/family_office_5/1782108001520_c8173372-777a-47ed-822e-2003ca719138.webp"
+      ],
+      "media_filenames": [
+        "family_office_5 (1).webp"
+      ]
+    },
+    {
+      "id": 83,
+      "command": "/finam_1",
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/finam_1/classifier.txt",
+      "response_path": "commands/finam_1/response.txt",
+      "meta_path": "commands/finam_1/meta.json",
+      "media_urls": [],
+      "media_keys": [],
+      "media_filenames": []
+    },
+    {
+      "id": 84,
+      "command": "/finam_2",
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/finam_2/classifier.txt",
+      "response_path": "commands/finam_2/response.txt",
+      "meta_path": "commands/finam_2/meta.json",
+      "media_urls": [],
+      "media_keys": [],
+      "media_filenames": []
+    },
+    {
+      "id": 85,
+      "command": "/finam_3",
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/finam_3/classifier.txt",
+      "response_path": "commands/finam_3/response.txt",
+      "meta_path": "commands/finam_3/meta.json",
+      "media_urls": [],
+      "media_keys": [],
+      "media_filenames": []
+    },
+    {
+      "id": 22,
+      "command": "/platform_1",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_1/classifier.txt",
+      "response_path": "commands/platform_1/response.txt",
+      "meta_path": "commands/platform_1/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_1/platform_1_1__1782131934791.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/platform_1/platform_1_1__1782131934791.webp"
+      ],
+      "media_filenames": [
+        "platform 1 (1).webp"
+      ]
+    },
+    {
+      "id": 23,
+      "command": "/platform_2",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_2/classifier.txt",
+      "response_path": "commands/platform_2/response.txt",
+      "meta_path": "commands/platform_2/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_2/platform_2_1__1782131953423.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/platform_2/platform_2_1__1782131953423.webp"
+      ],
+      "media_filenames": [
+        "platform 2 (1).webp"
+      ]
+    },
+    {
+      "id": 24,
+      "command": "/platform_3",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_3/classifier.txt",
+      "response_path": "commands/platform_3/response.txt",
+      "meta_path": "commands/platform_3/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_3/platform_3_1__1782131976024.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/platform_3/platform_3_1__1782131976024.webp"
+      ],
+      "media_filenames": [
+        "platform 3 (1).webp"
+      ]
+    },
+    {
+      "id": 25,
+      "command": "/platform_4",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_4/classifier.txt",
+      "response_path": "commands/platform_4/response.txt",
+      "meta_path": "commands/platform_4/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_4/platform_4_1__1782131994178.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/platform_4/platform_4_1__1782131994178.webp"
+      ],
+      "media_filenames": [
+        "platform 4 (1).webp"
+      ]
+    },
+    {
+      "id": 26,
+      "command": "/platform_5",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_5/classifier.txt",
+      "response_path": "commands/platform_5/response.txt",
+      "meta_path": "commands/platform_5/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_5/platform_5_1__1782132022053.webp"
+      ],
+      "media_keys": [
+        "constructor-commands/2/platform_5/platform_5_1__1782132022053.webp"
+      ],
+      "media_filenames": [
+        "platform 5 (1).webp"
+      ]
+    },
+    {
+      "id": 27,
+      "command": "/platform_6",
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/platform_6/classifier.txt",
+      "response_path": "commands/platform_6/response.txt",
+      "meta_path": "commands/platform_6/meta.json",
+      "media_urls": [],
+      "media_keys": [],
+      "media_filenames": []
+    },
+    {
+      "id": 28,
+      "command": "/sber_1",
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/sber_1/classifier.txt",
+      "response_path": "commands/sber_1/response.txt",
+      "meta_path": "commands/sber_1/meta.json",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/sber_1/Presentation_Sber_Life_1782116900311.pdf"
+      ],
+      "media_keys": [
+        "constructor-commands/2/sber_1/Presentation_Sber_Life_1782116900311.pdf"
+      ],
+      "media_filenames": [
+        "Presentation Sber Life.pdf"
+      ]
+    },
+    {
+      "id": 29,
+      "command": "/sber_test",
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/sber_test/classifier.txt",
+      "response_path": "commands/sber_test/response.txt",
+      "meta_path": "commands/sber_test/meta.json",
+      "media_urls": [],
+      "media_keys": [],
+      "media_filenames": []
+    },
+    {
+      "id": 30,
+      "command": "/sber_test_failed",
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/sber_test_failed/classifier.txt",
+      "response_path": "commands/sber_test_failed/response.txt",
+      "meta_path": "commands/sber_test_failed/meta.json",
+      "media_urls": [],
+      "media_keys": [],
+      "media_filenames": []
+    },
+    {
+      "id": 31,
+      "command": "/sber_test_success",
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/sber_test_success/classifier.txt",
+      "response_path": "commands/sber_test_success/response.txt",
+      "meta_path": "commands/sber_test_success/meta.json",
+      "media_urls": [],
+      "media_keys": [],
+      "media_filenames": []
+    },
+    {
+      "id": 4,
+      "command": "/start",
+      "section": "Обучение",
+      "media_count": 0,
+      "classifier_path": "commands/start/classifier.txt",
+      "response_path": "commands/start/response.txt",
+      "meta_path": "commands/start/meta.json",
+      "media_urls": [],
+      "media_keys": [],
+      "media_filenames": []
+    }
+  ],
+  "commands_brief": [
+    {
+      "command": "/family_office_1",
+      "brief": "Текущий этап обучения:\\n\\nБлок 1. Добро пожаловать в Family Office\\n\\nЭтап 1 из 5\\n\\nТема:\\n\\nИстория Family Office\\n\\nПользователю уже показан соответствующий слайд.\\n\\nНе упомина",
+      "id": 17,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_1/classifier.txt",
+      "response_path": "commands/family_office_1/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_1/family_office_1_1__1782116928733.webp"
+      ]
+    },
+    {
+      "command": "/family_office_2",
+      "brief": "Текущий этап обучения:\\n\\nБлок 1. Добро пожаловать в Family Office\\n\\nЭтап 2 из 5\\n\\nТема:\\n\\nFamily Office в мире как вершина финансовых услуг\\n\\nПользователю уже показан соответс",
+      "id": 18,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_2/classifier.txt",
+      "response_path": "commands/family_office_2/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_2/1782107930307_5d119664-bead-4c49-a57f-2c91ee38d1ec.webp"
+      ]
+    },
+    {
+      "command": "/family_office_3",
+      "brief": "Текущий этап обучения:\\n\\nБлок 1. Добро пожаловать в Family Office\\n\\nЭтап 3 из 5\\n\\nТема:\\n\\nПочему Family Office долгое время был доступен только состоятельным клиентам\\n\\nПользо",
+      "id": 19,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_3/classifier.txt",
+      "response_path": "commands/family_office_3/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_3/1782107956621_487f012c-f31b-4ef6-93a6-7b18a90ec00c.webp"
+      ]
+    },
+    {
+      "command": "/family_office_4",
+      "brief": "Текущий этап обучения:\\n\\nБлок 1. Добро пожаловать в Family Office\\n\\nЭтап 4 из 5\\n\\nТема:\\n\\nТехнологии сделали Family Office доступным миллионам людей\\n\\nПользователю уже показан",
+      "id": 20,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_4/classifier.txt",
+      "response_path": "commands/family_office_4/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_4/1782107977449_95cbaf0f-9e2f-48b0-806a-0c0fcccc0457.webp"
+      ]
+    },
+    {
+      "command": "/family_office_5",
+      "brief": "Текущий этап обучения:\\n\\nБлок 1. Добро пожаловать в Family Office\\n\\nЭтап 5 из 5\\n\\nТема:\\n\\nТы становишься владельцем собственного Family Office\\n\\nПользователю уже показан соотв",
+      "id": 21,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/family_office_5/classifier.txt",
+      "response_path": "commands/family_office_5/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_5/1782108001520_c8173372-777a-47ed-822e-2003ca719138.webp"
+      ]
+    },
+    {
+      "command": "/finam_1",
+      "brief": "Ты помогаешь пользователю понять:\\n\\nЗачем люди приходят в инвестиции;\\n\\nЧто такое фондовый рынок;\\n\\nБрокер и его роль в инвестициях;\\n\\nрасскажи человеку про инвестиции, фондовы",
+      "id": 83,
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/finam_1/classifier.txt",
+      "response_path": "commands/finam_1/response.txt",
+      "media_urls": []
+    },
+    {
+      "command": "/finam_2",
+      "brief": "расскажи о Финаме чуть поподробнее.\\n\\n«Финам» — это компания с более чем 30-летней историей, которая сегодня представляет собой экосистему инновационных решений. Для нас важно быт",
+      "id": 84,
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/finam_2/classifier.txt",
+      "response_path": "commands/finam_2/response.txt",
+      "media_urls": []
+    },
+    {
+      "command": "/finam_3",
+      "brief": "Расскажи про сервис «Финам Автоследование» дает возможность частным инвесторам автоматически повторять сделки опытных управляющих. Автоследование — это способ инвестирования, при к",
+      "id": 85,
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/finam_3/classifier.txt",
+      "response_path": "commands/finam_3/response.txt",
+      "media_urls": []
+    },
+    {
+      "command": "/platform_1",
+      "brief": "Пользователь только что увидел слайд про CRM платформу Family Office.\\n\\nТвоя задача — объяснить ценность системы простым человеческим языком.\\n\\nГлавная мысль этапа:\\n\\nКонсультан",
+      "id": 22,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_1/classifier.txt",
+      "response_path": "commands/platform_1/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_1/platform_1_1__1782131934791.webp"
+      ]
+    },
+    {
+      "command": "/platform_2",
+      "brief": "Пользователь только что увидел слайд о семейном профиле клиента и выборе финансовых целей.\\n\\nТвоя задача — объяснить, почему профессиональное финансовое планирование всегда начина",
+      "id": 23,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_2/classifier.txt",
+      "response_path": "commands/platform_2/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_2/platform_2_1__1782131953423.webp"
+      ]
+    },
+    {
+      "command": "/platform_3",
+      "brief": "Пользователь только что увидел слайд о создании фундамента финансового плана.\\n\\nТвоя задача — объяснить, почему профессиональное финансовое планирование начинается не с инвестиций",
+      "id": 24,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_3/classifier.txt",
+      "response_path": "commands/platform_3/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_3/platform_3_1__1782131976024.webp"
+      ]
+    },
+    {
+      "command": "/platform_4",
+      "brief": "ользователь только что увидел слайд о финансовом плане, аналитическом дашборде, PDF-отчёте и подборе финансовых решений.\\n\\nТвоя задача — показать главный результат работы платформ",
+      "id": 25,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_4/classifier.txt",
+      "response_path": "commands/platform_4/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_4/platform_4_1__1782131994178.webp"
+      ]
+    },
+    {
+      "command": "/platform_5",
+      "brief": "Пользователь только что увидел слайд:\\n\\n\"Технологии усиливают консультанта, а не заменяют его\"\\n\\nТвоя задача — завершить блок платформы и показать настоящую роль консультанта Fam",
+      "id": 26,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/platform_5/classifier.txt",
+      "response_path": "commands/platform_5/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_5/platform_5_1__1782132022053.webp"
+      ]
+    },
+    {
+      "command": "/platform_6",
+      "brief": "Пользователь завершил блок обучения:\\n\\n\"Твой Family Office на практике\"\\n\\nСейчас не нужно проводить экзамен.\\n\\nНе нужно ставить оценки.\\n\\nНе нужно проверять пользователя.\\n\\nТв",
+      "id": 27,
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/platform_6/classifier.txt",
+      "response_path": "commands/platform_6/response.txt",
+      "media_urls": []
+    },
+    {
+      "command": "/sber_1",
+      "brief": "# Команда\\n\\n/sber_1\\n\\n# Динамический контекст для ИИ\\n\\nПользователь начинает изучение блока Сбер Страхование Жизни.\\n\\nПеред этим сообщением система автоматически отправляет пол",
+      "id": 28,
+      "section": null,
+      "media_count": 1,
+      "classifier_path": "commands/sber_1/classifier.txt",
+      "response_path": "commands/sber_1/response.txt",
+      "media_urls": [
+        "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/sber_1/Presentation_Sber_Life_1782116900311.pdf"
+      ]
+    },
+    {
+      "command": "/sber_test",
+      "brief": "Ты Мартин.\\n\\nСейчас пользователь проходит тест по продукту СберСтрахование Жизни:\\n\\n«Страхование по подписке» / «Подушка безопасности».\\n\\n---\\n\\nТвоя задача:\\n\\nПровести тест по",
+      "id": 29,
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/sber_test/classifier.txt",
+      "response_path": "commands/sber_test/response.txt",
+      "media_urls": []
+    },
+    {
+      "command": "/sber_test_failed",
+      "brief": "Ответь пользователю. что бы он нафиг пошел. И обьясни где он был не прав в ответах. Вот правильыне ответы с пояснением. \\n\\n\\n\\n\\nВот тесты\\n### Вопрос 1. Какая минимальная сумма с",
+      "id": 30,
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/sber_test_failed/classifier.txt",
+      "response_path": "commands/sber_test_failed/response.txt",
+      "media_urls": []
+    },
+    {
+      "command": "/sber_test_success",
+      "brief": "Поздравь человека он прошел обучение! ура\\nПосомтри не правильные ответы и опиши его ошибки\\n\\n\\nВот тесты\\n### Вопрос 1. Какая минимальная сумма страховой защиты по продукту «Стра",
+      "id": 31,
+      "section": null,
+      "media_count": 0,
+      "classifier_path": "commands/sber_test_success/classifier.txt",
+      "response_path": "commands/sber_test_success/response.txt",
+      "media_urls": []
+    },
+    {
+      "command": "/start",
+      "brief": "Ты Сеня.\\n\\nТы помощник и наставник будущих консультантов Family Office.\\n\\nСейчас первое знакомство с пользователем.\\n\\nТвоя задача:\\n\\n• тепло поприветствовать пользователя;\\n• с",
+      "id": 4,
+      "section": "Обучение",
+      "media_count": 0,
+      "classifier_path": "commands/start/classifier.txt",
+      "response_path": "commands/start/response.txt",
+      "media_urls": []
+    }
+  ]
+}

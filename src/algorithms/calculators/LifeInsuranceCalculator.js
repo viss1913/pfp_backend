@@ -2,6 +2,7 @@ const BaseCalculator = require('./BaseCalculator');
 const { fetchLifeNsjResult, deriveLifeCostNow } = require('./lifeUpfrontAmount');
 const { resolveLifeTermMonths } = require('./lifeTermDefaults');
 const { isSberLifeCalcProject } = require('./sberLifeProjectIds');
+const { addCalendarMonths, firstScheduleMonthAfterStart } = require('../../utils/calendarMonth');
 
 function resolveProjectId(context) {
     const fromContext = Number(context?.projectId);
@@ -32,8 +33,7 @@ function buildLifeMonthlySchedule({
     monthlyPremiumAmount
 }) {
     const schedule = [];
-    let currentDate = new Date(startDate);
-    currentDate.setMonth(currentDate.getMonth() + 1);
+    let currentDate = firstScheduleMonthAfterStart(new Date(startDate));
     for (let m = 1; m <= termMonths; m++) {
         let replenishment = 0;
         if (paymentFrequency === 'once') {
@@ -54,7 +54,7 @@ function buildLifeMonthlySchedule({
             tax_deduction: 0,
             cofinancing: 0
         });
-        currentDate.setMonth(currentDate.getMonth() + 1);
+        currentDate = addCalendarMonths(currentDate, 1);
     }
     return schedule;
 }

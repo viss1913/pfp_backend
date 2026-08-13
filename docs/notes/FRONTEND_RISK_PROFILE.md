@@ -1,7 +1,7 @@
 # Интеграция риск-профиля (backend-driven)
 
-Фронт больше не хардкодит тексты вопросов, варианты и баллы.  
-Анкета риск-профиля полностью приходит с backend API.
+Фронт больше не хардкодит тексты вопросов, варианты, баллы и число вопросов.  
+Анкета риск-профиля полностью приходит с backend API (сейчас 8 поведенческих вопросов в `finam-risk-v1`, включая `investment_experience`).
 
 ## 1) Новый клиентский поток
 
@@ -31,7 +31,8 @@
   "risk_profile_answers": {
     "drawdown_reaction": "a3",
     "uncertainty_attitude": "a2",
-    "investment_success_benchmark": "a3"
+    "investment_success_benchmark": "a3",
+    "investment_experience": "a4"
   },
   "risk_questionnaire_version_id": 1
 }

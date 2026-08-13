@@ -6,6 +6,7 @@ const {
     buildInsuranceRiskRows
 } = require('./iszhSurvivalYield');
 const { findPortfolioRiskProfileRow } = require('./riskProfileSlice');
+const { addCalendarMonths, firstScheduleMonthAfterStart } = require('../../utils/calendarMonth');
 
 /** @param {Date} d */
 function formatScheduleDate(d) {
@@ -36,6 +37,24 @@ class BaseCalculator {
      */
     getMonthlyInflation(annualInflationPercent) {
         return Math.pow(1 + (annualInflationPercent / 100), 1 / 12) - 1;
+    }
+
+    /**
+     * Возраст клиента в полных годах (как в пенсии: yearNow - birthYear).
+     * @param {Object|null|undefined} client
+     * @param {Date} [nowDate]
+     * @returns {number|null}
+     */
+    resolveClientAgeYears(client, nowDate = new Date()) {
+        if (client?.birth_date) {
+            const birthYear = new Date(client.birth_date).getFullYear();
+            if (Number.isFinite(birthYear) && birthYear > 1900) {
+                return nowDate.getFullYear() - birthYear;
+            }
+        }
+        const age = Number(client?.age);
+        if (Number.isFinite(age) && age > 0) return Math.floor(age);
+        return null;
     }
 
     /**
@@ -198,9 +217,8 @@ class BaseCalculator {
         const localUsedCofinancing = { ...(context.usedCofinancingPerYear || {}) };
         const localUsedTaxBase = { ...(context.usedTaxBasePerYear || {}) };
 
-        let currentDate = new Date(startDate);
-        // В Excel капитал No 0 фиксируется в 1-й месяц. Рост и пополнения со 2-го.
-        currentDate.setMonth(currentDate.getMonth() + 1);
+        // В Excel капитал No 0 — месяц старта; пополнения с 1-го числа следующего календарного месяца.
+        let currentDate = firstScheduleMonthAfterStart(startDate);
         const startYear = startDate.getFullYear();
         const yearlyContributions = {};
         const yearlyIisContributions = {};
@@ -327,7 +345,7 @@ class BaseCalculator {
                 });
             }
 
-            currentDate.setMonth(currentDate.getMonth() + 1);
+            currentDate = addCalendarMonths(currentDate, 1);
         }
 
         return {

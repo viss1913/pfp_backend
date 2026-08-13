@@ -1465,6 +1465,11 @@ function concatUserTextsForClassifierGate(historyMessages, userMessage) {
     return parts.join('\n');
 }
 
+/** Возраст в разумном диапазоне для финплана (полных лет). */
+function isPlausibleClientAgeYears(n) {
+    return Number.isFinite(n) && n >= 14 && n <= 99;
+}
+
 /** Явно указанный возраст (число лет), без догадок по имени. */
 function userDialogueHasExplicitAge(text) {
     const t = (text || '').toLowerCase();
@@ -1472,15 +1477,33 @@ function userDialogueHasExplicitAge(text) {
     if (/\bмне\s+(\d{1,2})\b/.test(t)) {
         const m = t.match(/\bмне\s+(\d{1,2})\b/);
         const n = parseInt(m[1], 10);
-        if (n >= 14 && n <= 99) return true;
+        if (isPlausibleClientAgeYears(n)) return true;
     }
     if (/\bвозраст\s*[:\-–]?\s*(\d{1,2})\b/.test(t)) {
         const m = t.match(/\bвозраст\s*[:\-–]?\s*(\d{1,2})\b/);
         const n = parseInt(m[1], 10);
-        if (n >= 14 && n <= 99) return true;
+        if (isPlausibleClientAgeYears(n)) return true;
     }
     if (/\b(\d{1,2})\s*(лет|года|год)\b/.test(t)) return true;
+    // Отдельная реплика «45» / «45.» — типичный ответ на вопрос про возраст
+    for (const line of t.split(/\n+/)) {
+        const m = String(line || '')
+            .trim()
+            .match(/^(\d{1,2})\s*[.!?]?\s*$/);
+        if (m && isPlausibleClientAgeYears(parseInt(m[1], 10))) return true;
+    }
     return false;
+}
+
+/**
+ * Текущее сообщение — ответ возрастом (для шортката /startpfp → /sex).
+ * qwen 7b часто оставляет /startpfp на «45», хотя в classifier админки: возраст → /sex.
+ */
+function userMessageLooksLikeAgeAnswer(userMessage) {
+    const t = trimText(userMessage);
+    if (!t || t.startsWith('/')) return false;
+    if (t.length > 40) return false;
+    return userDialogueHasExplicitAge(t);
 }
 
 /** Явный пол; только имя (например «Юля») или угадывание по имени — НЕ достаточно. */
@@ -1993,6 +2016,29 @@ class ConstructorAiService {
             }
         }
 
+        // /startpfp + явный возраст («45», «мне 45», «45 лет») → /sex без LLM-роутера
+        // (qwen2.5:7b часто ошибочно оставляет /startpfp; в classifier админки: возраст → /sex)
+        if (
+            currentCommand &&
+            normalizeConstructorCommandKey(currentCommand.command) === '/startpfp' &&
+            userMessageLooksLikeAgeAnswer(userMessage)
+        ) {
+            const sexCmd = findCommandByKey(commands, '/sex');
+            if (sexCmd) {
+                console.log(
+                    '[ConstructorAI Step1] Роутер LLM НЕ вызывается (шорткат): /startpfp + возраст →',
+                    sexCmd.command,
+                    `(id=${sexCmd.id})`
+                );
+                traceConstructorMeta('step1_classifier_shortcut', {
+                    reason: '/startpfp + явный возраст в сообщении → /sex (без вызова роутера)',
+                    resolved: { id: sexCmd.id, command: sexCmd.command },
+                    userMessagePreview: truncateTraceText(userMessage, 80),
+                });
+                return sexCmd;
+            }
+        }
+
         if (currentCommand && userMessageImpliesAdvanceToNextStage(userMessage)) {
             const nextByAdvance = resolveNextAcademyCommand(commands, currentCommand);
             if (nextByAdvance) {
@@ -2166,10 +2212,28 @@ class ConstructorAiService {
                 }
             }
 
+            // Пост-коррекция: на /startpfp при ответе возрастом LLM оставил /startpfp → форсим /sex
+            let forcedSexAfterAge = false;
+            if (
+                currentCommand &&
+                nextCommand &&
+                normalizeConstructorCommandKey(currentCommand.command) === '/startpfp' &&
+                normalizeConstructorCommandKey(nextCommand.command) === '/startpfp' &&
+                userMessageLooksLikeAgeAnswer(userMessage)
+            ) {
+                const sexCmd = findCommandByKey(commands, '/sex');
+                if (sexCmd) {
+                    console.log('[AI Step 1] Forced transition /startpfp -> /sex (explicit age answer)');
+                    nextCommand = sexCmd;
+                    forcedSexAfterAge = true;
+                }
+            }
+
             traceConstructorMeta('step1_classifier_resolved', {
                 nextCommand: nextCommand ? { id: nextCommand.id, command: nextCommand.command } : null,
                 forcedStartpfp,
                 forcedStayStartpfpOverVozrast,
+                forcedSexAfterAge,
                 namePatternMatched: shouldForceStartpfpFromStart(userMessage),
             });
 
@@ -2179,6 +2243,7 @@ class ConstructorAiService {
                     resolvedCommand: nextCommand ? nextCommand.command : null,
                     resolvedCommandId: nextCommand ? nextCommand.id : null,
                     forcedStartpfp,
+                    forcedSexAfterAge,
                 })
             );
 

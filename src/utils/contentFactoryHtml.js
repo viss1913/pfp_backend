@@ -100,6 +100,56 @@ function buildPdfHtml(html, offer, utmAgent) {
     return injectUtmAgent(applyCtaToOfferHtml(html, offer), utmAgent);
 }
 
+/** Collect `<style>` blocks from a full HTML document (head or body). */
+function extractStyleBlocks(html) {
+    const styles = [];
+    String(html || '').replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (block) => {
+        styles.push(block);
+        return '';
+    });
+    return styles;
+}
+
+/** Inner HTML of `<body>`, or the whole string if no body tag. */
+function extractBodyInner(html) {
+    const m = String(html || '').match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    return m ? m[1] : String(html || '');
+}
+
+/**
+ * Merge one or more offer HTML documents into a print-ready presentation.
+ * Preserves offer CSS (previous bug: only body was kept → Finam layout died).
+ * @param {string[]} offerHtmlDocs full documents after CTA/utm
+ * @param {string} [title]
+ */
+function wrapOfferHtmlDocuments(offerHtmlDocs, title) {
+    const docs = (offerHtmlDocs || []).map((h) => String(h || '')).filter((h) => h.trim());
+    if (!docs.length) return '';
+    if (docs.length === 1) return docs[0];
+
+    const styleBlocks = [];
+    const seen = new Set();
+    const sections = docs.map((doc, i) => {
+        for (const block of extractStyleBlocks(doc)) {
+            if (seen.has(block)) continue;
+            seen.add(block);
+            styleBlocks.push(block);
+        }
+        const inner = extractBodyInner(doc);
+        return `<section class="cf-offer" data-offer-page="${i + 1}">${inner}</section>`;
+    });
+
+    const safeTitle = String(title || 'Presentation').replace(/</g, '');
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${safeTitle}</title>
+${styleBlocks.join('\n')}
+<style data-cf-wrap="1">
+html, body { margin: 0; padding: 0; }
+.cf-offer { margin: 0; padding: 0; }
+.cf-offer + .cf-offer { page-break-before: always; break-before: page; }
+</style>
+</head><body>${sections.join('\n')}</body></html>`;
+}
+
 module.exports = {
     CTA_ATTR,
     DEFAULT_CTA_SNIPPET,
@@ -111,4 +161,7 @@ module.exports = {
     hasCtaSlot,
     applyCtaToOfferHtml,
     buildPdfHtml,
+    extractStyleBlocks,
+    extractBodyInner,
+    wrapOfferHtmlDocuments,
 };

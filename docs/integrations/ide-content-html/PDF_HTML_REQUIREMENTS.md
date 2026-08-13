@@ -2,8 +2,9 @@
 
 **Для:** команда IDE (`ide-api`, Content HTML API)  
 **От:** PFP backend (Content Factory BFF)  
-**Дата:** 2026-07-19  
-**Статус:** обязательный контракт для каждого turn, который отдаёт `html` в PFP
+**Дата:** 2026-08-03 (обновлено: page-break / @import)  
+**Статус:** обязательный контракт для каждого turn, который отдаёт `html` в PFP  
+**Короткий бриф для IDE:** [`IDE_PDF_READY_BRIEF.md`](./IDE_PDF_READY_BRIEF.md)
 
 ---
 
@@ -71,6 +72,15 @@ User media, загруженное через `POST /sessions/{id}/media`, до�
 - Chrome шаблона: header (лого Finam), footer «ООО «Финам»», `data-cf-template`, `data-cf-orient`, `data-cf-theme`
 - `constraints.preserve_template_chrome: true` — не вырезать шапку/подвал
 
+**Page-break — только на листах `.sheet` / `.page`:**
+
+| Можно | Нельзя |
+|-------|--------|
+| `page-break-after` / `break-after: page` на `.sheet` / `article.page` | `page-break-after: always` на карточках, блоках, секциях внутри листа |
+| N листов = N блоков `.sheet` | `min-height: 100vh` / `40vh` на карточках «ради воздуха» в PDF |
+
+Иначе Puppeteer режет PDF на десятки почти пустых страниц. PFP дополнительно инжектит print-safe CSS, но IDE **не должен** ставить break на каждый card.
+
 ### 4. CTA placeholder (PFP подставит href и label)
 
 ```html
@@ -105,6 +115,8 @@ HTML с инлайном base64 может быть **сотни KB — неск
 - [ ] В HTML **нет** `__CF_DATA_URI`
 - [ ] В HTML **нет** `src="assets/` и `url(assets/`
 - [ ] В HTML **нет** `http://` / `https://` в `src=` img и `url()` в CSS (кроме data:)
+- [ ] Нет `@import url("https://...")` / Google Fonts CDN
+- [ ] Нет `page-break-after: always` / `break-after: page` на элементах **внутри** `.sheet` (только на самих листах)
 - [ ] Есть `<a data-cta-slot ...>`
 - [ ] Сохранены header/footer Finam и атрибуты `data-cf-*` на body (если шаблон Finam)
 - [ ] Preview в IDE (если есть) визуально совпадает с тем, что уйдёт в PFP
@@ -120,7 +132,12 @@ function assertPdfReadyHtml(html) {
   if (/\bsrc\s*=\s*["']assets\//i.test(h)) errors.push('RELATIVE_IMG_SRC');
   if (/url\s*\(\s*["']?assets\//i.test(h)) errors.push('RELATIVE_CSS_URL');
   if (/<img\b[^>]*\bsrc\s*=\s*["']https?:\/\//i.test(h)) errors.push('EXTERNAL_IMG');
+  if (/@import\s+url\s*\(\s*["']?https?:\/\//i.test(h)) errors.push('EXTERNAL_CSS_IMPORT');
   if (!/\bdata-cta-slot\b/.test(h)) errors.push('MISSING_CTA_SLOT');
+  // Heuristic: page-break on non-sheet selectors in style attributes is a smell
+  if (/class=["'][^"']*\bcard\b[^"']*["'][^>]*style=["'][^"']*page-break/i.test(h)) {
+    errors.push('SPARSE_CARD_PAGE_BREAK');
+  }
   return errors;
 }
 ```

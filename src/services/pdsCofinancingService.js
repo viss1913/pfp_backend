@@ -1,5 +1,6 @@
 const settingsService = require('./settingsService');
 const productRepository = require('../repositories/productRepository');
+const { addCalendarMonths } = require('../utils/calendarMonth');
 
 /**
  * Максимальный срок софинансирования ПДС (лет)
@@ -332,7 +333,7 @@ class PdsCofinancingService {
                 }
             }
 
-            currentDate.setMonth(currentDate.getMonth() + 1);
+            currentDate = addCalendarMonths(currentDate, 1);
             monthIndex++;
         }
 

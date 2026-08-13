@@ -1,41 +1,36 @@
-# Что передать в другой проект (секреты — вручную)
+# Секреты и доступ (наш Vultr)
 
-**В эту папку не кладём реальные ключи.** Скопируй значения сам в `.env` целевого проекта или в менеджер секретов.
+**В архив партнёрам не класть:** SSH-ключи, пароли Vultr, чужие API-ключи.
 
-## Обязательно
+## Что можно отдать партнёру
 
-| Имя | Где взять у PFP / BankFuture |
-|-----|------------------------------|
-| `OPENROUTER_API_KEY` | Тот же ключ, что в PFP `.env.production` на Immers, или новый на [openrouter.ai/keys](https://openrouter.ai/keys) |
-| `OPENROUTER_PROXY_URL` | **Прод:** `socks5://45.77.80.63:10809` |
-| `TELEGRAM_PROXY_URL` | Тот же SOCKS (если в проекте есть Telegram) |
+| Что | Значение |
+|-----|----------|
+| SOCKS URL | `socks5://45.77.80.63:10809` |
+| Документ | `HANDOFF_SHARED_VULTR.md` + код из этой папки |
+| Их `OPENROUTER_API_KEY` | они создают сами |
 
-## Опционально
+## Что НЕ отдавать по умолчанию
 
-| Имя | Значение по умолчанию |
-|-----|----------------------|
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
-| `OPENROUTER_MODEL` | `google/gemma-3-27b-it` (или `google/gemini-3.5-flash` как на проде PFP) |
-| `OPENROUTER_HTTP_TIMEOUT_MS` | `30000` |
+- SSH `root@45.77.80.63` / ключ `vultr_miami`
+- Логин в панель Vultr
+- Наш prod `OPENROUTER_API_KEY`
 
-## Локальная разработка
+## Перед доступом партнёра
 
-1. SSH к Vultr (ключ `vultr_miami` или свой):  
-   `ssh -D 127.0.0.1:10809 -N root@45.77.80.63`
-2. В локальном `.env`:
-   - `OPENROUTER_PROXY_URL=socks5://127.0.0.1:10809`
-   - `OPENROUTER_API_KEY` — dev-ключ или тот же prod (осторожно с лимитами)
+1. Получить **публичный IP их бэкенда**
+2. На Vultr firewall: разрешить TCP `10809` с этого IP (как уже для Immers `81.94.159.209`)
+3. Smoke с их стороны: `node scripts/test_ai_connection.js`
 
-## VPS (если поднимаешь прокси с нуля)
+## Наш внутренний SSH (не для партнёров)
 
-- **IP Vultr (Miami):** `45.77.80.63`
-- **SOCKS порт (рабочий):** `10809`
-- **HTTP Squid `:3128`:** не использовать для OpenRouter
-- **Firewall:** порт 10809 только с IP Immers `81.94.159.209` + твой dev IP
+```bash
+ssh -i ~/.ssh/vultr_miami root@45.77.80.63
+```
 
-## Чеклист передачи коллеге
+Локальный туннель для своего dev:
 
-- [ ] Папка `export/openrouter-immers-proxy-kit/` (zip или копия из репо)
-- [ ] `OPENROUTER_API_KEY` — в личку / 1Password, не в git
-- [ ] Доступ SSH на Vultr (если нужен локальный туннель)
-- [ ] Ссылка на `docs/IMMERS_DEPLOY.md` в репо PFP (секция Telegram/OpenRouter proxy)
+```bash
+ssh -i ~/.ssh/vultr_miami -D 127.0.0.1:10809 -N root@45.77.80.63
+# OPENROUTER_PROXY_URL=socks5://127.0.0.1:10809
+```

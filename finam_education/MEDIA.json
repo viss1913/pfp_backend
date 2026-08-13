@@ -1,0 +1,123 @@
+[
+  {
+    "command": "/family_office_1",
+    "id": "21d19210-6106-49cd-abb7-a65f8df7c86e",
+    "key": "constructor-commands/2/family_office_1/family_office_1_1__1782116928733.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_1/family_office_1_1__1782116928733.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "family_office_1 (1).webp"
+  },
+  {
+    "command": "/family_office_2",
+    "id": "00ed89d9-60d2-43c6-85b7-c7a018cd9678",
+    "key": "constructor-commands/2/family_office_2/1782107930307_5d119664-bead-4c49-a57f-2c91ee38d1ec.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_2/1782107930307_5d119664-bead-4c49-a57f-2c91ee38d1ec.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "family_office_2 (1).webp"
+  },
+  {
+    "command": "/family_office_3",
+    "id": "f5b1bcd2-9c50-4028-9d28-06f16d196609",
+    "key": "constructor-commands/2/family_office_3/1782107956621_487f012c-f31b-4ef6-93a6-7b18a90ec00c.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_3/1782107956621_487f012c-f31b-4ef6-93a6-7b18a90ec00c.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "family_office_3 (1).webp"
+  },
+  {
+    "command": "/family_office_4",
+    "id": "9b85375a-f122-49a0-aa9c-fb9ade347bdf",
+    "key": "constructor-commands/2/family_office_4/1782107977449_95cbaf0f-9e2f-48b0-806a-0c0fcccc0457.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_4/1782107977449_95cbaf0f-9e2f-48b0-806a-0c0fcccc0457.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "family_office_4 (1).webp"
+  },
+  {
+    "command": "/family_office_5",
+    "id": "fb24b570-d7ab-43e6-a013-186e7369d4af",
+    "key": "constructor-commands/2/family_office_5/1782108001520_c8173372-777a-47ed-822e-2003ca719138.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_5/1782108001520_c8173372-777a-47ed-822e-2003ca719138.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "family_office_5 (1).webp"
+  },
+  {
+    "command": "/platform_1",
+    "id": "293e0cf3-afc0-413b-b562-8c57ae65600b",
+    "key": "constructor-commands/2/platform_1/platform_1_1__1782131934791.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_1/platform_1_1__1782131934791.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "platform 1 (1).webp"
+  },
+  {
+    "command": "/platform_2",
+    "id": "0575b7c9-8d53-45e2-80c0-1e28660783c0",
+    "key": "constructor-commands/2/platform_2/platform_2_1__1782131953423.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_2/platform_2_1__1782131953423.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "platform 2 (1).webp"
+  },
+  {
+    "command": "/platform_3",
+    "id": "99ed38c7-f9ee-44b4-adaf-8c8413cc1925",
+    "key": "constructor-commands/2/platform_3/platform_3_1__1782131976024.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_3/platform_3_1__1782131976024.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "platform 3 (1).webp"
+  },
+  {
+    "command": "/platform_4",
+    "id": "74bec387-45a0-4378-85f3-e1e1b57207b2",
+    "key": "constructor-commands/2/platform_4/platform_4_1__1782131994178.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_4/platform_4_1__1782131994178.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "platform 4 (1).webp"
+  },
+  {
+    "command": "/platform_5",
+    "id": "f29362d9-b0df-4ed9-b0ac-53597ac6a87c",
+    "key": "constructor-commands/2/platform_5/platform_5_1__1782132022053.webp",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_5/platform_5_1__1782132022053.webp",
+    "mime": "image/webp",
+    "sort": 0,
+    "type": "image",
+    "caption": "",
+    "filename": "platform 5 (1).webp"
+  },
+  {
+    "command": "/sber_1",
+    "id": "3809116c-38d4-471a-abe8-65b5cf0d297e",
+    "key": "constructor-commands/2/sber_1/Presentation_Sber_Life_1782116900311.pdf",
+    "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/sber_1/Presentation_Sber_Life_1782116900311.pdf",
+    "mime": "application/pdf",
+    "sort": 0,
+    "type": "document",
+    "caption": "",
+    "filename": "Presentation Sber Life.pdf"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "id": 20,
+  "media": [
+    {
+      "id": "9b85375a-f122-49a0-aa9c-fb9ade347bdf",
+      "key": "constructor-commands/2/family_office_4/1782107977449_95cbaf0f-9e2f-48b0-806a-0c0fcccc0457.webp",
+      "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/family_office_4/1782107977449_95cbaf0f-9e2f-48b0-806a-0c0fcccc0457.webp",
+      "mime": "image/webp",
+      "sort": 0,
+      "type": "image",
+      "caption": "",
+      "filename": "family_office_4 (1).webp"
+    }
+  ],
+  "bot_id": null,
+  "command": "/family_office_4",
+  "section": null,
+  "project_id": 2,
+  "is_template": 1
+}

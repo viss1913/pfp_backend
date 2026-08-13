@@ -455,15 +455,24 @@ class SettingsController {
             console.log('=== Passive Income Yield Update Request ===');
             console.log('Request body:', JSON.stringify(req.body, null, 2));
 
-            // Предварительная обработка: конвертируем строки в числа
+            // Предварительная обработка: конвертируем строки в числа, сохраняем gender/age
             if (req.body && req.body.lines && Array.isArray(req.body.lines)) {
                 req.body.lines = req.body.lines.map((line, index) => {
+                    const toNumber = (value) => {
+                        if (typeof value === 'string') return parseFloat(value);
+                        if (typeof value === 'number') return value;
+                        return NaN;
+                    };
                     const converted = {
-                        min_term_months: typeof line.min_term_months === 'string' ? parseFloat(line.min_term_months) : (typeof line.min_term_months === 'number' ? line.min_term_months : NaN),
-                        max_term_months: typeof line.max_term_months === 'string' ? parseFloat(line.max_term_months) : (typeof line.max_term_months === 'number' ? line.max_term_months : NaN),
-                        min_amount: typeof line.min_amount === 'string' ? parseFloat(line.min_amount) : (typeof line.min_amount === 'number' ? line.min_amount : NaN),
-                        max_amount: typeof line.max_amount === 'string' ? parseFloat(line.max_amount) : (typeof line.max_amount === 'number' ? line.max_amount : NaN),
-                        yield_percent: typeof line.yield_percent === 'string' ? parseFloat(line.yield_percent) : (typeof line.yield_percent === 'number' ? line.yield_percent : NaN)
+                        min_term_months: toNumber(line.min_term_months),
+                        max_term_months: toNumber(line.max_term_months),
+                        min_amount: toNumber(line.min_amount),
+                        max_amount: toNumber(line.max_amount),
+                        yield_percent: toNumber(line.yield_percent),
+                        gender: line.gender === undefined || line.gender === '' ? null : line.gender,
+                        age: line.age === undefined || line.age === '' || line.age === null
+                            ? null
+                            : (typeof line.age === 'string' ? parseInt(line.age, 10) : line.age)
                     };
                     console.log(`Line ${index} converted:`, converted);
                     return converted;
@@ -487,7 +496,11 @@ class SettingsController {
             }
 
             const projectId = req.projectId || req.user?.projectId;
-            const updated = await settingsService.updatePassiveIncomeYield(req.body.lines, isAdmin, projectId);
+            const updated = await settingsService.updatePassiveIncomeYield(
+                validation.value.lines,
+                isAdmin,
+                projectId
+            );
             res.json(updated);
         } catch (err) {
             console.error('Error in updatePassiveIncomeYield:', err);

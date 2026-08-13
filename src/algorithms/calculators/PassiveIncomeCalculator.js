@@ -22,10 +22,26 @@ class PassiveIncomeCalculator extends BaseCalculator {
         const initialCapital = this.resolveInitialCapital(goal, context);
 
         // 3. Расчет целевого капитала (Фаза выплат)
-        // Используем настройки passive_income_yield из админки (12-14%)
-        const payoutYieldLine = await settingsService.findPassiveIncomeYieldLine(0, termMonths, true, context.projectId);
+        // Матрица passive_income_yield: срок + пол + возраст на момент цели
+        // (byTermOnly — без круговой зависимости от капитала; сумма учитывается после симуляции)
+        const gender = client?.gender || client?.sex;
+        const ageNow = this.resolveClientAgeYears(client);
+        const ageAtGoal = Number.isFinite(ageNow)
+            ? ageNow + Math.floor(termMonths / 12)
+            : null;
+        const yieldFilters = {};
+        if (gender != null && gender !== '') yieldFilters.gender = gender;
+        if (Number.isFinite(ageAtGoal)) yieldFilters.age = ageAtGoal;
+
+        let payoutYieldLine = await settingsService.findPassiveIncomeYieldLine(
+            0,
+            termMonths,
+            true,
+            context.projectId,
+            yieldFilters
+        );
         if (!payoutYieldLine) throw new Error('Passive income yield line not found in settings');
-        const payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
+        let payoutYieldPercent = parseFloat(payoutYieldLine.yield_percent);
 
         // Капитал нужен такой, чтобы его доходность покрывала желаемый доход
         // Формула: (Доход * 12 мес * 100) / Процент_доходности
@@ -128,7 +144,20 @@ class PassiveIncomeCalculator extends BaseCalculator {
             });
         }
 
-        // 7. Пересчет достижимого дохода при фиксированном пополнении:
+        // 7. Доходность выплат с учётом накопленного капитала (пол/возраст те же)
+        const payoutAtEnd = await settingsService.findPassiveIncomeYieldLine(
+            simResult.totalCapital,
+            termMonths,
+            false,
+            context.projectId,
+            yieldFilters
+        );
+        if (payoutAtEnd) {
+            payoutYieldLine = payoutAtEnd;
+            payoutYieldPercent = parseFloat(payoutAtEnd.yield_percent);
+        }
+
+        // 8. Пересчет достижимого дохода при фиксированном пополнении:
         // если пользователь сам задал monthly_replenishment, считаем,
         // какой доход в сегодняшних ценах реально достижим при таком пополнении.
         let effectiveDesiredIncomePresent = initialDesiredIncome;
@@ -160,6 +189,10 @@ class PassiveIncomeCalculator extends BaseCalculator {
                 inflation_rate: Math.round(inflationRate * 100) / 100,
                 accumulation_yield_percent: Math.round(weightedYieldAnnual * 100) / 100,
                 payout_yield_percent: Math.round(payoutYieldPercent * 100) / 100,
+                payout_age_at_goal: Number.isFinite(ageAtGoal) ? ageAtGoal : null,
+                payout_coefficient_gender: payoutYieldLine?.gender ?? null,
+                payout_coefficient_age: payoutYieldLine?.age ?? null,
+                payout_coefficient_value: Math.round(payoutYieldPercent * 100) / 100,
 
                 total_tax_benefit: Math.round(simResult.totalTaxRefund * 100) / 100,
                 total_cofinancing: Math.round(simResult.totalCofinancing * 100) / 100,

@@ -1,6 +1,7 @@
 const BaseCalculator = require('./BaseCalculator');
 const productRepository = require('../../repositories/productRepository');
 const portfolioRepository = require('../../repositories/portfolioRepository');
+const { addCalendarMonths, firstScheduleMonthAfterStart } = require('../../utils/calendarMonth');
 
 /** @param {Date} d */
 function formatScheduleDate(d) {
@@ -53,8 +54,7 @@ class FinReserveCalculator extends BaseCalculator {
         let totalClientInvestment = initialCapital;
 
         const scheduleStart = goal.start_date ? new Date(goal.start_date) : new Date();
-        let currentDate = new Date(scheduleStart);
-        currentDate.setMonth(currentDate.getMonth() + 1);
+        let currentDate = firstScheduleMonthAfterStart(scheduleStart);
         const monthly_schedule = [];
 
         // 3. Simulation Loop (12 months)
@@ -75,7 +75,7 @@ class FinReserveCalculator extends BaseCalculator {
                 tax_deduction: 0,
                 cofinancing: 0
             });
-            currentDate.setMonth(currentDate.getMonth() + 1);
+            currentDate = addCalendarMonths(currentDate, 1);
         }
 
         // Ensure instruments exist for Consolidated Portfolio

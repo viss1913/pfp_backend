@@ -1,4 +1,4 @@
-﻿const path = require('path');
+const path = require('path');
 const { resolveGoalCardImageSrc } = require('../../summary/buildSummaryOverviewHtml');
 const { resolveReportRasterRef } = require('../../../utils/reportRasterSrc');
 const {
@@ -16,8 +16,8 @@ const {
     isScheduleInitialLumpRow,
 } = U;
 
-const INVEST_GOAL_LABEL = '╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╨╕ ╨┐╤А╨╕╤Г╨╝╨╜╨╛╨╢╨╕╤В╤М';
-const DISCLAIMER = `╨д╨╕╨╜╨░╨╜╤Б╨╛╨▓╤Л╨╣ ╨┐╨╗╨░╨╜ ╨╜╨╡ ╤П╨▓╨╗╤П╨╡╤В╤Б╤П ╨║╨╛╨╝╨╝╨╡╤А╤З╨╡╤Б╨║╨╕╨╝ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╨╡╨╝ ╨╕╨╗╨╕ ╨┤╨╛╨│╨╛╨▓╨╛╤А╨╛╨╝,\n╨╜╨╛╤Б╨╕╤В ╨╕╤Б╨║╨╗╤О╤З╨╕╤В╨╡╨╗╤М╨╜╨╛ ╨╕╨╜╤Д╨╛╤А╨╝╨░╤Ж╨╕╨╛╨╜╨╜╤Л╨╣ ╤Е╨░╤А╨░╨║╤В╨╡╤А.`;
+const INVEST_GOAL_LABEL = 'Сохранить и приумножить';
+const DISCLAIMER = `Финансовый план не является коммерческим предложением или договором,\nносит исключительно информационный характер.`;
 
 function computeInvestmentEndContext(goal, s) {
     const targetMonths = Number(s.target_months ?? s.term_months ?? 0);
@@ -37,25 +37,25 @@ function computeInvestmentEndContext(goal, s) {
         end.setUTCMonth(end.getUTCMonth() + targetMonths);
     }
     const monthsRu = [
-        '╤П╨╜╨▓╨░╤А╤П',
-        '╤Д╨╡╨▓╤А╨░╨╗╤П',
-        '╨╝╨░╤А╤В╨░',
-        '╨░╨┐╤А╨╡╨╗╤П',
-        '╨╝╨░╤П',
-        '╨╕╤О╨╜╤П',
-        '╨╕╤О╨╗╤П',
-        '╨░╨▓╨│╤Г╤Б╤В╨░',
-        '╤Б╨╡╨╜╤В╤П╨▒╤А╤П',
-        '╨╛╨║╤В╤П╨▒╤А╤П',
-        '╨╜╨╛╤П╨▒╤А╤П',
-        '╨┤╨╡╨║╨░╨▒╤А╤П',
+        'января',
+        'февраля',
+        'марта',
+        'апреля',
+        'мая',
+        'июня',
+        'июля',
+        'августа',
+        'сентября',
+        'октября',
+        'ноября',
+        'декабря',
     ];
-    const dateLong = `${end.getUTCDate()} ${monthsRu[end.getUTCMonth()]} ${end.getUTCFullYear()} ╨│.`;
+    const dateLong = `${end.getUTCDate()} ${monthsRu[end.getUTCMonth()]} ${end.getUTCFullYear()} г.`;
     return { year: end.getUTCFullYear(), dateLong, end };
 }
 
 /**
- * ╨а╨╛╤Б╤В╨╡╤Е PDF: ╤Ж╨╡╨╗╤М INVESTMENT (╨б╨╛╤Е╤А╨░╨╜╨╕╤В╤М ╨╕ ╨┐╤А╨╕╤Г╨╝╨╜╨╛╨╢╨╕╤В╤М). ╨Я╨╡╨╜╤Б╨╕╨╛╨╜╨╜╤Л╨╣ ╨▒╨╕╨╗╨┤╨╡╤А ╨╜╨╡ ╤В╤А╨╛╨│╨░╨╡╨╝.
+ * Ростех PDF: цель INVESTMENT (Сохранить и приумножить). Пенсионный билдер не трогаем.
  */
 async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options = {} }) {
     const root = path.join(__dirname, '../../../..');
@@ -113,7 +113,7 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
         String(clientName || '')
             .trim()
             .split(/\s+/)
-            .filter(Boolean)[0] || '╨Ъ╨╗╨╕╨╡╨╜╤В';
+            .filter(Boolean)[0] || 'Клиент';
 
     const currentIncomeMonthly = pickPositive(
         goal?.client?.avg_monthly_income ??
@@ -162,7 +162,7 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
 
     return [
         buildShell({
-            title: '╨Т╨░╤И ╤Д╨╕╨╜╨░╨╜╤Б╨╛╨▓╤Л╨╣ ╨┐╨╗╨░╨╜',
+            title: 'Ваш финансовый план',
             subtitle: '',
             logoSrc: tenantLogoSrc,
             bgSrc,
@@ -174,17 +174,17 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:60px;height:68px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
                 <div style="flex:1;min-width:0;background:#fff;border:1px solid #f1f1f1;border-radius:10px;padding:10px;">
                   <div style="font-size:13px;line-height:14px;color:#212121;">
-                    ╨п ╨┐╨╛╨┤╨│╨╛╤В╨╛╨▓╨╕╨╗╨░ ╨┤╨╡╤В╨░╨╗╤М╨╜╤Л╨╣ ╨┐╨╗╨░╨╜ ╨┤╨╗╤П ╨┤╨╛╤Б╤В╨╕╨╢╨╡╨╜╨╕╤П ╨Т╨░╤И╨╡╨╣ ╤Д╨╕╨╜╨░╨╜╤Б╨╛╨▓╨╛╨╣ ╤Ж╨╡╨╗╨╕.<br/><br/>
-                    ╨Т╨░╤И ╤В╨╡╨║╤Г╤Й╨╕╨╣ ╨┤╨╛╤Е╨╛╨┤ тАФ ${esc(money(currentIncomeMonthly))}/╨╝╨╡╤Б. ╨┐╨╛╤Б╨╗╨╡ ╨▓╤Л╤З╨╡╤В╨░ ╨Э╨Ф╨д╨Ы.<br/><br/>
-                    ╨Т╨░╤И╨░ ╤Д╨╕╨╜╨░╨╜╤Б╨╛╨▓╨░╤П ╤Ж╨╡╨╗╤М:
+                    Я подготовила детальный план для достижения Вашей финансовой цели.<br/><br/>
+                    Ваш текущий доход — ${esc(money(currentIncomeMonthly))}/мес. после вычета НДФЛ.<br/><br/>
+                    Ваша финансовая цель:
                   </div>
                   <div style="display:flex;gap:24px;align-items:flex-start;margin-top:12px;">
                     <img src="${esc(investmentGoalSrc || cardImg)}" alt="" style="width:120px;height:70px;object-fit:cover;border-radius:8px;flex-shrink:0;" />
                     <div style="font-size:13px;line-height:14px;color:#212121;">
                       <b>1. ${esc(INVEST_GOAL_LABEL)}</b><br/><br/>
-                      ╨Я╨╡╤А╨▓╨╛╨╜╨░╤З╨░╨╗╤М╨╜╤Л╨╣ ╨║╨░╨┐╨╕╤В╨░╨╗ тАФ ${esc(money(initial))}<br/>
-                      ╨Я╨╛╨┐╨╛╨╗╨╜╨╡╨╜╨╕╨╡ ╨║╨░╨┐╨╕╤В╨░╨╗╨░ тАФ ${esc(moneyPerMonth(monthly))}<br/>
-                      ╨б╤А╨╛╨║ ╨┤╨╛╤Б╤В╨╕╨╢╨╡╨╜╨╕╤П тАФ ${esc(displayEndYear)} ╨│.
+                      Первоначальный капитал — ${esc(money(initial))}<br/>
+                      Пополнение капитала — ${esc(moneyPerMonth(monthly))}<br/>
+                      Срок достижения — ${esc(displayEndYear)} г.
                     </div>
                   </div>
                 </div>
@@ -195,26 +195,26 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                   <div style="position:absolute;right:0;top:0;width:138px;height:1px;background:#8a2d69;"></div>
                 </div>
                 <div style="position:absolute;left:50%;top:-11px;transform:translateX(-50%);background:#fff;padding:0 12px;font-size:16px;font-weight:700;line-height:1.1;">
-                  ╨Я╤А╨╛╨│╨╜╨╛╨╖ ╤А╨╛╤Б╤В╨░ ╨║╨░╨┐╨╕╤В╨░╨╗╨░
+                  Прогноз роста капитала
                 </div>
                 <div style="display:flex;justify-content:space-evenly;align-items:flex-end;gap:38px;padding-top:8px;">
                   <div style="width:190px;text-align:center;">
                     <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(money(initial))}</div>
                     <div style="height:${introLeftH}px;width:53px;background:#8f8f8c;margin:8px auto 0;"></div>
-                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">╨Я╨╡╤А╨▓╨╛╨╜╨░╤З╨░╨╗╤М╨╜╤Л╨╣<br/>╨║╨░╨┐╨╕╤В╨░╨╗</div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Первоначальный<br/>капитал</div>
                   </div>
                   <div style="width:220px;text-align:center;">
                     <div style="font-size:16px;font-weight:400;line-height:18px;">${esc(money(totalCapitalEnd))}</div>
                     <div style="height:${introRightH}px;width:53px;background:#722257;margin:8px auto 0;"></div>
-                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">╨Я╤А╨╛╨│╨╜╨╛╨╖╨╜╤Л╨╣ ╨║╨░╨┐╨╕╤В╨░╨╗</div>
+                    <div style="margin-top:12px;font-size:14px;line-height:16px;color:#212121;">Прогнозный капитал</div>
                   </div>
                 </div>
               </div>
             `,
         }),
         buildShell({
-            title: '╨Я╤А╨╡╨┤╨╗╨░╨│╨░╨╡╨╝╤Л╨╣ ╨┐╨╗╨░╨╜',
-            subtitle: '╨У╤А╨░╤Д╨╕╨║ ╨┤╨╛╤Б╤В╨╕╨╢╨╡╨╜╨╕╤П ╤Ж╨╡╨╗╨╕',
+            title: 'Предлагаемый план',
+            subtitle: 'График достижения цели',
             logoSrc: tenantLogoSrc,
             bgSrc,
             showTop: false,
@@ -225,38 +225,38 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
                 <div style="flex:1;border:1px solid #e2e2e2;border-radius:10px;background:#fff;padding:8px 10px;">
                   <div style="font-size:12px;line-height:1.25;color:#424242;">
-                    ${esc(clientFirstName)}, ╨┤╨╗╤П ╤В╨╛╨│╨╛ ╤З╤В╨╛╨▒╤Л ╨Т╤Л ╤Б╨╝╨╛╨│╨╗╨╕ ╨╜╨░╨║╨╛╨┐╨╕╤В╤М ${esc(money(totalCapitalEnd))}, ╤П ╨┐╨╛╨┤╨│╨╛╤В╨╛╨▓╨╕╨╗╨░ ╤Д╨╕╨╜╨░╨╜╤Б╨╛╨▓╤Л╨╣ ╨┐╨╗╨░╨╜.
+                    ${esc(clientFirstName)}, для того чтобы Вы смогли накопить ${esc(money(totalCapitalEnd))}, я подготовила финансовый план.
                   </div>
                   <div style="display:flex;gap:10px;align-items:flex-start;margin-top:6px;">
                     <img src="${esc(investmentGoalSrc || cardImg)}" alt="" style="width:100px;height:58px;object-fit:cover;border-radius:8px;flex-shrink:0;filter:grayscale(100%);" />
                     <div style="font-size:12px;line-height:1.28;color:#424242;">
-                      ╨Ф╨░╤В╨░ ╨┤╨╛╤Б╤В╨╕╨╢╨╡╨╜╨╕╤П тАФ ${esc(displayEndDateLong)}
+                      Дата достижения — ${esc(displayEndDateLong)}
                     </div>
                   </div>
                 </div>
               </div>
               <div style="font-size:11px;line-height:1.33;color:#212121;margin-top:10px;">
-                <b>╨Я╤А╨╡╨┤╨╗╨░╨│╨░╨╡╨╝╤Л╨╣ ╨┐╨╗╨░╨╜:</b><br/>
+                <b>Предлагаемый план:</b><br/>
                 <br/>
                 ${esc(brand.pdsContractStep)}<br/>
-                ╨Я╨╗╤О╤Б╤Л:<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨У╨╛╤Б╤Г╨┤╨░╤А╤Б╤В╨▓╨╛ ╨▒╤Г╨┤╨╡╤В ╨┤╨╛╨▒╨░╨▓╨╗╤П╤В╤М ╨┤╨╛ 36 000 ╤А╤Г╨▒./╨│╨╛╨┤ ╨▓ ╤В╨╡╤З╨╡╨╜╨╕╨╡ 10 ╨╗╨╡╤В.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Э╨░╨╗╨╛╨│╨╛╨▓╤Л╨╡ ╨▓╤Л╤З╨╡╤В╤Л (╨┤╨╛ 22% ╨▓ ╨│╨╛╨┤ ╤Б╨╛ ╨▓╨╖╨╜╨╛╤Б╨╛╨▓ ╨▓ ╨┐╤А╨╡╨┤╨╡╨╗╨░╤Е 400 000 ╤А╤Г╨▒.).<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Ъ╨░╨┐╨╕╤В╨░╨╗ ╨╖╨░╤Б╤В╤А╨░╤Е╨╛╨▓╨░╨╜ (╨┤╨╛ 2,8 ╨╝╨╗╨╜ ╤А╤Г╨▒.).<br/>
+                Плюсы:<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет добавлять до 36 000 руб./год в течение 10 лет.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Налоговые вычеты (до 22% в год со взносов в пределах 400 000 руб.).<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Капитал застрахован (до 2,8 млн руб.).<br/>
                 <br/>
-                2. ╨Ф╨░╨╗╤М╨╜╨╡╨╣╤И╨╕╨╡ ╤И╨░╨│╨╕:<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Т╨╜╨╡╤Б╤В╨╕ ╨┐╨╡╤А╨▓╨╛╨╜╨░╤З╨░╨╗╤М╨╜╤Л╨╣ ╨║╨░╨┐╨╕╤В╨░╨╗ - ${esc(money(initial))}.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Т ╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╕╨╡ ╨╝╨╡╤Б╤П╤Ж╤Л ╨┐╨╛╨┐╨╛╨╗╨╜╤П╤В╤М ╨┐╨╛ ${esc(money(monthly))}.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Я╨╛╨╗╤Г╤З╨╕╤В╤М ${esc(money(planFacts.cofinancingAmount))} ╨▓ ${planFacts.cofinancingYear || nextCalendarYear} ╨│╨╛╨┤╤Г ╨╛╤В ╨│╨╛╤Б╤Г╨┤╨░╤А╤Б╤В╨▓╨░.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Т ${planFacts.taxDeductionYear || nextCalendarYear} ╨│. ╨┐╨╛╨┤╨░╤В╤М ╨╜╨░ ╨╜╨░╨╗╨╛╨│╨╛╨▓╤Л╨╣ ╨▓╤Л╤З╨╡╤В ${esc(moneyWithPrecision(planFacts.taxDeductionAmount, 2))} (╤А╨░╤Б╤Б╤З╨╕╤В╨░╨╜ ╨┐╨╛ ╤Б╤В╨░╨▓╨║╨╡ 13% ╨Э╨Ф╨д╨Ы).<br/>
-                <span style="color:#722257;font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Я╤А╨╛╨│╨╜╨╛╨╖╨╕╤А╤Г╨╡╨╝╨░╤П ╨┤╨╛╤Е╨╛╨┤╨╜╨╛╤Б╤В╤М ╤Б ╤Г╤З╨╡╤В╨╛╨╝ ╤Б╨╛╤Д╨╕╨╜╨░╨╜╤Б╨╕╤А╨╛╨▓╨░╨╜╨╕╤П, ╨╜╨░╨╗╨╛╨│╨╛╨▓╨╛╨│╨╛ ╨▓╤Л╤З╨╡╤В╨░, ╨┤╨╛╤Е╨╛╨┤╨╜╨╛╤Б╤В╨╕ ╨╛╤В ╨╕╨╜╨▓╨╡╤Б╤В╨╕╤Ж╨╕╨╣ ╨╖╨░ ${highlightedYieldYear} ╨│╨╛╨┤ - ${esc(highlightedYieldPercent.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}% ╨│╨╛╨┤╨╛╨▓╤Л╤Е.</span><br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Р╨║╤В╤Г╨░╨╗╨╕╨╖╨╕╤А╨╛╨▓╨░╤В╤М ╤Д╨╕╨╜╨░╨╜╤Б╨╛╨▓╤Л╨╣ ╨┐╨╗╨░╨╜ ╤З╨╡╤А╨╡╨╖ 6 ╨╝╨╡╤Б.<br/>
+                2. Дальнейшие шаги:<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал - ${esc(money(initial))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В следующие месяцы пополнять по ${esc(money(monthly))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Получить ${esc(money(planFacts.cofinancingAmount))} в ${planFacts.cofinancingYear || nextCalendarYear} году от государства.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В ${planFacts.taxDeductionYear || nextCalendarYear} г. подать на налоговый вычет ${esc(moneyWithPrecision(planFacts.taxDeductionAmount, 2))} (рассчитан по ставке 13% НДФЛ).<br/>
+                <span style="color:#722257;font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;• Прогнозируемая доходность с учетом софинансирования, налогового вычета, доходности от инвестиций за ${highlightedYieldYear} год - ${esc(highlightedYieldPercent.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}% годовых.</span><br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Актуализировать финансовый план через 6 мес.<br/>
                 <br/>
-                3. ╨Ъ╨░╨║ ╤А╨░╤Б╤В╤С╤В ╨║╨░╨┐╨╕╤В╨░╨╗?<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;тАв ╨Ч╨░ ╤Б╤З╤С╤В ╨┐╨╛╨┐╨╛╨╗╨╜╨╡╨╜╨╕╤П, ╤Б╨╛╤Д╨╕╨╜╨░╨╜╤Б╨╕╤А╨╛╨▓╨░╨╜╨╕╤П, ╨╕╨╜╨▓╨╡╤Б╤В╨╕╤Ж╨╕╨╛╨╜╨╜╨╛╨│╨╛ ╨┤╨╛╤Е╨╛╨┤╨░ ╨Т╤Л ╨╜╨░╨║╨╛╨┐╨╕╤В╨╡ ${esc(money(totalCapitalEnd))}.
+                3. Как растёт капитал?<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• За счёт пополнения, софинансирования, инвестиционного дохода Вы накопите ${esc(money(totalCapitalEnd))}.
               </div>
               <div style="margin-top:12px;font-size:10px;line-height:1.15;color:#212121;text-align:center;font-weight:700;">
-                ╨У╤А╨░╤Д╨╕╨║ ╨┤╨╛╤Б╤В╨╕╨╢╨╡╨╜╨╕╤П ╤Ж╨╡╨╗╨╕
+                График достижения цели
               </div>
               <div style="position:relative;height:138px;margin-top:6px;border-bottom:1px solid #d9d9d9;">
                 <div style="position:absolute;left:0;right:0;top:16px;border-top:1px dashed #d9d9d9;"></div>
@@ -273,18 +273,18 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                 <div style="position:absolute;left:282px;bottom:4px;width:102px;text-align:center;font-size:10px;color:#fff;">${esc(money(totalCapitalEnd))}</div>
               </div>
               <div style="display:flex;justify-content:center;gap:14px;margin-top:6px;font-size:10px;color:#424242;line-height:1.2;">
-                <span><span style="display:inline-block;width:8px;height:8px;background:#9f9f9f;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>╨б╨╛╨▒╤Б╤В╨▓╨╡╨╜╨╜╤Л╨╡ ╤Б╤А╨╡╨┤╤Б╤В╨▓╨░</span>
-                <span><span style="display:inline-block;width:8px;height:8px;background:#000000;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>╨Я╤А╨╛╤Ж╨╡╨╜╤В╨╜╤Л╨╣ ╨┤╨╛╤Е╨╛╨┤, ╤Б╨╛╤Д╨╕╨╜╨░╨╜╤Б╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡, ╨╜╨░╨╗╨╛╨│╨╛╨▓╤Л╨╡ ╨▓╤Л╤З╨╡╤В╤Л</span>
-                <span><span style="display:inline-block;width:8px;height:8px;background:#722257;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>╨Ш╤В╨╛╨│╨╛ ╨║╨░╨┐╨╕╤В╨░╨╗</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#9f9f9f;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Собственные средства</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#000000;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Процентный доход, софинансирование, налоговые вычеты</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#722257;border-radius:2px;vertical-align:middle;margin-right:5px;"></span>Итого капитал</span>
               </div>
               <div style="margin-top:12px;border:1px solid #8a2d69;border-radius:8px;padding:6px 10px;text-align:center;font-size:16px;line-height:1.15;color:#722257;font-weight:700;">
-                ╨а╨░╤Б╤З╨╡╤В╨╜╨░╤П ╨┤╨╛╤Е╨╛╨┤╨╜╨╛╤Б╤В╤М ╨Т╨░╤И╨╡╨│╨╛ ╨┐╨╗╨░╨╜╨░ ╨╜╨░ ╨▓╨╡╤Б╤М ╤Б╤А╨╛╨║ - ${esc((Number.isFinite(accumulationYieldPercent) && accumulationYieldPercent > 0 ? accumulationYieldPercent : totalYieldPercent).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 2 }))}% ╨│╨╛╨┤╨╛╨▓╤Л╤Е
+                Расчетная доходность Вашего плана на весь срок - ${esc((Number.isFinite(accumulationYieldPercent) && accumulationYieldPercent > 0 ? accumulationYieldPercent : totalYieldPercent).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 2 }))}% годовых
               </div>
             `,
         }),
         buildShell({
-            title: '╨б╤В╤А╤Г╨║╤В╤Г╤А╨░ ╨┐╨╛╤А╤В╤Д╨╡╨╗╤П ╨Э╨Я╨д',
-            subtitle: '╨Ъ╨╛╨╜╤Б╨╡╤А╨▓╨░╤В╨╕╨▓╨╜╤Л╨╣ ╨┐╤А╨╛╤Д╨╕╨╗╤М ╤Б ╨║╨╛╨╜╤В╤А╨╛╨╗╨╡╨╝ ╤А╨╕╤Б╨║╨░',
+            title: 'Структура портфеля НПФ',
+            subtitle: 'Консервативный профиль с контролем риска',
             logoSrc: tenantLogoSrc,
             bgSrc,
             showTop: false,
@@ -295,8 +295,8 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:66px;object-fit:cover;border-radius:9px;flex-shrink:0;" />
                 <div style="flex:1;border:1px solid #dddddd;border-radius:10px;background:#fff;padding:8px 10px;">
                   <div style="font-size:11px;line-height:1.25;color:#2f2f2f;">
-                    ╨е╨╛╤В╨╡╨╗╨░ ╨▒╤Л ╨╛╤В╨╝╨╡╤В╨╕╤В╤М, ╤З╤В╨╛ ╨│╨╛╤Б╤Г╨┤╨░╤А╤Б╤В╨▓╨╛ ╤Б╨╗╨╡╨┤╨╕╤В ╨╖╨░ ╤Б╤В╤А╤Г╨║╤В╤Г╤А╨╛╨╣ ╨╕╨╜╨▓╨╡╤Б╤В╨╕╤А╨╛╨▓╨░╨╜╨╕╤П ╨Т╨░╤И╨╕╤Е ╤Б╤А╨╡╨┤╤Б╤В╨▓.
-                    ╨Т╨╛╤В ╤Г╤Б╤А╨╡╨┤╨╜╨╡╨╜╨╜╤Л╨╣ ╨┐╨╛╤А╤В╤Д╨╡╨╗╤М, ╨║╤Г╨┤╨░ ╨Э╨Я╨д ╨╝╨╛╨╢╨╡╤В ╨▓╨║╨╗╨░╨┤╤Л╨▓╨░╤В╤М ╨Т╨░╤И╨╕ ╨┤╨╡╨╜╤М╨│╨╕:
+                    Хотела бы отметить, что государство следит за структурой инвестирования Ваших средств.
+                    Вот усредненный портфель, куда НПФ может вкладывать Ваши деньги:
                   </div>
                   <div style="border:1px solid #9f3e76;border-radius:10px;background:#fff;padding:8px 10px;margin-top:8px;margin-bottom:8px;">
                     <div style="display:flex;gap:12px;align-items:center;">
@@ -311,45 +311,45 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                         ); border:1px solid #ececec;">
                       </div>
                       <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:14px;row-gap:4px;flex:1;min-width:0;font-size:11px;line-height:1.2;color:#353535;">
-                        <div><span style="display:inline-block;width:7px;height:7px;background:#7e2a67;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>╨С╨░╨╜╨║╨╛╨▓╤Б╨║╨╕╨╡ ╨┤╨╡╨┐╨╛╨╖╨╕╤В╤Л</div>
-                        <div><span style="display:inline-block;width:7px;height:7px;background:#eff2f5;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>╨Ю╨д╨Ч</div>
-                        <div><span style="display:inline-block;width:7px;height:7px;background:#a1167f;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>╨Ъ╨╛╤А╨┐╨╛╤А╨░╤В╨╕╨▓╨╜╤Л╨╡ ╨╛╨▒╨╗╨╕╨│╨░╤Ж╨╕╨╕ ╨Р+</div>
-                        <div><span style="display:inline-block;width:7px;height:7px;background:#b9b9b9;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>╨Ь╤Г╨╜╨╕╤Ж╨╕╨┐╨░╨╗╤М╨╜╤Л╨╡ ╨╛╨▒╨╗╨╕╨│╨░╤Ж╨╕╨╕ ╨д+</div>
-                        <div><span style="display:inline-block;width:7px;height:7px;background:#1f2025;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>╨Р╨║╤Ж╨╕╨╕</div>
-                        <div><span style="display:inline-block;width:7px;height:7px;background:#f8f8f8;border:1px solid #dedede;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>╨Э╨░╨╗╨╕╤З╨╜╤Л╨╡</div>
+                        <div><span style="display:inline-block;width:7px;height:7px;background:#7e2a67;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Банковские депозиты</div>
+                        <div><span style="display:inline-block;width:7px;height:7px;background:#eff2f5;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>ОФЗ</div>
+                        <div><span style="display:inline-block;width:7px;height:7px;background:#a1167f;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Корпоративные облигации А+</div>
+                        <div><span style="display:inline-block;width:7px;height:7px;background:#b9b9b9;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Муниципальные облигации Ф+</div>
+                        <div><span style="display:inline-block;width:7px;height:7px;background:#1f2025;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Акции</div>
+                        <div><span style="display:inline-block;width:7px;height:7px;background:#f8f8f8;border:1px solid #dedede;border-radius:50%;margin-right:6px;vertical-align:middle;"></span>Наличные</div>
                       </div>
                     </div>
                     <div style="margin-top:8px;font-size:13px;line-height:1.15;color:#3a3a3a;">
-                      ╨Я╤А╨╛╨│╨╜╨╛╨╖╨╕╤А╤Г╨╡╨╝╤Л╨╣ ╨┤╨╛╤Е╨╛╨┤ - ${esc((Number.isFinite(accumulationYieldPercent) && accumulationYieldPercent > 0 ? accumulationYieldPercent : totalYieldPercent).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))}%
+                      Прогнозируемый доход - ${esc((Number.isFinite(accumulationYieldPercent) && accumulationYieldPercent > 0 ? accumulationYieldPercent : totalYieldPercent).toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))}%
                     </div>
                   </div>
                   <div style="font-size:11px;line-height:1.24;color:#343434;">
-                    ╨Ъ╨░╨║ ╨▓╨╕╨┤╨╕╤В╨╡, ╨┤╨╛╨╗╤П ╤А╨╕╤Б╨║╨╛╨▓╤Л╤Е ╨░╨║╤В╨╕╨▓╨╛╨▓ (╨░╨║╤Ж╨╕╨╣) ╨╜╨╡ ╨▒╨╛╨╗╨╡╨╡ 7%.<br/>
+                    Как видите, доля рисковых активов (акций) не более 7%.<br/>
                     ${esc(brand.portfolioYieldNote)}<br/>
-                    ╨Ш╤В╨░╨║, ╨╡╤Б╨╗╨╕ ╨Т╤Л ╨╜╨░╤З╨╜╨╡╤В╨╡ ╨┐╨╛╨┐╨╛╨╗╨╜╤П╤В╤М ╨║╨░╨┐╨╕╤В╨░╨╗ ╨╜╨░ ${esc(money(monthly))} ╨▓ ╤Н╤В╨╛╨╝ ╨│╨╛╨┤╤Г, ╨╕ ╨▒╤Г╨┤╨╡╤В╨╡ ╨╕╨╜╨┤╨╡╨║╤Б╨╕╤А╨╛╨▓╨░╤В╤М ╨┐╨╛╨┐╨╛╨╗╨╜╨╡╨╜╨╕╨╡ ╨╜╨░ ╨▓╨╡╨╗╨╕╤З╨╕╨╜╤Г ╨╕╨╜╤Д╨╗╤П╤Ж╨╕╨╕, ╤В╨╛ ╨╖╨░ ╤Б╤З╨╡╤В ╨┐╤А╨╛╤Ж╨╡╨╜╤В╨╛╨▓ ╨Т╤Л ╨╜╨░╨║╨╛╨┐╨╕╤В╨╡ ${esc(money(totalCapitalEnd))}.
+                    Итак, если Вы начнете пополнять капитал на ${esc(money(monthly))} в этом году, и будете индексировать пополнение на величину инфляции, то за счет процентов Вы накопите ${esc(money(totalCapitalEnd))}.
                   </div>
                   <div style="margin-top:8px;border-radius:9px;overflow:hidden;height:92px;background:#f0f0f0;">
                     <img src="${esc(investmentGoalSrc || cardImg)}" alt="" style="width:100%;height:100%;object-fit:cover;filter:grayscale(100%);" />
                   </div>
                   <div style="margin-top:8px;font-size:10px;line-height:1.2;color:#343434;">
-                    ╨Я╨╛ ╨╖╨░╨║╨╛╨╜╤Г ╨Т╤Л ╤Б╨╝╨╛╨╢╨╡╤В╨╡ ╨╖╨░╨▒╤А╨░╤В╤М ╨▓╨╡╤Б╤М ╨║╨░╨┐╨╕╤В╨░╨╗, ╨╡╤Б╨╗╨╕ ╤Б╤А╨╛╨║ ╨╜╨░╨║╨╛╨┐╨╗╨╡╨╜╨╕╨╣ ╤Б╨╛╤Б╤В╨░╨▓╨╕╨╗ 15 ╨╗╨╡╤В
-                    ╨╕╨╗╨╕ ╨Т╤Л ╨┤╨╛╤Б╤В╨╕╨│╨╗╨╕ 55 (╨Ц) 60 (╨Ь), ╨▓ ╨╖╨░╨▓╨╕╤Б╨╕╨╝╨╛╤Б╤В╨╕ ╨╛╤В ╤В╨╛╨│╨╛, ╤З╤В╨╛ ╨╜╨░╤Б╤В╤Г╨┐╨╕╨╗╨╛ ╤А╨░╨╜╤М╤И╨╡.
+                    По закону Вы сможете забрать весь капитал, если срок накоплений составил 15 лет
+                    или Вы достигли 55 (Ж) 60 (М), в зависимости от того, что наступило раньше.
                   </div>
                   <div style="display:flex;justify-content:center;margin-top:10px;">
                     <a href="${esc(startPdsUrl)}" style="display:inline-block;background:#7f1f67;color:#fff;border-radius:12px;padding:8px 28px;font-size:14px;line-height:1;font-weight:700;text-decoration:none;">
-                      ╨Э╨░╤З╨░╤В╤М
+                      Начать
                     </a>
                   </div>
                   <div style="margin-top:8px;font-size:8px;color:#555;line-height:1.15;">
-                    ╨д╨╕╨╜╨░╨╜╤Б╨╛╨▓╤Л╨╣ ╨┐╨╗╨░╨╜ ╨╜╨╡ ╤П╨▓╨╗╤П╨╡╤В╤Б╤П ╨║╨╛╨╝╨╝╨╡╤А╤З╨╡╤Б╨║╨╕╨╝ ╨┐╤А╨╡╨┤╨╗╨╛╨╢╨╡╨╜╨╕╨╡╨╝ ╨╕╨╗╨╕ ╨┤╨╛╨│╨╛╨▓╨╛╤А╨╛╨╝, ╨╜╨╛╤Б╨╕╤В ╨╕╤Б╨║╨╗╤О╤З╨╕╤В╨╡╨╗╤М╨╜╨╛ ╨╕╨╜╤Д╨╛╤А╨╝╨░╤Ж╨╕╨╛╨╜╨╜╤Л╨╣ ╤Е╨░╤А╨░╨║╤В╨╡╤А.
+                    Финансовый план не является коммерческим предложением или договором, носит исключительно информационный характер.
                   </div>
                 </div>
               </div>
             `,
         }),
         buildShell({
-            title: '╨Ь╨╡╤В╨╛╨┤╨╕╨║╨░ ╤А╨░╤Б╤З╨╡╤В╨░ ╨У╨╛╤Б╨┐╨╡╨╜╤Б╨╕╨╕',
-            subtitle: '╨д╨╕╨║╤Б╨╕╤А╨╛╨▓╨░╨╜╨╜╨░╤П ╨▓╤Л╨┐╨╗╨░╤В╨░ + ╨Ш╨Я╨Ъ ├Ч ╤Б╤В╨╛╨╕╨╝╨╛╤Б╤В╤М ╨Ш╨Я╨Ъ',
+            title: 'Методика расчета Госпенсии',
+            subtitle: 'Фиксированная выплата + ИПК × стоимость ИПК',
             logoSrc: tenantLogoSrc,
             bgSrc,
             showTop: false,
@@ -363,57 +363,57 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                   </div>
                   <div style="flex:1;border:1px solid #f1f1f1;border-radius:8px;padding:10px;background:#fff;">
                     <div style="font-size:13px;line-height:14px;color:#212121;">
-                      ╨Р ╤Б╨░╨╝╨╛╨╡ ╨┐╤А╨╕╤П╤В╨╜╨╛╨╡ ╤В╨╛, ╤З╤В╨╛ ╨│╨╛╤Б╤Г╨┤╨░╤А╤Б╤В╨▓╨╛ ╨┐╨╛╨╝╨╛╨│╨░╨╡╤В ╨Т╨░╨╝ ╤Б╨╛╨╖╨┤╨░╨▓╨░╤В╤М ╤Б╨▓╨╛╨╣ ╨║╨░╨┐╨╕╤В╨░╨╗.
+                      А самое приятное то, что государство помогает Вам создавать свой капитал.
                     </div>
                   </div>
                 </div>
 
                 <div style="position:absolute;left:0;top:110px;font-size:13px;line-height:14px;color:#000;">
-                  ╨Т╨░╤И ╨┤╨╛╤Е╨╛╨┤ - ${esc(moneyPerMonth(currentIncomeMonthly))}
+                  Ваш доход - ${esc(moneyPerMonth(currentIncomeMonthly))}
                 </div>
 
                 <div style="position:absolute;left:0;top:136px;width:456px;font-size:13px;line-height:14px;color:#000;">
-                  ╨Т ╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╕╨╕ ╤Б ╤Д╨╡╨┤╨╡╤А╨░╨╗╤М╨╜╤Л╨╝ ╨╖╨░╨║╨╛╨╜╨╛╨╝ тДЦ 75-╨д╨Ч ┬л╨Ю ╨╜╨╡╨│╨╛╤Б╤Г╨┤╨░╤А╤Б╤В╨▓╨╡╨╜╨╜╤Л╤Е ╨┐╨╡╨╜╤Б╨╕╨╛╨╜╨╜╤Л╤Е ╤Д╨╛╨╜╨┤╨░╤Е┬╗, ╨│╨╛╤Б╤Г╨┤╨░╤А╤Б╤В╨▓╨╛ ╨╛╨▒╤П╨╖╤Г╨╡╤В╤Б╤П ╨┤╨╛╨▒╨░╨▓╨╗╤П╤В╤М ╨╡╨╢╨╡╨│╨╛╨┤╨╜╨╛ ${esc(cofinancingRateText)} ╨╜╨░ ╨║╨░╨╢╨┤╤Л╨╣ ╨Т╨░╤И ╤А╤Г╨▒╨╗╤М, ╨╜╨╛ ╨╜╨╡ ╨▒╨╛╨╗╨╡╨╡ 36 000 ╤А╤Г╨▒. ╨▓ ╨│╨╛╨┤ ╨╕╨╖ ╤А╨░╤Б╤З╨╡╤В╨░ ╨▓╤Б╨╡╤Е ╤Б╤Г╨╝╨╝ ╨┐╨╛╨┐╨╛╨╗╨╜╨╡╨╜╨╕╨╣ ╨▓ ╤В╨╡╤З╨╡╨╜╨╕╨╡ ╨┐╤А╨╡╨┤╤Л╨┤╤Г╤Й╨╡╨│╨╛ ╨│╨╛╨┤╨░. ╨Ш ╤В╨░╨║ ╨╜╨░ ╨┐╤А╨╛╤В╤П╨╢╨╡╨╜╨╕╨╕ 10 ╨╗╨╡╤В.
+                  В соответствии с федеральным законом № 75-ФЗ «О негосударственных пенсионных фондах», государство обязуется добавлять ежегодно ${esc(cofinancingRateText)} на каждый Ваш рубль, но не более 36 000 руб. в год из расчета всех сумм пополнений в течение предыдущего года. И так на протяжении 10 лет.
                 </div>
 
                 <div style="position:absolute;left:0;top:230px;width:535px;">
                   <div style="height:110px;background:#f3f3f4;border-radius:8px;position:relative;">
-                    <div style="position:absolute;left:50%;top:20px;transform:translateX(-50%);font-size:16px;line-height:14px;font-weight:700;color:#722257;">╨Я╨╗╨░╨╜ ╨┐╨╛ ╤Б╨╛╤Д╨╕╨╜╨░╨╜╤Б╨╕╤А╨╛╨▓╨░╨╜╨╕╤О</div>
+                    <div style="position:absolute;left:50%;top:20px;transform:translateX(-50%);font-size:16px;line-height:14px;font-weight:700;color:#722257;">План по софинансированию</div>
                     <div style="position:absolute;left:20px;top:54px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:14px;color:#000;">
-                      <div>╨б╨╛╤Д╨╕╨╜╨░╨╜╤Б╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡ ╨╖╨░ ${nextCalendarYear} ╨│. - ${esc(money(cofinancing2026))}</div>
-                      <div>╨Т╤Б╨╡╨│╨╛ ╤Б╨╛╤Д╨╕╨╜╨░╨╜╤Б╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡ - ${esc(money(cofin))}</div>
+                      <div>Софинансирование за ${nextCalendarYear} г. - ${esc(money(cofinancing2026))}</div>
+                      <div>Всего софинансирование - ${esc(money(cofin))}</div>
                     </div>
                   </div>
                 </div>
 
                 <div style="position:absolute;left:0;top:360px;width:499px;font-size:13px;line-height:14px;color:#000;">
-                  ╨Э╨╛ ╨╕ ╤Н╤В╨╛ ╨╡╤Й╨╡ ╨╜╨╡ ╨▓╤Б╨╡. ╨У╨╛╤Б╤Г╨┤╨░╤А╤Б╤В╨▓╨╛ ╨┤╨░╨╡╤В ╨▓╨╛╨╖╨╝╨╛╨╢╨╜╨╛╤Б╤В╤М ╨┐╨╛╨╗╤Г╤З╨╕╤В╤М ╨╜╨░╨╗╨╛╨│╨╛╨▓╤Л╨╡ ╨▓╤Л╤З╨╡╤В╤Л.<br/>
-                  ╨Т ╤Б╨╛╨╛╤В╨▓╨╡╤В╤Б╤В╨▓╨╕╨╕ ╤Б╨╛ ╤Б╤В╨░╤В╤М╨╡╨╣ ╨Э╨Ъ ╨а╨д тДЦ 56 ╨Т╤Л ╨╕╨╝╨╡╨╡╤В╨╡ ╨┐╤А╨░╨▓╨╛ ╨┐╨╛╨╗╤Г╤З╨░╤В╤М ╨▓╨╛╨╖╨▓╤А╨░╤В ╨╜╨░╨╗╨╛╨│╨╛╨▓ ╨╜╨░ ╨┤╨╛╤Е╨╛╨┤╤Л ╤Д╨╕╨╖╨╕╤З╨╡╤Б╨║╨╛╨│╨╛ ╨╗╨╕╤Ж╨░.
+                  Но и это еще не все. Государство дает возможность получить налоговые вычеты.<br/>
+                  В соответствии со статьей НК РФ № 56 Вы имеете право получать возврат налогов на доходы физического лица.
                 </div>
 
                 <div style="position:absolute;left:0;top:422px;width:535px;">
                   <div style="height:110px;background:#f3f3f4;border-radius:8px;position:relative;">
-                    <div style="position:absolute;left:50%;top:20px;transform:translateX(-50%);font-size:16px;line-height:14px;font-weight:700;color:#722257;">╨Э╨░╨╗╨╛╨│╨╛╨▓╨╛╨╡ ╨┐╨╗╨░╨╜╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡</div>
+                    <div style="position:absolute;left:50%;top:20px;transform:translateX(-50%);font-size:16px;line-height:14px;font-weight:700;color:#722257;">Налоговое планирование</div>
                     <div style="position:absolute;left:20px;top:54px;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:14px;color:#000;">
-                      <div>╨Э╨░╨╗╨╛╨│╨╛╨▓╤Л╨╣ ╨▓╤Л╤З╨╡╤В ╨╖╨░ ${nextCalendarYear} ╨│. - ${esc(deductionLine)}</div>
-                      <div>╨Т╤Б╨╡╨│╨╛ ╨╜╨░╨╗╨╛╨│╨╛╨▓╤Л╤Е ╨▓╤Л╤З╨╡╤В╨╛╨▓ ╨╖╨░ ╨▓╨╡╤Б╤М ╤Б╤А╨╛╨║ - ${esc(money(taxBenefit))}</div>
+                      <div>Налоговый вычет за ${nextCalendarYear} г. - ${esc(deductionLine)}</div>
+                      <div>Всего налоговых вычетов за весь срок - ${esc(money(taxBenefit))}</div>
                     </div>
                   </div>
                 </div>
 
                 <div style="position:absolute;left:0;top:552px;width:535px;">
                   <div style="height:33px;background:#722257;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;">
-                    <div style="font-size:16px;line-height:14px;font-weight:600;color:#fff;">╨а╨╡╨╖╤О╨╝╨╡</div>
+                    <div style="font-size:16px;line-height:14px;font-weight:600;color:#fff;">Резюме</div>
                   </div>
                   <div style="height:205px;background:#f3f3f4;border-radius:0 0 8px 8px;padding:12px 20px 20px;">
-                    <div style="font-size:14px;line-height:14px;color:#000;font-weight:600;margin-bottom:8px;">╨ж╨╡╨╗╤М: ${esc(INVEST_GOAL_LABEL)}</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">╨Ф╨░╤В╨░ - ${esc(displayEndYear)} ╨│.</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">╨Я╨╡╤А╨▓╨╛╨╜╨░╤З╨░╨╗╤М╨╜╤Л╨╣ ╨║╨░╨┐╨╕╤В╨░╨╗ - ${esc(money(initial))}</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">╨Я╨╛╨┐╨╛╨╗╨╜╨╡╨╜╨╕╨╡ ╨║╨░╨┐╨╕╤В╨░╨╗╨░ - ${esc(moneyPerMonth(monthly))}</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">╨Т╤Б╨╡╨│╨╛ ╤Б╨╛╤Д╨╕╨╜╨░╨╜╤Б╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡ - ${esc(money(cofin))}</div>
-                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">╨Т╤Б╨╡╨│╨╛ ╨╜╨░╨╗╨╛╨│╨╛╨▓╤Л╤Е ╨▓╤Л╤З╨╡╤В╨╛╨▓ - ${esc(money(taxBenefit))}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;font-weight:600;margin-bottom:8px;">Цель: ${esc(INVEST_GOAL_LABEL)}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Дата - ${esc(displayEndYear)} г.</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Первоначальный капитал - ${esc(money(initial))}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Пополнение капитала - ${esc(moneyPerMonth(monthly))}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Всего софинансирование - ${esc(money(cofin))}</div>
+                    <div style="font-size:14px;line-height:14px;color:#000;margin-bottom:8px;">Всего налоговых вычетов - ${esc(money(taxBenefit))}</div>
                     <div style="height:1px;background:#722257;margin:12px 0;"></div>
-                    <div style="font-size:15px;line-height:16px;font-weight:700;color:#000;">╨Я╤А╨╛╨│╨╜╨╛╨╖ ╨┐╨╛ ╨╕╤В╨╛╨│╨╛╨▓╨╛╨╝╤Г ╨║╨░╨┐╨╕╤В╨░╨╗╤Г - ${esc(money(totalCapitalEnd))}</div>
+                    <div style="font-size:15px;line-height:16px;font-weight:700;color:#000;">Прогноз по итоговому капиталу - ${esc(money(totalCapitalEnd))}</div>
                   </div>
                 </div>
               </div>

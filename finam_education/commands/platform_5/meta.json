@@ -1,0 +1,20 @@
+{
+  "id": 26,
+  "media": [
+    {
+      "id": "f29362d9-b0df-4ed9-b0ac-53597ac6a87c",
+      "key": "constructor-commands/2/platform_5/platform_5_1__1782132022053.webp",
+      "url": "https://pub-9adf61576a644710a2a19541d1713e9e.r2.dev/constructor-commands/2/platform_5/platform_5_1__1782132022053.webp",
+      "mime": "image/webp",
+      "sort": 0,
+      "type": "image",
+      "caption": "",
+      "filename": "platform 5 (1).webp"
+    }
+  ],
+  "bot_id": null,
+  "command": "/platform_5",
+  "section": null,
+  "project_id": 2,
+  "is_template": 1
+}

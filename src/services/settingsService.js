@@ -867,7 +867,7 @@ class SettingsService {
      * @param {number} termMonths - Срок в месяцах
      * @param {boolean} byTermOnly - Если true, искать только по сроку, игнорируя сумму
      * @param {number|null} projectId
-     * @param {{ gender?: string, age?: number }} [filters] - для пенсии: пол и возраст на пенсии
+     * @param {{ gender?: string, age?: number }} [filters] - пол и возраст на момент цели (пенсия / пассивный доход)
      */
     async findPassiveIncomeYieldLine(amount, termMonths, byTermOnly = false, projectId = null, filters = {}) {
         const setting = await this.getPassiveIncomeYield(projectId);
@@ -881,13 +881,10 @@ class SettingsService {
         const clientGender = filters.gender !== undefined
             ? this.normalizePensionGender(filters.gender)
             : null;
-        const clientAge = filters.age !== undefined ? parseInt(filters.age, 10) : null;
-
-        if (useDemographics && filters.gender !== undefined && !clientGender) {
-            return null;
-        }
-        if (useDemographics && filters.age !== undefined && !Number.isFinite(clientAge)) {
-            return null;
+        let clientAge = null;
+        if (filters.age !== undefined && filters.age !== null && filters.age !== '') {
+            clientAge = parseInt(filters.age, 10);
+            if (!Number.isFinite(clientAge)) clientAge = null;
         }
 
         const candidates = lines.filter((line) => this._passiveIncomeLineMatches(

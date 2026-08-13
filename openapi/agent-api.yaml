@@ -61,6 +61,9 @@ components:
           type: string
         website_url:
           type: string
+          description: |
+            Личный сайт агента. Используется как база для GET /pfp/agents/me/client-invite-link
+            (?ref=referral_slug); иначе fallback на CLIENT_LANDING_BASE_URL.
         telegram_bot:
           type: string
           description: Username или токен телеграм-бота агента

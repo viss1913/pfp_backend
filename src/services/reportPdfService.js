@@ -613,10 +613,13 @@ class ReportPdfService {
             toc = buildRostechPensionOnlyToc({ hasCover: includeCover, goal: pensionGoal });
         }
 
+        // Rostech (в т.ч. NPF project 4): полный DejaVu как у Yadro — PdfSubset даёт крокозябры.
         const pageHtmlListWithFonts = isFinamReportV2
             ? pageHtmlList
-            : pageHtmlList.map((h) => injectReportPdfEmbeddedFont(h));
-        const pageHtmlListForPdf = isFinamReportV2
+            : themeKey === 'rostech'
+              ? pageHtmlList.map((h) => injectYadroReportFonts(h))
+              : pageHtmlList.map((h) => injectReportPdfEmbeddedFont(h));
+        const pageHtmlListForPdf = isFinamReportV2 || themeKey === 'rostech'
             ? pageHtmlListWithFonts
             : pageHtmlListWithFonts.map((h) => injectReportPdfPageFillA4(h));
         const mergedHtml = buildMergedHtml

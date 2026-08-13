@@ -46,12 +46,51 @@ test('findPassiveIncomeYieldLine: capital bracket for male 65', async () => {
     }
 });
 
-test('findPassiveIncomeYieldLine: passive income ignores gender-specific rows', async () => {
+test('findPassiveIncomeYieldLine: without demographics uses only universal rows', async () => {
     const original = settingsService.getPassiveIncomeYield.bind(settingsService);
     settingsService.getPassiveIncomeYield = async () => ({ lines: MATRIX_LINES });
 
     try {
         const line = await settingsService.findPassiveIncomeYieldLine(0, 120, true, 22);
+        assert.equal(line.yield_percent, 8);
+        assert.equal(line.gender, null);
+    } finally {
+        settingsService.getPassiveIncomeYield = original;
+    }
+});
+
+test('findPassiveIncomeYieldLine: passive income with gender+age picks specific row', async () => {
+    const original = settingsService.getPassiveIncomeYield.bind(settingsService);
+    settingsService.getPassiveIncomeYield = async () => ({ lines: MATRIX_LINES });
+
+    try {
+        const line = await settingsService.findPassiveIncomeYieldLine(
+            0,
+            120,
+            true,
+            22,
+            { gender: 'female', age: 60 }
+        );
+        assert.equal(line.yield_percent, 3.4);
+        assert.equal(line.gender, 'female');
+        assert.equal(line.age, 60);
+    } finally {
+        settingsService.getPassiveIncomeYield = original;
+    }
+});
+
+test('findPassiveIncomeYieldLine: demographic miss falls back to universal', async () => {
+    const original = settingsService.getPassiveIncomeYield.bind(settingsService);
+    settingsService.getPassiveIncomeYield = async () => ({ lines: MATRIX_LINES });
+
+    try {
+        const line = await settingsService.findPassiveIncomeYieldLine(
+            100000,
+            120,
+            true,
+            22,
+            { gender: 'male', age: 56 }
+        );
         assert.equal(line.yield_percent, 8);
         assert.equal(line.gender, null);
     } finally {

@@ -1,0 +1,37 @@
+{
+  "id": 2,
+  "name": "Finam",
+  "slug": "finam",
+  "public_key": "pk_7f1ccfe5b2598134a575320d",
+  "settings": {
+    "agent_network": {
+      "enabled": true,
+      "max_depth": 2,
+      "allow_self_invite": false,
+      "require_invite_ref": false,
+      "parent_can_list_subagents": true,
+      "parent_can_see_subagent_clients": false
+    },
+    "partner_agent_id": {
+      "label": "Finam ID",
+      "require_on_admin_create": false,
+      "require_on_registration": false
+    },
+    "partner_link_tracking": {
+      "enabled": true,
+      "defaults": {
+        "utm_medium": "report_pdf",
+        "utm_source": "pfp"
+      },
+      "agent_id_in": "query",
+      "agent_id_param": "utm_partner_finam",
+      "domain_whitelist": [
+        "finam.ru",
+        "broker.finam.ru",
+        "bonus.finam.ru",
+        "funds.finam.ru",
+        "comon.ru"
+      ]
+    }
+  }
+}

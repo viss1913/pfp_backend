@@ -3,12 +3,13 @@
  */
 const knex = require('../config/database');
 const ideClient = require('./ideContentHtmlClient');
-const { renderHtmlToPdfBuffer } = require('../utils/renderHtmlToPdfBuffer');
+const { renderContentHtmlToPdfBuffer } = require('../utils/contentFactoryPrintSafe');
 const {
     CTA_ATTR,
     applyCtaToOfferHtml,
     buildPdfHtml,
     hasCtaSlot,
+    wrapOfferHtmlDocuments,
 } = require('../utils/contentFactoryHtml');
 const {
     buildIdeConstraints,
@@ -664,37 +665,32 @@ async function resolveAgentUtm(agentId) {
     return partner || String(agentId);
 }
 
-function wrapPagesHtml(pages, title) {
-    const body = pages
-        .map(
-            (p, i) =>
-                `<section class="cf-page" data-page="${i + 1}" style="page-break-after:always;padding:24px;">${p}</section>`,
-        )
-        .join('\n');
-    const safeTitle = String(title || 'Presentation').replace(/</g, '');
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${safeTitle}</title>
-<style>body{font-family:Segoe UI,Roboto,Arial,sans-serif;margin:0;color:#111} .cf-page{min-height:90vh}</style>
-</head><body>${body}</body></html>`;
-}
-
-async function buildPresentationHtml(projectId, presentation, utmAgent) {
-    const pages = [];
+/**
+ * Full HTML docs per offer (CTA/utm applied). Kept separate so light+dark
+ * themes do not fight in one CSS cascade when building a multi-offer PDF.
+ */
+async function collectPresentationOfferHtmlDocs(projectId, presentation, utmAgent) {
+    const docs = [];
     for (const oid of presentation.offer_ids) {
         let offer = await getOffer(projectId, oid);
         if (offer?.ide_session_id) {
             offer = await ensureOfferHtmlFreshForRender(projectId, offer);
         }
         if (!offer?.generated_html) continue;
-        let pageHtml = buildPdfHtml(offer.generated_html, offer, utmAgent);
-        const m = pageHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-        pages.push(m ? m[1] : pageHtml);
+        docs.push(buildPdfHtml(offer.generated_html, offer, utmAgent));
     }
-    if (!pages.length) {
+    if (!docs.length) {
         const err = new Error('No offer HTML to render');
         err.statusCode = 400;
         throw err;
     }
-    return wrapPagesHtml(pages, presentation.title);
+    return docs;
+}
+
+/** @deprecated prefer per-offer PDF render; kept for debug / single-doc tools */
+async function buildPresentationHtml(projectId, presentation, utmAgent) {
+    const docs = await collectPresentationOfferHtmlDocs(projectId, presentation, utmAgent);
+    return wrapOfferHtmlDocuments(docs, presentation.title);
 }
 
 function assertValidPdfBuffer(pdfBuffer) {
@@ -714,6 +710,26 @@ function assertValidPdfBuffer(pdfBuffer) {
     return buf;
 }
 
+async function mergePdfBuffers(buffers) {
+    const list = (buffers || []).filter((b) => b && b.length);
+    if (!list.length) {
+        const err = new Error('No PDF parts to merge');
+        err.statusCode = 500;
+        err.code = 'PDF_EMPTY';
+        throw err;
+    }
+    if (list.length === 1) return Buffer.isBuffer(list[0]) ? list[0] : Buffer.from(list[0]);
+
+    const { PDFDocument } = require('pdf-lib');
+    const merged = await PDFDocument.create();
+    for (const part of list) {
+        const src = await PDFDocument.load(part);
+        const pages = await merged.copyPages(src, src.getPageIndices());
+        for (const page of pages) merged.addPage(page);
+    }
+    return Buffer.from(await merged.save());
+}
+
 async function generatePresentationPdf(projectId, agentId, id) {
     const presentation = await getPresentation(projectId, agentId, id);
     if (!presentation) {
@@ -722,12 +738,26 @@ async function generatePresentationPdf(projectId, agentId, id) {
         throw err;
     }
     const utm = await resolveAgentUtm(agentId);
-    const html = await buildPresentationHtml(projectId, presentation, utm);
-    const pdfBuffer = assertValidPdfBuffer(
-        await renderHtmlToPdfBuffer(html, { preferCssPageSize: true }),
-    );
+    const docs = await collectPresentationOfferHtmlDocs(projectId, presentation, utm);
+    // Render each offer alone — merging <style> from light+dark into one HTML
+    // made Автоследование inherit SpaceX body { background:#0f1419 } and broke layout.
+    const parts = [];
+    for (const html of docs) {
+        parts.push(
+            await renderContentHtmlToPdfBuffer(html, {
+                title: presentation.title,
+            }),
+        );
+    }
+    const pdfBuffer = assertValidPdfBuffer(await mergePdfBuffers(parts));
+    const snapshot =
+        docs.length === 1
+            ? docs[0]
+            : docs
+                  .map((d, i) => `<!-- cf-offer ${i + 1}/${docs.length} (isolated render) -->\n${d}`)
+                  .join('\n');
     await knex('agent_presentations').where({ id, project_id: projectId, agent_id: agentId }).update({
-        pdf_html_snapshot: html,
+        pdf_html_snapshot: snapshot,
         status: 'ready',
         updated_at: knex.fn.now(),
     });
@@ -856,4 +886,6 @@ module.exports = {
     sendPresentationEmail,
     resolveAgentUtm,
     assertValidPdfBuffer,
+    mergePdfBuffers,
+    collectPresentationOfferHtmlDocs,
 };

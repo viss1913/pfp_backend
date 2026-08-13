@@ -2,7 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const https = require('https');
 const { sanitizeLlmUserText } = require('../utils/sanitizeLlmUserText');
-const { openrouterAxiosExtras, openrouterStreamAxiosExtras } = require('../utils/openrouterProxy');
+const { openrouterAxiosExtras, openrouterStreamAxiosExtras, resolveOpenRouterRelayBaseUrl, isOpenRouterRelayEnabled } = require('../utils/openrouterProxy');
 require('dotenv').config();
 
 function stripSurroundingQuotes(value) {
@@ -74,7 +74,7 @@ function resolveGigaChatBaseUrl() {
 }
 
 function resolveGigaChatDefaultModel() {
-    return String(process.env.GIGACHAT_MODEL || 'GigaChat-2-Pro').trim() || 'GigaChat-2-Pro';
+    return String(process.env.GIGACHAT_MODEL || 'GigaChat-3-Ultra').trim() || 'GigaChat-3-Ultra';
 }
 
 /** Optional insecure TLS for local smoke when Sber CA is missing (do not enable in prod). */
@@ -94,6 +94,45 @@ function looksLikeGigaChatModelId(model) {
     const m = String(model || '').trim();
     if (!m) return false;
     return /^gigachat/i.test(m);
+}
+
+function looksLikeYandexModelId(model) {
+    const m = String(model || '').trim();
+    if (!m) return false;
+    if (m.startsWith('gpt://') || m.startsWith('cls://') || m.startsWith('emb://')) return true;
+    return /^yandexgpt/i.test(m);
+}
+
+/** Immers auditor Ollama proxy (audit-api.bank-future.com/api/llm/v1). */
+function resolveImmersLlmApiKey() {
+    return stripSurroundingQuotes(
+        process.env.IMMERS_LLM_API_KEY || process.env.LLM_API_KEY || process.env.MARLON_LLM_SERVICE_KEY || ''
+    );
+}
+
+function resolveImmersLlmBaseUrl() {
+    return (
+        process.env.IMMERS_LLM_BASE_URL ||
+        process.env.LLM_BASE_URL ||
+        'https://audit-api.bank-future.com/api/llm/v1'
+    ).replace(/\/+$/, '');
+}
+
+function resolveImmersLlmDefaultModel() {
+    return (
+        String(process.env.IMMERS_LLM_MODEL || process.env.LLM_MODEL || 'qwen2.5:7b-instruct').trim() ||
+        'qwen2.5:7b-instruct'
+    );
+}
+
+/**
+ * Ollama-style tags on Immers auditor: qwen2.5:7b-instruct, qwen3.6:27b, gemma3:27b.
+ */
+function looksLikeImmersLlmModelId(model) {
+    const m = String(model || '').trim().toLowerCase();
+    if (!m) return false;
+    if (looksLikeGigaChatModelId(m) || m.includes('/')) return false;
+    return /^(qwen[\w.-]*|gemma[\w.-]*|llama[\w.-]*|mistral[\w.-]*):\S+$/i.test(m);
 }
 
 /**
@@ -155,8 +194,9 @@ async function getGigaChatAccessToken(credentials, scope) {
 }
 
 /**
- * LLM provider: openrouter (default) | yandex | siliconflow | gigachat
- * Yandex / GigaChat only when AI_PROVIDER is set explicitly.
+ * LLM provider: openrouter (default) | yandex | siliconflow | gigachat | immers_llm
+ * Yandex / GigaChat / Immers LLM only when AI_PROVIDER is set explicitly
+ * (Immers Ollama models also auto-route per call via resolveProviderForCall).
  */
 function resolveProvider() {
     const explicit = String(process.env.AI_PROVIDER || '')
@@ -164,6 +204,14 @@ function resolveProvider() {
         .toLowerCase();
     if (explicit === 'yandex' || explicit === 'yandexgpt') return 'yandex';
     if (explicit === 'gigachat' || explicit === 'sber' || explicit === 'giga') return 'gigachat';
+    if (
+        explicit === 'immers_llm' ||
+        explicit === 'immers' ||
+        explicit === 'marlon_llm' ||
+        explicit === 'auditor_llm'
+    ) {
+        return 'immers_llm';
+    }
     if (explicit === 'siliconflow') return 'siliconflow';
     if (explicit === 'openrouter') return 'openrouter';
 
@@ -191,6 +239,7 @@ function looksLikeForeignModelId(model) {
     if (m.startsWith('gpt://') || m.startsWith('cls://') || m.startsWith('emb://')) return false;
     if (/^yandexgpt/i.test(m)) return false;
     if (looksLikeGigaChatModelId(m)) return false;
+    if (looksLikeImmersLlmModelId(m)) return false;
     // openrouter-style: vendor/model or with :suffix
     if (m.includes('/')) return true;
     return false;
@@ -202,6 +251,9 @@ function resolveDefaultModel(provider) {
     }
     if (provider === 'gigachat') {
         return resolveGigaChatDefaultModel();
+    }
+    if (provider === 'immers_llm') {
+        return resolveImmersLlmDefaultModel();
     }
     if (process.env.OPENROUTER_MODEL) return process.env.OPENROUTER_MODEL;
     return provider === 'siliconflow' ? 'deepseek-ai/DeepSeek-V3' : 'google/gemma-3-27b-it';
@@ -216,8 +268,14 @@ function resolveEffectiveModel(provider, model) {
         return requested;
     }
     if (provider === 'gigachat') {
-        if (!requested || looksLikeForeignModelId(requested)) {
+        if (!requested || looksLikeForeignModelId(requested) || looksLikeImmersLlmModelId(requested)) {
             return resolveGigaChatDefaultModel();
+        }
+        return requested;
+    }
+    if (provider === 'immers_llm') {
+        if (!requested || looksLikeForeignModelId(requested) || looksLikeGigaChatModelId(requested)) {
+            return resolveImmersLlmDefaultModel();
         }
         return requested;
     }
@@ -227,13 +285,24 @@ function resolveEffectiveModel(provider, model) {
 /**
  * Явная OpenRouter/SiliconFlow model id (google/...) → OpenRouter даже при AI_PROVIDER=yandex/gigachat.
  * Явная GigaChat model id → gigachat даже при другом global provider (если credentials есть).
+ * Явная Yandex model id (gpt://… / yandexgpt…) → yandex при наличии YANDEX_CLOUD_API_KEY.
+ * Ollama-теги Immers (qwen2.5:7b-instruct, …) → immers_llm при наличии ключа.
  */
 function resolveProviderForCall(globalProvider, model) {
     const requested = model != null ? String(model).trim() : '';
+    if (requested && looksLikeImmersLlmModelId(requested) && resolveImmersLlmApiKey()) {
+        return 'immers_llm';
+    }
+    if (requested && looksLikeYandexModelId(requested) && stripSurroundingQuotes(process.env.YANDEX_CLOUD_API_KEY || '')) {
+        return 'yandex';
+    }
     if (requested && looksLikeGigaChatModelId(requested) && resolveGigaChatCredentials()) {
         return 'gigachat';
     }
     if (requested && looksLikeForeignModelId(requested)) {
+        if (isOpenRouterRelayEnabled() && stripSurroundingQuotes(process.env.OPENROUTER_RELAY_SECRET || '')) {
+            return 'openrouter';
+        }
         if (stripSurroundingQuotes(process.env.OPENROUTER_API_KEY || '')) return 'openrouter';
         if (stripSurroundingQuotes(process.env.SILICONFLOW_API_KEY || '')) return 'siliconflow';
     }
@@ -243,6 +312,7 @@ function resolveProviderForCall(globalProvider, model) {
 function buildProviderRuntime(provider) {
     const isYandex = provider === 'yandex';
     const isGigaChat = provider === 'gigachat';
+    const isImmersLlm = provider === 'immers_llm';
     const isSiliconFlow = provider === 'siliconflow';
     const isOpenRouter = provider === 'openrouter';
 
@@ -256,10 +326,16 @@ function buildProviderRuntime(provider) {
         gigaScope = resolveGigaChatScope();
         // Placeholder until OAuth; presence check uses credentials
         apiKey = gigaCredentials;
+    } else if (isImmersLlm) {
+        apiKey = resolveImmersLlmApiKey();
     } else if (isSiliconFlow) {
         apiKey = stripSurroundingQuotes(process.env.SILICONFLOW_API_KEY || '');
+    } else if (isOpenRouterRelayEnabled()) {
+        apiKey = stripSurroundingQuotes(process.env.OPENROUTER_RELAY_SECRET || process.env.OPENROUTER_API_KEY || '');
     } else {
-        apiKey = stripSurroundingQuotes(process.env.OPENROUTER_API_KEY || process.env.SILICONFLOW_API_KEY || '');
+        apiKey = stripSurroundingQuotes(
+            process.env.KIE_API_KEY || process.env.OPENROUTER_API_KEY || process.env.SILICONFLOW_API_KEY || ''
+        );
     }
 
     const folderId = stripSurroundingQuotes(process.env.YANDEX_CLOUD_FOLDER_ID || '') || null;
@@ -273,8 +349,14 @@ function buildProviderRuntime(provider) {
         ).replace(/\/+$/, '');
     } else if (isGigaChat) {
         baseUrl = resolveGigaChatBaseUrl();
+    } else if (isImmersLlm) {
+        baseUrl = resolveImmersLlmBaseUrl();
     } else if (isSiliconFlow) {
         baseUrl = process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
+    } else if (isOpenRouterRelayEnabled()) {
+        baseUrl = resolveOpenRouterRelayBaseUrl();
+    } else if (String(process.env.KIE_BASE_URL || process.env.KIE_API_KEY || '').trim()) {
+        baseUrl = String(process.env.KIE_BASE_URL || 'https://api.kie.ai/gemini-2.5-flash/v1').replace(/\/+$/, '');
     } else {
         baseUrl = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
     }
@@ -283,6 +365,7 @@ function buildProviderRuntime(provider) {
         provider,
         isYandex,
         isGigaChat,
+        isImmersLlm,
         isSiliconFlow,
         isOpenRouter,
         apiKey: apiKey || null,
@@ -294,16 +377,22 @@ function buildProviderRuntime(provider) {
             ? 'YandexGPT'
             : isGigaChat
               ? 'GigaChat'
-              : isSiliconFlow
-                ? 'SiliconFlow'
-                : 'OpenRouter',
+              : isImmersLlm
+                ? 'ImmersLLM'
+                : isSiliconFlow
+                  ? 'SiliconFlow'
+                  : 'OpenRouter',
         missingKeyError: isYandex
             ? 'YANDEX_CLOUD_API_KEY is not set (AI_PROVIDER=yandex)'
             : isGigaChat
               ? 'GIGACHAT_CREDENTIALS (or CLIENT_ID+SECRET) is not set (AI_PROVIDER=gigachat)'
-              : isSiliconFlow
-                ? 'SILICONFLOW_API_KEY is not set'
-                : 'OPENROUTER_API_KEY is not set',
+              : isImmersLlm
+                ? 'IMMERS_LLM_API_KEY (or LLM_API_KEY) is not set'
+                : isSiliconFlow
+                  ? 'SILICONFLOW_API_KEY is not set'
+                  : isOpenRouterRelayEnabled()
+                    ? 'OPENROUTER_RELAY_SECRET (or OPENROUTER_API_KEY) is not set'
+                    : 'OPENROUTER_API_KEY is not set',
     };
 }
 
@@ -313,11 +402,31 @@ function streamPartialLooksComplete(fullText) {
     return /[.!?…)]\s*$/.test(t) || /🌟\s*$/.test(t);
 }
 
+/**
+ * Extract assistant text from a non-SSE OpenAI-compatible chat.completion JSON body.
+ * Immers auditor ignores stream:true and returns this shape with Content-Type: application/json.
+ */
+function extractOpenAiCompletionText(raw) {
+    const s = String(raw || '').trim();
+    if (!s || s[0] !== '{') return '';
+    try {
+        const json = JSON.parse(s);
+        const content = json?.choices?.[0]?.message?.content;
+        if (content != null && String(content).length > 0) return String(content);
+        const delta = json?.choices?.[0]?.delta?.content;
+        if (delta != null && String(delta).length > 0) return String(delta);
+    } catch (_) {
+        /* not a complete JSON body */
+    }
+    return '';
+}
+
 class AiService {
     constructor() {
         this.provider = resolveProvider();
         this.isYandex = this.provider === 'yandex';
         this.isGigaChat = this.provider === 'gigachat';
+        this.isImmersLlm = this.provider === 'immers_llm';
         this.isSiliconFlow = this.provider === 'siliconflow';
         this.isOpenRouter = this.provider === 'openrouter';
 
@@ -326,6 +435,8 @@ class AiService {
             key = process.env.YANDEX_CLOUD_API_KEY || '';
         } else if (this.isGigaChat) {
             key = resolveGigaChatCredentials();
+        } else if (this.isImmersLlm) {
+            key = resolveImmersLlmApiKey();
         } else if (this.isSiliconFlow) {
             key = process.env.SILICONFLOW_API_KEY || '';
         } else {
@@ -346,6 +457,8 @@ class AiService {
             ).replace(/\/+$/, '');
         } else if (this.isGigaChat) {
             this.baseUrl = resolveGigaChatBaseUrl();
+        } else if (this.isImmersLlm) {
+            this.baseUrl = resolveImmersLlmBaseUrl();
         } else if (this.isSiliconFlow) {
             this.baseUrl = process.env.SILICONFLOW_BASE_URL || 'https://api.siliconflow.cn/v1';
         } else {
@@ -359,6 +472,7 @@ class AiService {
     get providerLabel() {
         if (this.isYandex) return 'YandexGPT';
         if (this.isGigaChat) return 'GigaChat';
+        if (this.isImmersLlm) return 'ImmersLLM';
         if (this.isSiliconFlow) return 'SiliconFlow';
         return 'OpenRouter';
     }
@@ -368,6 +482,7 @@ class AiService {
         if (this.isGigaChat) {
             return 'GIGACHAT_CREDENTIALS (or CLIENT_ID+SECRET) is not set (AI_PROVIDER=gigachat)';
         }
+        if (this.isImmersLlm) return 'IMMERS_LLM_API_KEY (or LLM_API_KEY) is not set';
         if (this.isSiliconFlow) return 'SILICONFLOW_API_KEY is not set';
         return 'OPENROUTER_API_KEY is not set';
     }
@@ -392,6 +507,14 @@ class AiService {
                 Accept: 'application/json',
             };
         }
+        if (rt.isImmersLlm) {
+            return {
+                Authorization: `Bearer ${rt.apiKey}`,
+                'X-Api-Key': rt.apiKey,
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+            };
+        }
         return {
             Authorization: `Bearer ${rt.apiKey}`,
             'Content-Type': 'application/json',
@@ -406,11 +529,15 @@ class AiService {
         if (rt.isOpenRouter) {
             return stream ? openrouterStreamAxiosExtras() : openrouterAxiosExtras();
         }
-        const timeout = stream
-            ? Number(process.env.OPENROUTER_STREAM_TIMEOUT_MS || process.env.OPENROUTER_HTTP_TIMEOUT_MS || 120000)
-            : Number(process.env.OPENROUTER_HTTP_TIMEOUT_MS || 60000);
+        const defaultTimeout = rt.isImmersLlm ? 180000 : stream ? 120000 : 60000;
+        const timeoutEnv = rt.isImmersLlm
+            ? process.env.IMMERS_LLM_TIMEOUT_MS || process.env.OPENROUTER_HTTP_TIMEOUT_MS
+            : stream
+              ? process.env.OPENROUTER_STREAM_TIMEOUT_MS || process.env.OPENROUTER_HTTP_TIMEOUT_MS
+              : process.env.OPENROUTER_HTTP_TIMEOUT_MS;
+        const timeout = Number(timeoutEnv || defaultTimeout);
         const extras = {
-            timeout: Number.isFinite(timeout) && timeout > 0 ? timeout : stream ? 120000 : 60000,
+            timeout: Number.isFinite(timeout) && timeout > 0 ? timeout : defaultTimeout,
         };
         if (rt.isGigaChat) {
             const httpsAgent = gigachatHttpsAgent();
@@ -485,6 +612,7 @@ class AiService {
         return await new Promise((resolve, reject) => {
             let fullText = '';
             let lineBuf = '';
+            let rawBody = '';
             let settled = false;
 
             const finish = (fn, value) => {
@@ -493,17 +621,26 @@ class AiService {
                 fn(value);
             };
 
+            const emitTextPiece = (piece) => {
+                if (!piece) return;
+                fullText += piece;
+                if (sseFormat === 'pfp') {
+                    res.write(`data: ${JSON.stringify({ type: 'text', text: piece })}\n\n`);
+                }
+            };
+
             const parsePayload = (payload) => {
                 if (!payload || payload === '[DONE]') return;
                 try {
                     const json = JSON.parse(payload);
                     const piece = json.choices?.[0]?.delta?.content;
                     if (piece) {
-                        fullText += piece;
-                        if (sseFormat === 'pfp') {
-                            res.write(`data: ${JSON.stringify({ type: 'text', text: piece })}\n\n`);
-                        }
+                        emitTextPiece(piece);
+                        return;
                     }
+                    // Some proxies emit full message chunks inside SSE data: lines
+                    const content = json.choices?.[0]?.message?.content;
+                    if (content) emitTextPiece(content);
                 } catch (_) {
                     /* неполный JSON между чанками — ждём следующую строку */
                 }
@@ -518,6 +655,7 @@ class AiService {
 
             const feedChunk = (chunkBuf) => {
                 const s = chunkBuf.toString();
+                rawBody += s;
                 if (sseFormat === 'openai') {
                     res.write(chunkBuf);
                 }
@@ -551,6 +689,28 @@ class AiService {
             response.data.on('end', () => {
                 if (lineBuf.length) {
                     processLine(lineBuf);
+                }
+                // Immers auditor (and similar): stream:true ignored → one JSON chat.completion body
+                if (!fullText) {
+                    const recovered = extractOpenAiCompletionText(rawBody || lineBuf);
+                    if (recovered) {
+                        console.warn(
+                            `[aiService] ${runtime.providerLabel || 'LLM'} returned non-SSE JSON for stream:true — recovered ${recovered.length} chars`
+                        );
+                        if (sseFormat === 'pfp') {
+                            res.write(`data: ${JSON.stringify({ type: 'text', text: recovered })}\n\n`);
+                        } else if (!rawBody || sseFormat !== 'openai') {
+                            res.write(recovered);
+                        }
+                        fullText = recovered;
+                    } else {
+                        const err = new Error(
+                            `${runtime.providerLabel || 'LLM'} stream ended with empty content (non-SSE or empty body)`
+                        );
+                        err.__streamBytesSent = 0;
+                        finish(reject, err);
+                        return;
+                    }
                 }
                 if (sseFormat === 'pfp') {
                     finish(resolve, this._writePfpStreamDone(res, options, fullText));
@@ -596,7 +756,9 @@ class AiService {
     }
 
     async _streamFallbackToNonStream(messages, runtime, res, options = {}) {
-        console.warn('[aiService] stream failed with no bytes — fallback to non-stream getCompletion');
+        console.warn(
+            `[aiService] ${runtime?.providerLabel || 'LLM'}: using non-stream getCompletion → pfp text chunk`
+        );
         const text = await this.getCompletion(messages, runtime.effectiveModel);
         const sseFormat = options.sseFormat === 'pfp' ? 'pfp' : 'openai';
         if (sseFormat === 'pfp') {
@@ -613,7 +775,7 @@ class AiService {
     }
 
     /**
-     * Stream completion from LLM provider (OpenRouter / YandexGPT / SiliconFlow / GigaChat)
+     * Stream completion from LLM provider (OpenRouter / YandexGPT / SiliconFlow / GigaChat / ImmersLLM)
      * @param {Array} messages - Chat history including system prompt
      * @param {String} model - Model ID
      * @param {Object} res - Express response object to stream to
@@ -651,6 +813,12 @@ class AiService {
         console.log(`   Provider: ${runtime.providerLabel}`);
         console.log(`   Model: ${runtime.effectiveModel}`);
         console.log(`   Key Fingerprint: ${keyFingerprint}`);
+
+        // Immers auditor Ollama proxy does not implement SSE; stream:true returns one JSON body.
+        // Emit a single type=text chunk for the frontend stream contract.
+        if (runtime.isImmersLlm && options.sseFormat === 'pfp') {
+            return await this._streamFallbackToNonStream(messages, runtime, res, options);
+        }
 
         let lastError = null;
 
@@ -808,4 +976,8 @@ module.exports.resolveEffectiveModel = resolveEffectiveModel;
 module.exports.resolveYandexModelUri = resolveYandexModelUri;
 module.exports.resolveGigaChatCredentials = resolveGigaChatCredentials;
 module.exports.getGigaChatAccessToken = getGigaChatAccessToken;
+module.exports.resolveImmersLlmApiKey = resolveImmersLlmApiKey;
+module.exports.resolveImmersLlmBaseUrl = resolveImmersLlmBaseUrl;
+module.exports.looksLikeImmersLlmModelId = looksLikeImmersLlmModelId;
+module.exports.extractOpenAiCompletionText = extractOpenAiCompletionText;
 module.exports.isRetriableOpenRouterError = isRetriableOpenRouterError;

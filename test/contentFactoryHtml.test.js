@@ -8,6 +8,9 @@ const {
     buildPdfHtml,
     hasCtaSlot,
     CTA_ATTR,
+    wrapOfferHtmlDocuments,
+    extractStyleBlocks,
+    extractBodyInner,
 } = require('../src/utils/contentFactoryHtml');
 
 test('fillPlaceholders replaces known keys', () => {
@@ -56,4 +59,28 @@ test('buildPdfHtml applies CTA and utm', () => {
 test('hasCtaSlot detects slot', () => {
     assert.equal(hasCtaSlot(`<a ${CTA_ATTR}>`), true);
     assert.equal(hasCtaSlot('<a href="#">x</a>'), false);
+});
+
+test('wrapOfferHtmlDocuments keeps single doc intact', () => {
+    const doc = `<!DOCTYPE html><html><head><style>.hero{color:red}</style></head><body><div class="sheet">A</div></body></html>`;
+    assert.equal(wrapOfferHtmlDocuments([doc], 'T'), doc);
+});
+
+test('wrapOfferHtmlDocuments merges styles from multiple offers', () => {
+    const a = `<html><head><style>.a{color:red}</style></head><body><div class="sheet">A</div></body></html>`;
+    const b = `<html><head><style>.b{color:blue}</style></head><body><div class="sheet">B</div></body></html>`;
+    const out = wrapOfferHtmlDocuments([a, b], 'Deck');
+    assert.ok(out.includes('.a{color:red}'));
+    assert.ok(out.includes('.b{color:blue}'));
+    assert.ok(out.includes('data-offer-page="1"'));
+    assert.ok(out.includes('data-offer-page="2"'));
+    assert.ok(out.includes('>A</div>'));
+    assert.ok(out.includes('>B</div>'));
+    assert.ok(!out.includes('min-height:90vh'));
+});
+
+test('extractStyleBlocks and extractBodyInner', () => {
+    const html = `<html><head><style>x{}</style></head><body><p>hi</p></body></html>`;
+    assert.equal(extractStyleBlocks(html).length, 1);
+    assert.equal(extractBodyInner(html), '<p>hi</p>');
 });

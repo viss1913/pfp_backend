@@ -9,7 +9,7 @@ const agentInviteService = require('../services/agentInviteService');
 const { uploadPublicFile, isStorageUploadRequireR2, isR2ClientReady } = require('../utils/r2Client');
 const { bufferToWebp } = require('../utils/imageToWebp');
 const { buildAgentRegistrationInviteUrl } = require('../utils/agentRegistrationInviteUrl');
-const { buildClientLandingInviteUrl } = require('../utils/clientLandingInviteUrl');
+const { buildAgentClientInviteUrl } = require('../utils/clientLandingInviteUrl');
 const authService = require('../services/authService');
 const agentPartnerIdWizardService = require('../services/agentPartnerIdWizardService');
 const subagentDashboardService = require('../services/subagentDashboardService');
@@ -330,9 +330,19 @@ class AgentController {
 
     async _buildClientInviteLinkPayload(agentId, projectId) {
         const slug = await agentNetworkService.ensureReferralSlug(agentId);
-        const url = buildClientLandingInviteUrl({ referralRef: slug });
+        const agent = await agentService.getAgentById(agentId, projectId);
+        const built = buildAgentClientInviteUrl({
+            referralRef: slug,
+            websiteUrl: agent?.website_url,
+        });
 
-        return { url, referral_slug: slug, ref: slug };
+        return {
+            url: built.url,
+            referral_slug: slug,
+            ref: slug,
+            uses_agent_website: built.uses_agent_website,
+            website_url: built.website_url,
+        };
     }
 
     async getSubagentsById(req, res, next) {
