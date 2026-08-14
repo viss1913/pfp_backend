@@ -30,6 +30,7 @@ VM: `81.94.159.209`, код: `/opt/pfp/app`, Docker `mysql` + `backend`.
 | `CLIENT_LANDING_BASE_URL=https://family-office.bank-future.com/` | B2C client-invite-link fallback (`GET /pfp/agents/me/client-invite-link`); если у агента задан `website_url` — база берётся из профиля |
 | `AGENT_INVITE_ACTIVATE_BASE_URL=https://family-office.bank-future.com/invite/activate` | Magic-link после `POST .../family-office-invite` (без env после деплоя кода — тот же хост из `AGENT_REGISTER_BASE_URL`) |
 | `TELEGRAM_PROXY_URL` | Опционально: HTTP/SOCKS-прокси **только** для Telegram Bot API (конструктор), если Immers блокирует `api.telegram.org`. Пример: `http://user:pass@45.77.80.63:3128`. Не путать с глобальным `HTTP_PROXY`. |
+| `PFP_IDE_SERVICE_KEY` | Server-to-server ключ для IDE (`POST /api/internal/agents/provision`, `sso-ticket`). Не в git; тот же ключ в env ide-api. |
 
 Полный список — `.env.example`. Секреты не коммитить.
 

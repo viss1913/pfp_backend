@@ -74,6 +74,84 @@ paths:
         '200':
           description: JWT и профиль пользователя
 
+  /auth/sso/consume:
+    post:
+      tags: [ "Регистрация и профиль агента" ]
+      summary: Погасить одноразовый SSO-ticket из IDE (ответ как login)
+      description: |
+        Браузер ЛК на `{live_url}/cabinet?sso_ticket=…`. Ticket одноразовый, TTL 60 с.
+        Успех → `{ token, user }` — фронт пишет в `localStorage` как после `POST /auth/login`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ticket]
+              properties:
+                ticket: { type: string, minLength: 16 }
+      responses:
+        '200':
+          description: JWT и профиль пользователя (как login)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentAuthResponse'
+        '400':
+          description: Просроченный или повторно использованный ticket
+
+  /internal/agents/provision:
+    post:
+      tags: [ "IDE ↔ ЛК (server-to-server)" ]
+      summary: Создать/обновить агента из IDE без OTP
+      description: |
+        Только **ide-api**. `Authorization: Bearer PFP_IDE_SERVICE_KEY`.
+        Email уже подтверждён в IDE — pfp-api **не** шлёт OTP.
+        Идемпотентно по `email` + `project_key`: повтор → `created: false`, пароль не меняется.
+        `website_url` → `agents.website_url` (рефералки клиентов).
+      security:
+        - ideServiceKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdeAgentProvisionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdeAgentProvisionResponse'
+        '400':
+          description: Неверный project_key или email_verified !== true
+        '409':
+          description: email_taken (другой проект) или phone_taken (этот проект)
+
+  /internal/agents/sso-ticket:
+    post:
+      tags: [ "IDE ↔ ЛК (server-to-server)" ]
+      summary: Выдать одноразовый SSO-ticket (60 с)
+      security:
+        - ideServiceKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdeAgentSsoTicketRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdeAgentSsoTicketResponse'
+        '404':
+          description: agent_not_found — сначала provision
+
   /auth/register-agent:
     post:
       tags: [ "Регистрация и профиль агента" ]
@@ -3233,6 +3311,65 @@ components:
             agentId: { type: integer }
             projectId: { type: integer }
 
+    IdeAgentProvisionRequest:
+      type: object
+      required: [email, project_key, email_verified]
+      properties:
+        email: { type: string, format: email }
+        password:
+          type: string
+          minLength: 6
+          description: Обязателен при первом создании; при повторном provision не перезаписывается
+        first_name: { type: string, maxLength: 100 }
+        last_name: { type: string, maxLength: 100 }
+        middle_name: { type: string, maxLength: 100 }
+        phone: { type: string, maxLength: 50 }
+        region:
+          type: string
+          maxLength: 100
+          description: ISO 3166-2 RU
+        website_url:
+          type: string
+          format: uri
+          nullable: true
+          description: Публичный сайт агента из IDE (live_url)
+        project_key: { type: string }
+        email_verified:
+          type: boolean
+          enum: [true]
+        source:
+          type: string
+          example: ide.bank-future.com
+
+    IdeAgentProvisionResponse:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+        created: { type: boolean }
+        agent:
+          type: object
+          properties:
+            id: { type: integer }
+            email: { type: string, format: email }
+            projectId: { type: integer }
+
+    IdeAgentSsoTicketRequest:
+      type: object
+      required: [email, project_key]
+      properties:
+        email: { type: string, format: email }
+        project_key: { type: string }
+        return_path:
+          type: string
+          default: /cabinet
+          example: /cabinet
+
+    IdeAgentSsoTicketResponse:
+      type: object
+      properties:
+        ticket: { type: string }
+        expires_in: { type: integer, example: 60 }
+
     AgentRegisterVerifyResponse:
       allOf:
         - $ref: '#/components/schemas/AgentAuthResponse'
@@ -3275,6 +3412,10 @@ components:
           description: |
             Личный сайт агента. Если задан — `GET /pfp/agents/me/client-invite-link` строит реферальную ссылку
             на этот origin/path + `?ref={referral_slug}` (без принудительного `/plan`).
+        region:
+          type: string
+          nullable: true
+          description: ISO 3166-2 RU (напр. RU-MOW)
         partner_agent_id:
           type: string
           nullable: true
@@ -3474,8 +3615,12 @@ components:
             projectId: { type: integer }
             clientId: { type: integer, description: "Только для role=client" }
             middle_name: { type: string, nullable: true }
-            phone: { type: string, nullable: true }
-            birth_date: { type: string, format: date, nullable: true }
+        phone: { type: string, nullable: true }
+        region:
+          type: string
+          nullable: true
+          description: ISO 3166-2 RU (напр. RU-MOW)
+        birth_date: { type: string, format: date, nullable: true }
             gender: { type: string, enum: [male, female], nullable: true }
         - $ref: '#/components/schemas/AgentMeProfileFields'
 
@@ -4411,3 +4556,7 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    ideServiceKey:
+      type: http
+      scheme: bearer
+      description: PFP_IDE_SERVICE_KEY (server-to-server, только ide-api)

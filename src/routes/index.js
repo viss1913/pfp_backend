@@ -10,12 +10,16 @@ const clientRoutes = require('./clientRoutes');
 const agentRoutes = require('./agentRoutes');
 
 const router = express.Router();
+const internalAgentsRoutes = require('./internalAgentsRoutes');
 const tenantMiddleware = require('../middlewares/tenantMiddleware');
 const { restrictTo } = require('../middlewares/roleMiddleware');
 const agentComonStrategyRoutes = require('./agentComonStrategyRoutes');
 
 // Public routes
 router.use('/auth', authRoutes);
+
+// IDE server-to-server (PFP_IDE_SERVICE_KEY)
+router.use('/internal/agents', internalAgentsRoutes);
 
 // Public Constructor Webhooks (no auth, no tenant middleware)
 const constructorController = require('../controllers/constructorController');

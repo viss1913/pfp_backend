@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Public routes (no auth required)
 router.post('/login', authController.login);
+router.post('/sso/consume', authController.consumeSsoTicket.bind(authController));
 router.post('/register', authController.register);
 
 // Client registration (public, 2-step with email verification)

@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const authService = require('../services/authService');
+const ideAgentSsoService = require('../services/ideAgentSsoService');
 
 // Validation schemas
 const loginSchema = Joi.object({
@@ -108,6 +109,10 @@ const activateAgentInviteSchema = Joi.object({
     password: Joi.string().min(6).required(),
 });
 
+const consumeSsoTicketSchema = Joi.object({
+    ticket: Joi.string().min(16).max(128).required(),
+});
+
 class AuthController {
     async login(req, res, next) {
         try {
@@ -119,6 +124,23 @@ class AuthController {
             const { email, password } = req.body;
             const result = await authService.login(email, password);
 
+            res.json(result);
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /auth/sso/consume — одноразовый ticket из IDE (тот же ответ, что login).
+     */
+    async consumeSsoTicket(req, res, next) {
+        try {
+            const validation = consumeSsoTicketSchema.validate(req.body);
+            if (validation.error) {
+                return res.status(400).json({ error: validation.error.details[0].message });
+            }
+
+            const result = await ideAgentSsoService.consumeSsoTicket(validation.value);
             res.json(result);
         } catch (err) {
             next(err);
