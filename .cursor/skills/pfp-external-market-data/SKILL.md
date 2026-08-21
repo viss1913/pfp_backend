@@ -44,8 +44,10 @@ description: Парсинг и синхронизация внешних рын�
 
 ## HTTP API приложения
 
-- Префикс: **`/api/pfp/macro`** (`src/routes/index.js`: `pfpMiddleware`).
-- **`GET /latest`**, **`GET /history/:slug`**, **`POST /sync`** (ручной полный прогон — см. `macroController.triggerSync`).
+- Префикс: **`/api/pfp/macro`**.
+- **Публично (без JWT / API key, CORS `*`):** `GET /latest` и `GET /public-latest` — один handler, снимок для ЛК и лендингов Family Office (ПДн нет). Регистрируются **до** `router.use('/', pfpMiddleware, …)`.
+- **С JWT:** `GET /history/:slug`, `POST /sync` (`src/routes/macroRoutes.js` + `pfpMiddleware`).
+- Слаг-и блока рынка на лендингах FO: `cbr_key_rate`, `russia_cpi_inflation_yoy` (не Росстат), `cbr_deposit_rate_max`, `moex_ofz_gcurve_5y` (не 10y), `moex_imoex` (не IMOEX2/РТС), `usd_rub`.
 
 ## Планировщик
 

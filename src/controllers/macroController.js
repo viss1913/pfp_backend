@@ -6,17 +6,25 @@ const { runCbrInflationYoySync } = require('../services/macroInflationSyncNotify
  * Контроллер макроэкономических данных
  */
 const INFLATION_YOY_SLUG = 'russia_cpi_inflation_yoy';
+const LATEST_CACHE_MS = Number(process.env.MACRO_LATEST_CACHE_MS || 60_000);
+let latestCache = { at: 0, payload: null };
 
 const getLatest = async (req, res) => {
     try {
+        const now = Date.now();
+        if (latestCache.payload && now - latestCache.at < LATEST_CACHE_MS) {
+            return res.json(latestCache.payload);
+        }
         const data = await macroService.getLatestValues();
         const inflationYoy = data.find((row) => row.slug === INFLATION_YOY_SLUG) || null;
-        res.json({
+        const payload = {
             success: true,
             data,
             /** Основной ряд ИПЦ г/г для виджетов и ЛК — slug russia_cpi_inflation_yoy */
             inflation_yoy: inflationYoy,
-        });
+        };
+        latestCache = { at: now, payload };
+        res.json(payload);
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

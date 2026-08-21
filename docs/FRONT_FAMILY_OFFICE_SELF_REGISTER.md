@@ -78,6 +78,30 @@ Content-Type: application/json
   - `GET /auth/me`: `partner_agent_id_mode` = `platform_default`, `has_partner_full_access` = `true` (wizard не блокирует ЛК).
 - Wizard Finam ID (`POST /api/pfp/agents/me/partner-id-wizard`) **опционален** — только если агент хочет подставить **свой** Finam ID вместо платформенного.
 
+## Блок рынка на лендинге (гость)
+
+Публичный снимок макро, те же цифры что в ЛК агента, **без логина** (ПДн нет):
+
+```http
+GET /api/pfp/macro/public-latest
+```
+
+Алиас: `GET /api/pfp/macro/latest` — тоже без Bearer / API key.
+CORS: `Access-Control-Allow-Origin: *`, методы GET, OPTIONS.
+
+Сайт консультанта может ходить напрямую или через ide-api `GET /public/macro-pulse`.
+
+Стабильные slug:
+
+| Показатель | slug |
+|---|---|
+| Ключевая ставка ЦБ РФ | `cbr_key_rate` |
+| Инфляция (ИПЦ г/г, не Росстат) | `russia_cpi_inflation_yoy` |
+| Макс. ставка по вкладам топ-10 (ЦБ) | `cbr_deposit_rate_max` |
+| Доходность ОФЗ G-кривая 5 лет | `moex_ofz_gcurve_5y` |
+| Индекс МосБиржи IMOEX | `moex_imoex` |
+| Курс USD/RUB ЦБ РФ | `usd_rub` |
+
 ## Env бэкенда (Railway)
 
 ```env

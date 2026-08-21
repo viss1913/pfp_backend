@@ -30,6 +30,11 @@ router.post('/admin/constructor/webhook/max/:botId', constructorController.handl
 router.post('/pfp/constructor/site-chat/stream', tenantMiddleware, constructorController.handleSiteChatStream);
 router.get('/pfp/constructor/site-chat/report-pdf', constructorController.getSiteChatReportPdf.bind(constructorController));
 
+// Public macro snapshot for FO landings (no PII). Must be before router.use('/', pfpMiddleware, …).
+const macroController = require('../controllers/macroController');
+router.get('/pfp/macro/public-latest', macroController.getLatest);
+router.get('/pfp/macro/latest', macroController.getLatest);
+
 // Helper for combined auth + tenant
 const pfpMiddleware = [authMiddleware, tenantMiddleware];
 
@@ -124,11 +129,10 @@ const clientCabinetRoutes = require('./clientCabinetRoutes');
 router.use('/my', pfpMiddleware, clientCabinetRoutes);
 
 // Macro cron (без JWT — секрет MACRO_CRON_SECRET; для Railway Cron / ручного дерганья из браузера)
-const macroController = require('../controllers/macroController');
 const macroCronAuthMiddleware = require('../middlewares/macroCronAuthMiddleware');
 router.post('/pfp/macro/cron/inflation', macroCronAuthMiddleware, macroController.triggerCronInflationSync);
 
-// Macro Data Routes
+// Macro Data Routes (history/sync — JWT; GET /latest смонтирован публично выше)
 const macroRoutes = require('./macroRoutes');
 router.use('/pfp/macro', pfpMiddleware, macroRoutes);
 

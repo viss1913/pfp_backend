@@ -8,6 +8,7 @@ const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
 const tenantMiddleware = require('./middlewares/tenantMiddleware');
 const logger = require('./utils/logger');
+const { isPublicMacroPath, publicMacroCorsOptions } = require('./utils/publicMacroAccess');
 
 const app = express();
 
@@ -20,7 +21,7 @@ const allowedOrigins = hasAllowedList
     ? allowedOriginsRaw.split(',').map((o) => o.trim()).filter(Boolean)
     : [];
 
-app.use(cors({
+const defaultCorsOptions = {
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
         // Список не задан — разрешаем любой origin
@@ -43,7 +44,15 @@ app.use(cors({
     ],
     exposedHeaders: ['Content-Type', 'Authorization', 'x-project-key'],
     preflightContinue: false,
-    optionsSuccessStatus: 204
+    optionsSuccessStatus: 204,
+};
+
+app.use(cors((req, callback) => {
+    // Лендинги FO: публичный снимок макро — ACAO * без credentials (GET/OPTIONS).
+    if (isPublicMacroPath(req)) {
+        return callback(null, publicMacroCorsOptions());
+    }
+    return callback(null, defaultCorsOptions);
 }));
 
 // Helmet configuration
