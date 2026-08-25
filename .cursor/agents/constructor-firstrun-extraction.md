@@ -36,11 +36,11 @@ response
 
 | Что | Где |
 |-----|-----|
-| Команды firstrun | `isFirstRunCalculationCommand` в [`src/services/constructorAiService.js`](src/services/constructorAiService.js): подстрока `firstrun` **или** в ключе после `/` есть `first_run` (в т.ч. `/first-run` → нормализация), иначе расчёт не вызовется и ИИ уйдёт в свободный режим. |
+| Команды firstrun | `isFirstRunCalculationCommand`: `/firstrun`, `/firstRunAIB2C`, ключ с `first_run`. **`/INVESTMENT2` — не firstrun**, это сбор. Если предыдущая стадия `/INVESTMENT2` и роутер дал `/firstRunAIB2C` — `shouldForceInvestmentGoalOnFirstRun` → цель INVESTMENT, без пенсии. |
 | Экстракция JSON | `extractFinancialPlanParams` → `resolveFinancialExtractionSystemPrompt` (команда БД `/extractFinancialPlanParams` **или** файл промпта) |
 | Канонический текст промпта (дефолт + синхронизация) | [`data/prompts/financialExtractionFirstRun.txt`](data/prompts/financialExtractionFirstRun.txt) |
 | Парс / нормализация | `parseFinancialPlanJsonFromLlmText`, `normalizeExtractedFinancialPlanPayload`, `inferCanonicalSex`, квартира `normalizeB2cApartmentGoalsInExtraction`, горизонт `applyB2cPolicyHorizonTermMonthsToExtractedGoals` |
-| Синтетическая пенсия только если goals пустой | `ensureFirstRunExtractionHasPensionGoal` |
+| Синтетическая пенсия только если goals пустой | `ensureFirstRunExtractionHasPensionGoal` — **не** для `/INVESTMENT2` (там `applyInvestment2ExtractionOverride`) |
 | Валидация до calc | `firstRunExtractionMinimallyValidForCalc` |
 | Расчёт | `calculationService.calculateFirstRun` в [`src/services/calculationService.js`](src/services/calculationService.js) (`clientData.sex` из `gender` при необходимости) |
 | Успех расчёта | `firstRunCalculationSucceeded` — есть goal **с `summary`** и без `error` (не только отсутствие `error`) |

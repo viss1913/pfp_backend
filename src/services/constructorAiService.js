@@ -14,6 +14,11 @@ const {
 } = require('./calcRecalculateFlowService');
 const path = require('path');
 const fs = require('fs');
+const {
+    isFirstRunCalculationCommand,
+    applyInvestment2ExtractionOverride,
+    shouldForceInvestmentGoalOnFirstRun,
+} = require('../utils/constructorFirstRunCommands');
 
 /** Полный трейс цепочки «классификатор → генератор»: `CONSTRUCTOR_AI_TRACE=0` выкл., иначе вкл. */
 function isConstructorAiTraceOn() {
@@ -108,21 +113,9 @@ const FIRST_RUN_STREAM_HISTORY_LOG_ROWS = envPositiveInt('CONSTRUCTOR_FIRST_RUN_
 const CLASSIFIER_COMMAND_TYPOS = {
     '/vozrtast': '/vozrast',
     '/startpf': '/startpfp',
+    '/invetsment2': '/investment2',
+    '/invetsmnet2': '/investment2',
 };
-
-/**
- * Команды сценария, при которых вызывается calculateFirstRun.
- * В админке ключ может называться не /firstrun, а например /firstRunAIB2C — смысл тот же.
- * Важно: /first_run и /first-run НЕ содержат подстроку «firstrun» (мешает _), без этого теста расчёт и стоп без calc не срабатывают.
- */
-function isFirstRunCalculationCommand(cmdKey) {
-    const k = (cmdKey || '').trim().toLowerCase().replace(/\s+/g, '');
-    if (!k.startsWith('/')) return false;
-    if (k === '/firstrun' || k === '/firstrunaib2c' || k === '/first_run_aib2c') return true;
-    if (k.includes('firstrun')) return true;
-    const slug = k.slice(1).replace(/-/g, '_');
-    return slug.includes('first_run');
-}
 
 function isCalcRecalculateCommand(cmdKey) {
     const k = (cmdKey || '').trim().toLowerCase().replace(/\s+/g, '');
@@ -258,6 +251,20 @@ function loadDefaultFinancialExtractionSystemPrompt() {
 const DEFAULT_FINANCIAL_EXTRACTION_SYSTEM_PROMPT = loadDefaultFinancialExtractionSystemPrompt();
 
 const EXTRACT_FINANCIAL_PLAN_PARAMS_COMMAND = '/extractFinancialPlanParams';
+
+const INVESTMENT2_EXTRACTION_OVERLAY = [
+    'СЦЕНАРИЙ: клиент пришёл с /INVESTMENT2 (не знает ИПК) на расчёт /firstRunAIB2C.',
+    'Госпенсию и цель «Достойная пенсия» (goal_type_id 1) НЕ извлекай и НЕ считай.',
+    'Игнорируй пенсионный контекст начала диалога (желаемая пенсия, ИПК, страховая пенсия).',
+    'В goals ровно одна цель INVESTMENT:',
+    '• goal_type_id: 3',
+    '• name: "Сохранить и приумножить"',
+    '• target_amount: 0',
+    '• initial_capital: стартовый капитал из реплик user (согласуй с client.total_liquid_capital)',
+    '• monthly_replenishment: ежемесячное пополнение из реплик user (руб/мес), если явно ноль — 0',
+    'Из client нужны: sex, birth_date (или возраст), avg_monthly_income, total_liquid_capital.',
+    'Не клади ipk_current, desired_monthly_income, ops_capital.',
+].join('\n');
 
 /**
  * Команды бота + шаблоны проекта (тот же запрос, что в classifyStage).
@@ -937,10 +944,35 @@ function ensureFirstRunExtractionHasPensionGoal(extraction) {
     );
 }
 
+function finalizeFirstRunExtractionForCommand(extraction, forceInvestmentGoal) {
+    if (forceInvestmentGoal) {
+        applyInvestment2ExtractionOverride(extraction);
+        ensureB2cPoolSyncForConstructor(extraction);
+        applyB2cPolicyHorizonTermMonthsToExtractedGoals(extraction);
+        console.log(
+            '[ConstructorAI] firstRun after /INVESTMENT2: цель принудительно INVESTMENT (без пенсии/ИПК)',
+            JSON.stringify({
+                initial_capital: extraction?.goals?.[0]?.initial_capital,
+                monthly_replenishment: extraction?.goals?.[0]?.monthly_replenishment,
+                total_liquid_capital: extraction?.client?.total_liquid_capital,
+            })
+        );
+        return extraction;
+    }
+    ensureFirstRunExtractionHasPensionGoal(extraction);
+    return extraction;
+}
+
+async function loadConstructorCommandKeyById(commandId) {
+    if (commandId == null) return '';
+    const row = await knex('constructor_commands').where('id', commandId).select('command').first();
+    return String(row?.command || '');
+}
+
 /**
  * Клиент для calculateFirstRun: только поля расчёта/карточки + имя из экстракции или nickname (не длинный числовой user_id).
  */
-function buildFirstRunCalcClient(constructorClientRow, extraction, projectId) {
+function buildFirstRunCalcClient(constructorClientRow, extraction, projectId, agentId) {
     const raw =
         extraction?.client && typeof extraction.client === 'object' ? { ...extraction.client } : {};
     const nick = String(constructorClientRow?.nickname || '').trim();
@@ -959,6 +991,7 @@ function buildFirstRunCalcClient(constructorClientRow, extraction, projectId) {
     return {
         ...raw,
         project_id: projectId,
+        agent_id: agentId || constructorClientRow?.agent_id || undefined,
     };
 }
 
@@ -2322,8 +2355,9 @@ class ConstructorAiService {
 
     /**
      * Извлечение комплексных параметров для финансового плана (/firstRun)
+     * @param {boolean} [forceInvestmentGoal] — приход с /INVESTMENT2: оверлей «только INVESTMENT».
      */
-    async extractFinancialPlanParams(session, userMessage) {
+    async extractFinancialPlanParams(session, userMessage, forceInvestmentGoal) {
         const sessionClient = await knex('constructor_clients').where('id', session.client_id).first();
         let systemPromptMeta = { content: DEFAULT_FINANCIAL_EXTRACTION_SYSTEM_PROMPT, source: 'default', commandId: null };
         if (sessionClient && sessionClient.bot_id != null) {
@@ -2348,11 +2382,17 @@ class ConstructorAiService {
         ).join('\n');
 
         const fullContext = historyText + `\nUser: ${userMessage}`;
+        const systemContent = forceInvestmentGoal
+            ? `${systemPromptMeta.content}\n\n${INVESTMENT2_EXTRACTION_OVERLAY}`
+            : systemPromptMeta.content;
+        if (forceInvestmentGoal) {
+            console.log('[AI Extraction] overlay=from /INVESTMENT2 (force INVESTMENT goal, ignore pension/IPK)');
+        }
 
         const prompt = [
             {
                 role: 'system',
-                content: systemPromptMeta.content,
+                content: systemContent,
             },
             {
                 role: 'user',
@@ -2741,6 +2781,7 @@ class ConstructorAiService {
 
         // Актуальная сессия из БД (после прошлого хода должен быть current_command_id)
         session = await knex('constructor_sessions').where('id', session.id).first();
+        const previousStageKey = await loadConstructorCommandKeyById(session.current_command_id);
 
         // 1) Стадия: первый ход сессии — без роутера, сразу /start для генерации; дальше — classifyStage
         const {
@@ -2781,6 +2822,7 @@ class ConstructorAiService {
         }
 
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
+        const forceInvestmentGoal = shouldForceInvestmentGoalOnFirstRun(cmdKey, previousStageKey);
 
         let calculationResult = null;
         let pdfPath = null;
@@ -2792,6 +2834,8 @@ class ConstructorAiService {
             '[ConstructorAI] firstRun(stream): step=after_router ' +
                 JSON.stringify({
                     cmdKey,
+                    previousStageKey,
+                    forceInvestmentGoal,
                     commandId: nextCommand?.id ?? null,
                     commandRaw: nextCommand?.command ?? null,
                     isFirstRunCmd: isFirstRunCalculationCommand(cmdKey),
@@ -2834,12 +2878,12 @@ class ConstructorAiService {
             }
         } else if (isFirstRunCalculationCommand(cmdKey)) {
             console.log('[ConstructorAI] firstRun(stream): step=first_run_branch_enter');
-            firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
-            ensureFirstRunExtractionHasPensionGoal(firstRunExtraction);
+            firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage, forceInvestmentGoal);
+            finalizeFirstRunExtractionForCommand(firstRunExtraction, forceInvestmentGoal);
             if (firstRunExtractionMinimallyValidForCalc(firstRunExtraction)) {
                 try {
                     const calcData = {
-                        client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
+                        client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id, bot.agent_id),
                         goals: firstRunExtraction.goals || []
                     };
                     console.log(
@@ -2849,6 +2893,7 @@ class ConstructorAiService {
                     calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
                         isFirstRun: true,
                         usePool: true,
+                        agentId: bot.agent_id,
                     });
                     try {
                         const compactCalc = compactCalculationForPresentationPrompt(calculationResult);
@@ -3140,6 +3185,8 @@ class ConstructorAiService {
 
         const previousCommandId = session.current_command_id;
 
+        const previousStageKey = await loadConstructorCommandKeyById(previousCommandId);
+
         const { nextCommand, classifierSkipped } = await this.resolveCommandForSessionTurn(botId, session, userMessage);
         if (classifierSkipped) {
             console.log('[Flow] First session turn: skipped classifier, using /start response context only');
@@ -3168,8 +3215,9 @@ class ConstructorAiService {
 
         // Нормализация команды для сравнения (убираем регистр и пробелы)
         const cmdKey = nextCommand ? nextCommand.command.trim().toLowerCase() : '';
+        const forceInvestmentGoal = shouldForceInvestmentGoalOnFirstRun(cmdKey, previousStageKey);
         console.log(
-            `[Flow] Command for this turn: "${nextCommand ? nextCommand.command : 'null'}" (cmdKey: ${cmdKey}); will run calculation: ${cmdKey === '/homeownerscalc' || isFirstRunCalculationCommand(cmdKey) || isCalcRecalculateCommand(cmdKey)}`
+            `[Flow] Command for this turn: "${nextCommand ? nextCommand.command : 'null'}" (cmdKey: ${cmdKey}, previousStageKey: ${previousStageKey || 'none'}, forceInvestmentGoal: ${forceInvestmentGoal}); will run calculation: ${cmdKey === '/homeownerscalc' || isFirstRunCalculationCommand(cmdKey) || isCalcRecalculateCommand(cmdKey)}`
         );
 
         // Расчёт страхования имущества по всем активным продуктам (команда /homeownerscalc)
@@ -3238,15 +3286,15 @@ class ConstructorAiService {
             }
         } else if (isFirstRunCalculationCommand(cmdKey)) {
             console.log(`[Flow] DEBUG: first-run calculation command (${cmdKey}). Starting extraction...`);
-            firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage);
-            ensureFirstRunExtractionHasPensionGoal(firstRunExtraction);
+            firstRunExtraction = await this.extractFinancialPlanParams(session, userMessage, forceInvestmentGoal);
+            finalizeFirstRunExtractionForCommand(firstRunExtraction, forceInvestmentGoal);
             console.log(`[Flow] Performing Full Financial Plan Calculation for client:`, client.nickname);
             console.log(`[Flow] Extraction Result:`, JSON.stringify(firstRunExtraction, null, 2));
 
             if (firstRunExtractionMinimallyValidForCalc(firstRunExtraction)) {
                 try {
                     const calcData = {
-                        client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id),
+                        client: buildFirstRunCalcClient(client, firstRunExtraction, bot.project_id, bot.agent_id),
                         goals: firstRunExtraction.goals || []
                     };
 
@@ -3257,6 +3305,7 @@ class ConstructorAiService {
                     calculationResult = await calculationService.calculateFirstRun(calcData, null, null, {
                         isFirstRun: true,
                         usePool: true,
+                        agentId: bot.agent_id,
                     });
                     console.log(`[Flow] FirstRun Calculation Success. Total Capital: ${calculationResult.summary?.total_capital}`);
                     try {
@@ -3468,3 +3517,7 @@ module.exports.isClassifierLlmResponseValidCommand = isClassifierLlmResponseVali
 module.exports.parseClassifierCommandFromLlm = parseClassifierCommandFromLlm;
 module.exports.userMessageImpliesAdvanceToNextStage = userMessageImpliesAdvanceToNextStage;
 module.exports.resolveNextAcademyCommand = resolveNextAcademyCommand;
+module.exports.isFirstRunCalculationCommand = isFirstRunCalculationCommand;
+module.exports.applyInvestment2ExtractionOverride = applyInvestment2ExtractionOverride;
+module.exports.shouldForceInvestmentGoalOnFirstRun = shouldForceInvestmentGoalOnFirstRun;
+module.exports.finalizeFirstRunExtractionForCommand = finalizeFirstRunExtractionForCommand;

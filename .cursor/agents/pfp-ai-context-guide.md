@@ -52,7 +52,7 @@ description: >-
 
 ### Расчёт firstRun
 
-- Команды из набора **`isFirstRunCalculationCommand`** (например `/firstrun`, `/firstRunAIB2C`, …) — см. константы в начале `constructorAiService.js`.
+- Команды из набора **`isFirstRunCalculationCommand`** (например `/firstrun`, `/firstRunAIB2C`) — см. `constructorFirstRunCommands.js`. Если **предыдущая** стадия **`/INVESTMENT2`**, а роутер выбрал firstRun — цель принудительно INVESTMENT (`shouldForceInvestmentGoalOnFirstRun`), пенсионный контекст диалога и ИПК отбрасываются.
 - Данные в расчёт: **`buildFirstRunCalcClient(constructorRow, extraction, project_id)`** — без протаскивания `id` строки `constructor_clients` как `client.id` PFP.
 - **`calculationService.calculateFirstRun(calcData, …, { isFirstRun: true, usePool: true })`**.
 
