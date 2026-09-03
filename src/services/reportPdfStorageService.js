@@ -179,7 +179,11 @@ function startClientPdfGenerationTask(args) {
 
     const p = runClientPdfGenerationTask(args)
         .catch((e) => {
-            throw e;
+            console.warn('[reportPdfStorage] PDF task failed:', e.message || e);
+            return {
+                status: 'failed',
+                error: String(e?.message || e || 'PDF generation failed').slice(0, 500),
+            };
         })
         .finally(() => {
             inFlightByClient.delete(key);

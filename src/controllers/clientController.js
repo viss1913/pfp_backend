@@ -223,6 +223,11 @@ const guestRiskEvaluateSchema = Joi.object({
 
 const guestPlanSaveSchema = calculationRequestSchema;
 
+const guestAiB2cSessionSchema = Joi.object({
+    ref: Joi.string().max(128).allow('').optional(),
+    flow_key: Joi.string().max(64).allow('').optional(),
+});
+
 function normalizeGuestCalculationPayload(body) {
     normalizeCalculationRequestBody(body);
 }
@@ -262,7 +267,8 @@ async function prepareGuestLeadPersistence(req) {
     }
 
     const ref = req.body.ref;
-    if (ref != null && String(ref).trim() !== '') {
+    const alreadyHasAgent = Boolean(existingClient?.agent_id);
+    if (!alreadyHasAgent && ref != null && String(ref).trim() !== '') {
         const parentAgent = await agentNetworkService.resolveParentAgentFromRef(projectId, ref);
         if (parentAgent) {
             req.body.client.agent_id = parentAgent.id;
@@ -270,6 +276,25 @@ async function prepareGuestLeadPersistence(req) {
     }
 
     return { projectId, normalizedEmail };
+}
+
+async function attachCatalogAgentToClient(req) {
+    if (!req.body.client) req.body.client = {};
+    const { normalizeAgentId } = require('../utils/agentCatalogScope');
+    if (normalizeAgentId(req.body.client.agent_id)) return;
+
+    const fromUser = normalizeAgentId(req.user?.agentId);
+    if (fromUser) {
+        req.body.client.agent_id = fromUser;
+        return;
+    }
+
+    const ref = req.body.ref;
+    const projectId = req.projectId || req.user?.projectId || req.body.client.project_id;
+    if (ref != null && String(ref).trim() !== '' && projectId) {
+        const parentAgent = await agentNetworkService.resolveParentAgentFromRef(projectId, ref);
+        if (parentAgent) req.body.client.agent_id = parentAgent.id;
+    }
 }
 
 async function finishGuestLeadPersistence(req, calculationResponse, persistCtx) {
@@ -322,6 +347,7 @@ const db = require('../config/database');
 const clientRepository = require('../repositories/clientRepository');
 const { normalizeRegistrationEmail } = require('../utils/userEmailRegistration');
 const { normalizeCalculationRequestBody } = require('../utils/normalizeCalculationPayload');
+const { allowGuestSessionByIp, clientIpFromReq } = require('../utils/guestSessionRateLimit');
 
 function attachCrmClientDates(clientRow) {
     const createdAt = clientRow.created_at;
@@ -457,10 +483,13 @@ class ClientController {
                 throw persistErr;
             }
 
+            await attachCatalogAgentToClient(req);
+
             const result = await calculationService.calculateFirstRun(req.body, null, null, {
                 isFirstRun: true,
                 usePool: true,
                 agentUserId: req.user?.id,
+                agentId: req.body.client?.agent_id,
             });
 
             const persistMeta = await finishGuestLeadPersistence(req, result, persistCtx);
@@ -589,18 +618,15 @@ class ClientController {
 
             console.log(`[ClientController] firstRun for project: ${req.body.client.project_id}`);
 
+            await attachCatalogAgentToClient(req);
+
             // 2. Perform Calculation
             const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, {
                 isFirstRun: true,
                 usePool: true,
-                agentUserId: req.user?.id
+                agentUserId: req.user?.id,
+                agentId: req.body.client?.agent_id,
             });
-
-            // 3. Inject Agent ID
-            if (req.user && req.user.agentId) {
-                if (!req.body.client) req.body.client = {};
-                req.body.client.agent_id = req.user.agentId;
-            }
 
             const projectId = req.projectId || req.user?.projectId || req.body.client.project_id;
             const { clientId } = await persistCalculatedPlan(req.body, calculationResponse, projectId);
@@ -655,14 +681,91 @@ class ClientController {
 
             console.log(`[ClientController] saveGuestPlan for project: ${persistCtx.projectId}, ref: ${req.body.ref || 'none'}`);
 
+            await attachCatalogAgentToClient(req);
+
             const calculationResponse = await calculationService.calculateFirstRun(req.body, null, null, {
                 isFirstRun: true,
                 usePool: true,
+                agentId: req.body.client?.agent_id,
             });
 
             const persistMeta = await finishGuestLeadPersistence(req, calculationResponse, persistCtx);
             const simplified = calculationService.simplify(calculationResponse);
             res.json({ ...simplified, ...persistMeta });
+        } catch (err) {
+            next(err);
+        }
+    }
+
+    /**
+     * POST /api/client/ai-b2c/guest-session — публичный bootstrap /plan.
+     * X-Project-Key + optional ref. Stub-лид + guest_token (тот же, что plan/save).
+     */
+    async createAiB2cGuestSession(req, res, next) {
+        try {
+            const ip = clientIpFromReq(req);
+            if (!allowGuestSessionByIp(ip)) {
+                return res.status(429).json({ error: 'Too many guest sessions' });
+            }
+
+            const validation = guestAiB2cSessionSchema.validate(req.body ?? {}, {
+                abortEarly: false,
+                allowUnknown: true,
+            });
+            if (validation.error) {
+                return res.status(400).json({
+                    error: 'Validation error',
+                    details: validation.error.details.map((d) => ({
+                        field: d.path.join('.'),
+                        message: d.message,
+                    })),
+                });
+            }
+
+            const projectId = req.projectId;
+            if (!projectId) {
+                return res.status(400).json({ error: 'Project context is missing (x-project-key)' });
+            }
+
+            const ref = String(validation.value.ref || '').trim();
+            let agentId = null;
+            if (ref) {
+                try {
+                    const parentAgent = await agentNetworkService.resolveParentAgentFromRef(projectId, ref);
+                    if (parentAgent) agentId = parentAgent.id;
+                } catch (e) {
+                    console.warn(
+                        `[ClientController] ai-b2c guest-session skip invalid ref=${ref}: ${e?.message || e}`,
+                    );
+                }
+            }
+
+            const clientData = {
+                project_id: projectId,
+                first_name: ' ',
+                last_name: ' ',
+                agent_id: agentId,
+            };
+            if (agentId) {
+                clientData.referred_by_agent_id =
+                    await agentNetworkService.resolveReferredByAgentId(agentId);
+            }
+
+            const clientId = await clientRepository.create(clientData);
+            const guestToken = authService.signGuestClientToken({
+                clientId,
+                projectId,
+                email: null,
+            });
+
+            console.info(
+                `[ClientController] ai-b2c guest-session client_id=${clientId} project_id=${projectId} ref=${ref || 'none'}`,
+            );
+
+            res.status(201).json({
+                guest_token: guestToken,
+                client_id: clientId,
+            });
         } catch (err) {
             next(err);
         }
@@ -870,9 +973,13 @@ class ClientController {
 
     /**
      * Пересчёт финплана клиента (ядро для POST …/recalculate и PUT …?recalculate=true).
+     * @param {{ forceSmartAllocation?: boolean }} [options]
+     *   forceSmartAllocation — заново разложить client.total_liquid_capital по оставшимся целям
+     *   (удаление/добавление цели). Обычный recalculate капитал не пересобирает.
      * @returns {Promise<object>} calculationResponse
      */
-    async runClientRecalculate(clientId, projectId, req, body = {}) {
+    async runClientRecalculate(clientId, projectId, req, body = {}, options = {}) {
+        const forceSmartAllocation = options.forceSmartAllocation === true;
         const existingClient = await clientService.getFullClient(clientId, projectId);
         if (!existingClient) {
             const err = new Error('Client not found');
@@ -985,6 +1092,7 @@ class ClientController {
 
             // 4.5 Inject Project ID (Strict enforcement)
             clientForCalc.project_id = projectId;
+            clientForCalc.agent_id = existingClient.agent_id || req.user?.agentId || clientForCalc.agent_id;
             if (reqBody.client) reqBody.client.project_id = projectId;
 
             if (!projectId) {
@@ -1002,15 +1110,20 @@ class ClientController {
                     : existingClient.goals_summary;
             } catch (e) { }
 
+            if (forceSmartAllocation) {
+                console.log('[ClientController] Recalculate with full Smart Allocation (goal add/delete)');
+            }
+
             const calculationResponse = await calculationService.calculateFirstRun(
                 calcRequest,
-                identifiedTargetId,
-                previousCalculation,
+                forceSmartAllocation ? null : identifiedTargetId,
+                forceSmartAllocation ? null : previousCalculation,
                 {
-                    isFirstRun: false,
-                    usePool: false,
+                    isFirstRun: forceSmartAllocation,
+                    usePool: forceSmartAllocation,
                     agentUserId: req.user?.id,
-                    explicitManualRiskForTarget,
+                    agentId: clientForCalc.agent_id,
+                    explicitManualRiskForTarget: forceSmartAllocation ? false : explicitManualRiskForTarget,
                 }
             );
 
@@ -1018,7 +1131,20 @@ class ClientController {
             const numericClientId = Number(existingClient.id);
             const calculation = calculationResponse.calculation || calculationResponse;
 
-            if (identifiedTargetId && !identifiedTargetId.startsWith('temp_')) {
+            if (forceSmartAllocation) {
+                const calculatedGoals = calculation?.goals || [];
+                for (const g of goalsToCalculate) {
+                    const gid = g.id || g.goal_id;
+                    if (!gid) continue;
+                    const calcG = calculatedGoals.find((goalResult) =>
+                        String(goalResult?.goal_id || goalResult?.id || '') === String(gid)
+                    );
+                    const cap = Number(calcG?.summary?.initial_capital ?? g.smart_initial_capital);
+                    if (!Number.isFinite(cap)) continue;
+                    await clientService.updateGoal(numericClientId, gid, { initial_capital: cap });
+                }
+                console.log(`[ClientController] Persisted redistributed initial_capital for ${goalsToCalculate.length} goals`);
+            } else if (identifiedTargetId && !identifiedTargetId.startsWith('temp_')) {
                 const updatedGoalData = goalsMap.get(identifiedTargetId);
                 const calculatedGoals = calculation?.goals || [];
                 const calculatedTargetGoal = calculatedGoals.find((goalResult) =>
@@ -1091,9 +1217,15 @@ class ClientController {
         try {
             const { id } = req.params;
             await clientService.addGoal(id, req.body);
-            if (!req.body) req.body = {};
-            req.body.goals = [];
-            return this.recalculate(req, res, next);
+            const projectId = req.projectId != null ? req.projectId : req.user?.projectId;
+            const calculationResponse = await this.runClientRecalculate(
+                id,
+                projectId,
+                req,
+                { goals: [] },
+                { forceSmartAllocation: true }
+            );
+            return res.json(calculationService.simplify(calculationResponse));
         } catch (err) {
             next(err);
         }
@@ -1109,9 +1241,14 @@ class ClientController {
             }
             await assertAgentCanMutateClient({ req, client: existingClient, projectId });
             await clientService.deleteGoal(id, goalId);
-            if (!req.body) req.body = {};
-            req.body.goals = [];
-            return this.recalculate(req, res, next);
+            const calculationResponse = await this.runClientRecalculate(
+                id,
+                projectId,
+                req,
+                { goals: [] },
+                { forceSmartAllocation: true }
+            );
+            return res.json(calculationService.simplify(calculationResponse));
         } catch (err) {
             next(err);
         }
