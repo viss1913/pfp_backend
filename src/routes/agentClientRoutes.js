@@ -17,6 +17,12 @@ router.get('/', agentMiddleware, clientController.listByAgent.bind(clientControl
 // PUT /api/pfp/clients/:clientId — редактирование карточки клиента (профиль, семья, активы, кредиты)
 router.put('/:id', agentMiddleware, clientController.updateAgentClient.bind(clientController));
 
+// POST /api/pfp/clients/:id/goals — добавить цель и пересчитать план (тот же handler, что POST /api/client/:id/goals)
+router.post('/:id/goals', agentMiddleware, clientController.addGoal.bind(clientController));
+
+// DELETE /api/pfp/clients/:id/goals/:goalId — удалить цель и пересчитать план
+router.delete('/:id/goals/:goalId', agentMiddleware, clientController.deleteGoal.bind(clientController));
+
 // GET /api/pfp/clients/:clientId/plans — список планов клиента
 router.get('/:id/plans', agentMiddleware, clientController.get.bind(clientController));
 

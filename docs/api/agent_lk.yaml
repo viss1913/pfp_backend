@@ -29,6 +29,7 @@ info:
     - **`POST /client/tax-planning/calculate`** — только расширенное налоговое планирование (имущественный вычет, %% ипотеки, соцвычет до 150k, дети); **без** массива `goals`. Требуется JWT агента (как у `first-run`).
     Полные схемы тел: **`openapi/pfp-api.yaml`** (`CalculationRequest`, `TaxPlanningRequest`). В этой спеке — тег **«Расчёт ПФП и налоги»**.
     Для карточки клиента кредиты передаются как `liabilities` (основной контракт) либо как алиас `credits` (`type`, `balance`, `monthlyPayment`, `rate`) с серверным маппингом в `liabilities`.
+    **Цели из ЛК агента:** `POST /pfp/clients/{clientId}/goals` и `DELETE /pfp/clients/{clientId}/goals/{goalId}` — те же `addGoal` / `deleteGoal`, что `POST|DELETE /client/{id}/goals…` (JWT, роли agent/admin/super_admin). Тело цели и ответ пересчёта — `openapi/goal_management.yaml`.
 
     **ЛК клиента (B2C), сохранённый план:** пути **`POST /my/plan/first-run`**, **`POST /my/plan/{goalId}/recalculate`** и схемы — в **`docs/api/b2c_lk.yaml`** / **`openapi/pfpB2C.yaml`**. При пересчёте одной цели с ручным риском в корне тела передают **`risk_profile`** (тройка); для портфелей с пятью срезами (напр. Финам) — ещё **`risk_profile_extended`** (те же строки, что `profile_type` в строке портфеля). Если эти поля присутствуют в запросе, бэкенд **не подменяет** их результатом риск-анкеты для этой цели.
 
@@ -1360,6 +1361,69 @@ paths:
           description: Ошибка валидации или нет ни одного блока в теле
         '403':
           description: Нет прав на редактирование этого клиента
+        '404':
+          description: Клиент не найден
+
+  /pfp/clients/{clientId}/goals:
+    post:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Добавить цель и пересчитать финплан
+      description: |
+        Алиас `POST /api/client/{id}/goals` (`clientController.addGoal`).
+        После вставки — тот же пересчёт, что `POST /client/{id}/recalculate` (smart allocation, `goals_summary`).
+        Колонки цели: `goal_type_id`, `name`, `target_amount`, `desired_monthly_income`, `term_months`, `end_date`,
+        `initial_capital`, `monthly_replenishment`, `inflation_rate`, `risk_profile`, `risk_profile_extended`; прочие ключи → `params`.
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../../openapi/recalculate_pfp.yaml#/components/schemas/GoalInput'
+      responses:
+        '200':
+          description: Цель добавлена, план пересчитан
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfp-api.yaml#/components/schemas/CalculationResponse'
+        '403':
+          description: Нет прав на клиента
+        '404':
+          description: Клиент не найден
+
+  /pfp/clients/{clientId}/goals/{goalId}:
+    delete:
+      tags: [ "Клиенты B2C в ЛК Агента" ]
+      summary: Удалить цель и пересчитать финплан
+      description: |
+        Алиас `DELETE /api/client/{id}/goals/{goalId}` (`clientController.deleteGoal`).
+        Строка цели удаляется, план пересчитывается по оставшимся (капитал цели в пул).
+      parameters:
+        - name: clientId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: goalId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Цель удалена, план пересчитан
+          content:
+            application/json:
+              schema:
+                $ref: '../../openapi/pfp-api.yaml#/components/schemas/CalculationResponse'
+        '403':
+          description: Нет прав на клиента
         '404':
           description: Клиент не найден
 

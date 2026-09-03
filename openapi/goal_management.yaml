@@ -5,6 +5,7 @@ info:
   description: |
     API для управления целями клиента: добавление и удаление.
     Каждое действие автоматически триггерит пересчет финансового плана (Smart Allocation).
+    Алиасы для ЛК агента (те же handlers): `POST /pfp/clients/{id}/goals`, `DELETE /pfp/clients/{id}/goals/{goalId}` — см. `docs/api/agent_lk.yaml`.
 
 servers:
   - url: /api
