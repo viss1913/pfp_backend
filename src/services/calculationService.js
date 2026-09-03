@@ -21,6 +21,7 @@ const {
     getPriorityForCalculation,
     compareGoalsForCalculation
 } = require('../utils/sortGoalsForCalculation');
+const { resolveCalcAgentId } = require('../utils/agentCatalogScope');
 
 const CALCULATORS = {
     1: pensionCalculator,     // PENSION
@@ -242,6 +243,7 @@ class CalculationService {
         const isFirstRun = options.isFirstRun !== false;
         const usePoolFlag = options.usePool !== false;
         const projectId = clientData.project_id || null;
+        const agentId = resolveCalcAgentId(clientData, options);
 
         let poolBalance = Number(clientData.total_liquid_capital || 0);
         const assets = clientData.assets || [];
@@ -295,7 +297,7 @@ class CalculationService {
 
         for (const key of allSettingsKeys) {
             try {
-                const s = await settingsService.getSettingByKey(key, projectId);
+                const s = await settingsService.getSettingByKey(key, projectId, agentId);
                 settings[key] = s ? s.value : null;
                 if (!s) logger.warn(`[CalculationService] Setting ${key} NOT FOUND for project ${projectId}`);
             } catch (e) {
@@ -318,7 +320,7 @@ class CalculationService {
 
         // Матрица инфляции по месяцам (ranges: [{ fromMonth, toMonthExcl, rateAnnual }]); если пусто — используем одну ставку
         let inflationMatrix = null;
-        const rawMatrix = settings.inflation_rate_matrix ?? await settingsService.getValue('inflation_rate_matrix', projectId).catch(() => null);
+        const rawMatrix = settings.inflation_rate_matrix ?? await settingsService.getValue('inflation_rate_matrix', projectId, agentId).catch(() => null);
         if (rawMatrix != null) {
             const raw = rawMatrix;
             if (typeof raw === 'object' && Array.isArray(raw.ranges) && raw.ranges.length > 0) {
@@ -332,7 +334,7 @@ class CalculationService {
                 } catch (_) { /* ignore */ }
             }
         }
-        if (inflationMatrix) logger.info(`[CalculationService] Inflation matrix loaded for project ${projectId}, ranges: ${inflationMatrix.ranges.length}`);
+        if (inflationMatrix) logger.info(`[CalculationService] Inflation matrix loaded for project ${projectId} agent ${agentId}, ranges: ${inflationMatrix.ranges.length}`);
 
         // Pre-fetch Optimization Data (Cached Settings)
         let pdsSettings = null;
@@ -361,6 +363,7 @@ class CalculationService {
 
         return {
             projectId,
+            agentId,
             agentUserId,
             poolBalance,
             sharedPoolEvents,
@@ -408,6 +411,12 @@ class CalculationService {
     async _calculateSmartAllocation(indexedGoals, context) {
         let pool = context.poolBalance || 0;
         if (pool <= 0) return;
+
+        // Смарт-аллокация задаёт капитал заново; иначе старый smart_initial_capital
+        // из params/снимка прибавляется к новой доле (капитал «раздувается»).
+        for (const { goal } of indexedGoals) {
+            goal.smart_initial_capital = 0;
+        }
 
         let tempPool = pool;
 
@@ -677,7 +686,7 @@ class CalculationService {
 
             // 1. Prepare Shared Context
             const context = await this._prepareContext(clientData, options);
-            logger.info(`[CalculationService] Context prepared. Project: ${context.projectId}`);
+            logger.info(`[CalculationService] Context prepared. Project: ${context.projectId} Agent: ${context.agentId}`);
 
             // Map previous results by goal ID for quick lookup
             const prevGoalsMap = new Map();
