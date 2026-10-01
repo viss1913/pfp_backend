@@ -18,6 +18,16 @@ const {
     replaceSberBondsPage,
     applySberReportBranding,
 } = require('./finamV2SberBranding');
+const {
+    isPsbReport,
+    applyPsbReportBranding,
+    applyPsbLifeGoalCopy,
+    replacePsbEquityPage,
+    replacePsbBondsPage,
+    replacePsbMixedPage,
+    replacePsbBrokerPage,
+    replacePsbNpfBrokerPage,
+} = require('./finamV2PsbBranding');
 const fileToDataUrlCache = new Map();
 const OPTIMIZED_ASSET_ALIASES = Object.freeze({
     'assets/avatar-ai-finam-v2.png': 'assets/avatar-ai-finam-v2.svg',
@@ -2911,7 +2921,7 @@ function buildPortfolioSummaryArticleOne(model, helpers) {
         <span class="finam-v2-portfolio__header-dot" aria-hidden="true"></span>
         <span class="finam-v2-portfolio__header-label">Финансовый план</span>
       </div>
-      <span class="finam-v2-portfolio__pill">Итоговый портфель · 1/2</span>
+      <span class="finam-v2-portfolio__pill">${isPsbReport(model) ? 'Итоговый портфель' : 'Итоговый портфель · 1/2'}</span>
     </header>
     <hr class="finam-v2-portfolio__rule" />
 
@@ -3942,6 +3952,21 @@ function applyTemplateData(html, context = {}) {
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.SBER_BONDS_SHOWCASE) {
         out = replaceSberBondsPage(out);
     }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_EQUITY) {
+        out = replacePsbEquityPage(out);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_BONDS) {
+        out = replacePsbBondsPage(out);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_MIXED) {
+        out = replacePsbMixedPage(out);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.PSB_BROKER) {
+        out = replacePsbBrokerPage(out);
+    }
+    if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.PSB_NPF_BROKER_SHOWCASE) {
+        out = replacePsbNpfBrokerPage(out);
+    }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.INFLATION) {
         out = replaceInflationPage(out, context);
     }
@@ -3955,9 +3980,10 @@ function applyTemplateData(html, context = {}) {
         out = replaceFinReserveGoalPage(out, context);
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_LIFE) {
-        out = isLifeSubscriptionLifePage(context.model?.meta?.projectId)
+        out = isLifeSubscriptionLifePage(context.model?.meta?.projectId) && !isPsbReport(context.model)
             ? replaceLifeSubscriptionGoalPage(out, context)
             : replaceLifeGoalPage(out, context);
+        if (isPsbReport(context.model)) out = applyPsbLifeGoalCopy(out, context);
     }
     if (context.pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_PENSION) {
         out = replacePensionGoalPage(out, context);
@@ -3986,6 +4012,9 @@ function applyTemplateData(html, context = {}) {
     }
     if (isSberProject(context.model?.meta?.projectId)) {
         out = applySberReportBranding(out);
+    }
+    if (isPsbReport(context.model)) {
+        out = applyPsbReportBranding(out);
     }
     return out;
 }

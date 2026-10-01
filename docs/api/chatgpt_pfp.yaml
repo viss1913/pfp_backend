@@ -1,0 +1,156 @@
+openapi: 3.0.3
+info:
+  title: PFP для ChatGPT
+  version: 0.1.0
+  description: |
+    Сначала вызови catalog. Потом задай вопросы по полю interview и только после ответов вызови plan.
+    Рекомендуй цели только из catalog.goals.
+    В ответе plan произноси только числа из presentation. Доходность, тариф, взнос и доли не выдумывай.
+    PDF отдай человеку ссылкой presentation.pdf_url.
+    Вопросы: цели, есть ли дети и годы рождения, доход и расходы в месяц, ликвидный капитал,
+    резерв на сколько месяцев, страховая сумма и срок защиты жизни, риск-профиль, дата рождения и пол.
+servers:
+  - url: https://pfp.avinfors.ru/api
+    description: Стенд. Замените на публичный адрес API, если другой.
+security:
+  - ProjectKey: []
+paths:
+  /client/mcp/catalog:
+    get:
+      operationId: listGoalCatalog
+      summary: Каталог целей и порядок вопросов
+      responses:
+        '200':
+          description: Каталог
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  interview:
+                    type: array
+                    items:
+                      type: string
+                  goals:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code:
+                          type: string
+                        name:
+                          type: string
+                        recommend_when:
+                          type: string
+                        ask:
+                          type: string
+  /client/mcp/plan:
+    post:
+      operationId: buildFinancialPlan
+      summary: Рассчитать план и получить ссылку на PDF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanRequest'
+      responses:
+        '200':
+          description: План посчитан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+        '400':
+          description: Не хватает ответов, смотри ask_next
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  ask_next:
+                    type: array
+                    items:
+                      type: string
+components:
+  securitySchemes:
+    ProjectKey:
+      type: apiKey
+      in: header
+      name: X-Project-Key
+  schemas:
+    GoalInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          enum: [reserve, life, pension, investment, purchase, passive_income, inheritance]
+        name:
+          type: string
+        target_amount:
+          type: number
+          description: Стоимость цели, рубли
+        term_years:
+          type: number
+        coverage:
+          type: number
+          description: Страховая сумма для life, рубли
+        reserve_months:
+          type: number
+          description: На сколько месяцев расходов резерв. Если не передано — 6
+        desired_monthly_income:
+          type: number
+    PlanRequest:
+      type: object
+      required: [birth_date, sex, monthly_income, monthly_expenses, liquid_capital, has_children, risk_profile, goals]
+      properties:
+        display_name:
+          type: string
+        birth_date:
+          type: string
+          description: ГГГГ-ММ-ДД
+        sex:
+          type: string
+          description: male, female, мужской или женский
+        monthly_income:
+          type: number
+          description: Доход до налога, рубли в месяц
+        monthly_expenses:
+          type: number
+          description: Текущие расходы, рубли в месяц
+        liquid_capital:
+          type: number
+          description: Ликвидный капитал, рубли. 0 если нет
+        has_children:
+          type: boolean
+        children_birth_years:
+          type: array
+          items:
+            type: integer
+        risk_profile:
+          type: string
+          description: CONSERVATIVE, BALANCED, AGGRESSIVE или по-русски
+        goals:
+          type: array
+          items:
+            $ref: '#/components/schemas/GoalInput'
+    PlanResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        client_id:
+          type: integer
+        pdf_url:
+          type: string
+          description: Ссылка, которую нужно отдать человеку. Действует 7 дней.
+        pdf_error:
+          type: string
+          nullable: true
+        presentation:
+          type: object
+          description: Единственные цифры, которые можно называть вслух.
+          additionalProperties: true

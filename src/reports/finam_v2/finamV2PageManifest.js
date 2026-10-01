@@ -84,6 +84,26 @@ const FINAM_V2_TEMPLATE_MANIFEST = Object.freeze({
         fileName: 'page-sber-bonds-v2.html',
         title: 'Облигации — витрина Сбер',
     },
+    [FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_EQUITY]: {
+        fileName: 'page-psb-showcase-v2.html',
+        title: 'Фонды акций УК ПСБ',
+    },
+    [FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_BONDS]: {
+        fileName: 'page-psb-showcase-v2.html',
+        title: 'Фонды облигаций УК ПСБ',
+    },
+    [FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_MIXED]: {
+        fileName: 'page-psb-showcase-v2.html',
+        title: 'Смешанные фонды УК ПСБ',
+    },
+    [FINAM_REPORT_V2_PAGE_TYPES.PSB_BROKER]: {
+        fileName: 'page-psb-showcase-v2.html',
+        title: 'Брокер ПСБ',
+    },
+    [FINAM_REPORT_V2_PAGE_TYPES.PSB_NPF_BROKER_SHOWCASE]: {
+        fileName: 'page-psb-showcase-v2.html',
+        title: 'НПФ ПСБ',
+    },
     [FINAM_REPORT_V2_PAGE_TYPES.INFLATION]: {
         fileName: 'page-inflation-v2.html',
         title: 'Макроконтур',

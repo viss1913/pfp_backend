@@ -4,6 +4,7 @@ const {
     FINAM_V2_TEMPLATE_MANIFEST,
 } = require('./finamV2PageManifest');
 const { resolveTailPageOrder } = require('./finamV2SberPageConfig');
+const { isPsbReport, PSB_V2_TAIL_PAGE_ORDER } = require('./finamV2PsbPageConfig');
 const { resolveLifeGoalTemplateFileName } = require('./finamV2LifePageConfig');
 const {
     loadTemplateDocument,
@@ -27,8 +28,9 @@ function defaultGoalPageType(goal) {
     return FINAM_REPORT_V2_PAGE_TYPES.GOAL_OTHER;
 }
 
-function resolveTemplateFileName(pageType, projectId, spec) {
+function resolveTemplateFileName(pageType, projectId, spec, model) {
     if (pageType === FINAM_REPORT_V2_PAGE_TYPES.GOAL_LIFE) {
+        if (isPsbReport(model)) return 'page-goal-life-v2.html';
         return resolveLifeGoalTemplateFileName(projectId);
     }
     return spec.fileName;
@@ -38,7 +40,7 @@ function loadAppliedPhysicalPages({ pageType, model, goal = null, helpers = {} }
     const spec = FINAM_V2_TEMPLATE_MANIFEST[pageType];
     if (!spec) return [];
 
-    const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec);
+    const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec, model);
 
     if (pageType === FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN) {
         const fullDoc = loadTemplateDocument(templateFileName);
@@ -58,7 +60,11 @@ function loadAppliedPhysicalPages({ pageType, model, goal = null, helpers = {} }
             goal,
             helpers,
         })
-    );
+    ).filter((html, index) => !(
+        isPsbReport(model)
+        && pageType === FINAM_REPORT_V2_PAGE_TYPES.PORTFOLIO_SUMMARY
+        && index > 0
+    ));
 }
 
 function makeTocItem({ section, index, pageStart }) {
@@ -91,7 +97,7 @@ function buildFinamV2TemplatePackage({
         }
         const spec = FINAM_V2_TEMPLATE_MANIFEST[pageType];
         if (!spec) return;
-        const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec);
+        const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec, model);
         const physicalPages = loadAppliedPhysicalPages({ pageType, model, goal, helpers });
         if (!physicalPages.length) return;
         sections.push({
@@ -113,7 +119,9 @@ function buildFinamV2TemplatePackage({
         addSection(goalPageType(goal), goal);
     }
 
-    const tailOrder = resolveTailPageOrder(model?.meta?.projectId);
+    const tailOrder = isPsbReport(model)
+        ? PSB_V2_TAIL_PAGE_ORDER
+        : resolveTailPageOrder(model?.meta?.projectId);
     for (const pageType of tailOrder) addSection(pageType);
     if (includePartnerValue) addSection(FINAM_REPORT_V2_PAGE_TYPES.PARTNER_VALUE);
 
@@ -151,7 +159,7 @@ function buildFinamV2TemplatePageHtml({
 } = {}) {
     const spec = FINAM_V2_TEMPLATE_MANIFEST[pageType];
     if (!spec) return null;
-    const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec);
+    const templateFileName = resolveTemplateFileName(pageType, model?.meta?.projectId, spec, model);
     return applyTemplateData(loadTemplateDocument(templateFileName), {
         model,
         pageType,

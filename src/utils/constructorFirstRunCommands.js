@@ -30,6 +30,30 @@ function isInvestment2FirstRunCommand(cmdKey) {
 }
 
 /**
+ * Сбор анкеты: не подмешивать chat_AI / base_brain («Ростислав», ПДС, «создай план»).
+ * Иначе Flash пишет финплан словами и игнорирует вопрос стадии. /consult и firstRun — с мозгом.
+ */
+function shouldSkipConstructorMainBrain(cmdKey) {
+    const k = normalizeConstructorCmdKey(cmdKey);
+    if (!k.startsWith('/')) return false;
+    if (k.includes('consult')) return false;
+    if (isFirstRunCalculationCommand(k)) return false;
+    const slug = k.slice(1).replace(/-/g, '_');
+    const collection = new Set([
+        'start',
+        'startpfp',
+        'sex',
+        'vozrast',
+        'gospension',
+        'gos_pension',
+        'ipk',
+        'investment2',
+        'investment_2',
+    ]);
+    return collection.has(slug) || slug.endsWith('investment2');
+}
+
+/**
  * Команды сценария, при которых вызывается calculateFirstRun.
  * /INVESTMENT2 сюда не входит: это сбор, расчёт идёт через /firstRunAIB2C.
  */
@@ -104,6 +128,7 @@ module.exports = {
     normalizeConstructorCmdKey,
     isInvestment2StageCommand,
     isInvestment2FirstRunCommand,
+    shouldSkipConstructorMainBrain,
     isFirstRunCalculationCommand,
     shouldForceInvestmentGoalOnFirstRun,
     applyInvestment2ExtractionOverride,

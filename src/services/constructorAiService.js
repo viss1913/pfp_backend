@@ -18,6 +18,7 @@ const {
     isFirstRunCalculationCommand,
     applyInvestment2ExtractionOverride,
     shouldForceInvestmentGoalOnFirstRun,
+    shouldSkipConstructorMainBrain,
 } = require('../utils/constructorFirstRunCommands');
 
 /** Полный трейс цепочки «классификатор → генератор»: `CONSTRUCTOR_AI_TRACE=0` выкл., иначе вкл. */
@@ -1261,15 +1262,24 @@ function buildConstructorGeneratorPromptParts(bot, brainSection, command, calcul
         );
     }
 
-    const base = trimText(bot?.base_brain_context);
-    const bs = trimText(brainSection);
-    const mergedMainContext = [base, bs].filter(Boolean).join('\n\n');
-    sections.push(
-        `Главный контекст:\n${
-            mergedMainContext ||
-            'Контекст не настроен в БД. Следуй сценарию стадии и отвечай нейтрально, без выдумывания фактов.'
-        }`
-    );
+    const skipMainBrain = shouldSkipConstructorMainBrain(cmdKeyNorm);
+    if (skipMainBrain) {
+        sections.push(
+            'Главный контекст на этой стадии отключён. Следуй только сценарию стадии ниже. ' +
+                'Запрещено придумывать финансовый план, взносы, капитал, ИПК, ПДС и презентацию расчёта. ' +
+                'Не задавай вопросы следующих стадий.'
+        );
+    } else {
+        const base = trimText(bot?.base_brain_context);
+        const bs = trimText(brainSection);
+        const mergedMainContext = [base, bs].filter(Boolean).join('\n\n');
+        sections.push(
+            `Главный контекст:\n${
+                mergedMainContext ||
+                'Контекст не настроен в БД. Следуй сценарию стадии и отвечай нейтрально, без выдумывания фактов.'
+            }`
+        );
+    }
 
     const style = trimText(bot?.communication_style);
     if (style) sections.push(`Стиль общения:\n${style}`);
@@ -2527,6 +2537,21 @@ class ConstructorAiService {
         };
     }
 
+    async _loadGeneratorBrainSection(bot, command, userMessage, historyMessages) {
+        if (shouldSkipConstructorMainBrain(command?.command)) {
+            console.log(`[AI Step 2] Main brain skipped for collection stage ${command?.command}`);
+            return '';
+        }
+        const brainContexts = await this._getMainBrainContextsForGenerator(bot.project_id);
+        const baseBrainSection = brainContexts.map((ctx) => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
+        return this._buildDynamicConstructorBrainSection(
+            bot.project_id,
+            userMessage,
+            historyMessages,
+            baseBrainSection
+        );
+    }
+
     /**
      * Шаг 2: Генерация ответа (Послойный промпт)
      */
@@ -2539,18 +2564,8 @@ class ConstructorAiService {
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
-        // Приоритет: chat_AI brain contexts -> fallback в legacy constructor brain contexts.
-        const brainContexts = await this._getMainBrainContextsForGenerator(bot.project_id);
-
-        const baseBrainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
-
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, GENERATOR_HISTORY_LOG_ROWS);
-        const brainSection = await this._buildDynamicConstructorBrainSection(
-            bot.project_id,
-            userMessage,
-            historyMessages,
-            baseBrainSection
-        );
+        const brainSection = await this._loadGeneratorBrainSection(bot, command, userMessage, historyMessages);
 
         const { systemContent, trailingUserCalculationJson } = buildConstructorGeneratorPromptParts(
             bot,
@@ -2634,22 +2649,12 @@ class ConstructorAiService {
         const client = await knex('constructor_clients').where('id', session.client_id).first();
         const bot = await knex('constructor_bots').where('id', client.bot_id).first();
 
-        // Приоритет: chat_AI brain contexts -> fallback в legacy constructor brain contexts.
-        const brainContexts = await this._getMainBrainContextsForGenerator(bot.project_id);
-
-        const baseBrainSection = brainContexts.map(ctx => `--- ${ctx.title} ---\n${ctx.content}`).join('\n\n');
-
         const historyLimit =
             isFirstRunCalculationCommand(cmdKeyEarly) && firstRunCalculationSucceeded(calculationResult)
                 ? FIRST_RUN_STREAM_HISTORY_LOG_ROWS
                 : GENERATOR_HISTORY_LOG_ROWS;
         const historyMessages = await this._loadTurnHistoryAsChatMessages(session.id, historyLimit);
-        const brainSection = await this._buildDynamicConstructorBrainSection(
-            bot.project_id,
-            userMessage,
-            historyMessages,
-            baseBrainSection
-        );
+        const brainSection = await this._loadGeneratorBrainSection(bot, command, userMessage, historyMessages);
 
         const { systemContent, trailingUserCalculationJson } = buildConstructorGeneratorPromptParts(
             bot,

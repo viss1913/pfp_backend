@@ -31,3 +31,4 @@ _figma_report_tmp/
 
 # Кэш PNG→WebP для PDF (reportRasterSrc)
 tmp/.report-raster-cache/
+tmp/mcp-plans/

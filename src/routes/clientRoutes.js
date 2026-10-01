@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const clientController = require('../controllers/clientController');
+const mcpPlanController = require('../controllers/mcpPlanController');
 
 // Calculator (Stateless)
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -8,6 +9,20 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const tenantMiddleware = require('../middlewares/tenantMiddleware');
 
 // Calculator (Stateless): optional Bearer JWT sets project from agent; else x-project-key (see tenantMiddleware)
+router.get('/mcp/pdf', mcpPlanController.pdf.bind(mcpPlanController));
+router.get(
+    '/mcp/catalog',
+    authMiddleware.optionalAuthMiddleware,
+    tenantMiddleware,
+    mcpPlanController.catalog.bind(mcpPlanController)
+);
+router.post(
+    '/mcp/plan',
+    authMiddleware.optionalAuthMiddleware,
+    tenantMiddleware,
+    mcpPlanController.plan.bind(mcpPlanController)
+);
+
 router.post(
     '/calculate',
     authMiddleware.optionalAuthMiddleware,

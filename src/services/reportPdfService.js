@@ -523,6 +523,8 @@ class ReportPdfService {
 
         if (isFinamProject) {
             if (isFinamReportV2) {
+                const projectRow = projectId ? await projectService.getProjectById(projectId) : null;
+                const reportBrand = parseProjectSettings(projectRow?.settings).report_brand === 'psb' ? 'psb' : null;
                 const finamV2Pkg = await buildFinamReportV2HtmlPackage({
                     report,
                     includeCover,
@@ -531,6 +533,7 @@ class ReportPdfService {
                     advisor: reportAdvisor || undefined,
                     macroData: await loadFinamInflationMacroData(),
                     projectId,
+                    reportBrand,
                 });
                 pageHtmlList.push(...finamV2Pkg.pageHtmlList);
                 toc = finamV2Pkg.toc;

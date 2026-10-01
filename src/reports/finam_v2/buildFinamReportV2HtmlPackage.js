@@ -853,7 +853,10 @@ function buildV2Model(report = {}, options = {}) {
 
     return {
         reportSchemaVersion: FINAM_REPORT_V2_SCHEMA_VERSION,
-        meta: { projectId: metaProjectId },
+        meta: {
+            projectId: metaProjectId,
+            reportBrand: options.reportBrand === 'psb' ? 'psb' : null,
+        },
         /** Полный `goals_detailed` для паритета с v1 `buildRepleneshmentRows` (подробный план, страхование жизни). */
         replenishmentReport: { goals_detailed: Array.isArray(report.goals_detailed) ? report.goals_detailed : [] },
         client: {
@@ -1403,8 +1406,9 @@ async function buildFinamReportV2HtmlPackage({
     advisor = null,
     macroData = null,
     projectId = null,
+    reportBrand = null,
 } = {}) {
-    const model = buildV2Model(report, { goalTypes, advisor, macroData, projectId });
+    const model = buildV2Model(report, { goalTypes, advisor, macroData, projectId, reportBrand });
     return buildFinamV2TemplatePackage({
         model,
         includeCover,
@@ -1526,6 +1530,11 @@ async function buildFinamReportV2PageHtml({
         [FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS]: FINAM_REPORT_V2_PAGE_TYPES.FINAM_OFFERS,
         [FINAM_REPORT_V2_PAGE_TYPES.SBER_EQUITIES_SHOWCASE]: FINAM_REPORT_V2_PAGE_TYPES.SBER_EQUITIES_SHOWCASE,
         [FINAM_REPORT_V2_PAGE_TYPES.SBER_BONDS_SHOWCASE]: FINAM_REPORT_V2_PAGE_TYPES.SBER_BONDS_SHOWCASE,
+        [FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_EQUITY]: FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_EQUITY,
+        [FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_BONDS]: FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_BONDS,
+        [FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_MIXED]: FINAM_REPORT_V2_PAGE_TYPES.PSB_FUNDS_MIXED,
+        [FINAM_REPORT_V2_PAGE_TYPES.PSB_BROKER]: FINAM_REPORT_V2_PAGE_TYPES.PSB_BROKER,
+        [FINAM_REPORT_V2_PAGE_TYPES.PSB_NPF_BROKER_SHOWCASE]: FINAM_REPORT_V2_PAGE_TYPES.PSB_NPF_BROKER_SHOWCASE,
         [FINAM_REPORT_V2_PAGE_TYPES.INFLATION]: FINAM_REPORT_V2_PAGE_TYPES.INFLATION,
         [FINAM_REPORT_V2_PAGE_TYPES.ROADMAP]: FINAM_REPORT_V2_PAGE_TYPES.ROADMAP,
         [FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN]: FINAM_REPORT_V2_PAGE_TYPES.DETAILED_PLAN,

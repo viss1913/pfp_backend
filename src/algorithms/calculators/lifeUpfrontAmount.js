@@ -14,6 +14,115 @@ const { buildSberPodushkaNsjResult } = require('./sberPodushkaActuarial');
 const SBER_LIFE_TARIFF = 0.0144;
 
 /**
+ * Годовой взнос НСЖ: лимит дожития / делитель из карточки продукта (для ПСБ это 15).
+ * @param {number} limitAmount
+ * @param {number} divisor
+ * @returns {number|null}
+ */
+function premiumFromSurvivalLimit(limitAmount, divisor) {
+    const limit = Number(limitAmount);
+    const div = Number(divisor);
+    if (!Number.isFinite(limit) || limit <= 0 || !Number.isFinite(div) || div <= 0) return null;
+    return Math.round((limit / div) * 100) / 100;
+}
+
+function parseProductLines(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+            return [];
+        }
+    }
+    return [];
+}
+
+/**
+ * Строка тарифа «Добра наживешь»: term_years 5–25.
+ * Пустой срок — 20 лет. Короче 5 и длиннее 25 прижимаются к границе таблицы.
+ */
+function pickTermTariffLine(lines, termMonths) {
+    const table = parseProductLines(lines).filter((line) => Number(line && line.term_years) > 0 && line.premium_tariff != null);
+    if (!table.length) return null;
+    const months = Number(termMonths);
+    let years = Number.isFinite(months) && months > 0 ? Math.round(months / 12) : 20;
+    if (years < 5) years = 5;
+    if (years > 25) years = 25;
+    const line = table.find((row) => Number(row.term_years) === years) || table.find((row) => Number(row.term_years) === 20);
+    return line ? { line, years: Number(line.term_years) } : null;
+}
+
+function isSingleLifePayment(paymentVariant) {
+    return paymentVariant === 0 || paymentVariant === '0' || paymentVariant === 'once' || paymentVariant === 'single';
+}
+
+/**
+ * Проектный НСЖ. Сначала тариф по сроку (premium_tariff), иначе старый premium_divisor.
+ * Нет такого продукта — null, дальше старая ветка.
+ */
+async function catalogNsjResult(projectId, targetAmount, termMonths, paymentVariant) {
+    if (projectId == null) return null;
+    const db = require('../../config/database');
+    const rows = await db('products')
+        .where({ project_id: projectId, product_type: 'NSZH', is_active: 1 })
+        .whereNull('agent_id');
+    for (const row of rows) {
+        const lines = parseProductLines(row.lines);
+        const picked = pickTermTariffLine(lines, termMonths);
+        if (picked) {
+            const single = isSingleLifePayment(paymentVariant);
+            const tariff = Number(single ? (picked.line.single_tariff ?? picked.line.premium_tariff) : picked.line.premium_tariff);
+            const sum = Number(targetAmount);
+            if (Number.isFinite(tariff) && tariff > 0 && Number.isFinite(sum) && sum > 0) {
+                const limit = Math.round(sum);
+                return {
+                    success: true,
+                    _catalog: true,
+                    product_id: row.id,
+                    total_premium: Math.round(sum * tariff),
+                    term_years: picked.years,
+                    term_months: picked.years * 12,
+                    total_limit: limit,
+                    tariff,
+                    payment_frequency: single ? 'once' : 'annual',
+                    program: row.name,
+                    risks: [
+                        { risk_name: 'Дожитие', limit_amount: limit },
+                        { risk_name: 'Смерть ЛП' },
+                        { risk_name: 'Смерть НС' },
+                        { risk_name: 'Смерть ДТП' },
+                        { risk_name: 'Телемедицина' },
+                        { risk_name: 'Инвалидность ОУСВ' },
+                    ],
+                };
+            }
+        }
+        const divisor = lines.length ? Number(lines[0] && lines[0].premium_divisor) : NaN;
+        const annual = premiumFromSurvivalLimit(targetAmount, divisor);
+        if (annual == null) continue;
+        const termYears = Math.max(1, Math.ceil(Number(termMonths || 0) / 12) || 1);
+        const limit = Math.round(Number(targetAmount));
+        return {
+            success: true,
+            _catalog: true,
+            product_id: row.id,
+            total_premium: annual,
+            term_years: termYears,
+            term_months: termYears * 12,
+            total_limit: limit,
+            program: row.name,
+            risks: [
+                { risk_name: 'Дожитие', limit_amount: limit },
+                { risk_name: 'Уход из жизни (любая причина)', limit_amount: limit },
+            ],
+        };
+    }
+    return null;
+}
+
+/**
  * @param {Object} goal
  * @param {Object} context
  * @returns {Promise<{ nsjResult: Object, apiError: Error|null }>}
@@ -38,6 +147,11 @@ async function fetchLifeNsjResult(goal, context) {
             ? Number(context.projectId)
             : (context?.client?.project_id != null ? Number(context.client.project_id) : null);
     const agentUserId = context?.agentUserId != null ? Number(context.agentUserId) : null;
+
+    const catalogNsj = await catalogNsjResult(ctxProjectId, targetAmount, termMonths, goal.payment_variant);
+    if (catalogNsj) {
+        return { nsjResult: catalogNsj, apiError: null };
+    }
 
     if (ctxProjectId != null && isSberLifeCalcProject(ctxProjectId)) {
         const resolvedTermMonths = resolveLifeTermMonths(ctxProjectId, goal.term_months ?? termMonths);
@@ -135,5 +249,6 @@ async function getLifeFirstPaymentAmount(goal, context) {
 module.exports = {
     fetchLifeNsjResult,
     deriveLifeCostNow,
-    getLifeFirstPaymentAmount
+    getLifeFirstPaymentAmount,
+    premiumFromSurvivalLimit,
 };

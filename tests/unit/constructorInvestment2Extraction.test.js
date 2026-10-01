@@ -4,6 +4,7 @@ const {
     isFirstRunCalculationCommand,
     isInvestment2StageCommand,
     shouldForceInvestmentGoalOnFirstRun,
+    shouldSkipConstructorMainBrain,
     applyInvestment2ExtractionOverride,
 } = require('../../src/utils/constructorFirstRunCommands');
 
@@ -15,6 +16,16 @@ test('/INVESTMENT2 is collection stage, not first-run; firstRun from it forces I
     assert.equal(shouldForceInvestmentGoalOnFirstRun('/firstRunAIB2C', '/INVESTMENT2'), true);
     assert.equal(shouldForceInvestmentGoalOnFirstRun('/firstRunAIB2C', '/gosPension'), false);
     assert.equal(shouldForceInvestmentGoalOnFirstRun('/INVESTMENT2', '/INVESTMENT2'), false);
+});
+
+test('skip main brain on collection stages, keep on firstRun and consult', () => {
+    assert.equal(shouldSkipConstructorMainBrain('/sex'), true);
+    assert.equal(shouldSkipConstructorMainBrain('/gosPension'), true);
+    assert.equal(shouldSkipConstructorMainBrain('/ipk'), true);
+    assert.equal(shouldSkipConstructorMainBrain('/startpfp'), true);
+    assert.equal(shouldSkipConstructorMainBrain('/INVESTMENT2'), true);
+    assert.equal(shouldSkipConstructorMainBrain('/firstRunAIB2C'), false);
+    assert.equal(shouldSkipConstructorMainBrain('/consult'), false);
 });
 
 test('drops pension goal and IPK, keeps capital and replenishment', () => {
