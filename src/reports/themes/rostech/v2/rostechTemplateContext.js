@@ -2,6 +2,7 @@ const {
     pickPositive,
     formatCoverDateRu,
     extractPensionPlanFacts,
+    resolveCofinancingDisplayAmounts,
     calculateOwnFundsFromSchedule,
     computeInvestmentEndContext,
 } = require('../rostechPdfUtils');
@@ -217,6 +218,12 @@ function buildPensionContext({ goal, clientName, options = {} }) {
         cofinancingAmount: tax.cofinancing2026,
         cofinancingYear: tax.nextCalendarYear,
     });
+    const cofinancingDisplay = resolveCofinancingDisplayAmounts({
+        monthlySchedule: goal?.details?.monthly_schedule,
+        yearlyBreakdown: goal?.details?.yearly_breakdown,
+        benefitsYear: tax.nextCalendarYear,
+        fallbackNextYearAmount: planFacts.cofinancingAmount || tax.cofinancing2026,
+    });
     const chart = resolvePlanChartFacts(goal, s, totalCapital);
     const expectedReturnRate = resolveExpectedReturnRate(s, totalCapital, chart.ownFunds);
 
@@ -250,8 +257,9 @@ function buildPensionContext({ goal, clientName, options = {} }) {
             deficit_today: moneyRubPerMonthShort(pensionGapToday),
             deficit_inflated: moneyRubPerMonthShort(pensionGapFuture),
             goal_achieve_date: formatDateLongFromMonths(goal, s, displayRetirementYear),
-            benefits_calendar_year: String(tax.nextCalendarYear),
-            cofinancing_next_year: moneyRub(planFacts.cofinancingAmount || tax.cofinancing2026),
+            benefits_calendar_year: String(cofinancingDisplay.benefitsYear),
+            cofinancing_next_year: moneyRub(cofinancingDisplay.nextYearAmount),
+            cofinancing_max_per_year: moneyRub(cofinancingDisplay.maxPerYear),
             initial_contribution: moneyRub(planFacts.initialCapital || initial),
             monthly_contribution: moneyRubPerMonthShort(planFacts.monthlyContribution || monthly),
             monthly_contribution_pct: pctOfIncome(planFacts.monthlyContribution || monthly, currentIncomeMonthly),
@@ -295,6 +303,12 @@ function buildInvestmentContext({ goal, clientName, options = {} }) {
         cofinancingAmount: tax.cofinancing2026,
         cofinancingYear: tax.nextCalendarYear,
     });
+    const cofinancingDisplay = resolveCofinancingDisplayAmounts({
+        monthlySchedule: goal?.details?.monthly_schedule,
+        yearlyBreakdown: goal?.details?.yearly_breakdown,
+        benefitsYear: tax.nextCalendarYear,
+        fallbackNextYearAmount: planFacts.cofinancingAmount || tax.cofinancing2026,
+    });
     const chart = resolvePlanChartFacts(goal, s, totalCapitalEnd);
     const inflationRate = resolveInflationRatePercent(goal, s);
     const indexationRate = resolveIndexationRatePercent(s, options);
@@ -317,8 +331,9 @@ function buildInvestmentContext({ goal, clientName, options = {} }) {
             goal_achieve_year: `${displayEndYear} г.`,
             projected_capital_end: moneyRub(totalCapitalEnd),
             goal_achieve_date: displayEndDateLong,
-            benefits_calendar_year: String(tax.nextCalendarYear),
-            cofinancing_next_year: moneyRub(planFacts.cofinancingAmount || tax.cofinancing2026),
+            benefits_calendar_year: String(cofinancingDisplay.benefitsYear),
+            cofinancing_next_year: moneyRub(cofinancingDisplay.nextYearAmount),
+            cofinancing_max_per_year: moneyRub(cofinancingDisplay.maxPerYear),
             deduction_next_year: moneyRub(planFacts.taxDeductionAmount || tax.deduction2026),
             indexation_rate:
                 indexationRate == null ? '—' : percentRu(indexationRate, indexationRate % 1 === 0 ? 0 : 1),
