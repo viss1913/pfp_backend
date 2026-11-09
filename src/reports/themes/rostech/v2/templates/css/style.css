@@ -51,6 +51,8 @@ html, body {
 
 .page__body {
   padding: 30px;
+  /* место под абсолютный footer с дисклеймерами, чтобы контент их не перекрывал */
+  padding-bottom: 72px;
 }
 
 /* ---------- Page header ---------- */
@@ -387,6 +389,7 @@ html, body {
   left: 30px;
   right: 30px;
   bottom: 20px;
+  z-index: 2;
 }
 
 .page-footer__notes {

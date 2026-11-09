@@ -32,19 +32,19 @@
         <div style="border:1px solid var(--color-accent); border-radius:8px; padding:14px 20px; margin-bottom:12px;">
           <ul class="bullet-list bullet-list--columns" style="margin-bottom:10px;">
             <li style="--dot-color:var(--color-accent);">Банковские депозиты</li>
-            <li style="--dot-color:var(--color-gray);">ОФЗ</li>
-            <li style="--dot-color:#4a1338;">Корпоративные облигации</li>
-            <li style="--dot-color:var(--color-gray);">Муниципальные облигации</li>
-            <li style="--dot-color:var(--color-black);">Акции</li>
+            <li style="--dot-color:var(--color-accent);">ОФЗ</li>
+            <li style="--dot-color:var(--color-accent);">Корпоративные облигации</li>
+            <li style="--dot-color:var(--color-accent);">Муниципальные облигации</li>
+            <li style="--dot-color:var(--color-accent);">Акции</li>
           </ul>
-          <p style="margin:0; font-weight:700; font-size:13px;">Прогнозируемый доход {{expected_return_rate}}% в год на весь период накопления</p>
+          <p style="margin:0; font-weight:700; font-size:13px;">Прогнозируемый доход {{expected_return_rate}}% в год на весь период накопления*</p>
         </div>
 
-        <img class="message__photo" style="height:130px;" src="assets/photo-fistsup.png" alt="">
+        <img class="message__photo" style="height:110px;" src="assets/photo-fistsup.png" alt="">
       </div>
     </div>
 
-    <div class="highlight-box">Дополнительный ежемесячный доход = {{deficit_inflated}}*</div>
+    <div class="highlight-box">Дополнительный ежемесячный доход = {{deficit_inflated}}**</div>
     <p class="body-text">С учетом заложенной инфляции {{inflation_rate}}% в год, это эквивалентно {{deficit_today}} сегодня.</p>
 
     <div class="data-table">
@@ -66,12 +66,12 @@
     </div>
 
     <div class="btn-primary-wrap">
-      <button class="btn-primary">Начать</button>
+      <button class="btn-primary">Заключить договор</button>
     </div>
   </div>
 
   <footer class="page-footer">
-    <p class="page-footer__notes">* Размер дополнительного ежемесячного дохода рассчитан по правилам назначения пожизненной выплаты.</p>
+    <p class="page-footer__notes">* Прогнозируемая доходность носит ориентировочный характер и не является гарантией доходности в будущем.<br>** Размер дополнительного ежемесячного дохода рассчитан по правилам назначения пожизненной выплаты.<br>Финансовый план не является коммерческим предложением или договором, носит исключительно информационный характер.</p>
     <img class="logo logo--footer" src="assets/logo.svg" alt="Ростех НПФ">
     <span class="page-footer__page-num">{{page_number}}</span>
   </footer>
