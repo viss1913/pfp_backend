@@ -66,72 +66,6 @@ function calculateAugNextYearEffectivenessPercent(monthlySchedule) {
     };
 }
 
-function toFiniteNumber(value) {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : 0;
-}
-
-function sumCofinancingByCalendarYear(monthlySchedule) {
-    const byYear = new Map();
-    if (!Array.isArray(monthlySchedule)) return byYear;
-    for (const row of monthlySchedule) {
-        if (!row || !row.date) continue;
-        const amount = toFiniteNumber(row.cofinancing);
-        if (amount <= 0) continue;
-        const year = new Date(`${row.date}T00:00:00Z`).getUTCFullYear();
-        if (!Number.isFinite(year)) continue;
-        byYear.set(year, (byYear.get(year) || 0) + amount);
-    }
-    return byYear;
-}
-
-function sumCofinancingFromYearlyBreakdown(yearlyBreakdown) {
-    const byYear = new Map();
-    if (!Array.isArray(yearlyBreakdown)) return byYear;
-    for (const row of yearlyBreakdown) {
-        if (!row) continue;
-        const year = Number(row.year);
-        const amount = toFiniteNumber(row.cofinancing_for_year ?? row.cofinancing_paid_in_year);
-        if (!Number.isFinite(year) || amount <= 0) continue;
-        byYear.set(year, (byYear.get(year) || 0) + amount);
-    }
-    return byYear;
-}
-
-/**
- * Для PDF:
- * - nextYearAmount — фактическая выплата в benefitsYear (обычно следующий календарный год);
- * - maxPerYear — max(benefitsYear, benefitsYear+1), чтобы «до …/год» не занижалось
- *   из‑за неполного первого года взносов.
- */
-function resolveCofinancingDisplayAmounts({
-    monthlySchedule,
-    yearlyBreakdown,
-    benefitsYear,
-    fallbackNextYearAmount = 0,
-} = {}) {
-    const targetYear = Number(benefitsYear);
-    const safeBenefitsYear = Number.isFinite(targetYear) && targetYear > 0 ? targetYear : new Date().getFullYear() + 1;
-    const byYear = sumCofinancingByCalendarYear(monthlySchedule);
-    if (!byYear.size) {
-        for (const [year, amount] of sumCofinancingFromYearlyBreakdown(yearlyBreakdown)) {
-            byYear.set(year, amount);
-        }
-    }
-
-    const fallback = Math.max(toFiniteNumber(fallbackNextYearAmount), 0);
-    const nextYearAmount = Math.max(byYear.get(safeBenefitsYear) || 0, 0) || fallback;
-    const followingYearAmount = Math.max(byYear.get(safeBenefitsYear + 1) || 0, 0);
-    const maxPerYear = Math.max(nextYearAmount, followingYearAmount, fallback);
-
-    return {
-        benefitsYear: safeBenefitsYear,
-        nextYearAmount,
-        followingYearAmount,
-        maxPerYear,
-    };
-}
-
 function extractPensionPlanFacts(monthlySchedule, fallback = {}) {
     const schedule = Array.isArray(monthlySchedule)
         ? monthlySchedule
@@ -139,7 +73,10 @@ function extractPensionPlanFacts(monthlySchedule, fallback = {}) {
               .slice()
               .sort((a, b) => new Date(a.date) - new Date(b.date))
         : [];
-    const toNum = toFiniteNumber;
+    const toNum = (value) => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    };
 
     const first = schedule[0] || null;
     let initialFromSchedule = NaN;
