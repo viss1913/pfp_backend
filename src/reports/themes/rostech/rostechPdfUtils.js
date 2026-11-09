@@ -166,7 +166,6 @@ module.exports = {
     isScheduleInitialLumpRow,
     calculateAugNextYearEffectivenessPercent,
     extractPensionPlanFacts,
-    resolveCofinancingDisplayAmounts,
     calculateOwnFundsFromSchedule,
     computeInvestmentEndContext,
 };
