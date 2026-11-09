@@ -251,10 +251,10 @@ function buildRostechPensionOnlyToc({ hasCover, goal }) {
     const schedulePageCount = estimateScheduleChunks(goal);
     const toc = [
         { id: 'financial_plan_intro', title: 'Ваш финансовый план', order: 1, page_start: page++, page_count: 1 },
-        { id: 'state_pension_forecast', title: 'Прогноз Госпенсии', order: 2, page_start: page++, page_count: 1 },
+        { id: 'state_pension_forecast', title: 'Прогноз страховой пенсии', order: 2, page_start: page++, page_count: 1 },
         { id: 'proposed_plan', title: 'Предлагаемый план', order: 3, page_start: page++, page_count: 1 },
         { id: 'portfolio_structure', title: 'Структура портфеля НПФ', order: 4, page_start: page++, page_count: 1 },
-        { id: 'state_pension_methodology', title: 'Методика расчета Госпенсии', order: 5, page_start: page++, page_count: 2 },
+        { id: 'state_pension_methodology', title: 'Методика расчета страховой пенсии', order: 5, page_start: page++, page_count: 2 },
         { id: 'inflation_info', title: 'Важная информация. Инфляция', order: 6, page_start: page + 2, page_count: 1 },
         { id: 'risk_declaration', title: 'Декларация о рисках', order: 7, page_start: page + 3, page_count: 5 },
         {

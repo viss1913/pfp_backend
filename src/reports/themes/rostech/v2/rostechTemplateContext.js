@@ -24,6 +24,23 @@ function percentRu(value, digits = 1) {
     return n.toLocaleString('ru-RU', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+function yearsWordRu(value) {
+    const n = Math.abs(Math.round(Number(value)));
+    if (!Number.isFinite(n)) return 'лет';
+    const mod100 = n % 100;
+    const mod10 = n % 10;
+    if (mod100 >= 11 && mod100 <= 14) return 'лет';
+    if (mod10 === 1) return 'год';
+    if (mod10 >= 2 && mod10 <= 4) return 'года';
+    return 'лет';
+}
+
+function formatYearsRu(value) {
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n) || n <= 0) return '—';
+    return `${n} ${yearsWordRu(n)}`;
+}
+
 function pctOfIncome(monthly, income) {
     const m = Number(monthly);
     const i = Number(income);
@@ -31,17 +48,21 @@ function pctOfIncome(monthly, income) {
     return percentRu((m / i) * 100, 1);
 }
 
-function barHeightPx(value, maxValue, minPx = 20, maxPx = 130) {
+/** При нуле — узкая полоска 4px; иначе не ниже minPx. */
+function barHeightPx(value, maxValue, minPx = 20, maxPx = 130, zeroPx = 4) {
     const v = Number(value);
     const max = Number(maxValue);
-    if (!Number.isFinite(v) || !Number.isFinite(max) || max <= 0) return minPx;
+    if (!Number.isFinite(v) || v <= 0) return zeroPx;
+    if (!Number.isFinite(max) || max <= 0) return minPx;
     return Math.max(minPx, Math.round((v / max) * maxPx));
 }
 
-function barHeightPercent(value, maxValue, minPct = 12, maxPct = 97) {
+/** При нуле — ~4px на треке ~65px (~6%); иначе не ниже minPct. */
+function barHeightPercent(value, maxValue, minPct = 12, maxPct = 97, zeroPct = 6) {
     const v = Number(value);
     const max = Number(maxValue);
-    if (!Number.isFinite(v) || !Number.isFinite(max) || max <= 0) return minPct;
+    if (!Number.isFinite(v) || v <= 0) return zeroPct;
+    if (!Number.isFinite(max) || max <= 0) return minPct;
     return Math.max(minPct, Math.round((v / max) * maxPct));
 }
 
@@ -132,7 +153,7 @@ function resolveInflationRatePercent(goal, s) {
 }
 
 function resolveIndexationRatePercent(s, options = {}) {
-    // «Индексировать пополнения на X%» — investment_expense_growth_annual из админки (через расчёт / overall_plan).
+    // «Увеличивать сберегательные взносы на X%» — investment_expense_growth_annual из админки (через расчёт / overall_plan).
     const candidates = [
         options?.overallPlan?.investment_expense_growth_annual_percent,
         options?.overallPlan?.summary?.investment_expense_growth_annual_percent,
@@ -145,10 +166,18 @@ function resolveIndexationRatePercent(s, options = {}) {
     return null;
 }
 
+function resolveCoverTitle(coverTitle) {
+    const raw = String(coverTitle || '').trim();
+    if (!raw) return 'Финансовый план';
+    // Старый дефолт из ЛК/БД — всегда мигрируем на новое название.
+    if (/^персональное\s+финансовое\s+решение$/i.test(raw)) return 'Финансовый план';
+    return raw;
+}
+
 function buildCoverContext({ coverTitle, dateLine } = {}) {
     return {
-        cover_title: coverTitle || 'Персональное финансовое решение',
-        report_date: (dateLine || formatCoverDateRu()).replace(' г.', 'г.'),
+        cover_title: resolveCoverTitle(coverTitle),
+        report_date: dateLine || formatCoverDateRu(),
     };
 }
 
@@ -210,7 +239,7 @@ function buildPensionContext({ goal, clientName, options = {} }) {
         data: {
             client_name: resolveClientFirstName(clientName),
             client_income_monthly: moneyRub(currentIncomeMonthly),
-            state_pension_age: Number.isFinite(retirementAge) && retirementAge > 0 ? `${retirementAge} лет` : '—',
+            state_pension_age: formatYearsRu(retirementAge),
             state_pension_year: String(displayRetirementYear),
             target_pension_monthly: moneyRubPerMonthShort(targetPresent),
             target_pension_monthly_inflated: moneyRubPerMonthShort(targetFuture),
@@ -221,6 +250,7 @@ function buildPensionContext({ goal, clientName, options = {} }) {
             deficit_today: moneyRubPerMonthShort(pensionGapToday),
             deficit_inflated: moneyRubPerMonthShort(pensionGapFuture),
             goal_achieve_date: formatDateLongFromMonths(goal, s, displayRetirementYear),
+            benefits_calendar_year: String(tax.nextCalendarYear),
             cofinancing_next_year: moneyRub(planFacts.cofinancingAmount || tax.cofinancing2026),
             initial_contribution: moneyRub(planFacts.initialCapital || initial),
             monthly_contribution: moneyRubPerMonthShort(planFacts.monthlyContribution || monthly),
@@ -273,7 +303,7 @@ function buildInvestmentContext({ goal, clientName, options = {} }) {
     const clientAge = Number(options?.clientAge ?? goal?.client?.age ?? NaN);
     const achieveAge =
         Number.isFinite(clientAge) && targetMonths > 0
-            ? `${Math.round(clientAge + targetMonths / 12)} лет`
+            ? formatYearsRu(Math.round(clientAge + targetMonths / 12))
             : '—';
 
     return {
@@ -287,6 +317,7 @@ function buildInvestmentContext({ goal, clientName, options = {} }) {
             goal_achieve_year: `${displayEndYear} г.`,
             projected_capital_end: moneyRub(totalCapitalEnd),
             goal_achieve_date: displayEndDateLong,
+            benefits_calendar_year: String(tax.nextCalendarYear),
             cofinancing_next_year: moneyRub(planFacts.cofinancingAmount || tax.cofinancing2026),
             deduction_next_year: moneyRub(planFacts.taxDeductionAmount || tax.deduction2026),
             indexation_rate:

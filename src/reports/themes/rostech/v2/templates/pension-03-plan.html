@@ -4,6 +4,7 @@
   Плейсхолдеры:
     {{deficit_today}}            -> 63 883 ₽/мес.
     {{goal_achieve_date}}        -> 20 марта 2051 г.
+    {{benefits_calendar_year}}   -> 2027
     {{deficit_inflated}}         -> 249 446 ₽/мес.
     {{inflation_rate}}           -> 5,6
     {{cofinancing_next_year}}    -> 36 000 ₽                (софинансирование государства, до 10 лет)
@@ -44,33 +45,33 @@
     <div class="message message--bordered" style="margin-bottom:8px;">
       <img class="message__avatar" src="assets/avatar.png" alt="">
       <div class="message__body">
-        <p>Итак, я добавил в план создание дополнительного ежемесячного дохода - {{deficit_today}} в сегодняшних деньгах</p>
+        <p>Итак, я добавил в план создание дополнительного ежемесячного дохода {{deficit_today}} в сегодняшних деньгах</p>
         <div class="message__inline">
           <img class="message__thumb" src="assets/photo-piggybank.png" alt="">
           <div>
             <p>Дата достижения — {{goal_achieve_date}}</p>
-            <p>Дополнительный ежемесячный доход с учетом инфляции ({{inflation_rate}}%) - {{deficit_inflated}}</p>
+            <p>Дополнительный ежемесячный доход с учетом инфляции ({{inflation_rate}}%) {{deficit_inflated}}</p>
           </div>
         </div>
       </div>
     </div>
 
     <h2 class="section-title">Предлагаемый план:</h2>
-    <p class="body-text" style="margin-bottom:6px;">1. Заключить договор долгосрочных сбережений (ДДС) в АО «НПФ «Ростех».</p>
+    <p class="body-text" style="margin-bottom:6px;">1. Заключить договор долгосрочных сбережений (ДДС) с АО «НПФ «Ростех».</p>
     <p class="body-text" style="margin-bottom:2px;">Плюсы:</p>
     <ul class="bullet-list" style="margin-bottom:6px;">
-      <li>Государство будет добавлять до {{cofinancing_next_year}}/год в течение 10 лет, с момента внесения первого взноса по ДДС.</li>
+      <li>Государство будет софинансировать до {{cofinancing_next_year}}/год в течение 10 лет с момента внесения первого взноса по ДДС.</li>
       <li>Налоговые вычеты (до 22% в год со взносов в пределах 400 000 ₽).</li>
       <li>Капитал застрахован (до 2.8 млн ₽).</li>
     </ul>
 
     <p class="body-text" style="margin-bottom:2px;">2. Дальнейшие шаги:*</p>
     <ul class="bullet-list" style="margin-bottom:6px;">
-      <li>Внести первоначальную сумму - {{initial_contribution}}.</li>
-      <li>В следующие месяцы пополнять по {{monthly_contribution}}.** ({{monthly_contribution_pct}} % от Вашего ежемесячного дохода до вычета НДФЛ).</li>
-      <li>Получить {{cofinancing_next_year}} в 2027 году от государства.</li>
-      <li>В 2027 г. подать на налоговый вычет {{deduction_next_year}} (рассчитан по ставке 13% НДФЛ).</li>
-      <li>Индексировать пополнения на {{indexation_rate}}% в год, чтобы учесть влияние инфляции.***</li>
+      <li>Внести первоначальную сумму {{initial_contribution}}.</li>
+      <li>В следующие месяцы вносить сберегательные взносы по {{monthly_contribution}}.** ({{monthly_contribution_pct}}% от Вашего ежемесячного дохода до вычета НДФЛ).</li>
+      <li>Получить софинансирование {{cofinancing_next_year}} в {{benefits_calendar_year}} году от государства.</li>
+      <li>В {{benefits_calendar_year}} г. подать заявление на налоговый вычет {{deduction_next_year}} (рассчитан по ставке 13% НДФЛ).</li>
+      <li>Увеличивать сберегательные взносы на {{indexation_rate}}% в год, чтобы учесть влияние инфляции.***</li>
     </ul>
 
     <p class="body-text" style="margin-bottom:2px;">3. Как растёт пенсионный капитал?</p>

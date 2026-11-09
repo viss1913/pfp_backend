@@ -143,9 +143,14 @@ async function buildRostechOtherPagesHtml({ goal, clientName, options = {} }) {
     const totalPlanBase = Math.max(ownFundsForPlan, 1);
     const totalYieldPercent = Math.max((incomeAndBenefitsForPlan / totalPlanBase) * 100, 0);
     const maxPlanBarValue = Math.max(ownFundsForPlan, incomeAndBenefitsForPlan, totalCapitalEnd, 1);
-    const ownFundsBarHeight = Math.max(20, Math.round((ownFundsForPlan / maxPlanBarValue) * 88));
-    const incomeBarHeight = Math.max(20, Math.round((incomeAndBenefitsForPlan / maxPlanBarValue) * 88));
-    const totalBarHeight = Math.max(20, Math.round((totalCapitalEnd / maxPlanBarValue) * 88));
+    const ownFundsBarHeight =
+        ownFundsForPlan > 0 ? Math.max(20, Math.round((ownFundsForPlan / maxPlanBarValue) * 88)) : 4;
+    const incomeBarHeight =
+        incomeAndBenefitsForPlan > 0
+            ? Math.max(20, Math.round((incomeAndBenefitsForPlan / maxPlanBarValue) * 88))
+            : 4;
+    const totalBarHeight =
+        totalCapitalEnd > 0 ? Math.max(20, Math.round((totalCapitalEnd / maxPlanBarValue) * 88)) : 4;
     const yearlyEffectiveness = calculateAugNextYearEffectivenessPercent(goal?.details?.monthly_schedule);
     const highlightedYieldPercent = Number.isFinite(yearlyEffectiveness.percent)
         ? yearlyEffectiveness.percent
@@ -155,8 +160,8 @@ async function buildRostechOtherPagesHtml({ goal, clientName, options = {} }) {
         : new Date().getFullYear();
 
     const chartMax = Math.max(targetPresent, targetFuture, 1);
-    const chartLeftH = Math.max(18, Math.round((targetPresent / chartMax) * 104));
-    const chartRightH = Math.max(18, Math.round((targetFuture / chartMax) * 104));
+    const chartLeftH = targetPresent > 0 ? Math.max(18, Math.round((targetPresent / chartMax) * 104)) : 4;
+    const chartRightH = targetFuture > 0 ? Math.max(18, Math.round((targetFuture / chartMax) * 104)) : 4;
     const inflText =
         Number.isFinite(inflationRate) && inflationRate > 0
             ? `${inflationRate.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
@@ -248,15 +253,15 @@ async function buildRostechOtherPagesHtml({ goal, clientName, options = {} }) {
                 <br/>
                 ${esc(brand.pdsContractStep)}<br/>
                 Плюсы:<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет добавлять до 36 000 руб./год в течение 10 лет.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет софинансировать до 36 000 руб./год в течение 10 лет с момента внесения первого взноса по ДДС.<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Налоговые вычеты (до 22% в год со взносов в пределах 400 000 руб.).<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Капитал застрахован (до 2,8 млн руб.).<br/>
                 <br/>
                 2. Дальнейшие шаги:<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал - ${esc(money(initial))}.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• В следующие месяцы пополнять по ${esc(money(monthly))}.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Получить ${esc(money(planFacts.cofinancingAmount))} в ${planFacts.cofinancingYear || nextCalendarYear} году от государства.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• В ${planFacts.taxDeductionYear || nextCalendarYear} г. подать на налоговый вычет ${esc(moneyWithPrecision(planFacts.taxDeductionAmount, 2))} (рассчитан по ставке 13% НДФЛ).<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал ${esc(money(initial))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В следующие месяцы вносить сберегательные взносы по ${esc(money(monthly))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Получить софинансирование ${esc(money(planFacts.cofinancingAmount))} в ${planFacts.cofinancingYear || nextCalendarYear} году от государства.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В ${planFacts.taxDeductionYear || nextCalendarYear} г. подать заявление на налоговый вычет ${esc(moneyWithPrecision(planFacts.taxDeductionAmount, 2))} (рассчитан по ставке 13% НДФЛ).<br/>
                 <span style="color:#722257;font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;• Прогнозируемая доходность с учетом софинансирования, налогового вычета, доходности от инвестиций за ${highlightedYieldYear} год - ${esc(highlightedYieldPercent.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}% годовых.</span><br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Актуализировать финансовый план через 6 мес.<br/>
                 <br/>

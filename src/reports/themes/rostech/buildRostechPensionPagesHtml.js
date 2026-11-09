@@ -241,7 +241,7 @@ function buildShell({
     logoSrc,
     bgSrc,
     useBackground = false,
-    footerText = 'НПФ Ростех • Госпенсия',
+    footerText = 'НПФ Ростех • Страховая пенсия',
     footerLogoSrc = '',
     pagePaddingTop = 30,
     showTop = true,
@@ -390,7 +390,7 @@ function buildRostechStandardTailHtmlPages({
     cardImg,
     footerText,
 }) {
-    const resolvedFooterText = footerText || brand?.footerPension || 'НПФ Ростех • Госпенсия';
+    const resolvedFooterText = footerText || brand?.footerPension || 'НПФ Ростех • Страховая пенсия';
     const inflationRiskIntro =
         brand?.inflationRiskIntro ||
         'План объединяет решения в контурах НПФ «Ренессанс Накопления», инвестиционной платформы «Финам» и страховых продуктов «СК Ренессанс Жизнь». Во всех контурах используется прогноз инфляции, но фактическая динамика цен может отличаться от сценария. Это создает следующие риски:';
@@ -446,7 +446,7 @@ function buildRostechStandardTailHtmlPages({
                       <path d="M421 100L458 118" stroke="#21282B" stroke-width="1.5" fill="none" stroke-dasharray="3 3"/>
                     </svg>
                     <div style="position:absolute;bottom:0;left:27px;display:flex;gap:6px;align-items:center;">
-                      ${['2016г.','2017г.','2018г.','июл.21','сен.21','нояб.21','янв.22','мар.22','май 22','июл.22','сен.22','нояб.22','янв.23','мар.23','май 23','июл.23','сен.23','нояб.23','янв.24','мар.24','май 24','июл.24','2025г.','2030г.','2035г.'].map((x)=>`<span style="font-size:8px;line-height:13px;color:#212121;white-space:nowrap;writing-mode:vertical-rl;transform:rotate(180deg);text-align:right;width:13px;">${x}</span>`).join('')}
+                      ${['2016 г.','2017 г.','2018 г.','июл.21','сен.21','нояб.21','янв.22','мар.22','май 22','июл.22','сен.22','нояб.22','янв.23','мар.23','май 23','июл.23','сен.23','нояб.23','янв.24','мар.24','май 24','июл.24','2025 г.','2030 г.','2035 г.'].map((x)=>`<span style="font-size:8px;line-height:13px;color:#212121;white-space:nowrap;writing-mode:vertical-rl;transform:rotate(180deg);text-align:right;width:13px;">${x}</span>`).join('')}
                     </div>
                   </div>
                 </div>

@@ -147,7 +147,7 @@ const COVER_LAYOUT = {
 
 /** Дефолты, если у агента нет записи в БД */
 const GLOBAL_DEFAULTS = {
-    coverTitle: 'персональное финансовое решение',
+    coverTitle: 'Финансовый план',
     titleBandColor: '#722257',
     /** относительный путь от корня репо */
     coverBackgroundPath: 'assets/reports/rostech/cover-background.webp',
@@ -296,7 +296,13 @@ async function buildReportCoverHtml(options = {}) {
             ? localFileToDataUrl(fontAbs)
             : pathToFileURL(fontAbs).href;
 
-    const title = escapeHtml(opts.coverTitle);
+    const resolvedCoverTitle = (() => {
+        const raw = String(opts.coverTitle || '').trim();
+        if (!raw) return GLOBAL_DEFAULTS.coverTitle;
+        if (/^персональное\s+финансовое\s+решение$/i.test(raw)) return GLOBAL_DEFAULTS.coverTitle;
+        return raw;
+    })();
+    const title = escapeHtml(resolvedCoverTitle);
     const dateLine = escapeHtml(opts.dateLine);
     const bandColor = opts.titleBandColor;
     const S = COVER_RENDER_SPEC;

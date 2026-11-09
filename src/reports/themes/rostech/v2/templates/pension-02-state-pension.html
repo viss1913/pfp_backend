@@ -31,14 +31,14 @@
         <p><strong>Достойная пенсия</strong></p>
         <div class="message__inline">
           <img class="message__thumb" src="assets/photo-calculator.png" alt="">
-          <p style="margin:0;">{{client_name}}, Ваша будущая Достойная пенсия будет складываться из 2-х частей: Государственная пенсия и дополнительный доход, который мы с Вами планируем создать.</p>
+          <p style="margin:0;">{{client_name}}, Ваша будущая Достойная пенсия будет складываться из 2-х частей: Страховая пенсия и дополнительный доход, который мы с Вами планируем создать.</p>
         </div>
-        <p>Давайте начнем с прогноза государственной пенсии.</p>
+        <p>Давайте начнем с прогноза страховой пенсии.</p>
       </div>
     </div>
 
-    <h2 class="section-title">Прогноз государственной пенсии</h2>
-    <p class="body-text">С учетом Вашего возраста и зарплаты, по моему прогнозу Вы будете получать {{state_pension_today}} (в сегодняшних деньгах), а с учетом инфляции эта сумма составит в {{state_pension_year}} году - {{state_pension_inflated}}.</p>
+    <h2 class="section-title">Прогноз страховой пенсии</h2>
+    <p class="body-text">С учетом Вашего возраста и зарплаты, по моему прогнозу Вы будете получать {{state_pension_today}} (в сегодняшних деньгах), а с учетом инфляции эта сумма составит в {{state_pension_year}} году {{state_pension_inflated}}.</p>
 
     <div class="compare-card">
       <div class="compare-card__col">
@@ -46,22 +46,22 @@
         <div class="compare-card__bar-track">
           <div class="compare-card__bar" style="height:60px; background:var(--color-black);"></div>
         </div>
-        <div class="compare-card__caption">Прогноз государственной<br>пенсии в сегодняшних<br>деньгах</div>
+        <div class="compare-card__caption">Прогноз страховой<br>пенсии в сегодняшних<br>деньгах</div>
       </div>
       <div class="compare-card__col">
         <div class="compare-card__value">{{state_pension_inflated}}</div>
         <div class="compare-card__bar-track">
           <div class="compare-card__bar" style="height:120px; background:var(--color-accent);"></div>
         </div>
-        <div class="compare-card__caption">Прогноз государственной<br>пенсии в {{state_pension_year}} г. с учетом<br>инфляции {{inflation_rate}}%</div>
+        <div class="compare-card__caption">Прогноз страховой<br>пенсии в {{state_pension_year}} г. с учетом<br>инфляции {{inflation_rate}}%**</div>
       </div>
     </div>
 
-    <p class="body-text">Как видите, для желаемой Достойной пенсии не хватает {{deficit_today}} в сегодняшних деньгах, а с учетом инфляции нужно создать план для получения дополнительного ежемесячного дохода в размере - {{deficit_inflated}}.</p>
+    <p class="body-text">Как видите, для желаемой Достойной пенсии не хватает {{deficit_today}} в сегодняшних деньгах, а с учетом инфляции нужно создать план для получения дополнительного ежемесячного дохода в размере {{deficit_inflated}}.</p>
   </div>
 
   <footer class="page-footer">
-    <p class="page-footer__notes">* Расчет государственной пенсии носит ориентировочный характер и фактический размер будет зависеть от количества ИПК, лет стажа, стоимости ИПК к моменту выхода на пенсию.</p>
+    <p class="page-footer__notes">* Расчет страховой пенсии носит ориентировочный характер и фактический размер будет зависеть от количества ИПК, лет стажа, стоимости ИПК к моменту выхода на пенсию.<br>** Инфляция в 4% на несколько лет учитывается как базовый прогнозный ориентир для планирования индексации выплат и сохранения их реальной покупательной способности.</p>
     <img class="logo logo--footer" src="assets/logo.svg" alt="Ростех НПФ">
     <span class="page-footer__page-num">{{page_number}}</span>
   </footer>

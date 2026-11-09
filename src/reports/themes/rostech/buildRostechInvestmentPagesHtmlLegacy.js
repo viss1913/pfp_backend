@@ -140,9 +140,14 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
     const totalPlanBase = Math.max(ownFundsForPlan, 1);
     const totalYieldPercent = Math.max((incomeAndBenefitsForPlan / totalPlanBase) * 100, 0);
     const maxPlanBarValue = Math.max(ownFundsForPlan, incomeAndBenefitsForPlan, totalCapitalEnd, 1);
-    const ownFundsBarHeight = Math.max(20, Math.round((ownFundsForPlan / maxPlanBarValue) * 88));
-    const incomeBarHeight = Math.max(20, Math.round((incomeAndBenefitsForPlan / maxPlanBarValue) * 88));
-    const totalBarHeight = Math.max(20, Math.round((totalCapitalEnd / maxPlanBarValue) * 88));
+    const ownFundsBarHeight =
+        ownFundsForPlan > 0 ? Math.max(20, Math.round((ownFundsForPlan / maxPlanBarValue) * 88)) : 4;
+    const incomeBarHeight =
+        incomeAndBenefitsForPlan > 0
+            ? Math.max(20, Math.round((incomeAndBenefitsForPlan / maxPlanBarValue) * 88))
+            : 4;
+    const totalBarHeight =
+        totalCapitalEnd > 0 ? Math.max(20, Math.round((totalCapitalEnd / maxPlanBarValue) * 88)) : 4;
     const yearlyEffectiveness = calculateAugNextYearEffectivenessPercent(goal?.details?.monthly_schedule);
     const highlightedYieldPercent = Number.isFinite(yearlyEffectiveness.percent)
         ? yearlyEffectiveness.percent
@@ -152,8 +157,9 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
         : new Date().getFullYear();
 
     const chartMaxIntro = Math.max(initial, totalCapitalEnd, 1);
-    const introLeftH = Math.max(20, Math.round((initial / chartMaxIntro) * 104));
-    const introRightH = Math.max(20, Math.round((totalCapitalEnd / chartMaxIntro) * 104));
+    const introLeftH = initial > 0 ? Math.max(20, Math.round((initial / chartMaxIntro) * 104)) : 4;
+    const introRightH =
+        totalCapitalEnd > 0 ? Math.max(20, Math.round((totalCapitalEnd / chartMaxIntro) * 104)) : 4;
 
     const deductionLine =
         Number.isFinite(deduction2026) && deduction2026 > 0
@@ -225,7 +231,7 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                 <img src="${esc(rostechAvatar59Src || cardImg)}" alt="" style="width:56px;height:64px;object-fit:cover;border-radius:10px;flex-shrink:0;" />
                 <div style="flex:1;border:1px solid #e2e2e2;border-radius:10px;background:#fff;padding:8px 10px;">
                   <div style="font-size:12px;line-height:1.25;color:#424242;">
-                    ${esc(clientFirstName)}, для того чтобы Вы смогли накопить ${esc(money(totalCapitalEnd))}, я подготовила финансовый план.
+                    Для того чтобы Вы смогли накопить ${esc(money(totalCapitalEnd))}, я подготовил финансовый план.
                   </div>
                   <div style="display:flex;gap:10px;align-items:flex-start;margin-top:6px;">
                     <img src="${esc(investmentGoalSrc || cardImg)}" alt="" style="width:100px;height:58px;object-fit:cover;border-radius:8px;flex-shrink:0;filter:grayscale(100%);" />
@@ -240,15 +246,15 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
                 <br/>
                 ${esc(brand.pdsContractStep)}<br/>
                 Плюсы:<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет добавлять до 36 000 руб./год в течение 10 лет.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Государство будет софинансировать до 36 000 руб./год в течение 10 лет с момента внесения первого взноса по ДДС.<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Налоговые вычеты (до 22% в год со взносов в пределах 400 000 руб.).<br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Капитал застрахован (до 2,8 млн руб.).<br/>
                 <br/>
                 2. Дальнейшие шаги:<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал - ${esc(money(initial))}.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• В следующие месяцы пополнять по ${esc(money(monthly))}.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• Получить ${esc(money(planFacts.cofinancingAmount))} в ${planFacts.cofinancingYear || nextCalendarYear} году от государства.<br/>
-                &nbsp;&nbsp;&nbsp;&nbsp;• В ${planFacts.taxDeductionYear || nextCalendarYear} г. подать на налоговый вычет ${esc(moneyWithPrecision(planFacts.taxDeductionAmount, 2))} (рассчитан по ставке 13% НДФЛ).<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Внести первоначальный капитал ${esc(money(initial))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В следующие месяцы вносить сберегательные взносы по ${esc(money(monthly))}.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• Получить софинансирование ${esc(money(planFacts.cofinancingAmount))} в ${planFacts.cofinancingYear || nextCalendarYear} году от государства.<br/>
+                &nbsp;&nbsp;&nbsp;&nbsp;• В ${planFacts.taxDeductionYear || nextCalendarYear} г. подать заявление на налоговый вычет ${esc(moneyWithPrecision(planFacts.taxDeductionAmount, 2))} (рассчитан по ставке 13% НДФЛ).<br/>
                 <span style="color:#722257;font-weight:700;">&nbsp;&nbsp;&nbsp;&nbsp;• Прогнозируемая доходность с учетом софинансирования, налогового вычета, доходности от инвестиций за ${highlightedYieldYear} год - ${esc(highlightedYieldPercent.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))}% годовых.</span><br/>
                 &nbsp;&nbsp;&nbsp;&nbsp;• Актуализировать финансовый план через 6 мес.<br/>
                 <br/>
@@ -348,7 +354,7 @@ async function buildRostechInvestmentPagesHtmlLegacy({ goal, clientName, options
             `,
         }),
         buildShell({
-            title: 'Методика расчета Госпенсии',
+            title: 'Методика расчета страховой пенсии',
             subtitle: 'Фиксированная выплата + ИПК × стоимость ИПК',
             logoSrc: tenantLogoSrc,
             bgSrc,

@@ -11,11 +11,11 @@ const ROSTECH_BRANDING = Object.freeze({
     npfLegalName: 'АО «НПФ «Ростех»',
     npfShortName: 'НПФ Ростех',
     startPdsUrl: ROSTECH_PDS_URL,
-    footerPension: 'НПФ Ростех • Госпенсия',
+    footerPension: 'НПФ Ростех • Страховая пенсия',
     footerInvestment: 'НПФ Ростех • Сохранить и приумножить',
     footerMethodologyTail: 'Ренессанс Накопления • Финам • Ренессанс Жизнь',
     useRostechLogo: true,
-    pdsContractStep: '1. Заключить договор долгосрочных сбережений (ПДС) в АО «НПФ «Ростех».',
+    pdsContractStep: '1. Заключить договор долгосрочных сбережений (ПДС) с АО «НПФ «Ростех».',
     portfolioYieldNote:
         'Это позволяет снизить риски потерь при инвестировании. В 2025 году НПФ Ростех заработал своим клиентам на ДДС в среднем 19% годовых.',
     inflationRiskIntro:
