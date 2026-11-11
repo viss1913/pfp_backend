@@ -315,6 +315,7 @@ function buildInvestmentContext({ goal, clientName, options = {} }) {
             monthly_contribution: moneyRubPerMonthShort(planFacts.monthlyContribution || monthly),
             monthly_contribution_pct: pctOfIncome(planFacts.monthlyContribution || monthly, currentIncomeMonthly),
             goal_achieve_year: `${displayEndYear} г.`,
+            goal_end_year: String(displayEndYear),
             projected_capital_end: moneyRub(totalCapitalEnd),
             goal_achieve_date: displayEndDateLong,
             benefits_calendar_year: String(tax.nextCalendarYear),
